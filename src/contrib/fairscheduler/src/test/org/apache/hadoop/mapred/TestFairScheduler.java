@@ -40,6 +40,7 @@ import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.net.Node;
 
 import org.apache.hadoop.mapred.FairScheduler.JobInfo;
+import org.apache.hadoop.mapreduce.server.jobtracker.TaskTracker;
 
 public class TestFairScheduler extends TestCase {
   final static String TEST_DIR = new File(System.getProperty("test.build.data",
@@ -87,21 +88,21 @@ public class TestFairScheduler extends TestCase {
       cleanup = new TaskInProgress[2];
       // cleanup map tip.
       cleanup[0] = new TaskInProgress(jobId, jobFile, null, 
-              jobtracker, conf, this, numMapTasks);
+              jobtracker, conf, this, numMapTasks, 1);
       cleanup[0].setJobCleanupTask();
       // cleanup reduce tip.
       cleanup[1] = new TaskInProgress(jobId, jobFile, numMapTasks,
-                         numReduceTasks, jobtracker, conf, this);
+                         numReduceTasks, jobtracker, conf, this, 1);
       cleanup[1].setJobCleanupTask();
       // create two setup tips, one map and one reduce.
       setup = new TaskInProgress[2];
       // setup map tip.
       setup[0] = new TaskInProgress(jobId, jobFile, null, 
-              jobtracker, conf, this, numMapTasks + 1);
+              jobtracker, conf, this, numMapTasks + 1, 1);
       setup[0].setJobSetupTask();
       // setup reduce tip.
       setup[1] = new TaskInProgress(jobId, jobFile, numMapTasks,
-                         numReduceTasks + 1, jobtracker, conf, this);
+                         numReduceTasks + 1, jobtracker, conf, this, 1);
       setup[1].setJobSetupTask();
       // create maps
       numMapTasks = conf.getNumMapTasks();
@@ -132,7 +133,7 @@ public class TestFairScheduler extends TestCase {
         if (!tip.isRunning() && !tip.isComplete() &&
             getLocalityLevel(tip, tts) < localityLevel) {
           TaskAttemptID attemptId = getTaskAttemptID(tip);
-          Task task = new MapTask("", attemptId, 0, "", new BytesWritable(), "user") {
+          Task task = new MapTask("", attemptId, 0, "", new BytesWritable(), 1, "user") {
             @Override
             public String toString() {
               return String.format("%s on %s", getTaskID(), tts.getTrackerName());
@@ -156,7 +157,7 @@ public class TestFairScheduler extends TestCase {
           (FakeTaskInProgress) reduces[reduce];
         if (!tip.isRunning() && !tip.isComplete()) {
           TaskAttemptID attemptId = getTaskAttemptID(tip);
-          Task task = new ReduceTask("", attemptId, 0, maps.length, "user") {
+          Task task = new ReduceTask("", attemptId, 0, maps.length, 1, "user") {
             @Override
             public String toString() {
               return String.format("%s on %s", getTaskID(), tts.getTrackerName());
@@ -226,7 +227,7 @@ public class TestFairScheduler extends TestCase {
     // Constructor for map
     FakeTaskInProgress(JobID jId, int id, JobConf jobConf,
         FakeJobInProgress job, String[] inputLocations) {
-      super(jId, "", new JobClient.RawSplit(), null, jobConf, job, id);
+      super(jId, "", new JobClient.RawSplit(), null, jobConf, job, id, 1);
       this.isMap = true;
       this.fakeJob = job;
       this.inputLocations = inputLocations;
@@ -238,7 +239,7 @@ public class TestFairScheduler extends TestCase {
     // Constructor for reduce
     FakeTaskInProgress(JobID jId, int id, JobConf jobConf,
                        FakeJobInProgress job) {
-      super(jId, "", jobConf.getNumMapTasks(), id, null, jobConf, job);
+      super(jId, "", jobConf.getNumMapTasks(), id, null, jobConf, job, 1);
       this.isMap = false;
       this.fakeJob = job;
       activeTasks = new TreeMap<TaskAttemptID, String>();
@@ -249,7 +250,7 @@ public class TestFairScheduler extends TestCase {
     private void createTaskAttempt(Task task, String taskTracker) {
       activeTasks.put(task.getTaskID(), taskTracker);
       taskStatus = TaskStatus.createTaskStatus(isMap, task.getTaskID(),
-                                               0.5f, TaskStatus.State.RUNNING, "", "", "", 
+                                               0.5f, 1, TaskStatus.State.RUNNING, "", "", "", 
                                                TaskStatus.Phase.STARTING, new Counters());
       taskStatus.setStartTime(clock.getTime());
     }
@@ -318,8 +319,8 @@ public class TestFairScheduler extends TestCase {
       new ArrayList<JobInProgressListener>();
     Map<JobID, JobInProgress> jobs = new HashMap<JobID, JobInProgress>();
     
-    private Map<String, TaskTrackerStatus> trackers =
-      new HashMap<String, TaskTrackerStatus>();
+    private Map<String, TaskTracker> trackers =
+      new HashMap<String, TaskTracker>();
     private Map<String, TaskStatus> statuses = 
       new HashMap<String, TaskStatus>();
     private Map<String, FakeTaskInProgress> tips = 
@@ -335,10 +336,11 @@ public class TestFairScheduler extends TestCase {
          int id = nextTrackerId++;
          String host = "rack" + rack + ".node" + node;
          System.out.println("Creating TaskTracker tt" + id + " on " + host);
-         TaskTrackerStatus tts = new TaskTrackerStatus("tt" + id, host, 0,
+         TaskTracker tt = new TaskTracker("tt" + id);
+         tt.setStatus(new TaskTrackerStatus("tt" + id, host, 0,
              new ArrayList<TaskStatus>(), 0,
-             maxMapTasksPerTracker, maxReduceTasksPerTracker);
-         trackers.put("tt" + id, tts);
+             maxMapTasksPerTracker, maxReduceTasksPerTracker));
+         trackers.put("tt" + id, tt);
        }
      }
    }
@@ -364,7 +366,11 @@ public class TestFairScheduler extends TestCase {
 
     @Override
     public Collection<TaskTrackerStatus> taskTrackers() {
-      return trackers.values();
+      List<TaskTrackerStatus> statuses = new ArrayList<TaskTrackerStatus>();
+      for (TaskTracker tt : trackers.values()) {
+        statuses.add(tt.getStatus());
+      }
+      return statuses;
     }
 
 
@@ -410,7 +416,7 @@ public class TestFairScheduler extends TestCase {
       }
     }
     
-    public TaskTrackerStatus getTaskTracker(String trackerID) {
+    public TaskTracker getTaskTracker(String trackerID) {
       return trackers.get(trackerID);
     }
     
@@ -423,7 +429,7 @@ public class TestFairScheduler extends TestCase {
       }
       String attemptId = t.getTaskID().toString();
       TaskStatus status = tip.getTaskStatus(t.getTaskID());
-      TaskTrackerStatus trackerStatus = trackers.get(trackerName);
+      TaskTrackerStatus trackerStatus = trackers.get(trackerName).getStatus();
       tips.put(attemptId, tip);
       statuses.put(attemptId, status);
       trackerForTip.put(attemptId, trackerStatus);
@@ -440,7 +446,7 @@ public class TestFairScheduler extends TestCase {
       }
       tip.finishAttempt();
       TaskStatus status = statuses.get(attemptId);
-      trackers.get(taskTrackerName).getTaskReports().remove(status);
+      trackers.get(taskTrackerName).getStatus().getTaskReports().remove(status);
     }
 
     @Override
@@ -2598,7 +2604,7 @@ public class TestFairScheduler extends TestCase {
     scheduler.update();
   }
 
-  protected TaskTrackerStatus tracker(String taskTrackerName) {
+  protected TaskTracker tracker(String taskTrackerName) {
     return taskTrackerManager.getTaskTracker(taskTrackerName);
   }
   

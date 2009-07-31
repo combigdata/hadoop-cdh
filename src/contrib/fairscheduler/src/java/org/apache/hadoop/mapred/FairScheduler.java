@@ -34,6 +34,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.http.HttpServer;
 import org.apache.hadoop.util.ReflectionUtils;
+import org.apache.hadoop.mapreduce.server.jobtracker.TaskTracker;
 
 /**
  * A {@link TaskScheduler} that implements fair sharing.
@@ -294,7 +295,7 @@ public class FairScheduler extends TaskScheduler {
   }
   
   @Override
-  public synchronized List<Task> assignTasks(TaskTrackerStatus tracker)
+  public synchronized List<Task> assignTasks(TaskTracker tracker)
       throws IOException {
     if (!initialized) // Don't try to assign tasks if we haven't yet started up
       return null;
@@ -327,7 +328,7 @@ public class FairScheduler extends TaskScheduler {
     // Update time waited for local maps for jobs skipped on last heartbeat
     updateLocalityWaitTimes(currentTime);
     
-    TaskTrackerStatus tts = tracker;
+    TaskTrackerStatus tts = tracker.getStatus();
 
     int mapsAssigned = 0; // loop counter for map in the below while loop
     int reducesAssigned = 0; // loop counter for reduce in the below while
@@ -455,8 +456,7 @@ public class FairScheduler extends TaskScheduler {
     int cap = (type == TaskType.MAP) ? mapAssignCap : reduceAssignCap;
     if (cap == -1) // Infinite cap; use the TaskTracker's slot count
       return (type == TaskType.MAP) ?
-          (tts.getMaxMapTasks() - tts.countMapTasks()) :
-          (tts.getMaxReduceTasks() - tts.countReduceTasks());
+          tts.getAvailableMapSlots() : tts.getAvailableReduceSlots();
     else
       return cap;
   }
