@@ -1456,7 +1456,8 @@ public class JobInProgress {
    * 
    * @param taskTracker task-tracker on which a task failed
    */
-  void addTrackerTaskFailure(String trackerName, TaskTracker taskTracker) {
+  synchronized void addTrackerTaskFailure(String trackerName, 
+                                          TaskTracker taskTracker) {
     if (flakyTaskTrackers < (clusterSize * CLUSTER_BLACKLIST_PERCENT)) { 
       String trackerHostName = convertTrackerNameToHostName(trackerName);
 
@@ -1472,8 +1473,12 @@ public class JobInProgress {
         
         // Cancel reservations if appropriate
         if (taskTracker != null) {
-          taskTracker.unreserveSlots(TaskType.MAP, this);
-          taskTracker.unreserveSlots(TaskType.REDUCE, this);
+          if (trackersReservedForMaps.containsKey(taskTracker)) {
+            taskTracker.unreserveSlots(TaskType.MAP, this);
+          }
+          if (trackersReservedForReduces.containsKey(taskTracker)) {
+            taskTracker.unreserveSlots(TaskType.REDUCE, this);
+          }
         }
         LOG.info("TaskTracker at '" + trackerHostName + "' turned 'flaky'");
       }
@@ -2906,4 +2911,11 @@ public class JobInProgress {
    }
    return level;
  }
+  
+  /**
+   * Test method to set the cluster sizes
+   */
+  void setClusterSize(int clusterSize) {
+    this.clusterSize = clusterSize;
+  }
 }
