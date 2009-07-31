@@ -106,6 +106,7 @@
     <pathelement location="${hadoop.root}/build"/>
     <pathelement location="${build.examples}"/>
     <path refid="${ant.project.name}.test-classpath"/>
+    <pathelement location="${hadoop.root}/build/examples"/>
     <path refid="contrib-classpath"/>
   </path>
 
