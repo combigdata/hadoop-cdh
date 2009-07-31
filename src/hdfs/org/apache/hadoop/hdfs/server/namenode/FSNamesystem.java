@@ -31,6 +31,7 @@ import org.apache.hadoop.hdfs.server.namenode.BlocksMap.BlockInfo;
 import org.apache.hadoop.hdfs.server.namenode.metrics.FSNamesystemMBean;
 import org.apache.hadoop.hdfs.server.namenode.metrics.FSNamesystemMetrics;
 import org.apache.hadoop.security.AccessControlException;
+import org.apache.hadoop.security.PermissionChecker;
 import org.apache.hadoop.security.UnixUserGroupInformation;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.*;
@@ -504,7 +505,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
    * Dump all metadata into specified file
    */
   synchronized void metaSave(String filename) throws IOException {
-    checkSuperuserPrivilege();
+    checkAccess();
     File file = new File(System.getProperty("hadoop.log.dir"), 
                          filename);
     PrintWriter out = new PrintWriter(new BufferedWriter(
@@ -609,7 +610,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
    */
   synchronized BlocksWithLocations getBlocks(DatanodeID datanode, long size)
       throws IOException {
-    checkSuperuserPrivilege();
+    checkAccess();
 
     DatanodeDescriptor node = getDatanode(datanode);
     if (node == null) {
@@ -706,7 +707,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
     synchronized (this) {
       if (isInSafeMode())
          throw new SafeModeException("Cannot set owner for " + src, safeMode);
-      PermissionChecker pc = checkOwner(src);
+      FSPermissionChecker pc = checkOwner(src);
       if (!pc.isSuper) {
         if (username != null && !pc.user.equals(username)) {
           throw new AccessControlException("Non-super user cannot change owner.");
@@ -1835,7 +1836,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
      if (isInSafeMode())
         throw new SafeModeException("Cannot set quota on " + path, safeMode); 
      if (isPermissionEnabled) {
-        checkSuperuserPrivilege();
+        checkAccess();
       }
     
       dir.setQuota(path, nsQuota, dsQuota);
@@ -3744,7 +3745,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
 
   public synchronized DatanodeInfo[] datanodeReport( DatanodeReportType type
       ) throws AccessControlException {
-    checkSuperuserPrivilege();
+    checkAccess();
 
     ArrayList<DatanodeDescriptor> results = getDatanodeListForReport(type);
     DatanodeInfo[] arr = new DatanodeInfo[results.size()];
@@ -3763,7 +3764,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
    * @throws IOException if 
    */
   synchronized void saveNamespace() throws AccessControlException, IOException {
-    checkSuperuserPrivilege();
+    checkAccess();
     if(!isInSafeMode()) {
       throw new IOException("Safe mode should be turned ON " +
                             "in order to create namespace image.");
@@ -4022,7 +4023,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
    * 4. Removed from exclude --> stop decommission.
    */
   public void refreshNodes(Configuration conf) throws IOException {
-    checkSuperuserPrivilege();
+    checkAccess();
     // Reread the config to get dfs.hosts and dfs.hosts.exclude filenames.
     // Update the file names and refresh internal includes and excludes list
     if (conf == null)
@@ -4056,7 +4057,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
   }
     
   void finalizeUpgrade() throws IOException {
-    checkSuperuserPrivilege();
+    checkAccess();
     getFSImage().finalizeUpgrade();
   }
 
@@ -4528,7 +4529,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
     
   boolean setSafeMode(SafeModeAction action) throws IOException {
     if (action != SafeModeAction.SAFEMODE_GET) {
-      checkSuperuserPrivilege();
+      checkAccess();
       switch(action) {
       case SAFEMODE_LEAVE: // leave safe mode
         leaveSafeMode(false);
@@ -4688,49 +4689,45 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
     return new PermissionStatus(fsOwner.getUserName(), supergroup, permission);
   }
 
-  private PermissionChecker checkOwner(String path) throws AccessControlException {
+  private FSPermissionChecker checkOwner(String path) throws AccessControlException {
     return checkPermission(path, true, null, null, null, null);
   }
 
-  private PermissionChecker checkPathAccess(String path, FsAction access
+  private FSPermissionChecker checkPathAccess(String path, FsAction access
       ) throws AccessControlException {
     return checkPermission(path, false, null, null, access, null);
   }
 
-  private PermissionChecker checkParentAccess(String path, FsAction access
+  private FSPermissionChecker checkParentAccess(String path, FsAction access
       ) throws AccessControlException {
     return checkPermission(path, false, null, access, null, null);
   }
 
-  private PermissionChecker checkAncestorAccess(String path, FsAction access
+  private FSPermissionChecker checkAncestorAccess(String path, FsAction access
       ) throws AccessControlException {
     return checkPermission(path, false, access, null, null, null);
   }
 
-  private PermissionChecker checkTraverse(String path
+  private FSPermissionChecker checkTraverse(String path
       ) throws AccessControlException {
     return checkPermission(path, false, null, null, null, null);
   }
 
-  private void checkSuperuserPrivilege() throws AccessControlException {
+  private void checkAccess() throws AccessControlException {
     if (isPermissionEnabled) {
-      PermissionChecker pc = new PermissionChecker(
-          fsOwner.getUserName(), supergroup);
-      if (!pc.isSuper) {
-        throw new AccessControlException("Superuser privilege is required");
-      }
+      PermissionChecker.checkSuperuserPrivilege(fsOwner, supergroup);
     }
   }
 
   /**
    * Check whether current user have permissions to access the path.
    * For more details of the parameters, see
-   * {@link PermissionChecker#checkPermission(String, INodeDirectory, boolean, FsAction, FsAction, FsAction, FsAction)}.
+   * {@link FSPermissionChecker#checkPermission(String, INodeDirectory, boolean, FsAction, FsAction, FsAction, FsAction)}.
    */
-  private PermissionChecker checkPermission(String path, boolean doCheckOwner,
+  private FSPermissionChecker checkPermission(String path, boolean doCheckOwner,
       FsAction ancestorAccess, FsAction parentAccess, FsAction access,
       FsAction subAccess) throws AccessControlException {
-    PermissionChecker pc = new PermissionChecker(
+    FSPermissionChecker pc = new FSPermissionChecker(
         fsOwner.getUserName(), supergroup);
     if (!pc.isSuper) {
       dir.waitForReady();
