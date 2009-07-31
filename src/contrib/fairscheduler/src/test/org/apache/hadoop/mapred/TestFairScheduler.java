@@ -132,7 +132,7 @@ public class TestFairScheduler extends TestCase {
         if (!tip.isRunning() && !tip.isComplete() &&
             getLocalityLevel(tip, tts) < localityLevel) {
           TaskAttemptID attemptId = getTaskAttemptID(tip);
-          Task task = new MapTask("", attemptId, 0, "", new BytesWritable()) {
+          Task task = new MapTask("", attemptId, 0, "", new BytesWritable(), "user") {
             @Override
             public String toString() {
               return String.format("%s on %s", getTaskID(), tts.getTrackerName());
@@ -156,7 +156,7 @@ public class TestFairScheduler extends TestCase {
           (FakeTaskInProgress) reduces[reduce];
         if (!tip.isRunning() && !tip.isComplete()) {
           TaskAttemptID attemptId = getTaskAttemptID(tip);
-          Task task = new ReduceTask("", attemptId, 0, maps.length) {
+          Task task = new ReduceTask("", attemptId, 0, maps.length, "user") {
             @Override
             public String toString() {
               return String.format("%s on %s", getTaskID(), tts.getTrackerName());

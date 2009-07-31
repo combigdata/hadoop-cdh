@@ -70,7 +70,6 @@ public class JobInProgress {
   JobStatus status;
   Path jobFile = null;
   Path localJobFile = null;
-  Path localJarFile = null;
 
   TaskInProgress maps[] = new TaskInProgress[0];
   TaskInProgress reduces[] = new TaskInProgress[0];
@@ -191,6 +190,7 @@ public class JobInProgress {
   private boolean hasSpeculativeMaps;
   private boolean hasSpeculativeReduces;
   private long inputLength = 0;
+  private String user;
   
   // Per-job counters
   public static enum Counter { 
@@ -242,6 +242,12 @@ public class JobInProgress {
   
   public JobInProgress(JobID jobid, JobTracker jobtracker, 
                        JobConf default_conf, int rCount) throws IOException {
+    this(jobid, jobtracker, default_conf, null, rCount);
+  }
+
+  JobInProgress(JobID jobid, JobTracker jobtracker,
+                JobConf default_conf, String user, int rCount) 
+  throws IOException {
     this.restartCount = rCount;
     this.jobId = jobid;
     String url = "http://" + jobtracker.getJobTrackerMachine() + ":" 
@@ -255,8 +261,14 @@ public class JobInProgress {
     JobConf default_job_conf = new JobConf(default_conf);
     this.localJobFile = default_job_conf.getLocalPath(JobTracker.SUBDIR 
                                                       +"/"+jobid + ".xml");
-    this.localJarFile = default_job_conf.getLocalPath(JobTracker.SUBDIR
-                                                      +"/"+ jobid + ".jar");
+
+    if (user == null) {
+      this.user = conf.getUser();
+    } else {
+      this.user = user;
+    }
+    LOG.info("User : " +  this.user);
+
     Path jobDir = jobtracker.getSystemDirectoryForJob(jobId);
     FileSystem fs = jobDir.getFileSystem(default_conf);
     jobFile = new Path(jobDir, "job.xml");
@@ -264,14 +276,9 @@ public class JobInProgress {
     conf = new JobConf(localJobFile);
     this.priority = conf.getJobPriority();
     this.status.setJobPriority(this.priority);
-    this.profile = new JobProfile(conf.getUser(), jobid, 
+    this.profile = new JobProfile(user, jobid, 
                                   jobFile.toString(), url, conf.getJobName(),
                                   conf.getQueueName());
-    String jarFile = conf.getJar();
-    if (jarFile != null) {
-      fs.copyToLocalFile(new Path(jarFile), localJarFile);
-      conf.setJar(localJarFile.toString());
-    }
 
     this.numMapTasks = conf.getNumMapTasks();
     this.numReduceTasks = conf.getNumReduceTasks();
@@ -687,6 +694,14 @@ public class JobInProgress {
     return conf;
   }
     
+  /**
+   * Get the job user/owner
+   * @return the job's user/owner
+   */ 
+  String getUser() {
+    return user;
+  }
+
   /**
    * Return a vector of completed TaskInProgress objects
    */
@@ -2523,10 +2538,6 @@ public class JobInProgress {
       if (localJobFile != null) {
         localFs.delete(localJobFile, true);
         localJobFile = null;
-      }
-      if (localJarFile != null) {
-        localFs.delete(localJarFile, true);
-        localJarFile = null;
       }
 
       // clean up splits

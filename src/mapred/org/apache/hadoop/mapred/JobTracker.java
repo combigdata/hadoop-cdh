@@ -18,9 +18,16 @@
 package org.apache.hadoop.mapred;
 
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Writer;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
@@ -52,6 +59,7 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalDirAllocator;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.http.HttpServer;
@@ -134,6 +142,8 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
   private final List<JobInProgressListener> jobInProgressListeners =
     new CopyOnWriteArrayList<JobInProgressListener>();
 
+  private static final LocalDirAllocator lDirAlloc = 
+                              new LocalDirAllocator("mapred.local.dir");
   // system directories are world-wide readable and owner readable
   final static FsPermission SYSTEM_DIR_PERMISSION =
     FsPermission.createImmutable((short) 0733); // rwx-wx-wx
@@ -1275,13 +1285,39 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
         LOG.info("Error in cleaning up job history folder", ioe);
       }
 
+      JobInProgress job = null;
+      File jobIdFile = null;
       while (idIter.hasNext()) {
         JobID id = idIter.next();
         LOG.info("Trying to recover details of job " + id);
         try {
-          // 1. Create the job object
-          JobInProgress job = 
-            new JobInProgress(id, JobTracker.this, conf, restartCount);
+          // 1. Recover job owner and create JIP
+          jobIdFile = 
+            new File(lDirAlloc.getLocalPathToRead(SUBDIR + "/" + id, conf).toString());
+
+          String user = null;
+          if (jobIdFile != null && jobIdFile.exists()) {
+            LOG.info("File " + jobIdFile + " exists for job " + id);
+            FileInputStream in = new FileInputStream(jobIdFile);
+            BufferedReader reader = null;
+            try {
+              reader = new BufferedReader(new InputStreamReader(in));
+              user = reader.readLine();
+              LOG.info("Recovered user " + user + " for job " + id);
+            } finally {
+              if (reader != null) {
+                reader.close();
+              }
+              in.close();
+            }
+          }
+          if (user == null) {
+            throw new RuntimeException("Incomplete job " + id);
+          }
+
+          // Create the job
+          job = new JobInProgress(id, JobTracker.this, conf, user, 
+                                  restartCount);
 
           // 2. Check if the user has appropriate access
           // Get the user group info for the job's owner
@@ -1327,6 +1363,14 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
         } catch (Throwable t) {
           LOG.warn("Failed to recover job " + id + " Ignoring the job.", t);
           idIter.remove();
+          if (jobIdFile != null) {
+            jobIdFile.delete();
+            jobIdFile = null;
+          }
+          if (job != null) {
+            job.fail();
+            job = null;
+          }
           continue;
         }
       }
@@ -1493,6 +1537,10 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
   Map<String, Node> hostnameToNodeMap = 
     Collections.synchronizedMap(new TreeMap<String, Node>());
   
+  // job-id->username during staging
+  Map<JobID, String> jobToUserMap = 
+    Collections.synchronizedMap(new TreeMap<JobID, String>()); 
+
   // Number of resolved entries
   int numResolved;
     
@@ -1747,6 +1795,10 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
     
     // Same with 'localDir' except it's always on the local disk.
     asyncDiskService.moveAndDeleteFromEachVolume(SUBDIR);
+
+    if (!hasRestarted) {
+      jobConf.deleteLocalFiles(SUBDIR);
+    }
 
     // Initialize history DONE folder
     if (historyInitialized) {
@@ -2145,6 +2197,17 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
     
     // mark the job for cleanup at all the trackers
     addJobForCleanup(id);
+
+    try {
+      File userFileForJob =
+        new File(lDirAlloc.getLocalPathToRead(SUBDIR + "/" + id,
+                                              conf).toString());
+      if (userFileForJob != null) {
+        userFileForJob.delete();
+      }
+    } catch (IOException ioe) {
+      LOG.info("Failed to delete job id mapping for job " + id, ioe);
+    }
 
     // add the blacklisted trackers to potentially faulty list
     if (job.getStatus().getRunState() == JobStatus.SUCCEEDED) {
@@ -3039,7 +3102,17 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
    * Allocates a new JobId string.
    */
   public synchronized JobID getNewJobId() throws IOException {
-    return new JobID(getTrackerIdentifier(), nextJobId++);
+    JobID id = new JobID(getTrackerIdentifier(), nextJobId++);
+
+    // get the user group info
+    UserGroupInformation ugi = UserGroupInformation.getCurrentUGI();
+
+    // mark the user for this id
+    jobToUserMap.put(id, ugi.getUserName());
+
+    LOG.info("Job id " + id + " assigned to user " + ugi.getUserName());
+
+    return id;
   }
 
   /**
@@ -3055,12 +3128,59 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
       //job already running, don't start twice
       return jobs.get(jobId).getStatus();
     }
+
+    // check if the owner is uploding the splits or not
+    // get the user group info
+    UserGroupInformation ugi = UserGroupInformation.getCurrentUGI();
+
+    // check if the user invoking this api is the owner of this job
+    if (!jobToUserMap.get(jobId).equals(ugi.getUserName())) {
+      throw new IOException("User " + ugi.getUserName() 
+                            + " is not the owner of the job " + jobId);
+    }
     
-    JobInProgress job = new JobInProgress(jobId, this, this.conf);
+    jobToUserMap.remove(jobId);
+
+    // persist
+    File userFileForJob =  
+      new File(lDirAlloc.getLocalPathForWrite(SUBDIR + "/" + jobId, 
+                                              conf).toString());
+    if (userFileForJob == null) {
+      LOG.info("Failed to create job-id file for job " + jobId + " at " + userFileForJob);
+    } else {
+      FileOutputStream fout = new FileOutputStream(userFileForJob);
+      BufferedWriter writer = null;
+
+      try {
+        writer = new BufferedWriter(new OutputStreamWriter(fout));
+        writer.write(ugi.getUserName() + "\n");
+      } finally {
+        if (writer != null) {
+          writer.close();
+        }
+        fout.close();
+      }
+
+      LOG.info("Job " + jobId + " user info persisted to file : " + userFileForJob);
+    }
+
+    JobInProgress job = null;
+    try {
+      job = new JobInProgress(jobId, this, this.conf, ugi.getUserName(), 0);
+    } catch (Exception e) {
+      if (userFileForJob != null) {
+        userFileForJob.delete();
+      }
+      throw new IOException(e);
+    }
     
     String queue = job.getProfile().getQueueName();
     if(!(queueManager.getQueues().contains(queue))) {      
       new CleanupQueue().addToQueue(conf,getSystemDirectoryForJob(jobId));
+      job.fail();
+      if (userFileForJob != null) {
+        userFileForJob.delete();
+      }
       throw new IOException("Queue \"" + queue + "\" does not exist");        
     }
 
@@ -3070,6 +3190,10 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
     } catch (IOException ioe) {
        LOG.warn("Access denied for user " + job.getJobConf().getUser() 
                 + ". Ignoring job " + jobId, ioe);
+      job.fail();
+      if (userFileForJob != null) {
+        userFileForJob.delete();
+      }
       new CleanupQueue().addToQueue(conf, getSystemDirectoryForJob(jobId));
       throw ioe;
     }
