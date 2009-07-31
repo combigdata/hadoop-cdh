@@ -31,24 +31,44 @@
       out.println("<h2>Task Trackers</h2>");
       c = tracker.taskTrackers();
     }
+    int noCols = 9;
+    if(type.equals("blacklisted")) {
+      noCols = 10;
+    }
     if (c.size() == 0) {
       out.print("There are currently no known " + type + " Task Trackers.");
     } else {
       out.print("<center>\n");
       out.print("<table class=\"datatable\">\n");
       out.print("<thead>\n");
+      out.print("<tr><th align=\"center\" colspan=\""+ noCols +"\"><b>Task Trackers</b></th></tr>\n");
       out.print("<tr><th><b>Name</b></th><th><b>Host</b></th>" +
                 "<th><b># running tasks</b></th>" +
                 "<th><b>Max Map Tasks</b></th>" +
                 "<th><b>Max Reduce Tasks</b></th>" +
                 "<th><b>Failures</b></th>" +
-                "<th><b>Seconds since heartbeat</b></th></tr>\n");
+                "<th><b>Node Health Status</b></th>" +
+                "<th><b>Seconds Since Node Last Healthy</b></th>");
+      if(type.equals("blacklisted")) {
+      	out.print("<th><b>Reason For blacklisting</b></th>");
+      }
+      out.print("<th><b>Seconds since heartbeat</b></th></tr>\n");
       out.print("</thead><tbody>");
       int maxFailures = 0;
       String failureKing = null;
       for (Iterator it = c.iterator(); it.hasNext(); ) {
         TaskTrackerStatus tt = (TaskTrackerStatus) it.next();
         long sinceHeartbeat = System.currentTimeMillis() - tt.getLastSeen();
+        boolean isHealthy = tt.getHealthStatus().isNodeHealthy();
+        long sinceHealthCheck = tt.getHealthStatus().getLastReported();
+        String healthString = "";
+        if(sinceHealthCheck == 0) {
+          healthString = "N/A";
+        } else {
+          healthString = (isHealthy?"Healthy":"Unhealthy");
+          sinceHealthCheck = System.currentTimeMillis() - sinceHealthCheck;
+          sinceHealthCheck =  sinceHealthCheck/1000;
+        }
         if (sinceHeartbeat > 0) {
           sinceHeartbeat = sinceHeartbeat / 1000;
         }
@@ -68,8 +88,13 @@
         out.print(tt.getHost() + "</td><td>" + numCurTasks +
                   "</td><td>" + tt.getMaxMapSlots() +
                   "</td><td>" + tt.getMaxReduceSlots() + 
-                  "</td><td>" + numFailures + 
-                  "</td><td>" + sinceHeartbeat + "</td></tr>\n");
+                  "</td><td>" + numFailures +
+                  "</td><td>" + healthString +
+                  "</td><td>" + sinceHealthCheck); 
+        if(type.equals("blacklisted")) {
+          out.print("</td><td>" + tracker.getReasonsForBlacklisting(tt.getHost()));
+        }
+        out.print("</td><td>" + sinceHeartbeat + "</td></tr>\n");
       }
       out.print("</tbody>\n");
       out.print("</table>\n");
