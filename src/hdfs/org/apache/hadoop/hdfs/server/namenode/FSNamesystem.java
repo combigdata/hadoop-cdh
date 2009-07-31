@@ -505,7 +505,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
    * Dump all metadata into specified file
    */
   synchronized void metaSave(String filename) throws IOException {
-    checkAccess();
+    checkSuperuserPrivilege();
     File file = new File(System.getProperty("hadoop.log.dir"), 
                          filename);
     PrintWriter out = new PrintWriter(new BufferedWriter(
@@ -610,7 +610,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
    */
   synchronized BlocksWithLocations getBlocks(DatanodeID datanode, long size)
       throws IOException {
-    checkAccess();
+    checkSuperuserPrivilege();
 
     DatanodeDescriptor node = getDatanode(datanode);
     if (node == null) {
@@ -1836,7 +1836,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
      if (isInSafeMode())
         throw new SafeModeException("Cannot set quota on " + path, safeMode); 
      if (isPermissionEnabled) {
-        checkAccess();
+        checkSuperuserPrivilege();
       }
     
       dir.setQuota(path, nsQuota, dsQuota);
@@ -3745,7 +3745,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
 
   public synchronized DatanodeInfo[] datanodeReport( DatanodeReportType type
       ) throws AccessControlException {
-    checkAccess();
+    checkSuperuserPrivilege();
 
     ArrayList<DatanodeDescriptor> results = getDatanodeListForReport(type);
     DatanodeInfo[] arr = new DatanodeInfo[results.size()];
@@ -3764,7 +3764,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
    * @throws IOException if 
    */
   synchronized void saveNamespace() throws AccessControlException, IOException {
-    checkAccess();
+    checkSuperuserPrivilege();
     if(!isInSafeMode()) {
       throw new IOException("Safe mode should be turned ON " +
                             "in order to create namespace image.");
@@ -4023,7 +4023,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
    * 4. Removed from exclude --> stop decommission.
    */
   public void refreshNodes(Configuration conf) throws IOException {
-    checkAccess();
+    checkSuperuserPrivilege();
     // Reread the config to get dfs.hosts and dfs.hosts.exclude filenames.
     // Update the file names and refresh internal includes and excludes list
     if (conf == null)
@@ -4057,7 +4057,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
   }
     
   void finalizeUpgrade() throws IOException {
-    checkAccess();
+    checkSuperuserPrivilege();
     getFSImage().finalizeUpgrade();
   }
 
@@ -4529,7 +4529,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
     
   boolean setSafeMode(SafeModeAction action) throws IOException {
     if (action != SafeModeAction.SAFEMODE_GET) {
-      checkAccess();
+      checkSuperuserPrivilege();
       switch(action) {
       case SAFEMODE_LEAVE: // leave safe mode
         leaveSafeMode(false);
@@ -4713,7 +4713,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
     return checkPermission(path, false, null, null, null, null);
   }
 
-  private void checkAccess() throws AccessControlException {
+  private void checkSuperuserPrivilege() throws AccessControlException {
     if (isPermissionEnabled) {
       PermissionChecker.checkSuperuserPrivilege(fsOwner, supergroup);
     }
