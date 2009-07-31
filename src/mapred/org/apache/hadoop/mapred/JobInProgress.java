@@ -2361,14 +2361,16 @@ public class JobInProgress {
   private synchronized void terminateJob(int jobTerminationState) {
     if ((status.getRunState() == JobStatus.RUNNING) ||
         (status.getRunState() == JobStatus.PREP)) {
-      // Log the job summary
-      JobSummary.logJobSummary(this, jobtracker.getClusterStatus(false));
-      
       if (jobTerminationState == JobStatus.FAILED) {
         this.status = new JobStatus(status.getJobID(),
                                     1.0f, 1.0f, 1.0f, JobStatus.FAILED,
                                     status.getJobPriority());
         this.finishTime = System.currentTimeMillis();
+
+        // Log the job summary
+        JobSummary.logJobSummary(this, jobtracker.getClusterStatus(false));
+        
+        // Log to job-history
         JobHistory.JobInfo.logFailed(this.status.getJobID(), finishTime, 
                                      this.finishedMapTasks, 
                                      this.finishedReduceTasks);
@@ -2377,6 +2379,11 @@ public class JobInProgress {
                                     1.0f, 1.0f, 1.0f, JobStatus.KILLED,
                                     status.getJobPriority());
         this.finishTime = System.currentTimeMillis();
+
+        // Log the job summary
+        JobSummary.logJobSummary(this, jobtracker.getClusterStatus(false));
+        
+        // Log to job-history
         JobHistory.JobInfo.logKilled(this.status.getJobID(), finishTime, 
                                      this.finishedMapTasks, 
                                      this.finishedReduceTasks);
