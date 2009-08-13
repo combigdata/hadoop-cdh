@@ -11,10 +11,6 @@
 %>
 <%!	private static final long serialVersionUID = 1L;
 %>
-<jsp:include page="loadhistory.jsp">
-  <jsp:param name="jobid" value="<%=request.getParameter("jobid") %>"/>
-  <jsp:param name="logFile" value="<%=request.getParameter("logFile") %>"/>
-</jsp:include>
 <%! static SimpleDateFormat dateFormat = new SimpleDateFormat("d-MMM-yyyy HH:mm:ss") ; %>
 <%
     String jobid = request.getParameter("jobid");
@@ -25,8 +21,8 @@
     String[] jobDetails = jobFile.getName().split("_");
     String jobUniqueString = jobDetails[0] + "_" +jobDetails[1] + "_" + jobid ;
 	
-    JobInfo job = (JobInfo)request.getSession().getAttribute("job");
-    FileSystem fs = (FileSystem)request.getSession().getAttribute("fs");
+    FileSystem fs = (FileSystem) application.getAttribute("fileSys");
+    JobInfo job = JSPUtil.getJobInfo(request, fs);
 %>
 <html>
 <head>
