@@ -31,9 +31,10 @@
       out.println("<h2>Task Trackers</h2>");
       c = tracker.taskTrackers();
     }
-    int noCols = 9;
+    int noCols = 9 + 
+      (2 * tracker.getStatistics().collector.DEFAULT_COLLECT_WINDOWS.length);
     if(type.equals("blacklisted")) {
-      noCols = 10;
+      noCols = noCols + 1;
     }
     if (c.size() == 0) {
       out.print("There are currently no known " + type + " Task Trackers.");
@@ -52,6 +53,12 @@
       if(type.equals("blacklisted")) {
       	out.print("<th><b>Reason For blacklisting</b></th>");
       }
+      for(StatisticsCollector.TimeWindow window : tracker.getStatistics().
+           collector.DEFAULT_COLLECT_WINDOWS) {
+         out.println("<th><b>Total Tasks "+window.name+"</b></th>");
+         out.println("<th><b>Succeeded Tasks "+window.name+"</b></th>");
+       }
+      
       out.print("<th><b>Seconds since heartbeat</b></th></tr>\n");
       out.print("</thead><tbody>");
       int maxFailures = 0;
@@ -94,6 +101,16 @@
         if(type.equals("blacklisted")) {
           out.print("</td><td>" + tracker.getReasonsForBlacklisting(tt.getHost()));
         }
+        for(StatisticsCollector.TimeWindow window : tracker.getStatistics().
+          collector.DEFAULT_COLLECT_WINDOWS) {
+          JobTrackerStatistics.TaskTrackerStat ttStat = tracker.getStatistics().
+             getTaskTrackerStat(tt.getTrackerName());
+          out.println("</td><td>" + ttStat.totalTasksStat.getValues().
+                                get(window).getValue());
+          out.println("</td><td>" + ttStat.succeededTasksStat.getValues().
+                                get(window).getValue());
+        }
+        
         out.print("</td><td>" + sinceHeartbeat + "</td></tr>\n");
       }
       out.print("</tbody>\n");
