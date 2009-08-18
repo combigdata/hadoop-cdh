@@ -730,6 +730,13 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
       } else {
         LOG.info("Blacklisting tracker : " + hostName 
             + " Reason for blacklisting is : " + rfb);
+        Set<TaskTracker> trackers = 
+          hostnameToTaskTracker.get(hostName);
+        synchronized (trackers) {
+          for (TaskTracker tracker : trackers) {
+            tracker.cancelAllReservations();
+          }
+        }
         removeHostCapacity(hostName);
         fi.setBlacklist(rfb, reason);
       }
@@ -4203,7 +4210,7 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
       }
 
       // Cleanup
-      taskTracker.lost();
+      taskTracker.cancelAllReservations();
 
       // Purge 'marked' tasks, needs to be done  
       // here to prevent hanging references!
