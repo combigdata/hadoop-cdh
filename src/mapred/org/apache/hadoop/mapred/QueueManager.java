@@ -21,6 +21,8 @@ package org.apache.hadoop.mapred;
 import java.io.PrintWriter;
 import java.io.Writer;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.Writer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Set;
@@ -364,6 +366,20 @@ class QueueManager {
     }
     return queueAclsInfolist.toArray(new QueueAclsInfo[
             queueAclsInfolist.size()]);
+  }
+
+  /**
+   * prints the configuration of QueueManager in Json format.
+   * The method should be modified accordingly whenever
+   * QueueManager(Configuration) constructor is modified.
+   * @param writer {@link}Writer object to which the configuration properties 
+   * are printed in json format
+   * @throws IOException
+   */
+  static void dumpConfiguration(Writer writer) throws IOException {
+    Configuration conf = new Configuration(false);
+    conf.addResource(QUEUE_ACLS_FILE_NAME);
+    Configuration.dumpConfiguration(conf, writer);
   }
 
 }

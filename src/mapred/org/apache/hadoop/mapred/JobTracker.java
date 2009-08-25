@@ -25,9 +25,9 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.io.Writer;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
@@ -4329,6 +4329,10 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
    */
   private static void dumpConfiguration(Writer writer) throws IOException {
     Configuration.dumpConfiguration(new JobConf(), writer);
+    writer.write("\n");
+    // get the QueueManager configuration properties
+    QueueManager.dumpConfiguration(writer);
+    writer.write("\n");
   }
 
   @Override
