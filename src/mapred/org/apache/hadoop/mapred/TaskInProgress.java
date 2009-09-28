@@ -920,6 +920,8 @@ public class TaskInProgress {
   public Task addRunningTask(TaskAttemptID taskid, 
                              String taskTracker,
                              boolean taskCleanup) {
+    // 1 slot is enough for taskCleanup task
+    int numSlotsNeeded = taskCleanup ? 1 : numSlotsRequired;
     // create the task
     Task t = null;
     if (isMapTask()) {
@@ -934,10 +936,10 @@ public class TaskInProgress {
         split = new BytesWritable();
       }
       t = new MapTask(jobFile, taskid, partition, splitClass, split, 
-                      numSlotsRequired, job.getUser());
+                      numSlotsNeeded, job.getUser());
     } else {
       t = new ReduceTask(jobFile, taskid, partition, numMaps, 
-                         numSlotsRequired, job.getUser());
+                         numSlotsNeeded, job.getUser());
     }
     if (jobCleanup) {
       t.setJobCleanupTask();
