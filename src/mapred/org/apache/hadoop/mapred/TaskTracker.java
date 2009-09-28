@@ -2433,6 +2433,7 @@ public class TaskTracker
           taskStatus.setRunState(TaskStatus.State.KILLED);
         }
       }
+      taskStatus.setFinishTime(System.currentTimeMillis());
       removeFromMemoryManager(task.getTaskID());
       releaseSlot();
     }
