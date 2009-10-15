@@ -6,7 +6,7 @@
   import="org.apache.hadoop.fs.*"
   import="org.apache.hadoop.mapred.*"
   import="org.apache.hadoop.util.*"
-  import="java.text.SimpleDateFormat"
+  import="java.text.*"
   import="org.apache.hadoop.mapred.JobHistory.*"
 %>
 <%!	private static final long serialVersionUID = 1L;
@@ -198,6 +198,68 @@ Hadoop Job <%=jobid %> on History Viewer
 </tr>
 </table>
 
+<br>
+<br>
+
+<table border=2 cellpadding="5" cellspacing="2">
+  <tr>
+  <th><br/></th>
+  <th>Counter</th>
+  <th>Map</th>
+  <th>Reduce</th>
+  <th>Total</th>
+</tr>
+
+<%  
+
+ Counters totalCounters = 
+   Counters.fromEscapedCompactString(job.get(Keys.COUNTERS));
+ Counters mapCounters = 
+   Counters.fromEscapedCompactString(job.get(Keys.MAP_COUNTERS));
+ Counters reduceCounters = 
+   Counters.fromEscapedCompactString(job.get(Keys.REDUCE_COUNTERS));
+
+ if (totalCounters != null) {
+   for (String groupName : totalCounters.getGroupNames()) {
+     Counters.Group totalGroup = totalCounters.getGroup(groupName);
+     Counters.Group mapGroup = mapCounters.getGroup(groupName);
+     Counters.Group reduceGroup = reduceCounters.getGroup(groupName);
+  
+     Format decimal = new DecimalFormat();
+  
+     boolean isFirst = true;
+     Iterator<Counters.Counter> ctrItr = totalGroup.iterator();
+     while(ctrItr.hasNext()) {
+       Counters.Counter counter = ctrItr.next();
+       String name = counter.getDisplayName();
+       String mapValue = 
+         decimal.format(mapGroup.getCounter(name));
+       String reduceValue = 
+         decimal.format(reduceGroup.getCounter(name));
+       String totalValue = decimal.format(counter.getCounter());
+%>
+       <tr>
+<%
+       if (isFirst) {
+         isFirst = false;
+%>
+         <td rowspan="<%=totalGroup.size()%>"><%=totalGroup.getDisplayName()%></td>
+<%
+       }
+%>
+       <td><%=counter.getDisplayName()%></td>
+       <td align="right"><%=mapValue%></td>
+       <td align="right"><%=reduceValue%></td>
+       <td align="right"><%=totalValue%></td>
+     </tr>
+<%
+      }
+    }
+  }
+%>
+</table>
+<br>
+
 <br/>
  <%
     DefaultJobHistoryParser.FailedOnNodesFilter filter = 
@@ -232,6 +294,7 @@ Hadoop Job <%=jobid %> on History Viewer
  %>
 </table>
 <br/>
+
  <%
     DefaultJobHistoryParser.KilledOnNodesFilter killedFilter =
                  new DefaultJobHistoryParser.KilledOnNodesFilter();
