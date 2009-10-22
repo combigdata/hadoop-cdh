@@ -1222,8 +1222,19 @@ public class JobInProgress {
       
       // Now launch the cleanupTask
       Task result = tip.getTaskToRun(tts.getTrackerName());
+
       if (result != null) {
         addRunningTaskToTIP(tip, result.getTaskID(), tts, true);
+        if (jobFailed) {
+          result.setJobCleanupTaskState
+          (org.apache.hadoop.mapreduce.JobStatus.State.FAILED);
+        } else if (jobKilled) {
+          result.setJobCleanupTaskState
+          (org.apache.hadoop.mapreduce.JobStatus.State.KILLED);
+        } else {
+          result.setJobCleanupTaskState
+          (org.apache.hadoop.mapreduce.JobStatus.State.SUCCEEDED);
+        }
       }
       return result;
     }

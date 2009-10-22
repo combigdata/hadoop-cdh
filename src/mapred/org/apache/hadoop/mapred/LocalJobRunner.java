@@ -232,7 +232,7 @@ class LocalJobRunner implements JobSubmissionProtocol {
           }
         }
         // delete the temporary directory in output directory
-        outputCommitter.cleanupJob(jContext);
+        outputCommitter.commitJob(jContext);
         status.setCleanupProgress(1.0f);
 
         if (killed) {
@@ -245,7 +245,7 @@ class LocalJobRunner implements JobSubmissionProtocol {
 
       } catch (Throwable t) {
         try {
-          outputCommitter.cleanupJob(jContext);
+          outputCommitter.abortJob(jContext, JobStatus.FAILED);
         } catch (IOException ioe) {
           LOG.info("Error cleaning up job:" + id);
         }

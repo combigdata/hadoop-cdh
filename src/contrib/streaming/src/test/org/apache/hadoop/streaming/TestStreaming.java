@@ -21,6 +21,8 @@ package org.apache.hadoop.streaming;
 import junit.framework.TestCase;
 import java.io.*;
 
+import org.apache.hadoop.fs.FileUtil;
+
 /**
  * This class tests hadoopStreaming in MapReduce local mode.
  */
@@ -77,21 +79,29 @@ public class TestStreaming extends TestCase
   
   public void testCommandLine() throws Exception
   {
-    UtilTest.recursiveDelete(TEST_DIR);
+    try {
+      try {
+        FileUtil.fullyDelete(OUTPUT_DIR.getAbsoluteFile());
+      } catch (Exception e) {
+      }
 
-    createInput();
-    boolean mayExit = false;
- 
-    // During tests, the default Configuration will use a local mapred
-    // So don't specify -config or -cluster
-    job = new StreamJob(genArgs(), mayExit);      
-    job.go();
-    File outFile = new File(OUTPUT_DIR, "part-00000").getAbsoluteFile();
-    String output = StreamUtil.slurp(outFile);
-    outFile.delete();
-    System.err.println("outEx1=" + outputExpect);
-    System.err.println("  out1=" + output);
-    assertEquals(outputExpect, output);
+      createInput();
+      boolean mayExit = false;
+
+      // During tests, the default Configuration will use a local mapred
+      // So don't specify -config or -cluster
+      job = new StreamJob(genArgs(), mayExit);      
+      job.go();
+      File outFile = new File(OUTPUT_DIR, "part-00000").getAbsoluteFile();
+      String output = StreamUtil.slurp(outFile);
+      outFile.delete();
+      System.err.println("outEx1=" + outputExpect);
+      System.err.println("  out1=" + output);
+      assertEquals(outputExpect, output);
+    } finally {
+      INPUT_FILE.delete();
+      FileUtil.fullyDelete(OUTPUT_DIR.getAbsoluteFile());
+    }
   }
 
   public static void main(String[]args) throws Exception
