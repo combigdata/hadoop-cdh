@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package org.apache.hadoop.mapred;
+package org.apache.hadoop.mapred;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -26,6 +26,7 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -65,6 +66,8 @@ import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.ipc.RPC;
 import org.apache.hadoop.ipc.RemoteException;
 import org.apache.hadoop.ipc.Server;
+import org.apache.hadoop.mapred.TaskLog.LogFileDetail;
+import org.apache.hadoop.mapred.TaskLog.LogName;
 import org.apache.hadoop.mapred.TaskStatus.Phase;
 import org.apache.hadoop.mapred.TaskTrackerStatus.TaskTrackerHealthStatus;
 import org.apache.hadoop.mapred.pipes.Submitter;
@@ -111,7 +114,12 @@ public class TaskTracker
   @Deprecated
   static final String MAPRED_TASKTRACKER_PMEM_RESERVED_PROPERTY =
      "mapred.tasktracker.pmem.reserved";
- 
+
+  static final String MAP_USERLOG_RETAIN_SIZE =
+      "mapreduce.cluster.map.userlog.retain-size";
+  static final String REDUCE_USERLOG_RETAIN_SIZE =
+      "mapreduce.cluster.reduce.userlog.retain-size";
+
   static final long WAIT_FOR_DONE = 3 * 1000;
   private int httpPort;
 
@@ -229,6 +237,8 @@ public class TaskTracker
   private long mapSlotMemorySizeOnTT = JobConf.DISABLED_MEMORY_LIMIT;
   private long reduceSlotSizeMemoryOnTT = JobConf.DISABLED_MEMORY_LIMIT;
   private long totalMemoryAllottedForTasks = JobConf.DISABLED_MEMORY_LIMIT;
+
+  private TaskLogsMonitor taskLogsMonitor;
 
   static final String MAPRED_TASKTRACKER_MEMORY_CALCULATOR_PLUGIN_PROPERTY =
       "mapred.tasktracker.memory_calculator_plugin";
@@ -401,6 +411,14 @@ public class TaskTracker
     }
   }
 
+  TaskLogsMonitor getTaskLogsMonitor() {
+    return this.taskLogsMonitor;
+  }
+
+  void setTaskLogsMonitor(TaskLogsMonitor t) {
+    this.taskLogsMonitor = t;
+  }
+
   static String getCacheSubdir() {
     return TaskTracker.SUBDIR + Path.SEPARATOR + TaskTracker.CACHEDIR;
   }
@@ -557,6 +575,10 @@ public class TaskTracker
     mapEventsFetcher.start();
 
     initializeMemoryManagement();
+
+    setTaskLogsMonitor(new TaskLogsMonitor(getMapUserLogRetainSize(),
+        getReduceUserLogRetainSize()));
+    getTaskLogsMonitor().start();
 
     this.indexCache = new IndexCache(this.fConf);
 
@@ -943,7 +965,11 @@ public class TaskTracker
     //stop the launchers
     this.mapLauncher.interrupt();
     this.reduceLauncher.interrupt();
-    
+
+    // All tasks are killed. So, they are removed from TaskLog monitoring also.
+    // Interrupt the monitor.
+    getTaskLogsMonitor().interrupt();
+
     jvmManager.stop();
     
     // shutdown RPC connections
@@ -1008,6 +1034,13 @@ public class TaskTracker
     this.httpPort = server.getPort();
     checkJettyPort(httpPort);
     initialize();
+  }
+
+  /**
+   * Blank constructor. Only usable by tests.
+   */
+  TaskTracker() {
+    server = null;
   }
 
   private void checkJettyPort(int port) throws IOException { 
@@ -1348,6 +1381,22 @@ public class TaskTracker
     status = null;                                
 
     return heartbeatResponse;
+  }
+
+  long getMapUserLogRetainSize() {
+    return fConf.getLong(MAP_USERLOG_RETAIN_SIZE, -1);
+  }
+
+  void setMapUserLogRetainSize(long retainSize) {
+    fConf.setLong(MAP_USERLOG_RETAIN_SIZE, retainSize);
+  }
+
+  long getReduceUserLogRetainSize() {
+    return fConf.getLong(REDUCE_USERLOG_RETAIN_SIZE, -1);
+  }
+
+  void setReduceUserLogRetainSize(long retainSize) {
+    fConf.setLong(REDUCE_USERLOG_RETAIN_SIZE, retainSize);
   }
 
   /**
@@ -2251,18 +2300,23 @@ public class TaskTracker
               String taskSyslog ="";
               String jobConf = task.getJobFile();
               try {
-                // get task's stdout file 
-                taskStdout = FileUtil.makeShellPath(
-                    TaskLog.getRealTaskLogFileLocation
-                                  (task.getTaskID(), TaskLog.LogName.STDOUT));
-                // get task's stderr file 
-                taskStderr = FileUtil.makeShellPath(
-                    TaskLog.getRealTaskLogFileLocation
-                                  (task.getTaskID(), TaskLog.LogName.STDERR));
-                // get task's syslog file 
-                taskSyslog = FileUtil.makeShellPath(
-                    TaskLog.getRealTaskLogFileLocation
-                                  (task.getTaskID(), TaskLog.LogName.SYSLOG));
+                Map<LogName, LogFileDetail> allFilesDetails =
+                    TaskLog.getAllLogsFileDetails(task.getTaskID(), false);
+                // get task's stdout file
+                taskStdout =
+                    TaskLog.getRealTaskLogFilePath(
+                        allFilesDetails.get(LogName.STDOUT).location,
+                        LogName.STDOUT);
+                // get task's stderr file
+                taskStderr =
+                    TaskLog.getRealTaskLogFilePath(
+                        allFilesDetails.get(LogName.STDERR).location,
+                        LogName.STDERR);
+                // get task's syslog file
+                taskSyslog =
+                    TaskLog.getRealTaskLogFilePath(
+                        allFilesDetails.get(LogName.SYSLOG).location,
+                        LogName.SYSLOG);
               } catch(IOException e){
                 LOG.warn("Exception finding task's stdout/err/syslog files");
               }
@@ -2324,6 +2378,11 @@ public class TaskTracker
               } catch(IOException ioe) {
                 LOG.warn("Exception in add diagnostics!");
               }
+
+              // Debug-command is run. Do the post-debug-script-exit debug-logs
+              // processing. Truncate the logs.
+              getTaskLogsMonitor().addProcessForLogTruncation(
+                  task.getTaskID(), Arrays.asList(task));
             }
           }
           taskStatus.setProgress(0.0f);
