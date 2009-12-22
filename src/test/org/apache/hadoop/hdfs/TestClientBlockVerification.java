@@ -92,7 +92,9 @@ public class TestClientBlockVerification {
     s.setSoTimeout(HdfsConstants.READ_TIMEOUT);
 
     return DFSClient.BlockReader.newBlockReader(
-      s, targetAddr.toString()+ ":" + block.getBlockId(), block.getBlockId(),
+      s, targetAddr.toString()+ ":" + block.getBlockId(),
+      block.getBlockId(),
+      testBlock.getAccessToken(),
       block.getGenerationStamp(),
       offset, lenToRead,
       conf.getInt("io.file.buffer.size", 4096));

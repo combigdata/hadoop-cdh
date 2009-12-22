@@ -31,6 +31,8 @@ import org.apache.hadoop.hdfs.server.namenode.BlocksMap.BlockInfo;
 import org.apache.hadoop.hdfs.server.namenode.metrics.FSNamesystemMBean;
 import org.apache.hadoop.hdfs.server.namenode.metrics.FSNamesystemMetrics;
 import org.apache.hadoop.security.AccessControlException;
+import org.apache.hadoop.security.AccessTokenHandler;
+import org.apache.hadoop.security.ExportedAccessKeys;
 import org.apache.hadoop.security.PermissionChecker;
 import org.apache.hadoop.security.UnixUserGroupInformation;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -48,6 +50,7 @@ import org.apache.hadoop.hdfs.server.protocol.BlocksWithLocations.BlockWithLocat
 import org.apache.hadoop.hdfs.server.protocol.DatanodeCommand;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeRegistration;
 import org.apache.hadoop.hdfs.server.protocol.DisallowedDatanodeException;
+import org.apache.hadoop.hdfs.server.protocol.KeyUpdateCommand;
 import org.apache.hadoop.hdfs.server.protocol.NamespaceInfo;
 import org.apache.hadoop.hdfs.server.protocol.UpgradeCommand;
 import org.apache.hadoop.fs.ContentSummary;
@@ -132,6 +135,10 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
   private FSNamesystemMetrics myFSMetrics;
   private long capacityTotal = 0L, capacityUsed = 0L, capacityRemaining = 0L;
   private int totalLoad = 0;
+  boolean isAccessTokenEnabled;
+  AccessTokenHandler accessTokenHandler;
+  private long accessKeyUpdateInterval;
+  private long accessTokenLifetime;
 
   volatile long pendingReplicationBlocksCount = 0L;
   volatile long corruptReplicaBlocksCount = 0L;
@@ -324,6 +331,10 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
     pendingReplications = new PendingReplicationBlocks(
                             conf.getInt("dfs.replication.pending.timeout.sec", 
                                         -1) * 1000L);
+    if (isAccessTokenEnabled) {
+      accessTokenHandler = new AccessTokenHandler(true,
+          accessKeyUpdateInterval, accessTokenLifetime);
+    }
     this.hbthread = new Daemon(new HeartbeatMonitor());
     this.lmthread = new Daemon(leaseManager.new Monitor());
     this.replthread = new Daemon(new ReplicationMonitor());
@@ -442,6 +453,18 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
                                          20*(int)(heartbeatInterval/1000));
     this.accessTimePrecision = conf.getLong("dfs.access.time.precision", 0);
     this.supportAppends = conf.getBoolean("dfs.support.append", false);
+    this.isAccessTokenEnabled = conf.getBoolean(
+        AccessTokenHandler.STRING_ENABLE_ACCESS_TOKEN, false);
+    if (isAccessTokenEnabled) {
+      this.accessKeyUpdateInterval = conf.getLong(
+          AccessTokenHandler.STRING_ACCESS_KEY_UPDATE_INTERVAL, 600) * 60 * 1000L; // 10 hrs
+      this.accessTokenLifetime = conf.getLong(
+          AccessTokenHandler.STRING_ACCESS_TOKEN_LIFETIME, 600) * 60 * 1000L; // 10 hrs
+    }
+    LOG.info("isAccessTokenEnabled=" + isAccessTokenEnabled
+        + " accessKeyUpdateInterval=" + accessKeyUpdateInterval / (60 * 1000)
+        + " min(s), accessTokenLifetime=" + accessTokenLifetime / (60 * 1000)
+        + " min(s)");
   }
 
   /**
@@ -658,6 +681,16 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
   }
   
   /**
+   * Get access keys
+   * 
+   * @return current access keys
+   */
+  ExportedAccessKeys getAccessKeys() {
+    return isAccessTokenEnabled ? accessTokenHandler.exportKeys()
+        : ExportedAccessKeys.DUMMY_KEYS;
+  }
+
+  /**
    * Get all valid locations of the block & add the block to results
    * return the length of the added block; 0 if the block is not added
    */
@@ -866,8 +899,13 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
           }
         }
       }
-      results.add(new LocatedBlock(blocks[curBlk], machineSet, curPos,
-                  blockCorrupt));
+      LocatedBlock b = new LocatedBlock(blocks[curBlk], machineSet, curPos,
+          blockCorrupt);
+      if (isAccessTokenEnabled) {
+        b.setAccessToken(accessTokenHandler.generateToken(b.getBlock()
+            .getBlockId(), EnumSet.of(AccessTokenHandler.AccessMode.READ)));
+      }
+      results.add(b); 
       curPos += blocks[curBlk].getNumBytes();
       curBlk++;
     } while (curPos < endOff 
@@ -1224,6 +1262,10 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
 
           lb = new LocatedBlock(last, targets, 
                                 fileLength-storedBlock.getNumBytes());
+          if (isAccessTokenEnabled) {
+            lb.setAccessToken(accessTokenHandler.generateToken(lb.getBlock()
+                .getBlockId(), EnumSet.of(AccessTokenHandler.AccessMode.WRITE)));
+          }
 
           // Remove block from replication queue.
           updateNeededReplications(last, 0, 0);
@@ -1348,7 +1390,12 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
     }
         
     // Create next block
-    return new LocatedBlock(newBlock, targets, fileLength);
+    LocatedBlock b = new LocatedBlock(newBlock, targets, fileLength);
+    if (isAccessTokenEnabled) {
+      b.setAccessToken(accessTokenHandler.generateToken(b.getBlock()
+          .getBlockId(), EnumSet.of(AccessTokenHandler.AccessMode.WRITE)));
+    }
+    return b;
   }
 
   /**
@@ -2157,6 +2204,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
                                       nodeReg.getInfoPort(),
                                       nodeReg.getIpcPort());
     nodeReg.updateRegInfo(dnReg);
+    nodeReg.exportedKeys = getAccessKeys();
       
     NameNode.stateChangeLog.info(
                                  "BLOCK* NameSystem.registerDatanode: "
@@ -2360,7 +2408,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
           return new DatanodeCommand[] {cmd};
         }
       
-        ArrayList<DatanodeCommand> cmds = new ArrayList<DatanodeCommand>(2);
+        ArrayList<DatanodeCommand> cmds = new ArrayList<DatanodeCommand>(3);
         //check pending replication
         cmd = nodeinfo.getReplicationCommand(
               maxReplicationStreams - xmitsInProgress);
@@ -2371,6 +2419,11 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
         cmd = nodeinfo.getInvalidateBlocks(blockInvalidateLimit);
         if (cmd != null) {
           cmds.add(cmd);
+        }
+        // check access key update
+        if (isAccessTokenEnabled && nodeinfo.needKeyUpdate) {
+          cmds.add(new KeyUpdateCommand(accessTokenHandler.exportKeys()));
+          nodeinfo.needKeyUpdate = false;
         }
         if (!cmds.isEmpty()) {
           return cmds.toArray(new DatanodeCommand[cmds.size()]);
@@ -2403,21 +2456,44 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
       totalLoad -= node.getXceiverCount();
     }
   }
+
   /**
-   * Periodically calls heartbeatCheck().
+   * Update access keys.
+   */
+  void updateAccessKey() throws IOException {
+    this.accessTokenHandler.updateKeys();
+    synchronized (heartbeats) {
+      for (DatanodeDescriptor nodeInfo : heartbeats) {
+        nodeInfo.needKeyUpdate = true;
+      }
+    }
+  }
+
+  /**
+   * Periodically calls heartbeatCheck() and updateAccessKey()
    */
   class HeartbeatMonitor implements Runnable {
+    private long lastHeartbeatCheck;
+    private long lastAccessKeyUpdate;
     /**
      */
     public void run() {
       while (fsRunning) {
         try {
-          heartbeatCheck();
+          long now = now();
+          if (lastHeartbeatCheck + heartbeatRecheckInterval < now) {
+            heartbeatCheck();
+            lastHeartbeatCheck = now;
+          }
+          if (isAccessTokenEnabled && (lastAccessKeyUpdate + accessKeyUpdateInterval < now)) {
+            updateAccessKey();
+            lastAccessKeyUpdate = now;
+          }
         } catch (Exception e) {
           FSNamesystem.LOG.error(StringUtils.stringifyException(e));
         }
         try {
-          Thread.sleep(heartbeatRecheckInterval);
+          Thread.sleep(5000);  // 5 seconds
         } catch (InterruptedException ie) {
         }
       }
