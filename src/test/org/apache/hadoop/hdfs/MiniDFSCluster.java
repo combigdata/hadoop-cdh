@@ -43,6 +43,7 @@ import org.apache.hadoop.hdfs.tools.DFSAdmin;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.security.*;
+import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.util.ToolRunner;
 
 /**
@@ -568,6 +569,45 @@ public class MiniDFSCluster {
     }
   }
 
+  /**
+   * Shutdown namenode.
+   */
+  public synchronized void shutdownNameNode() {
+    if (nameNode != null) {
+      System.out.println("Shutting down the namenode");
+      nameNode.stop();
+      nameNode.join();
+      nameNode = null;
+    }
+  }
+
+  /**
+   * Restart namenode.
+   */
+  public synchronized void restartNameNode() throws IOException {
+    shutdownNameNode();
+    nameNode = NameNode.createNameNode(new String[] {}, conf);
+    waitClusterUp();
+    System.out.println("Restarted the namenode");
+    int failedCount = 0;
+    while (true) {
+      try {
+        waitActive();
+        break;
+      } catch (IOException e) {
+        failedCount++;
+        // Cached RPC connection to namenode, if any, is expected to fail once
+        if (failedCount > 1) {
+          System.out.println("Tried waitActive() " + failedCount
+              + " time(s) and failed, giving up.  "
+              + StringUtils.stringifyException(e));
+          throw e;
+        }
+      }
+    }
+    System.out.println("Cluster is active");
+  }
+
   /*
    * Corrupt a block on all datanode
    */
@@ -607,7 +647,7 @@ public class MiniDFSCluster {
   /*
    * Shutdown a particular datanode
    */
-  public DataNodeProperties stopDataNode(int i) {
+  public synchronized DataNodeProperties stopDataNode(int i) {
     if (i < 0 || i >= dataNodes.size()) {
       return null;
     }
@@ -620,48 +660,6 @@ public class MiniDFSCluster {
     dn.shutdown();
     numDataNodes--;
     return dnprop;
-  }
-
-  /**
-   * Restart a datanode
-   * @param dnprop datanode's property
-   * @return true if restarting is successful
-   * @throws IOException
-   */
-  public synchronized boolean restartDataNode(DataNodeProperties dnprop)
-  throws IOException {
-    Configuration conf = dnprop.conf;
-    String[] args = dnprop.dnArgs;
-    Configuration newconf = new Configuration(conf); // save cloned config
-    dataNodes.add(new DataNodeProperties(
-                     DataNode.createDataNode(args, conf), 
-                     newconf, args));
-    numDataNodes++;
-    return true;
-
-  }
-  /*
-   * Restart a particular datanode
-   */
-  public synchronized boolean restartDataNode(int i) throws IOException {
-    DataNodeProperties dnprop = stopDataNode(i);
-    if (dnprop == null) {
-      return false;
-    } else {
-      return restartDataNode(dnprop);
-    }
-  }
-
-  /*
-   * Restart all datanodes
-   */
-  public synchronized boolean restartDataNodes() throws IOException {
-    for (int i = dataNodes.size()-1; i >= 0; i--) {
-      System.out.println("Restarting DataNode " + i);
-      if (!restartDataNode(i)) 
-        return false;
-    }
-    return true;
   }
 
   /*
@@ -677,7 +675,80 @@ public class MiniDFSCluster {
     }
     return stopDataNode(i);
   }
-  
+
+  /**
+   * Restart a datanode
+   * @param dnprop datanode's property
+   * @return true if restarting is successful
+   * @throws IOException
+   */
+  public boolean restartDataNode(DataNodeProperties dnprop) throws IOException {
+    return restartDataNode(dnprop, false);
+  }
+
+  /**
+   * Restart a datanode, on the same port if requested
+   * @param dnprop, the datanode to restart
+   * @param keepPort, whether to use the same port
+   * @return true if restarting is successful
+   * @throws IOException
+   */
+  public synchronized boolean restartDataNode(DataNodeProperties dnprop,
+      boolean keepPort) throws IOException {
+    Configuration conf = dnprop.conf;
+    String[] args = dnprop.dnArgs;
+    Configuration newconf = new Configuration(conf); // save cloned config
+    if (keepPort) {
+      InetSocketAddress addr = dnprop.datanode.getSelfAddr();
+      conf.set("dfs.datanode.address", addr.getAddress().getHostAddress() + ":"
+          + addr.getPort());
+    }
+    dataNodes.add(new DataNodeProperties(DataNode.createDataNode(args, conf),
+        newconf, args));
+    numDataNodes++;
+    return true;
+  }
+
+  /*
+   * Restart a particular datanode, use newly assigned port
+   */
+  public boolean restartDataNode(int i) throws IOException {
+    return restartDataNode(i, false);
+  }
+
+  /*
+   * Restart a particular datanode, on the same port if keepPort is true
+   */
+  public synchronized boolean restartDataNode(int i, boolean keepPort)
+      throws IOException {
+    DataNodeProperties dnprop = stopDataNode(i);
+    if (dnprop == null) {
+      return false;
+    } else {
+      return restartDataNode(dnprop, keepPort);
+    }
+  }
+
+  /*
+   * Restart all datanodes, on the same ports if keepPort is true
+   */
+  public synchronized boolean restartDataNodes(boolean keepPort)
+      throws IOException {
+    for (int i = dataNodes.size() - 1; i >= 0; i--) {
+      if (!restartDataNode(i, keepPort))
+        return false;
+      System.out.println("Restarted DataNode " + i);
+    }
+    return true;
+  }
+
+  /*
+   * Restart all datanodes, use newly assigned ports
+   */
+  public boolean restartDataNodes() throws IOException {
+    return restartDataNodes(false);
+  }
+
   /**
    * Returns true if the NameNode is running and is out of Safe Mode.
    */
