@@ -1634,7 +1634,7 @@ public class DFSClient implements FSConstants, java.io.Closeable {
     }
 
     /** Fetch a block from namenode and cache it */
-    private synchronized void fetchAndCacheBlockAt(long offset) throws IOException {
+    private synchronized void fetchBlockAt(long offset) throws IOException {
       int targetBlockIdx = locatedBlocks.findBlock(offset);
       if (targetBlockIdx < 0) { // block is not cached
         targetBlockIdx = LocatedBlocks.getInsertIndex(targetBlockIdx);
@@ -1648,17 +1648,6 @@ public class DFSClient implements FSConstants, java.io.Closeable {
       locatedBlocks.insertRange(targetBlockIdx, newBlocks.getLocatedBlocks());
     }
 
-    /** Fetch a block without caching */
-    private LocatedBlock fetchBlockAt(long offset) throws IOException {
-      LocatedBlocks newBlocks;
-      newBlocks = callGetBlockLocations(namenode, src, offset, prefetchSize);
-      if (newBlocks == null) {
-        throw new IOException("Could not find target position " + offset);
-      }
-      int index = newBlocks.findBlock(offset);
-      return newBlocks.get(index);
-    }
-    
     /**
      * Get blocks in the specified range.
      * Fetch them from the namenode if not cached.
@@ -1763,7 +1752,7 @@ public class DFSClient implements FSConstants, java.io.Closeable {
              * access key from its memory since it's considered expired based on
              * the estimated expiration date.
              */
-            fetchAndCacheBlockAt(target);
+            fetchBlockAt(target);
           } else {
             // Put chosen node into dead list, continue
             addToDeadNodes(chosenNode);
@@ -1949,11 +1938,13 @@ public class DFSClient implements FSConstants, java.io.Closeable {
       // Connect to best DataNode for desired Block, with potential offset
       //
       Socket dn = null;
-      int numAttempts = block.getLocations().length;
-      IOException ioe = null;
       int refetchToken = 1; // only need to get a new access token once
       
-      while (dn == null && numAttempts-- > 0 ) {
+      while (true) {
+        // cached block locations may have been updated by chooseDataNode()
+        // or fetchBlockAt(). Always get the latest list of locations at the 
+        // start of the loop.
+        block = getBlockAt(block.getStartOffset(), false);
         DNAddrPair retval = chooseDataNode(block);
         DatanodeInfo chosenNode = retval.info;
         InetSocketAddress targetAddr = retval.addr;
@@ -1985,15 +1976,13 @@ public class DFSClient implements FSConstants, java.io.Closeable {
                    e.getPos() + " from " + chosenNode.getName());
           reportChecksumFailure(src, block.getBlock(), chosenNode);
         } catch (IOException e) {
-          ioe = e;
           if (e instanceof InvalidAccessTokenException && refetchToken-- > 0) {
             LOG.info("Invalid access token when connecting to " + targetAddr
                 + " for file " + src + " for block "
                 + block.getBlock() + ":"
                 + StringUtils.stringifyException(e)
                 + ", get a new access token and retry...");
-            block = fetchBlockAt(block.getStartOffset());
-            numAttempts = block.getLocations().length;
+            fetchBlockAt(block.getStartOffset());
             continue;
           } else {
             LOG.warn("Failed to connect to " + targetAddr + 
