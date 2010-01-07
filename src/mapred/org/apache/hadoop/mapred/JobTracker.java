@@ -102,6 +102,7 @@ import org.apache.hadoop.util.VersionInfo;
 
 import org.apache.hadoop.mapreduce.ClusterMetrics;
 import org.apache.hadoop.mapreduce.TaskType;
+import org.apache.hadoop.mapreduce.security.token.JobTokenSecretManager;
 import org.apache.hadoop.mapreduce.server.jobtracker.TaskTracker;
 
 /*******************************************************
@@ -183,6 +184,13 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
 
   private MRAsyncDiskService asyncDiskService;
   
+  private final JobTokenSecretManager jobTokenSecretManager
+    = new JobTokenSecretManager();
+
+  JobTokenSecretManager getJobTokenSecretManager() {
+    return jobTokenSecretManager;
+  }
+
   /**
    * A client tried to submit a job before the Job Tracker was ready.
    */
