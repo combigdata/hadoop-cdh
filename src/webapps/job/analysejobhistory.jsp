@@ -26,7 +26,7 @@
     showTasks = Integer.parseInt(numTasks);  
   }
   FileSystem fs = (FileSystem) application.getAttribute("fileSys");
-  JobInfo job = JSPUtil.getJobInfo(request, fs);
+  JobHistory.JobInfo job = JSPUtil.getJobInfo(request, fs);
 %>
 <head>
   <title>Analyze Job - Hadoop Job <%=jobid %></title>

@@ -41,6 +41,7 @@ import org.apache.hadoop.net.Node;
 
 import org.apache.hadoop.mapred.FairScheduler.JobInfo;
 import org.apache.hadoop.mapreduce.server.jobtracker.TaskTracker;
+import org.apache.hadoop.mapreduce.split.JobSplit;
 
 public class TestFairScheduler extends TestCase {
   final static String TEST_DIR = new File(System.getProperty("test.build.data",
@@ -108,12 +109,13 @@ public class TestFairScheduler extends TestCase {
       // create maps
       numMapTasks = conf.getNumMapTasks();
       maps = new TaskInProgress[numMapTasks];
+      JobSplit.TaskSplitMetaInfo split = JobSplit.EMPTY_TASK_SPLIT;
       for (int i = 0; i < numMapTasks; i++) {
         String[] inputLocations = null;
         if (mapInputLocations != null)
           inputLocations = mapInputLocations[i];
         maps[i] = new FakeTaskInProgress(getJobID(), i,
-            getJobConf(), this, inputLocations);
+            getJobConf(), this, inputLocations, split);
         if (mapInputLocations == null) // Job has no locality info
           nonLocalMaps.add(maps[i]);
       }
@@ -134,7 +136,8 @@ public class TestFairScheduler extends TestCase {
         if (!tip.isRunning() && !tip.isComplete() &&
             getLocalityLevel(tip, tts) < localityLevel) {
           TaskAttemptID attemptId = getTaskAttemptID(tip);
-          Task task = new MapTask("", attemptId, 0, "", new BytesWritable(), 1, "user") {
+          JobSplit.TaskSplitMetaInfo split = JobSplit.EMPTY_TASK_SPLIT;
+          Task task = new MapTask("", attemptId, 0, split.getSplitIndex(), 1) {
             @Override
             public String toString() {
               return String.format("%s on %s", getTaskID(), tts.getTrackerName());
@@ -158,7 +161,7 @@ public class TestFairScheduler extends TestCase {
           (FakeTaskInProgress) reduces[reduce];
         if (!tip.isRunning() && !tip.isComplete()) {
           TaskAttemptID attemptId = getTaskAttemptID(tip);
-          Task task = new ReduceTask("", attemptId, 0, maps.length, 1, "user") {
+          Task task = new ReduceTask("", attemptId, 0, maps.length, 1) {
             @Override
             public String toString() {
               return String.format("%s on %s", getTaskID(), tts.getTrackerName());
@@ -227,8 +230,9 @@ public class TestFairScheduler extends TestCase {
      
     // Constructor for map
     FakeTaskInProgress(JobID jId, int id, JobConf jobConf,
-        FakeJobInProgress job, String[] inputLocations) {
-      super(jId, "", new JobClient.RawSplit(), null, jobConf, job, id, 1);
+        FakeJobInProgress job, String[] inputLocations,
+        JobSplit.TaskSplitMetaInfo split) {
+      super(jId, "", split, job.jobtracker, jobConf, job, id, 1);
       this.isMap = true;
       this.fakeJob = job;
       this.inputLocations = inputLocations;
@@ -2576,7 +2580,7 @@ public class TestFairScheduler extends TestCase {
     jobConf.set(POOL_PROPERTY, "nonsense"); // test that this is overridden
     jobConf.set(EXPLICIT_POOL_PROPERTY, "poolA");
     JobInProgress job3 = new FakeJobInProgress(jobConf, taskTrackerManager,
-        null);
+        null, UtilsForTests.getJobTracker());
     job3.getStatus().setRunState(JobStatus.RUNNING);
     taskTrackerManager.submitJob(job3);
 
@@ -2591,7 +2595,7 @@ public class TestFairScheduler extends TestCase {
     jobConf2.setNumReduceTasks(19);
     jobConf2.set(POOL_PROPERTY, "poolA");
     JobInProgress job4 = new FakeJobInProgress(jobConf2, taskTrackerManager,
-        null);
+        null, UtilsForTests.getJobTracker());
     job4.getStatus().setRunState(JobStatus.RUNNING);
     taskTrackerManager.submitJob(job4);
 
