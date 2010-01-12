@@ -199,6 +199,7 @@ public class JobInProgress {
   private JobInitKillStatus jobInitKillStatus = new JobInitKillStatus();
 
   private LocalFileSystem localFs;
+  private FileSystem fs;
   private JobID jobId;
   private boolean hasSpeculativeMaps;
   private boolean hasSpeculativeReduces;
@@ -306,7 +307,7 @@ public class JobInProgress {
     this.jobtracker.getInstrumentation().addPrepJob(conf, jobid);
     this.startTime = System.currentTimeMillis();
     status.setStartTime(startTime);
-    this.localFs = FileSystem.getLocal(default_conf);
+    this.localFs = jobtracker.getLocalFileSystem();
 
     JobConf default_job_conf = new JobConf(default_conf);
     this.localJobFile = default_job_conf.getLocalPath(JobTracker.SUBDIR 
@@ -320,7 +321,7 @@ public class JobInProgress {
     LOG.info("User : " +  this.user);
 
     Path jobDir = jobtracker.getSystemDirectoryForJob(jobId);
-    FileSystem fs = jobDir.getFileSystem(default_conf);
+    fs = jobtracker.getFileSystem(jobDir);
     jobFile = new Path(jobDir, "job.xml");
     fs.copyToLocalFile(jobFile, localJobFile);
     conf = new JobConf(localJobFile);
@@ -518,8 +519,6 @@ public class JobInProgress {
     // log the job priority
     setPriority(this.priority);
     
-    Path jobDir = jobtracker.getSystemDirectoryForJob(jobId);
-    FileSystem fs = jobDir.getFileSystem(conf);
     //
     // generate security keys needed by Tasks
     //
@@ -2893,7 +2892,7 @@ public class JobInProgress {
       // Delete temp dfs dirs created if any, like in case of 
       // speculative exn of reduces.  
       Path tempDir = jobtracker.getSystemDirectoryForJob(getJobID());
-      new CleanupQueue().addToQueue(conf,tempDir); 
+      new CleanupQueue().addToQueue(jobtracker.getFileSystem(tempDir), tempDir); 
     } catch (IOException e) {
       LOG.warn("Error cleaning up "+profile.getJobID()+": "+e);
     }
