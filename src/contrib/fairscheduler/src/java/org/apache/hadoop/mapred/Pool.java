@@ -21,7 +21,7 @@ package org.apache.hadoop.mapred;
 import java.util.ArrayList;
 import java.util.Collection;
 
-import org.apache.hadoop.mapred.TaskType;
+import org.apache.hadoop.mapreduce.TaskType;
 
 /**
  * A schedulable pool of jobs.

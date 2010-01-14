@@ -40,6 +40,8 @@ import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.net.Node;
 
 import org.apache.hadoop.mapred.FairScheduler.JobInfo;
+import org.apache.hadoop.mapreduce.TaskType;
+import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.server.jobtracker.TaskTracker;
 import org.apache.hadoop.mapreduce.split.JobSplit;
 
@@ -244,7 +246,7 @@ public class TestFairScheduler extends TestCase {
     // Constructor for reduce
     FakeTaskInProgress(JobID jId, int id, JobConf jobConf,
                        FakeJobInProgress job) {
-      super(jId, "", jobConf.getNumMapTasks(), id, null, jobConf, job, 1);
+      super(jId, "", jobConf.getNumMapTasks(), id, job.jobtracker, jobConf, job, 1);
       this.isMap = false;
       this.fakeJob = job;
       activeTasks = new TreeMap<TaskAttemptID, String>();
@@ -350,6 +352,23 @@ public class TestFairScheduler extends TestCase {
      }
    }
 
+    public FakeTaskTrackerManager() {
+      TaskTracker tt1 = new TaskTracker("tt1");
+      tt1.setStatus(new TaskTrackerStatus("tt1", "tt1.host", 1,
+                                          new ArrayList<TaskStatus>(), 0,
+                                          maxMapTasksPerTracker, 
+                                          maxReduceTasksPerTracker));
+      trackers.put("tt1", tt1);
+      
+      TaskTracker tt2 = new TaskTracker("tt2");
+      tt2.setStatus(new TaskTrackerStatus("tt2", "tt2.host", 2,
+                                          new ArrayList<TaskStatus>(), 0,
+                                          maxMapTasksPerTracker, 
+                                          maxReduceTasksPerTracker));
+      trackers.put("tt2", tt2);
+
+    }
+    
     @Override
     public ClusterStatus getClusterStatus() {
       int numTrackers = trackers.size();
@@ -948,7 +967,8 @@ public class TestFairScheduler extends TestCase {
     // Finish up the tasks and advance time again. Note that we must finish
     // the task since FakeJobInProgress does not properly maintain running
     // tasks, so the scheduler will always get an empty task list from
-    // the JobInProgress's getMapTasks/getReduceTasks and think they finished.
+    // the JobInProgress's getTasks(TaskType.MAP)/getTasks(TaskType.REDUCE) and 
+    // think they finished.
     taskTrackerManager.finishTask("tt1", "attempt_test_0001_m_000000_0");
     taskTrackerManager.finishTask("tt1", "attempt_test_0002_m_000000_0");
     taskTrackerManager.finishTask("tt1", "attempt_test_0001_r_000000_0");

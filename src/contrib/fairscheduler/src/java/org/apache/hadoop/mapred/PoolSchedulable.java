@@ -29,7 +29,7 @@ import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.mapred.FairScheduler.JobInfo;
-import org.apache.hadoop.mapred.TaskType;
+import org.apache.hadoop.mapreduce.TaskType;
 
 public class PoolSchedulable extends Schedulable {
   public static final Log LOG = LogFactory.getLog(

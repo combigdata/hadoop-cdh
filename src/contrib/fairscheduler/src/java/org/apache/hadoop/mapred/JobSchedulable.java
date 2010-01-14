@@ -22,7 +22,7 @@ import java.io.IOException;
 import java.util.Collection;
 
 import org.apache.hadoop.mapred.FairScheduler.JobInfo;
-import org.apache.hadoop.mapred.TaskType;
+import org.apache.hadoop.mapreduce.TaskType;
 
 public class JobSchedulable extends Schedulable {
   private FairScheduler scheduler;
@@ -58,7 +58,7 @@ public class JobSchedulable extends Schedulable {
       // - have N attempts running, in which case it demands N slots, and may
       //   potentially demand one more slot if it needs to be speculated
       TaskInProgress[] tips = (taskType == TaskType.MAP ? 
-          job.getMapTasks() : job.getReduceTasks());
+          job.getTasks(TaskType.MAP) : job.getTasks(TaskType.REDUCE));
       boolean speculationEnabled = (taskType == TaskType.MAP ?
           job.hasSpeculativeMaps() : job.hasSpeculativeReduces());
       long time = scheduler.getClock().getTime();

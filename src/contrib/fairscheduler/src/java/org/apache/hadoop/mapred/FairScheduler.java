@@ -35,6 +35,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.http.HttpServer;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.mapreduce.server.jobtracker.TaskTracker;
+import org.apache.hadoop.mapreduce.TaskType;
 
 /**
  * A {@link TaskScheduler} that implements fair sharing.
@@ -456,7 +457,7 @@ public class FairScheduler extends TaskScheduler {
     int cap = (type == TaskType.MAP) ? mapAssignCap : reduceAssignCap;
     if (cap == -1) // Infinite cap; use the TaskTracker's slot count
       return (type == TaskType.MAP) ?
-          tts.getAvailableMapSlots() : tts.getAvailableReduceSlots();
+          tts.getAvailableMapSlots(): tts.getAvailableReduceSlots();
     else
       return cap;
   }
