@@ -18,6 +18,9 @@
 
 package org.apache.hadoop.util;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import junit.framework.TestCase;
 import static org.junit.Assert.assertArrayEquals;
 
@@ -140,4 +143,14 @@ public class TestStringUtils extends TestCase {
     assertArrayEquals(emptyArray, StringUtils.getTrimmedStrings(emptyList2));
   } 
 
+  public void testJoin() {
+    List<String> s = new ArrayList<String>();
+    s.add("a");
+    s.add("b");
+    s.add("c");
+    assertEquals("", StringUtils.join(":", s.subList(0, 0)));
+    assertEquals("a", StringUtils.join(":", s.subList(0, 1)));
+    assertEquals("a:b", StringUtils.join(":", s.subList(0, 2)));
+    assertEquals("a:b:c", StringUtils.join(":", s.subList(0, 3)));
+  }
 }

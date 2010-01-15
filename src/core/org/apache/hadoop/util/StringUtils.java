@@ -708,7 +708,7 @@ public class StringUtils {
   public static synchronized String limitDecimalTo2(double d) {
     return decimalFormat.format(d);
   }
-
+  
   /**
    * Concatenates strings, using a separator.
    *
