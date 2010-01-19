@@ -177,7 +177,6 @@ abstract public class Task implements Writable, Configurable {
                                                     TaskStatus.Phase.MAP : 
                                                     TaskStatus.Phase.SHUFFLE, 
                                                   counters);
-    this.mapOutputFile.setJobId(taskId.getJobID());
     spilledRecordsCounter = counters.findCounter(Counter.SPILLED_RECORDS);
   }
 
@@ -403,7 +402,6 @@ abstract public class Task implements Writable, Configurable {
     partition = in.readInt();
     numSlotsRequired = in.readInt();
     taskStatus.readFields(in);
-    this.mapOutputFile.setJobId(taskId.getJobID()); 
     skipRanges.readFields(in);
     currentRecIndexIterator = skipRanges.skipRangeIterator();
     currentRecStartIndex = currentRecIndexIterator.next();
