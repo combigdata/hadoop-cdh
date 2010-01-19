@@ -127,6 +127,7 @@ public class TestReduceFetch extends TestCase {
     job.setInt("mapred.reduce.parallel.copies", 1);
     job.setInt("io.sort.mb", 10);
     job.setInt("mapred.job.reduce.total.mem.bytes", 128 << 20);
+    job.set(JobConf.MAPRED_REDUCE_TASK_JAVA_OPTS, "-Xmx128m");
     job.set("mapred.job.shuffle.input.buffer.percent", "0.14");
     job.setNumTasksToExecutePerJvm(1);
     job.set("mapred.job.shuffle.merge.percent", "1.0");
