@@ -53,7 +53,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.filecache.DistributedCache;
+import org.apache.hadoop.filecache.TrackerDistributedCacheManager;
 import org.apache.hadoop.fs.DF;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -91,7 +91,6 @@ import org.apache.hadoop.security.authorize.ConfiguredPolicy;
 import org.apache.hadoop.security.authorize.PolicyProvider;
 import org.apache.hadoop.security.authorize.ServiceAuthorizationManager;
 import org.apache.hadoop.util.DiskChecker;
-import org.apache.hadoop.util.MRAsyncDiskService;
 import org.apache.hadoop.util.MemoryCalculatorPlugin;
 import org.apache.hadoop.util.ProcfsBasedProcessTree;
 import org.apache.hadoop.security.token.Token;
@@ -101,6 +100,7 @@ import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.util.VersionInfo;
 import org.apache.hadoop.util.DiskChecker.DiskErrorException;
 import org.apache.hadoop.util.Shell.ShellCommandExecutor;
+import org.apache.hadoop.util.MRAsyncDiskService;
 
 /*******************************************************
  * TaskTracker is a process that starts and tracks MR Tasks
@@ -162,6 +162,8 @@ public class TaskTracker
 
   Server taskReportServer = null;
   InterTrackerProtocol jobClient;
+  
+  private TrackerDistributedCacheManager distributedCacheManager;
     
   // last heartbeat response recieved
   short heartbeatResponseId = -1;
@@ -568,8 +570,7 @@ public class TaskTracker
     // Check local disk, start async disk service, and clean up all 
     // local directories.
     checkLocalDirs(this.fConf.getLocalDirs());
-    asyncDiskService = new MRAsyncDiskService(FileSystem.getLocal(fConf),
-        fConf.getLocalDirs());
+    asyncDiskService = new MRAsyncDiskService(fConf);
     asyncDiskService.cleanupAllVolumes();
 
     // Clear out state tables
@@ -639,6 +640,12 @@ public class TaskTracker
     this.taskTrackerName = "tracker_" + localHostname + ":" + taskReportAddress;
     LOG.info("Starting tracker " + taskTrackerName);
 
+    // Initialize DistributedCache and
+    // clear out temporary files that might be lying around
+    this.distributedCacheManager = 
+        new TrackerDistributedCacheManager(this.fConf, asyncDiskService);
+    this.distributedCacheManager.purgeCache();
+
     this.jobClient = (InterTrackerProtocol) 
       RPC.waitForProxy(InterTrackerProtocol.class,
                        InterTrackerProtocol.versionID, 
@@ -696,12 +703,12 @@ public class TaskTracker
         t, TaskTrackerInstrumentation.class);
   }
   
-  /**
-   * Removes all contents of temporary storage.  Called upon
+  /** 
+   * Removes all contents of temporary storage.  Called upon 
    * startup, to remove any leftovers from previous run.
-   * 
+   *
    * Use MRAsyncDiskService.moveAndDeleteAllVolumes instead.
-   * @see org.apache.hadoop.util.MRAsyncDiskService#cleanupAllVolumes()
+   * @see org.apache.hadoop.mapreduce.util.MRAsyncDiskService#cleanupAllVolumes()
    */
   @Deprecated
   public void cleanupStorage() throws IOException {
@@ -1732,13 +1739,6 @@ public class TaskTracker
     fConf.setLong(REDUCE_USERLOG_RETAIN_SIZE, retainSize);
   }
 
-  /**
-   * Returns the MRAsyncDiskService object for async deletions.
-   */
-  public MRAsyncDiskService getAsyncDiskService() {
-    return asyncDiskService;
-  }
-  
   /**
    * Return the total virtual memory available on this TaskTracker.
    * @return total size of virtual memory.
@@ -3748,6 +3748,10 @@ public class TaskTracker
     healthChecker.start();
   }
   
+  TrackerDistributedCacheManager getTrackerDistributedCacheManager() {
+    return distributedCacheManager;
+  }
+
     /**
      * Download the job-token file from the FS and save on local fs.
      * @param user

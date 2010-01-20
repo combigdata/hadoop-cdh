@@ -29,6 +29,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapred.JobConf;
 
 /**
  * This class is a container of multiple thread pools, each for a volume,
@@ -106,6 +107,14 @@ public class MRAsyncDiskService {
         execute(volumes[v], task);
       }
     }
+  }
+
+  /**
+   * Initialize MRAsyncDiskService based on conf.
+   * @param conf  local file system and local dirs will be read from conf 
+   */
+  public MRAsyncDiskService(JobConf conf) throws IOException {
+    this(FileSystem.getLocal(conf), conf.getLocalDirs());
   }
   
   /**
