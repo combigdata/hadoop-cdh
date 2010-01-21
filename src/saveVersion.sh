@@ -19,16 +19,19 @@
 # This file is used to generate the BuildStamp.java class that
 # records the user, url, revision and timestamp.
 version=$1
-revision=$HADOOP_REVISION
-if [ -z "$revision" ] ; then
-  revision=`svn info | sed -n -e 's/Last Changed Rev: \(.*\)/\1/p'`
-fi
-if [ -z "$revision" ]  ; then
-  revision=`git rev-parse HEAD`
-fi
-url=`svn info | sed -n -e 's/URL: \(.*\)/\1/p'`
 user=`whoami`
 date=`date`
+if [ -d .git ]; then
+  revision=`git log -1 --pretty=format:"%H"`
+  hostname=`hostname`
+  branch=`git branch | sed -n -e 's/^* //p'`
+  url="git://$hostname/$cwd on branch $branch"
+else
+  revision=`svn info | sed -n -e 's/Last Changed Rev: \(.*\)/\1/p'`
+  url=`svn info | sed -n -e 's/URL: \(.*\)/\1/p'`
+fi
+# allow override of revision using environment variable
+revision=${HADOOP_REVISION:-$revision}
 srcChecksum=`find src -name '*.java' | LC_ALL=C sort | xargs md5sum | md5sum | cut -d ' ' -f 1`
 
 mkdir -p build/src/org/apache/hadoop
