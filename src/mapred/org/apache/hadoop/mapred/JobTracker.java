@@ -108,6 +108,7 @@ import org.apache.hadoop.mapreduce.ClusterMetrics;
 import org.apache.hadoop.mapreduce.TaskType;
 import org.apache.hadoop.mapreduce.security.token.JobTokenSecretManager;
 import org.apache.hadoop.mapreduce.server.jobtracker.TaskTracker;
+import org.apache.hadoop.mapreduce.security.TokenStorage;
 
 /*******************************************************
  * JobTracker is the central location for submitting and 
@@ -188,6 +189,7 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
 
   private MRAsyncDiskService asyncDiskService;
   
+  private TokenStorage tokenStorage;
   private final JobTokenSecretManager jobTokenSecretManager
     = new JobTokenSecretManager();
 
@@ -1652,7 +1654,7 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
            * BACKPORTED (MAPREDUCE-873)
            */
           job = new JobInProgress(JobTracker.this, conf, null, 
-                                  restartCount);
+                                  restartCount, tokenStorage);
 
           // 2. Check if the user has appropriate access
           // Get the user group info for the job's owner
@@ -3588,8 +3590,8 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
    * of the JobTracker.  But JobInProgress adds info that's useful for
    * the JobTracker alone.
    */
-  public synchronized JobStatus submitJob(JobID jobId, String jobSubmitDir)
-  throws IOException {
+  public synchronized JobStatus submitJob(
+      JobID jobId, String jobSubmitDir, TokenStorage ts)  throws IOException {
     if(jobs.containsKey(jobId)) {
       //job already running, don't start twice
       return jobs.get(jobId).getStatus();
@@ -3598,8 +3600,9 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
     JobInfo jobInfo = new JobInfo(jobId, new Text(ugi.getUserName()),
         new Path(jobSubmitDir));
     JobInProgress job = null;
+    tokenStorage = ts;
     try {
-      job = new JobInProgress(this, this.conf, jobInfo, 0);
+      job = new JobInProgress(this, this.conf, jobInfo, 0, tokenStorage);
     } catch (Exception e) {
       throw new IOException(e);
     }
