@@ -36,6 +36,10 @@ import org.apache.hadoop.hdfs.security.ExportedAccessKeys;
 import org.apache.hadoop.security.PermissionChecker;
 import org.apache.hadoop.security.UnixUserGroupInformation;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.security.token.Token;
+import org.apache.hadoop.security.token.SecretManager.InvalidToken;
+import org.apache.hadoop.hdfs.security.token.DelegationTokenIdentifier;
+import org.apache.hadoop.hdfs.security.token.DelegationTokenSecretManager;
 import org.apache.hadoop.util.*;
 import org.apache.hadoop.metrics.util.MBeanUtil;
 import org.apache.hadoop.net.CachedDNSToSwitchMapping;
@@ -59,6 +63,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.*;
 import org.apache.hadoop.ipc.Server;
 import org.apache.hadoop.io.IOUtils;
+import org.apache.hadoop.io.Text;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -139,6 +144,10 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
   AccessTokenHandler accessTokenHandler;
   private long accessKeyUpdateInterval;
   private long accessTokenLifetime;
+  
+  // Scan interval is not configurable.
+  private final long DELEGATION_TOKEN_REMOVER_SCAN_INTERVAL = 3600000; // 1 hour
+  private DelegationTokenSecretManager dtSecretManager;
 
   volatile long pendingReplicationBlocksCount = 0L;
   volatile long corruptReplicaBlocksCount = 0L;
@@ -307,6 +316,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
       close();
       throw e;
     }
+    dtSecretManager.startThreads();
   }
 
   /**
@@ -315,6 +325,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
   private void initialize(NameNode nn, Configuration conf) throws IOException {
     this.systemStart = now();
     setConfigurationParameters(conf);
+    dtSecretManager = createDelegationTokenSecretManager(conf);
 
     this.nameNodeAddress = nn.getNameNodeAddress();
     this.registerMBean(conf); // register the MBean for the FSNamesystemStutus
@@ -5106,5 +5117,44 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
       }
     }
     return decommissioningNodes;
+  }
+
+  /*
+   * Delegation Token
+   */
+  
+  private DelegationTokenSecretManager createDelegationTokenSecretManager(
+      Configuration conf) {
+    return new DelegationTokenSecretManager(conf.getLong(
+        "dfs.namenode.delegation.key.update-interval", 86400),
+        conf.getLong(
+            "dfs.namenode.delegation.token.max-lifetime", 604800),
+        conf.getLong(
+            "dfs.namenode.delegation.token.renew-interval", 86400),
+        DELEGATION_TOKEN_REMOVER_SCAN_INTERVAL);
+  }
+
+  public DelegationTokenSecretManager getDelegationTokenSecretManager() {
+    return dtSecretManager;
+  }
+
+  public Token<DelegationTokenIdentifier> getDelegationToken(Text renewer)
+      throws IOException {
+    String user = UserGroupInformation.getCurrentUGI().getUserName();
+    Text owner = new Text(user);
+    DelegationTokenIdentifier dtId = new DelegationTokenIdentifier(owner, renewer);
+    return new Token<DelegationTokenIdentifier>(dtId, dtSecretManager);
+  }
+
+  public Boolean renewDelegationToken(Token<DelegationTokenIdentifier> token)
+      throws InvalidToken, IOException {
+    String renewer = UserGroupInformation.getCurrentUGI().getUserName();
+    return dtSecretManager.renewToken(token, renewer);
+  }
+
+  public Boolean cancelDelegationToken(Token<DelegationTokenIdentifier> token)
+      throws IOException {
+    String canceller = UserGroupInformation.getCurrentUGI().getUserName();
+    return dtSecretManager.cancelToken(token, canceller);
   }
 }
