@@ -127,6 +127,8 @@ public class TaskInProgress {
   
   private Counters counters = new Counters();
   
+  private String user;
+  
 
   /**
    * Constructor for MapTask
@@ -177,6 +179,7 @@ public class TaskInProgress {
     } else {
       this.maxTaskAttempts = conf.getMaxReduceAttempts();
     }
+    this.user = job.getUser();
   }
     
   /**
@@ -701,6 +704,7 @@ public class TaskInProgress {
       LOG.info("TaskInProgress " + getTIPId() + " has failed " + numTaskFailures + " times.");
       kill();
     }
+    this.user = job.getUser();
   }
   
   /**
@@ -956,7 +960,14 @@ public class TaskInProgress {
   public Task addRunningTask(TaskAttemptID taskid, String taskTracker) {
     return addRunningTask(taskid, taskTracker, false);
   }
+
+  String getUser() {
+    return user;
+  }
   
+  void setUser(String user) {
+    this.user = user;
+  }
   /**
    * Adds a previously running task to this tip. This is used in case of 
    * jobtracker restarts.
@@ -989,6 +1000,7 @@ public class TaskInProgress {
       cleanupTasks.put(taskid, taskTracker);
     }
     t.setConf(conf);
+    t.setUser(getUser());
     LOG.debug("Launching task with skipRanges:"+failedRanges.getSkipRanges());
     t.setSkipRanges(failedRanges.getSkipRanges());
     t.setSkipping(skipping);

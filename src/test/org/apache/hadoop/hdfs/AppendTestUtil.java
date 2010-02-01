@@ -35,7 +35,6 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.protocol.FSConstants;
-import org.apache.hadoop.security.UnixUserGroupInformation;
 import org.apache.hadoop.security.UserGroupInformation;
 
 /** Utilities for append-related tests */ 
@@ -87,14 +86,13 @@ public class AppendTestUtil {
     }
   }
 
-  public static FileSystem createHdfsWithDifferentUsername(Configuration conf
-      ) throws IOException {
-    Configuration conf2 = new Configuration(conf);
-    String username = UserGroupInformation.getCurrentUGI().getUserName()+"_XXX";
-    UnixUserGroupInformation.saveToConf(conf2,
-        UnixUserGroupInformation.UGI_PROPERTY_NAME,
-        new UnixUserGroupInformation(username, new String[]{"supergroup"}));
-    return FileSystem.get(conf2);
+  public static FileSystem createHdfsWithDifferentUsername(final Configuration conf
+      ) throws IOException, InterruptedException {
+    String username = UserGroupInformation.getCurrentUser().getUserName()+"_XXX";
+    UserGroupInformation ugi = 
+      UserGroupInformation.createUserForTesting(username, new String[]{"supergroup"});
+    
+    return DFSTestUtil.getFileSystemAs(ugi, conf);
   }
 
   public static void write(OutputStream out, int offset, int length) throws IOException {

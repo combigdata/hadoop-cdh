@@ -84,6 +84,7 @@ class GridmixJob implements Callable<Job>, Delayed {
   public GridmixJob(Configuration conf, long submissionMillis,
       JobStory jobdesc, Path outRoot, int seq) throws IOException {
     ((StringBuilder)nameFormat.get().out()).setLength(JOBNAME.length());
+    // TODO(broken compile in HADOOP-6299
     job = new Job(conf, nameFormat.get().format("%05d", seq).toString());
     submissionTimeNanos = TimeUnit.NANOSECONDS.convert(
         submissionMillis, TimeUnit.MILLISECONDS);
