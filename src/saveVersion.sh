@@ -19,6 +19,7 @@
 # This file is used to generate the BuildStamp.java class that
 # records the user, url, revision and timestamp.
 version=$1
+build_dir=$2
 user=`whoami`
 date=`date`
 if [ -d .git ]; then
@@ -34,7 +35,7 @@ fi
 revision=${HADOOP_REVISION:-$revision}
 srcChecksum=`find src -name '*.java' | LC_ALL=C sort | xargs md5sum | md5sum | cut -d ' ' -f 1`
 
-mkdir -p build/src/org/apache/hadoop
+mkdir -p $build_dir/src/org/apache/hadoop
 cat << EOF | \
   sed -e "s/VERSION/$version/" -e "s/USER/$user/" -e "s/DATE/$date/" \
       -e "s|URL|$url|" -e "s/REV/$revision/" -e "s/SRCCHECKSUM/$srcChecksum/" \
