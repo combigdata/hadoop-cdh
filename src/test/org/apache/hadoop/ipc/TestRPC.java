@@ -73,7 +73,7 @@ public class TestRPC extends TestCase {
     String toString();
   }
 
-  public class TestImpl implements TestProtocol {
+  public static class TestImpl implements TestProtocol {
     int fastPingCounter = 0;
     
     public long getProtocolVersion(String protocol, long clientVersion) {
