@@ -277,6 +277,8 @@ public class JobInProgress {
   private Map<TaskTracker, FallowSlotInfo> trackersReservedForReduces = 
     new HashMap<TaskTracker, FallowSlotInfo>();
   private Path jobSubmitDir = null;
+
+  final private UserGroupInformation userUGI;
   
   /**
    * Create an almost empty JobInProgress, which can be used only for tests
@@ -293,6 +295,11 @@ public class JobInProgress {
     this.status = new JobStatus(jobid, 0.0f, 0.0f, JobStatus.PREP);
     this.profile = new JobProfile(conf.getUser(), jobid, "", "", 
                                   conf.getJobName(), conf.getQueueName());
+    try {
+      this.userUGI = UserGroupInformation.getCurrentUser();
+    } catch (IOException ie){
+      throw new RuntimeException(ie);
+    }
   }
   
   /**
@@ -329,14 +336,14 @@ public class JobInProgress {
     // use the user supplied token to add user credentials to the conf
     jobSubmitDir = jobInfo.getJobSubmitDir();
     user = jobInfo.getUser().toString();
-    UserGroupInformation ugi = UserGroupInformation.createRemoteUser(user);
+    userUGI = UserGroupInformation.createRemoteUser(user);
     if (ts != null) {
       for (Token<? extends TokenIdentifier> token : ts.getAllTokens()) {
-        ugi.addToken(token);
+        userUGI.addToken(token);
       }
     }
 
-    fs = ugi.doAs(new PrivilegedExceptionAction<FileSystem>() {
+    fs = userUGI.doAs(new PrivilegedExceptionAction<FileSystem>() {
       public FileSystem run() throws IOException {
         return jobSubmitDir.getFileSystem(default_conf);
       }});
@@ -547,10 +554,21 @@ public class JobInProgress {
     }
 
     LOG.info("Initializing " + jobId);
-
-    // log job info
-    JobHistory.JobInfo.logSubmitted(getJobID(), conf, jobFile, 
-                                    this.startTime, hasRestarted());
+    final long startTimeFinal = this.startTime;
+    // log job info as the user running the job
+    try {
+    userUGI.doAs(new PrivilegedExceptionAction<Object>() {
+      @Override
+      public Object run() throws Exception {
+        JobHistory.JobInfo.logSubmitted(getJobID(), conf, jobFile, 
+            startTimeFinal, hasRestarted());
+        return null;
+      }
+    });
+    } catch(InterruptedException ie) {
+      throw new IOException(ie);
+    }
+    
     // log the job priority
     setPriority(this.priority);
     
