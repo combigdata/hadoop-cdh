@@ -44,6 +44,7 @@ import org.apache.hadoop.mapreduce.TaskType;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.server.jobtracker.TaskTracker;
 import org.apache.hadoop.mapreduce.split.JobSplit;
+import org.apache.hadoop.mapred.UtilsForTests.FakeClock;
 
 public class TestFairScheduler extends TestCase {
   final static String TEST_DIR = new File(System.getProperty("test.build.data",
@@ -486,19 +487,6 @@ public class TestFairScheduler extends TestCase {
       TaskStatus status = statuses.get(attemptIdStr);
       trackerForTip.get(attemptIdStr).getTaskReports().remove(status);
       return true;
-    }
-  }
-  
-  protected class FakeClock extends FairScheduler.Clock {
-    private long time = 0;
-    
-    public void advance(long millis) {
-      time += millis;
-    }
-
-    @Override
-    long getTime() {
-      return time;
     }
   }
   

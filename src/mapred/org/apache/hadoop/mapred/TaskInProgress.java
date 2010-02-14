@@ -228,7 +228,7 @@ public class TaskInProgress {
    * Initialization common to Map and Reduce
    */
   void init(JobID jobId) {
-    this.startTime = System.currentTimeMillis();
+    this.startTime = jobtracker.getClock().getTime();
     this.id = new TaskID(jobId, isMapTask(), partition);
     this.skipping = startSkipping();
   }
@@ -663,7 +663,7 @@ public class TaskInProgress {
 
       // tasktracker went down and failed time was not reported. 
       if (0 == status.getFinishTime()){
-        status.setFinishTime(System.currentTimeMillis());
+        status.setFinishTime(jobtracker.getClock().getTime());
       }
     }
 
@@ -768,7 +768,7 @@ public class TaskInProgress {
     //
 
     this.completes++;
-    this.execFinishTime = System.currentTimeMillis();
+    this.execFinishTime = jobtracker.getClock().getTime();
     recomputeProgress();
     
   }
@@ -813,7 +813,7 @@ public class TaskInProgress {
     }
     this.failed = true;
     killed = true;
-    this.execFinishTime = System.currentTimeMillis();
+    this.execFinishTime = jobtracker.getClock().getTime();
     recomputeProgress();
   }
 
@@ -937,7 +937,7 @@ public class TaskInProgress {
   public Task getTaskToRun(String taskTracker) throws IOException {
     if (0 == execStartTime){
       // assume task starts running now
-      execStartTime = System.currentTimeMillis();
+      execStartTime = jobtracker.getClock().getTime();
     }
 
     // Create the 'taskid'; do not count the 'killed' tasks against the job!

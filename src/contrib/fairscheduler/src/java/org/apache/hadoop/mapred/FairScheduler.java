@@ -114,15 +114,6 @@ public class FairScheduler extends TaskScheduler {
     }
   }
   
-  /**
-   * A clock class - can be mocked out for testing.
-   */
-  static class Clock {
-    long getTime() {
-      return System.currentTimeMillis();
-    }
-  }
-  
   public FairScheduler() {
     this(new Clock(), false);
   }
