@@ -57,6 +57,12 @@ import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.SequenceFileInputFormat;
 import org.apache.hadoop.mapred.lib.LongSumReducer;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.security.token.Token;
+import org.apache.hadoop.security.token.TokenIdentifier;
+import java.security.PrivilegedAction;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
+import static org.mockito.Mockito.mock;
 
 public class TestFileSystem extends TestCase {
   private static final Log LOG = FileSystem.LOG;
@@ -600,7 +606,7 @@ public class TestFileSystem extends TestCase {
     // Different URIs should result in different FS instances
     assertNotSame(fsWithAuto, fsWithoutAuto);
 
-    FileSystem.CACHE.closeAll(true);
+    FileSystem.CACHE.closeAll(null, true);
     assertEquals(1, closed.size());
     assertTrue(closed.contains(fsWithAuto));
 
@@ -672,5 +678,59 @@ public class TestFileSystem extends TestCase {
     assertTrue(fs1 != fs2 && !fs1.equals(fs2));
     fs1.close();
     fs2.close();
+  }
+
+  @SuppressWarnings("unchecked")
+  public <T extends TokenIdentifier> void testCacheForUgi() throws Exception {
+    final Configuration conf = new Configuration();
+    conf.set("fs.cachedfile.impl", conf.get("fs.file.impl"));
+    UserGroupInformation ugiA = UserGroupInformation.createRemoteUser("foo");
+    UserGroupInformation ugiB = UserGroupInformation.createRemoteUser("bar");
+    FileSystem fsA = ugiA.doAs(new PrivilegedExceptionAction<FileSystem>() {
+      public FileSystem run() throws Exception {
+        return FileSystem.get(new URI("cachedfile://a"), conf);
+      }
+    });
+    FileSystem fsA1 = ugiA.doAs(new PrivilegedExceptionAction<FileSystem>() {
+      public FileSystem run() throws Exception {
+        return FileSystem.get(new URI("cachedfile://a"), conf);
+      }
+    });
+    //Since the UGIs are the same, we should have the same filesystem for both
+    assertSame(fsA, fsA1);
+    
+    FileSystem fsB = ugiB.doAs(new PrivilegedExceptionAction<FileSystem>() {
+      public FileSystem run() throws Exception {
+        return FileSystem.get(new URI("cachedfile://a"), conf);
+      }
+    });
+    //Since the UGIs are different, we should end up with different filesystems
+    //corresponding to the two UGIs
+    assertNotSame(fsA, fsB);
+    
+    Token<T> t1 = mock(Token.class);
+    ugiA = UserGroupInformation.createRemoteUser("foo");
+    ugiA.addToken(t1);
+    
+    fsA = ugiA.doAs(new PrivilegedExceptionAction<FileSystem>() {
+      public FileSystem run() throws Exception {
+        return FileSystem.get(new URI("cachedfile://a"), conf);
+      }
+    });
+    //Although the users in the UGI are same, ugiA has tokens in it, and
+    //we should end up with different filesystems corresponding to the two UGIs
+    assertNotSame(fsA, fsA1);
+    
+    ugiA = UserGroupInformation.createRemoteUser("foo");
+    ugiA.addToken(t1);
+    
+    fsA1 = ugiA.doAs(new PrivilegedExceptionAction<FileSystem>() {
+      public FileSystem run() throws Exception {
+        return FileSystem.get(new URI("cachedfile://a"), conf);
+      }
+    });
+    //Now the users in the UGI are the same, and they also have the same token.
+    //We should have the same filesystem for both
+    assertSame(fsA, fsA1);
   }
 }
