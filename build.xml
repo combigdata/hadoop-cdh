@@ -122,6 +122,9 @@
   <property name="test.junit.haltonfailure" value="no" />
   <property name="test.junit.maxmemory" value="512m" />
   <property name="test.tools.input.dir" value="${basedir}/src/test/tools/data"/>
+  
+  <property name="test.commit.tests.file" value="${test.src.dir}/commit-tests" />
+  <property name="test.all.tests.file" value="${test.src.dir}/all-tests" />
 
   <property name="test.libhdfs.conf.dir" value="${c++.libhdfs.src}/tests/conf"/>
   <property name="test.libhdfs.dir" value="${test.build.dir}/libhdfs"/>
@@ -874,12 +877,22 @@
     <macro-test-runner classpath="${test.classpath.id}"
                        test.dir="${test.build.dir}"
                        fileset.dir="${test.src.dir}"
+                       test.file="${test.all.tests.file}"
                        test.krb5.conf="java.security.krb5.conf"
-                       test.krb5.conf.filename="${test.src.dir}/krb5.conf">
-    </macro-test-runner>
+                       test.krb5.conf.filename="${test.src.dir}/krb5.conf" />
+  </target>   
+  
+  <target name="test-commit" depends="jar-test" description="Run core unit tests">
+    <macro-test-runner classpath="${test.classpath.id}"
+                       test.dir="${test.build.dir}"
+                       fileset.dir="${test.src.dir}"
+                       test.file="${test.commit.tests.file}"
+                       test.krb5.conf="java.security.krb5.conf"
+                       test.krb5.conf.filename="${test.src.dir}/krb5.conf" />
   </target>   
 
   <macrodef name="macro-test-runner">
+    <attribute name="test.file" />
     <attribute name="classpath" />
     <attribute name="test.dir" />
     <attribute name="fileset.dir" />
@@ -948,8 +961,11 @@
         <formatter type="${test.junit.output.format}" />
         <batchtest todir="@{test.dir}" if="tests.notestcase">
           <fileset dir="@{fileset.dir}"
-                   includes="**/${test.include}.java"
-                   excludes="**/${test.exclude}.java aop/** system/**" />
+                   excludes="**/${test.exclude}.java aop/** system/**">
+            <patternset>
+              <includesfile name="@{test.file}"/>
+            </patternset>
+          </fileset>
         </batchtest>
         <batchtest todir="${test.build.dir}" if="tests.notestcase.fi">
           <fileset dir="${test.src.dir}/aop"
