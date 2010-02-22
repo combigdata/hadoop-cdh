@@ -136,7 +136,7 @@ public class TestJobRetire extends TestCase {
    */
   class WaitingTaskTracker extends TaskTracker {
     
-    WaitingTaskTracker(JobConf conf) throws IOException, InterruptedException {
+    WaitingTaskTracker(JobConf conf) throws InterruptedException, IOException {
       super(conf);
     }
     
@@ -194,7 +194,7 @@ public class TestJobRetire extends TestCase {
       TaskTrackerRunner testTrackerRunner = 
         mr.new TaskTrackerRunner(1, 1, null, mr.createJobConf()) {
         @Override
-        TaskTracker createTaskTracker(JobConf conf) throws IOException, InterruptedException {
+        TaskTracker createTaskTracker(JobConf conf) throws InterruptedException, IOException {
           return new WaitingTaskTracker(conf);
         }
       };
@@ -290,7 +290,7 @@ public class TestJobRetire extends TestCase {
     // now create a fake tip for this fake job
     TaskInProgress tip = null;
     if (type == TaskType.MAP) {
-      tip = new TaskInProgress(id, "dummy", JobSplit.EMPTY_TASK_SPLIT,
+      tip = new TaskInProgress(id, "dummy", JobSplit.EMPTY_TASK_SPLIT, 
                                jobtracker, conf, jip, 0, 1);
       jip.maps = new TaskInProgress[] {tip};
     } else if (type == TaskType.REDUCE) {
@@ -299,12 +299,12 @@ public class TestJobRetire extends TestCase {
       jip.reduces = new TaskInProgress[] {tip};
     } else if (type == TaskType.JOB_SETUP) {
       tip = 
-        new TaskInProgress(id, "dummy", JobSplit.EMPTY_TASK_SPLIT,
+        new TaskInProgress(id, "dummy", JobSplit.EMPTY_TASK_SPLIT, 
                            jobtracker, conf, jip, 0, 1);
       jip.setup = new TaskInProgress[] {tip};
     } else if (type == TaskType.JOB_CLEANUP) {
       tip = 
-        new TaskInProgress(id, "dummy", JobSplit.EMPTY_TASK_SPLIT,
+        new TaskInProgress(id, "dummy", JobSplit.EMPTY_TASK_SPLIT, 
                            jobtracker, conf, jip, 0, 1);
       jip.cleanup = new TaskInProgress[] {tip};
     }

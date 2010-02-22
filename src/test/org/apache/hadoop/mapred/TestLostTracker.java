@@ -22,6 +22,7 @@ import org.apache.hadoop.fs.*;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.mapreduce.TaskType;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.mapreduce.TaskType;
 
 import junit.framework.TestCase;
 import java.io.*;

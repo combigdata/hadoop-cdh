@@ -306,6 +306,8 @@ public class JobInProgress {
     this.runningReduces = new LinkedHashSet<TaskInProgress>();
     this.resourceEstimator = new ResourceEstimator(this);
     this.status = new JobStatus(jobid, 0.0f, 0.0f, JobStatus.PREP);
+    this.profile = new JobProfile(conf.getUser(), jobid, "", "",
+                                  conf.getJobName(), conf.getQueueName());
     this.taskCompletionEvents = new ArrayList<TaskCompletionEvent>
       (numMapTasks + numReduceTasks + 10);
     try {
