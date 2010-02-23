@@ -535,7 +535,7 @@ public class DFSClient implements FSConstants, java.io.Closeable {
   OutputStream append(String src, int buffersize, Progressable progress
       ) throws IOException {
     checkOpen();
-    FileStatus stat = null;
+    HdfsFileStatus stat = null;
     LocatedBlock lastBlock = null;
     try {
       stat = getFileInfo(src);
@@ -618,10 +618,10 @@ public class DFSClient implements FSConstants, java.io.Closeable {
     return getFileInfo(src) != null;
   }
 
-  /** @deprecated Use getFileStatus() instead */
+  /** @deprecated Use getHdfsFileStatus() instead */
   @Deprecated
   public boolean isDirectory(String src) throws IOException {
-    FileStatus fs = getFileInfo(src);
+    HdfsFileStatus fs = getFileInfo(src);
     if (fs != null)
       return fs.isDir();
     else
@@ -630,7 +630,7 @@ public class DFSClient implements FSConstants, java.io.Closeable {
 
   /**
    */
-  public FileStatus[] listPaths(String src) throws IOException {
+  public HdfsFileStatus[] listPaths(String src) throws IOException {
     checkOpen();
     try {
       return namenode.getListing(src);
@@ -639,7 +639,7 @@ public class DFSClient implements FSConstants, java.io.Closeable {
     }
   }
 
-  public FileStatus getFileInfo(String src) throws IOException {
+  public HdfsFileStatus getFileInfo(String src) throws IOException {
     checkOpen();
     try {
       return namenode.getFileInfo(src);
@@ -2879,7 +2879,7 @@ public class DFSClient implements FSConstants, java.io.Closeable {
      * @see ClientProtocol#create(String, FsPermission, String, boolean, short, long)
      */
     DFSOutputStream(String src, int buffersize, Progressable progress,
-        LocatedBlock lastBlock, FileStatus stat,
+        LocatedBlock lastBlock, HdfsFileStatus stat,
         int bytesPerChecksum) throws IOException {
       this(src, stat.getBlockSize(), progress, bytesPerChecksum, stat.getReplication());
       initialFileSize = stat.getLen(); // length of file when opened

@@ -56,7 +56,6 @@ import org.apache.hadoop.hdfs.server.protocol.KeyUpdateCommand;
 import org.apache.hadoop.hdfs.server.protocol.NamespaceInfo;
 import org.apache.hadoop.hdfs.server.protocol.UpgradeCommand;
 import org.apache.hadoop.fs.ContentSummary;
-import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.*;
 import org.apache.hadoop.ipc.Server;
@@ -111,7 +110,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
 
   private static final void logAuditEvent(UserGroupInformation ugi,
       InetAddress addr, String cmd, String src, String dst,
-      FileStatus stat) {
+      HdfsFileStatus stat) {
     final Formatter fmt = auditFormatter.get();
     ((StringBuilder)fmt.out()).setLength(0);
     auditLog.info(fmt.format(AUDIT_FORMAT, ugi, addr, cmd, src, dst,
@@ -759,7 +758,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
     }
     getEditLog().logSync();
     if (auditLog.isInfoEnabled()) {
-      final FileStatus stat = dir.getFileInfo(src);
+      final HdfsFileStatus stat = dir.getFileInfo(src);
       logAuditEvent(UserGroupInformation.getCurrentUser(),
                     Server.getRemoteIp(),
                     "setPermission", src, null, stat);
@@ -789,7 +788,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
     }
     getEditLog().logSync();
     if (auditLog.isInfoEnabled()) {
-      final FileStatus stat = dir.getFileInfo(src);
+      final HdfsFileStatus stat = dir.getFileInfo(src);
       logAuditEvent(UserGroupInformation.getCurrentUser(),
                     Server.getRemoteIp(),
                     "setOwner", src, null, stat);
@@ -962,7 +961,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
     if (inode != null) {
       dir.setTimes(src, inode, mtime, atime, true);
       if (auditLog.isInfoEnabled()) {
-        final FileStatus stat = dir.getFileInfo(src);
+        final HdfsFileStatus stat = dir.getFileInfo(src);
         logAuditEvent(UserGroupInformation.getCurrentUser(),
                       Server.getRemoteIp(),
                       "setTimes", src, null, stat);
@@ -1077,7 +1076,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
                       replication, blockSize);
     getEditLog().logSync();
     if (auditLog.isInfoEnabled()) {
-      final FileStatus stat = dir.getFileInfo(src);
+      final HdfsFileStatus stat = dir.getFileInfo(src);
       logAuditEvent(UserGroupInformation.getCurrentUser(),
                     Server.getRemoteIp(),
                     "create", src, null, stat);
@@ -1759,7 +1758,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
     boolean status = renameToInternal(src, dst);
     getEditLog().logSync();
     if (status && auditLog.isInfoEnabled()) {
-      final FileStatus stat = dir.getFileInfo(dst);
+      final HdfsFileStatus stat = dir.getFileInfo(dst);
       logAuditEvent(UserGroupInformation.getCurrentUser(),
                     Server.getRemoteIp(),
                     "rename", src, dst, stat);
@@ -1785,7 +1784,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
       checkAncestorAccess(actualdst, FsAction.WRITE);
     }
 
-    FileStatus dinfo = dir.getFileInfo(dst);
+    HdfsFileStatus dinfo = dir.getFileInfo(dst);
     if (dir.renameTo(src, dst)) {
       changeLease(src, dst, dinfo);     // update lease with new filename
       return true;
@@ -1844,7 +1843,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
    * @return object containing information regarding the file
    *         or null if file not found
    */
-  FileStatus getFileInfo(String src) throws IOException {
+  HdfsFileStatus getFileInfo(String src) throws IOException {
     if (isPermissionEnabled) {
       checkTraverse(src);
     }
@@ -1859,7 +1858,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
     boolean status = mkdirsInternal(src, permissions);
     getEditLog().logSync();
     if (status && auditLog.isInfoEnabled()) {
-      final FileStatus stat = dir.getFileInfo(src);
+      final HdfsFileStatus stat = dir.getFileInfo(src);
       logAuditEvent(UserGroupInformation.getCurrentUser(),
                     Server.getRemoteIp(),
                     "mkdirs", src, null, stat);
@@ -2162,7 +2161,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
    * Get a listing of all files at 'src'.  The Object[] array
    * exists so we can return file attributes (soon to be implemented)
    */
-  public FileStatus[] getListing(String src) throws IOException {
+  public HdfsFileStatus[] getListing(String src) throws IOException {
     if (isPermissionEnabled) {
       if (dir.isDir(src)) {
         checkPathAccess(src, FsAction.READ_EXECUTE);
@@ -5073,7 +5072,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
   // rename was successful. If any part of the renamed subtree had
   // files that were being written to, update with new filename.
   //
-  void changeLease(String src, String dst, FileStatus dinfo) 
+  void changeLease(String src, String dst, HdfsFileStatus dinfo) 
                    throws IOException {
     String overwrite;
     String replaceBy;
