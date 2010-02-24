@@ -62,6 +62,8 @@ public abstract class FileInputFormat<K, V> extends InputFormat<K, V> {
       }
     }; 
 
+  static final String NUM_INPUT_FILES = "mapreduce.input.num.files";
+
   /**
    * Proxy PathFilter that accepts a path only if all filters given in the
    * constructor do. Used by the listPaths() to apply the built-in
@@ -242,7 +244,8 @@ public abstract class FileInputFormat<K, V> extends InputFormat<K, V> {
 
     // generate splits
     List<InputSplit> splits = new ArrayList<InputSplit>();
-    for (FileStatus file: listStatus(job)) {
+    List<FileStatus>files = listStatus(job);
+    for (FileStatus file: files) {
       Path path = file.getPath();
       FileSystem fs = path.getFileSystem(job.getConfiguration());
       long length = file.getLen();
@@ -270,6 +273,10 @@ public abstract class FileInputFormat<K, V> extends InputFormat<K, V> {
         splits.add(new FileSplit(path, 0, length, new String[0]));
       }
     }
+    
+    // Save the number of input files in the job-conf
+    job.getConfiguration().setLong(NUM_INPUT_FILES, files.size());
+
     LOG.debug("Total # of splits: " + splits.size());
     return splits;
   }
