@@ -3,6 +3,7 @@
   import="javax.servlet.http.*"
   import="java.io.*"
   import="java.util.*"
+  import="org.apache.hadoop.http.HtmlQuoting"
   import="org.apache.hadoop.mapred.*"
   import="org.apache.hadoop.fs.*"
   import="org.apache.hadoop.util.*"
@@ -15,7 +16,7 @@
 %>
 
 <%	
-  String jobid = request.getParameter("jobid");
+  String jobid = JobID.forName(request.getParameter("jobid")).toString();
   String logFile = request.getParameter("logFile");
   String encodedLogFileName = JobHistory.JobInfo.encodeJobHistoryFilePath(logFile);
   String taskid = request.getParameter("taskid"); 
@@ -94,7 +95,8 @@
               taskAttempt.getLong(Keys.FINISH_TIME), 
               taskAttempt.getLong(Keys.START_TIME) ) + "</td>"); 
     out.print("<td>" + taskAttempt.get(Keys.HOSTNAME) + "</td>");
-    out.print("<td>" + taskAttempt.get(Keys.ERROR) + "</td>");
+    out.print("<td>" + HtmlQuoting.quoteHtmlChars(taskAttempt.get(Keys.ERROR)) +
+        "</td>");
 
     // Print task log urls
     out.print("<td>");	

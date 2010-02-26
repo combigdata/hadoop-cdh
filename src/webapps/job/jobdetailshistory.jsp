@@ -4,6 +4,7 @@
   import="java.io.*"
   import="java.util.*"
   import="org.apache.hadoop.fs.*"
+  import="org.apache.hadoop.http.HtmlQuoting"
   import="org.apache.hadoop.mapred.*"
   import="org.apache.hadoop.util.*"
   import="java.text.*"
@@ -13,7 +14,7 @@
 %>
 <%! static SimpleDateFormat dateFormat = new SimpleDateFormat("d-MMM-yyyy HH:mm:ss") ; %>
 <%
-    String jobid = request.getParameter("jobid");
+    String jobid = JobID.forName(request.getParameter("jobid")).toString();
     String logFile = request.getParameter("logFile");
 	String encodedLogFileName = JobHistory.JobInfo.encodeJobHistoryFilePath(logFile);
 	
@@ -36,8 +37,8 @@ Hadoop Job <%=jobid %> on History Viewer
 
 <h2>Hadoop Job <%=jobid %> on <a href="jobhistory.jsp">History Viewer</a></h2>
 
-<b>User: </b> <%=job.get(Keys.USER) %><br/> 
-<b>JobName: </b> <%=job.get(Keys.JOBNAME) %><br/> 
+<b>User: </b> <%=HtmlQuoting.quoteHtmlChars(job.get(Keys.USER)) %><br/> 
+<b>JobName: </b> <%=HtmlQuoting.quoteHtmlChars(job.get(Keys.JOBNAME)) %><br/> 
 <b>JobConf: </b> <a href="jobconf_history.jsp?jobid=<%=jobid%>&jobLogDir=<%=new Path(logFile).getParent().toString()%>&jobUniqueString=<%=jobUniqueString%>"> 
                  <%=job.get(Keys.JOBCONF) %></a><br/> 
 <b>Submitted At: </b> <%=StringUtils.getFormattedTimeWithDiff(dateFormat, job.getLong(Keys.SUBMIT_TIME), 0 )  %><br/> 
@@ -243,11 +244,12 @@ Hadoop Job <%=jobid %> on History Viewer
        if (isFirst) {
          isFirst = false;
 %>
-         <td rowspan="<%=totalGroup.size()%>"><%=totalGroup.getDisplayName()%></td>
+         <td rowspan="<%=totalGroup.size()%>">
+         <%=HtmlQuoting.quoteHtmlChars(totalGroup.getDisplayName())%></td>
 <%
        }
 %>
-       <td><%=counter.getDisplayName()%></td>
+       <td><%=HtmlQuoting.quoteHtmlChars(counter.getDisplayName())%></td>
        <td align="right"><%=mapValue%></td>
        <td align="right"><%=reduceValue%></td>
        <td align="right"><%=totalValue%></td>
