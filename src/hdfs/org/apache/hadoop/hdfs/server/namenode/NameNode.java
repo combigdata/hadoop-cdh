@@ -38,13 +38,13 @@ import org.apache.hadoop.hdfs.server.protocol.BlocksWithLocations;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeCommand;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeProtocol;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeRegistration;
-import org.apache.hadoop.hdfs.server.protocol.KeyUpdateCommand;
 import org.apache.hadoop.hdfs.server.protocol.NamenodeProtocol;
 import org.apache.hadoop.hdfs.server.protocol.NamespaceInfo;
 import org.apache.hadoop.hdfs.server.protocol.UpgradeCommand;
 import org.apache.hadoop.http.HttpServer;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.ipc.*;
+import org.apache.hadoop.ipc.RPC.Server;
 import org.apache.hadoop.conf.*;
 import org.apache.hadoop.util.PluginDispatcher;
 import org.apache.hadoop.util.ReflectionUtils;
@@ -56,7 +56,6 @@ import org.apache.hadoop.net.Node;
 import org.apache.hadoop.hdfs.security.token.block.ExportedBlockKeys;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.authorize.AuthorizationException;
-import org.apache.hadoop.security.authorize.PolicyProvider;
 import org.apache.hadoop.security.authorize.RefreshAuthorizationPolicyProtocol;
 import org.apache.hadoop.security.authorize.ServiceAuthorizationManager;
 import org.apache.hadoop.security.token.Token;
@@ -679,17 +678,17 @@ public class NameNode implements ClientProtocol, DatanodeProtocol,
     namesystem.renewLease(clientName);        
   }
 
-  /**
-   */
-  public HdfsFileStatus[] getListing(String src) throws IOException {
-    HdfsFileStatus[] files = namesystem.getListing(src);
+  @Override
+  public DirectoryListing getListing(String src, byte[] startAfter)
+  throws IOException {
+    DirectoryListing files = namesystem.getListing(src, startAfter);
     myMetrics.numGetListingOps.inc();
     if (files != null) {
-      myMetrics.numFilesInGetListingOps.inc(files.length);
+      myMetrics.numFilesInGetListingOps.inc(files.getPartialListing().length);
     }
     return files;
   }
-
+  
   /**
    * Get the file info for a specific file.
    * @param src The string representation of the path to the file
