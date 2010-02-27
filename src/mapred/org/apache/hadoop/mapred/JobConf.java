@@ -168,6 +168,10 @@ public class JobConf extends Configuration {
   public static final Pattern UNPACK_JAR_PATTERN_DEFAULT =
     Pattern.compile("(?:classes/|lib/).*");
 
+  public static final String JOB_LEVEL_AUTHORIZATION_ENABLING_FLAG = 
+	    "mapreduce.cluster.job-authorization-enabled";
+  static final String MR_SUPERGROUP = "mapred.permissions.supergroup";
+
   /**
    * Configuration key to set the java command line options for the child
    * map and reduce tasks.

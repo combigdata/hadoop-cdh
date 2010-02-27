@@ -6,6 +6,7 @@
   import="java.util.*"
   import="org.apache.hadoop.http.HtmlQuoting"
   import="org.apache.hadoop.mapred.*"
+  import="org.apache.hadoop.mapred.JSPUtil.JobWithViewAccessCheck"
   import="org.apache.hadoop.util.*"
 %>
 <%!	private static final long serialVersionUID = 1L;
@@ -40,7 +41,13 @@
   	  return;
     }
     
-    JobInProgress job = tracker.getJob(JobID.forName(jobId));
+    JobWithViewAccessCheck myJob = JSPUtil.checkAccessAndGetJob(tracker,
+        JobID.forName(jobId), request, response);
+    if (!myJob.isViewJobAllowed()) {
+      return; // user is not authorized to view this job
+    }
+
+    JobInProgress job = myJob.getJob();
     if (job == null) {
       out.print("<b>Job " + jobId + " not found.</b><br>\n");
       return;
