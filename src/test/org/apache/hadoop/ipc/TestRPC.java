@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.commons.logging.*;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.CommonConfigurationKeys;
 import org.apache.hadoop.io.UTF8;
 import org.apache.hadoop.io.Writable;
 
@@ -414,8 +415,8 @@ public class TestRPC extends TestCase {
   
   public void testAuthorization() throws Exception {
     Configuration conf = new Configuration();
-    conf.setBoolean(
-        ServiceAuthorizationManager.SERVICE_AUTHORIZATION_CONFIG, true);
+    conf.setBoolean(CommonConfigurationKeys.HADOOP_SECURITY_AUTHORIZATION,
+        true);
     
     // Expect to succeed
     conf.set(ACL_CONFIG, "*");
