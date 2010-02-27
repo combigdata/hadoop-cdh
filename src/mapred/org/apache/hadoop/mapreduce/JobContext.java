@@ -51,7 +51,6 @@ public class JobContext {
   private JobID jobId;
 
   public static final String JOB_NAMENODES = "mapreduce.job.hdfs-servers";
-  public static final String JOB_JOBTRACKER_ID = "mapreduce.job.kerberos.jtprinicipal";
 
   public static final String CACHE_FILE_VISIBILITIES = 
     "mapreduce.job.cache.files.visibilities";
