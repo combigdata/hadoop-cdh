@@ -45,6 +45,7 @@ import org.apache.hadoop.security.authorize.AuthorizationException;
 import org.apache.hadoop.security.authorize.PolicyProvider;
 import org.apache.hadoop.security.authorize.Service;
 import org.apache.hadoop.security.authorize.ServiceAuthorizationManager;
+import org.apache.hadoop.security.AccessControlException;
 
 /** Unit tests for RPC. */
 public class TestRPC extends TestCase {
@@ -485,6 +486,30 @@ public class TestRPC extends TestCase {
     
     // should not cause any other thread to get an error
     assertNull("rpc got ClosedChannelException", error.get());
+  }
+  
+  public void testErrorMsgForInsecureClient() throws Exception {
+    final Server server = RPC.getServer(
+        new TestImpl(), ADDRESS, 0, 5, true, conf, null);
+    server.enableSecurity();
+    server.start();
+    boolean succeeded = false;
+    final InetSocketAddress addr = NetUtils.getConnectAddress(server);
+    TestProtocol proxy = null;
+    try {
+      proxy = (TestProtocol) RPC.getProxy(TestProtocol.class,
+          TestProtocol.versionID, addr, conf);
+    } catch (RemoteException e) {
+      LOG.info("LOGGING MESSAGE: " + e.getLocalizedMessage());
+      assertTrue(e.unwrapRemoteException() instanceof AccessControlException);
+      succeeded = true;
+    } finally {
+      server.stop();
+      if (proxy != null) {
+        RPC.stopProxy(proxy);
+      }
+    }
+    assertTrue(succeeded);
   }
   
   public static void main(String[] args) throws Exception {
