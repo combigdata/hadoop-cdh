@@ -1643,9 +1643,9 @@ public class JobClient extends Configured implements MRConstants, Tool  {
         if (job == null) {
           System.out.println("Could not find job " + jobid);
         } else {
+          Counters counters = job.getCounters();
           System.out.println();
           System.out.println(job);
-          Counters counters = job.getCounters();
           if (counters != null) {
             System.out.println(counters);
           } else {
@@ -1724,6 +1724,13 @@ public class JobClient extends Configured implements MRConstants, Tool  {
           System.out.println("Could not fail task " + taskid);
           exitCode = -1;
         }
+      }
+    } catch (RemoteException re){
+      IOException unwrappedException = re.unwrapRemoteException();
+      if (unwrappedException instanceof AccessControlException) {
+        System.out.println(unwrappedException.getMessage());
+      } else {
+        throw re;
       }
     } finally {
       close();
