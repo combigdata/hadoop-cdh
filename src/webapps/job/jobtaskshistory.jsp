@@ -19,14 +19,19 @@
 %>
 
 <%	
-  String jobid = JobID.forName(request.getParameter("jobid")).toString();
   String logFile = request.getParameter("logFile");
   String encodedLogFileName = JobHistory.JobInfo.encodeJobHistoryFilePath(logFile);
-  String taskStatus = request.getParameter("status");
+  String jobid = JSPUtil.getJobID(new Path(logFile).getName());
+  String taskStatus = request.getParameter("status"); 
   String taskType = request.getParameter("taskType"); 
   
   FileSystem fs = (FileSystem) application.getAttribute("fileSys");
-  JobHistory.JobInfo job = JSPUtil.getJobInfo(request, fs);
+  JobTracker jobTracker = (JobTracker) application.getAttribute("job.tracker");
+  JobHistory.JobInfo job = JSPUtil.checkAccessAndGetJobInfo(request,
+      response, jobTracker, fs, new Path(logFile));
+  if (job == null) {
+    return;
+  }
   Map<String, JobHistory.Task> tasks = job.getAllTasks(); 
 %>
 <html>
@@ -36,7 +41,7 @@
   <link rel="icon" type="image/vnd.microsoft.icon" href="/static/images/favicon.ico" />
 </head>
 <body>
-<h2><%=taskStatus%> <%=taskType %> task list for <a href="jobdetailshistory.jsp?jobid=<%=jobid%>&&logFile=<%=encodedLogFileName%>"><%=jobid %> </a></h2>
+<h2><%=taskStatus%> <%=taskType %> task list for <a href="jobdetailshistory.jsp?logFile=<%=encodedLogFileName%>"><%=jobid %> </a></h2>
 <center>
 <table class="jobtasks datatable">
 <thead>
@@ -50,7 +55,7 @@
       for (JobHistory.TaskAttempt taskAttempt : taskAttempts.values()) {
         if (taskStatus.equals(taskAttempt.get(Keys.TASK_STATUS)) || 
           taskStatus.equals("all")){
-          printTask(jobid, encodedLogFileName, taskAttempt, out); 
+          printTask(encodedLogFileName, taskAttempt, out); 
         }
       }
     }
@@ -59,11 +64,11 @@
 </tbody>
 </table>
 <%!
-  private void printTask(String jobid, String logFile,
+  private void printTask(String logFile,
     JobHistory.TaskAttempt attempt, JspWriter out) throws IOException{
     out.print("<tr>"); 
-    out.print("<td>" + "<a href=\"taskdetailshistory.jsp?jobid=" + jobid + 
-          "&logFile="+ logFile +"&taskid="+attempt.get(Keys.TASKID)+"\">" +
+    out.print("<td>" + "<a href=\"taskdetailshistory.jsp?logFile="+ logFile
+     +"&tipid="+attempt.get(Keys.TASKID)+"\">" +
           attempt.get(Keys.TASKID) + "</a></td>");
     out.print("<td>" + StringUtils.getFormattedTimeWithDiff(dateFormat, 
           attempt.getLong(Keys.START_TIME), 0 ) + "</td>");

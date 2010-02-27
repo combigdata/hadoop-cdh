@@ -269,8 +269,8 @@ window.location.href = url;
       out.print("<tr>"); 
       out.print("<td>" + trackerHostName + "</td>"); 
       out.print("<td>" + new Date(Long.parseLong(trackerid)) + "</td>"); 
-      out.print("<td>" + "<a href=\"jobdetailshistory.jsp?jobid=" + jobId + 
-                "&logFile=" + URLEncoder.encode(logFile.toString(), "UTF-8") + "\">" + jobId + "</a></td>"); 
+      out.print("<td>" + "<a href=\"jobdetailshistory.jsp?logFile=" 
+          + URLEncoder.encode(logFile.toString()) + "\">" + jobId + "</a></td>");
       out.print("<td>" + HtmlQuoting.quoteHtmlChars(jobName) + "</td>"); 
       out.print("<td>" + HtmlQuoting.quoteHtmlChars(user) + "</td>"); 
       out.print("</tr>");

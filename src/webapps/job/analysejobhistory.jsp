@@ -18,17 +18,25 @@
 %>
 <html>
 <%
-  String jobid = JobID.forName(request.getParameter("jobid")).toString();
   String logFile = request.getParameter("logFile");
+  if (logFile == null) {
+    out.println("Missing job!!");
+    return;
+  }
   String encodedLogFileName = JobHistory.JobInfo.encodeJobHistoryFilePath(logFile);
+  String jobid = JSPUtil.getJobID(new Path(encodedLogFileName).getName());
   String numTasks = request.getParameter("numTasks");
   int showTasks = 10 ; 
   if (numTasks != null) {
     showTasks = Integer.parseInt(numTasks);  
   }
   FileSystem fs = (FileSystem) application.getAttribute("fileSys");
-  JobHistory.JobInfo job = JSPUtil.getJobInfo(request, fs);
-%>
+  JobTracker jobTracker = (JobTracker) application.getAttribute("job.tracker");
+  JobHistory.JobInfo job = JSPUtil.checkAccessAndGetJobInfo(request,
+      response, jobTracker, fs, new Path(logFile));
+  if (job == null) {
+    return;
+  }%>
 <head>
   <title>Analyze Job - Hadoop Job <%=jobid %></title>
   <link rel="stylesheet" type="text/css" href="/static/hadoop.css">
@@ -36,7 +44,7 @@
 </head>
 
 <body>
-<h2>Hadoop Job <a href="jobdetailshistory.jsp?jobid=<%=jobid%>&&logFile=<%=encodedLogFileName%>"><%=jobid %> </a></h2>
+<h2>Hadoop Job <a href="jobdetailshistory.jsp?logFile=<%=encodedLogFileName%>"><%=jobid %> </a></h2>
 <b>User : </b> <%=HtmlQuoting.quoteHtmlChars(job.get(Keys.USER)) %><br/> 
 <b>JobName : </b> <%=HtmlQuoting.quoteHtmlChars(job.get(Keys.JOBNAME)) %><br/> 
 <b>JobConf : </b> <%=job.get(Keys.JOBCONF) %><br/> 
@@ -110,7 +118,7 @@
 %>
 
 <h3>Time taken by best performing Map task 
-<a href="taskdetailshistory.jsp?jobid=<%=jobid%>&logFile=<%=encodedLogFileName%>&taskid=<%=minMap.get(Keys.TASKID)%>">
+<a href="taskdetailshistory.jsp?logFile=<%=encodedLogFileName%>&tipid=<%=minMap.get(Keys.TASKID)%>">
 <%=minMap.get(Keys.TASKID) %></a> : <%=StringUtils.formatTimeDiff(minMap.getLong(Keys.FINISH_TIME), minMap.getLong(Keys.START_TIME) ) %></h3>
 <h3>Average time taken by Map tasks: 
 <%=StringUtils.formatTimeDiff(avgMapTime, 0) %></h3>
@@ -124,7 +132,7 @@
   for (int i=0;i<showTasks && i<mapTasks.length; i++) {
 %>
     <tr>
-    <td><a href="taskdetailshistory.jsp?jobid=<%=jobid%>&logFile=<%=encodedLogFileName%>&taskid=<%=mapTasks[i].get(Keys.TASKID)%>">
+    <td><a href="taskdetailshistory.jsp?logFile=<%=encodedLogFileName%>&tipid=<%=mapTasks[i].get(Keys.TASKID)%>">
         <%=mapTasks[i].get(Keys.TASKID) %></a></td>
     <td><%=StringUtils.formatTimeDiff(mapTasks[i].getLong(Keys.FINISH_TIME), mapTasks[i].getLong(Keys.START_TIME)) %></td>
     </tr>
@@ -147,8 +155,8 @@
 %>
 
 <h3>The last Map task 
-<a href="taskdetailshistory.jsp?jobid=<%=jobid%>&logFile=<%=encodedLogFileName%>
-&taskid=<%=lastMap.get(Keys.TASKID)%>"><%=lastMap.get(Keys.TASKID) %></a> 
+<a href="taskdetailshistory.jsp?logFile=<%=encodedLogFileName%>
+&tipid=<%=lastMap.get(Keys.TASKID)%>"><%=lastMap.get(Keys.TASKID) %></a> 
 finished at (relative to the Job launch time): 
 <%=StringUtils.getFormattedTimeWithDiff(dateFormat, 
                               lastMap.getLong(Keys.FINISH_TIME), 
@@ -160,9 +168,9 @@ finished at (relative to the Job launch time):
   Arrays.sort(reduceTasks, cShuffle); 
   JobHistory.Task minShuffle = reduceTasks[reduceTasks.length-1] ;
 %>
-<h3>Time taken by best performing shuffle
-<a href="taskdetailshistory.jsp?jobid=<%=jobid%>&logFile=<%=encodedLogFileName%>
-&taskid=<%=minShuffle.get(Keys.TASKID)%>"><%=minShuffle.get(Keys.TASKID)%></a> : 
+<h3>Time taken by best performing shufflejobId
+<a href="taskdetailshistory.jsp?logFile=<%=encodedLogFileName%>
+&tipid=<%=minShuffle.get(Keys.TASKID)%>"><%=minShuffle.get(Keys.TASKID)%></a> : 
 <%=StringUtils.formatTimeDiff(minShuffle.getLong(Keys.SHUFFLE_FINISHED), 
                               minShuffle.getLong(Keys.START_TIME) ) %></h3>
 <h3>Average time taken by Shuffle: 
@@ -176,8 +184,8 @@ finished at (relative to the Job launch time):
   for (int i=0;i<showTasks && i<reduceTasks.length; i++) {
 %>
     <tr>
-    <td><a href="taskdetailshistory.jsp?jobid=<%=jobid%>&logFile=
-<%=encodedLogFileName%>&taskid=<%=reduceTasks[i].get(Keys.TASKID)%>">
+    <td><a href="taskdetailshistory.jsp?logFile=
+<%=encodedLogFileName%>&tipid=<%=reduceTasks[i].get(Keys.TASKID)%>">
 <%=reduceTasks[i].get(Keys.TASKID) %></a></td>
     <td><%=
            StringUtils.formatTimeDiff(
@@ -204,8 +212,8 @@ finished at (relative to the Job launch time):
 %>
 
 <h3>The last Shuffle  
-<a href="taskdetailshistory.jsp?jobid=<%=jobid%>&logFile=<%=encodedLogFileName%>
-&taskid=<%=lastShuffle.get(Keys.TASKID)%>"><%=lastShuffle.get(Keys.TASKID)%>
+<a href="taskdetailshistory.jsp?logFile=<%=encodedLogFileName%>
+&tipid=<%=lastShuffle.get(Keys.TASKID)%>"><%=lastShuffle.get(Keys.TASKID)%>
 </a> finished at (relative to the Job launch time): 
 <%=StringUtils.getFormattedTimeWithDiff(dateFormat,
                               lastShuffle.getLong(Keys.SHUFFLE_FINISHED), 
@@ -226,7 +234,7 @@ finished at (relative to the Job launch time):
 %>
 <hr/>
 <h3>Time taken by best performing Reduce task : 
-<a href="taskdetailshistory.jsp?jobid=<%=jobid%>&logFile=<%=encodedLogFileName%>&taskid=<%=minReduce.get(Keys.TASKID)%>">
+<a href="taskdetailshistory.jsp?logFile=<%=encodedLogFileName%>&tipid=<%=minReduce.get(Keys.TASKID)%>">
 <%=minReduce.get(Keys.TASKID) %></a> : 
 <%=StringUtils.formatTimeDiff(minReduce.getLong(Keys.FINISH_TIME),
     minReduce.getLong(Keys.SHUFFLE_FINISHED) ) %></h3>
@@ -243,7 +251,7 @@ finished at (relative to the Job launch time):
   for (int i=0;i<showTasks && i<reduceTasks.length; i++) {
 %>
     <tr>
-    <td><a href="taskdetailshistory.jsp?jobid=<%=jobid%>&logFile=<%=encodedLogFileName%>&taskid=<%=reduceTasks[i].get(Keys.TASKID)%>">
+    <td><a href="taskdetailshistory.jsp?logFile=<%=encodedLogFileName%>&tipid=<%=reduceTasks[i].get(Keys.TASKID)%>">
         <%=reduceTasks[i].get(Keys.TASKID) %></a></td>
     <td><%=StringUtils.formatTimeDiff(
              reduceTasks[i].getLong(Keys.FINISH_TIME), 
@@ -260,8 +268,8 @@ finished at (relative to the Job launch time):
 %>
 
 <h3>The last Reduce task 
-<a href="taskdetailshistory.jsp?jobid=<%=jobid%>&logFile=<%=encodedLogFileName%>
-&taskid=<%=lastReduce.get(Keys.TASKID)%>"><%=lastReduce.get(Keys.TASKID)%>
+<a href="taskdetailshistory.jsp?logFile=<%=encodedLogFileName%>
+&tipid=<%=lastReduce.get(Keys.TASKID)%>"><%=lastReduce.get(Keys.TASKID)%>
 </a> finished at (relative to the Job launch time): 
 <%=StringUtils.getFormattedTimeWithDiff(dateFormat,
                               lastReduce.getLong(Keys.FINISH_TIME), 
