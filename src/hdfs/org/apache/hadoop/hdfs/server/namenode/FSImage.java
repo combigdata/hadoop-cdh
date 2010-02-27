@@ -984,6 +984,8 @@ public class FSImage extends Storage {
       // load Files Under Construction
       this.loadFilesUnderConstruction(imgVersion, in, fsNamesys);
       
+      this.loadSecretManagerState(imgVersion, in, fsNamesys);
+      
     } finally {
       in.close();
     }
@@ -1053,6 +1055,7 @@ public class FSImage extends Storage {
       // save the rest of the nodes
       saveImage(strbuf, 0, fsDir.rootDir, out);
       fsNamesys.saveFilesUnderConstruction(out);
+      fsNamesys.saveSecretManagerState(out);
       strbuf = null;
     } finally {
       out.close();
@@ -1245,6 +1248,16 @@ public class FSImage extends Storage {
     }
   }
 
+  private void loadSecretManagerState(int version,  DataInputStream in, 
+      FSNamesystem fs) throws IOException {
+    if (version > -19) {
+      //SecretManagerState is not available.
+      //This must not happen if security is turned on.
+      return; 
+    }
+    fs.loadSecretManagerState(in);
+  }
+  
   // Helper function that reads in an INodeUnderConstruction
   // from the input stream
   //
