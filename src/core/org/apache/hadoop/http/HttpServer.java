@@ -137,6 +137,10 @@ public class HttpServer implements FilterContainer {
 
     addDefaultApps(contexts, appDir);
     
+    defineFilter(webAppContext, "krb5Filter", 
+        Krb5AndCertsSslSocketConnector.Krb5SslFilter.class.getName(), 
+        null, null);
+    
     addGlobalFilter("safety", QuotingInputFilter.class.getName(), null);
     final FilterInitializer[] initializers = getFilterInitializers(conf); 
     if (initializers != null) {
