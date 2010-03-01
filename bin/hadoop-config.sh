@@ -56,6 +56,25 @@ EOF
   exit 1
 fi
 
+#check to see if the conf dir is given as an optional argument
+if [ $# -gt 1 ]
+then
+    if [ "--config" = "$1" ]
+	  then
+	      shift
+	      confdir=$1
+	      shift
+	      HADOOP_CONF_DIR=$confdir
+    fi
+fi
+ 
+# Allow alternate conf dir location.
+HADOOP_CONF_DIR="${HADOOP_CONF_DIR:-$HADOOP_HOME/conf}"
+
+if [ -f "${HADOOP_CONF_DIR}/hadoop-env.sh" ]; then
+  . "${HADOOP_CONF_DIR}/hadoop-env.sh"
+fi
+
 # attempt to find java
 if [ -z "$JAVA_HOME" ]; then
   for candidate in \
@@ -86,23 +105,6 @@ EOF
     exit 1
   fi
 fi
-
-
-
-#check to see if the conf dir is given as an optional argument
-if [ $# -gt 1 ]
-then
-    if [ "--config" = "$1" ]
-	  then
-	      shift
-	      confdir=$1
-	      shift
-	      HADOOP_CONF_DIR=$confdir
-    fi
-fi
- 
-# Allow alternate conf dir location.
-HADOOP_CONF_DIR="${HADOOP_CONF_DIR:-$HADOOP_HOME/conf}"
 
 if [ -d $HADOOP_HOME/pids ]; then
 HADOOP_PID_DIR="${HADOOP_PID_DIR:-$HADOOP_HOME/pids}"

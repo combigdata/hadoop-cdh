@@ -84,10 +84,6 @@ fi
 COMMAND=$1
 shift
 
-if [ -f "${HADOOP_CONF_DIR}/hadoop-env.sh" ]; then
-  . "${HADOOP_CONF_DIR}/hadoop-env.sh"
-fi
-
 # some Java parameters
 if [ "$JAVA_HOME" != "" ]; then
   #echo "run java in $JAVA_HOME"

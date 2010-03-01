@@ -64,10 +64,6 @@ hadoop_rotate_log ()
     fi
 }
 
-if [ -f "${HADOOP_CONF_DIR}/hadoop-env.sh" ]; then
-  . "${HADOOP_CONF_DIR}/hadoop-env.sh"
-fi
-
 # get log directory
 if [ "$HADOOP_LOG_DIR" = "" ]; then
   export HADOOP_LOG_DIR="$HADOOP_HOME/logs"
