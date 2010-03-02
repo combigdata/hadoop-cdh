@@ -1552,7 +1552,7 @@ public class DFSClient implements FSConstants, java.io.Closeable {
     synchronized void openInfo() throws IOException {
       LocatedBlocks newInfo = callGetBlockLocations(namenode, src, 0, prefetchSize);
       if (newInfo == null) {
-        throw new IOException("Cannot open filename " + src);
+        throw new FileNotFoundException("File does not exist: " + src);
       }
 
       // I think this check is not correct. A file could have been appended to
