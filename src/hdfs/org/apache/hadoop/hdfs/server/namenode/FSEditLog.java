@@ -511,9 +511,6 @@ public class FSEditLog {
         numOpRenewDelegationToken = 0, numOpCancelDelegationToken = 0,
         numOpUpdateMasterKey = 0, numOpOther = 0;
 
-    DelegationTokenIdentifier delegationTokenId = new DelegationTokenIdentifier();
-    DelegationKey delegationKey = new DelegationKey();
-
     long startTime = FSNamesystem.now();
 
     DataInputStream in = new DataInputStream(new BufferedInputStream(edits));
@@ -807,6 +804,8 @@ public class FSEditLog {
                 + " for version " + logVersion);
           }
           numOpGetDelegationToken++;
+          DelegationTokenIdentifier delegationTokenId = 
+              new DelegationTokenIdentifier();
           delegationTokenId.readFields(in);
           long expiryTime = readLong(in);
           fsNamesys.getDelegationTokenSecretManager()
@@ -819,6 +818,8 @@ public class FSEditLog {
                 + " for version " + logVersion);
           }
           numOpRenewDelegationToken++;
+          DelegationTokenIdentifier delegationTokenId = 
+              new DelegationTokenIdentifier();
           delegationTokenId.readFields(in);
           long expiryTime = readLong(in);
           fsNamesys.getDelegationTokenSecretManager()
@@ -831,6 +832,8 @@ public class FSEditLog {
                 + " for version " + logVersion);
           }
           numOpCancelDelegationToken++;
+          DelegationTokenIdentifier delegationTokenId = 
+              new DelegationTokenIdentifier();
           delegationTokenId.readFields(in);
           fsNamesys.getDelegationTokenSecretManager()
               .updatePersistedTokenCancellation(delegationTokenId);
@@ -842,6 +845,7 @@ public class FSEditLog {
                 + " for version " + logVersion);
           }
           numOpUpdateMasterKey++;
+          DelegationKey delegationKey = new DelegationKey();
           delegationKey.readFields(in);
           fsNamesys.getDelegationTokenSecretManager().updatePersistedMasterKey(
               delegationKey);
