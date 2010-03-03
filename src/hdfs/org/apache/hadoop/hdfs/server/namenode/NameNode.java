@@ -669,8 +669,9 @@ public class NameNode implements ClientProtocol, DatanodeProtocol,
    */
   public HdfsFileStatus[] getListing(String src) throws IOException {
     HdfsFileStatus[] files = namesystem.getListing(src);
+    myMetrics.numGetListingOps.inc();
     if (files != null) {
-      myMetrics.numGetListingOps.inc();
+      myMetrics.numFilesInGetListingOps.inc(files.length);
     }
     return files;
   }
