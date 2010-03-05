@@ -2193,8 +2193,11 @@ public class DFSClient implements FSConstants, java.io.Closeable {
       throw new IOException("Mark/reset not supported");
     }
   }
-    
-  static class DFSDataInputStream extends FSDataInputStream {
+
+  /**
+   * The Hdfs implementation of {@link FSDataInputStream}
+   */
+  public static class DFSDataInputStream extends FSDataInputStream {
     DFSDataInputStream(DFSInputStream in)
       throws IOException {
       super(in);
@@ -2221,6 +2224,12 @@ public class DFSClient implements FSConstants, java.io.Closeable {
       return ((DFSInputStream)in).getAllBlocks();
     }
 
+    /**
+     * @return The visible length of the file.
+     */
+    public long getVisibleLength() throws IOException {
+      return ((DFSInputStream)in).getFileLength();
+    }
   }
 
   /****************************************************************
