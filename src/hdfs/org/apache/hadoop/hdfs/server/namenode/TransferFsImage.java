@@ -28,6 +28,7 @@ import javax.servlet.http.HttpServletRequest;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hdfs.protocol.FSConstants;
+import org.apache.hadoop.security.SecurityUtil;
 import org.apache.hadoop.hdfs.server.namenode.SecondaryNameNode.ErrorSimulator;
 import org.apache.hadoop.security.UserGroupInformation;
 
@@ -166,6 +167,9 @@ class TransferFsImage implements FSConstants {
     // open connection to remote server
     //
     URL url = new URL(str.toString());
+    
+    // Avoid Krb bug with cross-realm hosts
+    SecurityUtil.fetchServiceTicket(url);
     URLConnection connection = url.openConnection();
     long advertisedSize;
     String contentLength = connection.getHeaderField(CONTENT_LENGTH);
