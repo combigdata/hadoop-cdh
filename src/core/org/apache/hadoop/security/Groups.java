@@ -55,7 +55,8 @@ public class Groups {
     cacheTimeout = 
       conf.getLong("hadoop.security.groups.cache.secs", 5*60) * 1000;
     
-    LOG.info("Group mapping impl=" + impl.getClass().getName() + 
+    if(LOG.isDebugEnabled())
+      LOG.debug("Group mapping impl=" + impl.getClass().getName() + 
         "; cacheTimeout=" + cacheTimeout);
   }
   
@@ -71,13 +72,13 @@ public class Groups {
     long now = System.currentTimeMillis();
     // if cache has a value and it hasn't expired
     if (groups != null && (groups.getTimestamp() + cacheTimeout > now)) {
-      LOG.info("Returning cached groups for '" + user + "'");
+      LOG.debug("Returning cached groups for '" + user + "'");
       return groups.getGroups();
     }
     // Create and cache user's groups
     groups = new CachedGroups(impl.getGroups(user));
     userToGroupsMap.put(user, groups);
-    LOG.info("Returning fetched groups for '" + user + "'");
+    LOG.debug("Returning fetched groups for '" + user + "'");
     return groups.getGroups();
   }
   
