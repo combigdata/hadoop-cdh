@@ -94,7 +94,7 @@ public class TestClientBlockVerification {
     return DFSClient.BlockReader.newBlockReader(
       s, targetAddr.toString()+ ":" + block.getBlockId(),
       block.getBlockId(),
-      testBlock.getAccessToken(),
+      testBlock.getBlockToken(),
       block.getGenerationStamp(),
       offset, lenToRead,
       conf.getInt("io.file.buffer.size", 4096));
