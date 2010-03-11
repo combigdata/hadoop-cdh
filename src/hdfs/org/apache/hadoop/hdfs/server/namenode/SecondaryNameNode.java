@@ -121,8 +121,8 @@ public class SecondaryNameNode implements Runnable {
    */
   public SecondaryNameNode(Configuration conf)  throws IOException {
     DFSUtil.login(conf, 
-        DFSConfigKeys.DFS_NAMENODE_KEYTAB_FILE_KEY,
-        DFSConfigKeys.DFS_NAMENODE_USER_NAME_KEY);
+        DFSConfigKeys.DFS_SECONDARY_NAMENODE_KEYTAB_FILE_KEY,
+        DFSConfigKeys.DFS_SECONDARY_NAMENODE_USER_NAME_KEY);
     try {
       initialize(conf);
     } catch(IOException e) {
@@ -162,8 +162,8 @@ public class SecondaryNameNode implements Runnable {
 
     // initialize the webserver for uploading files.
     // Kerberized SSL servers must be run from the host principal...
-    DFSUtil.login(conf, DFSConfigKeys.DFS_NAMENODE_KEYTAB_FILE_KEY, 
-        DFSConfigKeys.DFS_NAMENODE_KRB_HTTPS_USER_NAME_KEY);
+    DFSUtil.login(conf, DFSConfigKeys.DFS_SECONDARY_NAMENODE_KEYTAB_FILE_KEY, 
+        DFSConfigKeys.DFS_SECONDARY_NAMENODE_KRB_HTTPS_USER_NAME_KEY);
     UserGroupInformation ugi = UserGroupInformation.getLoginUser();
     try {
       infoServer = ugi.doAs(new PrivilegedExceptionAction<HttpServer>() {
