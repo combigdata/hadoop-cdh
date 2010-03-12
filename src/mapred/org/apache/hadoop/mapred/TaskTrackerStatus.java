@@ -29,7 +29,7 @@ import java.util.*;
  * unique TaskTracker it knows about.
  *
  **************************************************/
-class TaskTrackerStatus implements Writable {
+public class TaskTrackerStatus implements Writable {
 
   static {                                        // register a ctor
     WritableFactories.setFactory
@@ -52,7 +52,7 @@ class TaskTrackerStatus implements Writable {
   /**
    * Class representing a collection of resources on this tasktracker.
    */
-  static class ResourceStatus implements Writable {
+  public static class ResourceStatus implements Writable {
     
     private long totalVirtualMemory;
     private long totalPhysicalMemory;
@@ -85,7 +85,7 @@ class TaskTrackerStatus implements Writable {
      * 
      * @return the maximum amount of virtual memory on the tasktracker in bytes.
      */
-    long getTotalVirtualMemory() {
+    public long getTotalVirtualMemory() {
       return totalVirtualMemory;
     }
 
@@ -107,7 +107,7 @@ class TaskTrackerStatus implements Writable {
      * 
      * @return maximum amount of physical memory on the tasktracker in bytes.
      */
-    long getTotalPhysicalMemory() {
+    public long getTotalPhysicalMemory() {
       return totalPhysicalMemory;
     }
 
@@ -163,7 +163,7 @@ class TaskTrackerStatus implements Writable {
      * Will return LONG_MAX if space hasn't been measured yet.
      * @return bytes of available local disk space on this tasktracker.
      */    
-    long getAvailableSpace() {
+    public long getAvailableSpace() {
       return availableSpace;
     }
     
@@ -314,7 +314,7 @@ class TaskTrackerStatus implements Writable {
    * 
    * @return the resource status
    */
-  ResourceStatus getResourceStatus() {
+  public ResourceStatus getResourceStatus() {
     return resStatus;
   }
   

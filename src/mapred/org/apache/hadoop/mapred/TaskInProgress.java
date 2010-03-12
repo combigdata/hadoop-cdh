@@ -50,7 +50,7 @@ import org.apache.hadoop.net.Node;
  * ever have to handle.  Once those are up, the TIP is dead.
  * **************************************************************
  */
-class TaskInProgress {
+public class TaskInProgress {
   static final int MAX_TASK_EXECS = 1;
   int maxTaskAttempts = 4;    
   static final double SPECULATIVE_GAP = 0.2;
@@ -428,7 +428,7 @@ class TaskInProgress {
    * task ID and overall status, plus reports for all the
    * component task-threads that have ever been started.
    */
-  synchronized TaskReport generateSingleReport() {
+  public synchronized TaskReport generateSingleReport() {
     ArrayList<String> diagnostics = new ArrayList<String>();
     for (List<String> l : taskDiagnosticData.values()) {
       diagnostics.addAll(l);
@@ -464,7 +464,7 @@ class TaskInProgress {
    * @param taskId the id of the required task
    * @return the list of diagnostics for that task
    */
-  synchronized List<String> getDiagnosticInfo(TaskAttemptID taskId) {
+  public synchronized List<String> getDiagnosticInfo(TaskAttemptID taskId) {
     return taskDiagnosticData.get(taskId);
   }
     

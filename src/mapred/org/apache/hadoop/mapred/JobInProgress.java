@@ -615,7 +615,7 @@ public class JobInProgress {
    * Get the list of map tasks
    * @return the raw array of maps for this job
    */
-  TaskInProgress[] getMapTasks() {
+  public TaskInProgress[] getMapTasks() {
     return maps;
   }
     
@@ -623,7 +623,7 @@ public class JobInProgress {
    * Get the list of cleanup tasks
    * @return the array of cleanup tasks for the job
    */
-  TaskInProgress[] getCleanupTasks() {
+  public TaskInProgress[] getCleanupTasks() {
     return cleanup;
   }
   
@@ -631,7 +631,7 @@ public class JobInProgress {
    * Get the list of setup tasks
    * @return the array of setup tasks for the job
    */
-  TaskInProgress[] getSetupTasks() {
+  public TaskInProgress[] getSetupTasks() {
     return setup;
   }
   
@@ -639,7 +639,7 @@ public class JobInProgress {
    * Get the list of reduce tasks
    * @return the raw array of reduce tasks for this job
    */
-  TaskInProgress[] getReduceTasks() {
+  public TaskInProgress[] getReduceTasks() {
     return reduces;
   }
 
