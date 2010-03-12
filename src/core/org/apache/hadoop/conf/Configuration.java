@@ -1052,10 +1052,12 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
                              ArrayList resources,
                              boolean quiet) {
     if(loadDefaults) {
-      for (String resource : defaultResources) {
-        loadResource(properties, resource, quiet);
-      }
-    
+      // To avoid addResource causing a ConcurrentModificationException
+      synchronized(Configuration.class) {
+        for (String resource : defaultResources) {
+          loadResource(properties, resource, quiet);
+        }
+      }    
       //support the hadoop-site.xml as a deprecated case
       if(getResource("hadoop-site.xml")!=null) {
         loadResource(properties, "hadoop-site.xml", quiet);
@@ -1268,7 +1270,9 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
     StringBuffer sb = new StringBuffer();
     sb.append("Configuration: ");
     if(loadDefaults) {
-      toString(defaultResources, sb);
+      synchronized (Configuration.class) {
+        toString(defaultResources, sb);
+      }
       if(resources.size()>0) {
         sb.append(", ");
       }
