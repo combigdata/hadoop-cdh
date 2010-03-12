@@ -240,6 +240,17 @@
     </sequential>
   </macrodef>
 
+  <macrodef name="copy-native-package" description="Package native code into dist dir">
+    <sequential>
+      <exec dir="${dist.dir}" executable="sh" failonerror="true">
+	  <env key="BASE_NATIVE_LIB_DIR" value="${lib.dir}/native"/>
+	  <env key="BUILD_NATIVE_DIR" value="${build.dir}/native"/>
+	  <env key="DIST_LIB_DIR" value="${dist.dir}/lib/native"/>
+	  <arg line="${native.src.dir}/packageNativeHadoop.sh"/>
+      </exec>
+    </sequential>
+  </macrodef>
+
   <!-- ====================================================== -->
   <!-- Stuff needed by all targets                            -->
   <!-- ====================================================== -->
@@ -1119,6 +1130,11 @@
     </macro_tar>
   </target>
 
+  <target name="package-native" depends="compile-core-native, compile-c++, compile-c++-examples, compile-c++-libhdfs">
+    <mkdir dir="${dist.dir}"/>
+    <copy-native-package />
+  </target>
+
   <target name="bin-package" depends="compile, jar, examples, tools-jar, jar-test, ant-tasks, package-librecordio" 
 		description="assembles artifacts for binary target">
 
@@ -1136,12 +1152,7 @@
       </fileset>
     </copy>
 
-  	<exec dir="${dist.dir}" executable="sh" failonerror="true">
-	  <env key="BASE_NATIVE_LIB_DIR" value="${lib.dir}/native"/>
-	  <env key="BUILD_NATIVE_DIR" value="${build.dir}/native"/>
-	  <env key="DIST_LIB_DIR" value="${dist.dir}/lib/native"/>
-	  <arg line="${native.src.dir}/packageNativeHadoop.sh"/>
-    </exec>
+    <copy-native-package />
 
     <subant target="package">
       <!--Pass down the version in case its needed again and the target

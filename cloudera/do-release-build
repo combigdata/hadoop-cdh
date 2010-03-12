@@ -57,7 +57,7 @@ JAVA_HOME=$JAVA32_HOME \
   -Djava5.home=$JAVA5_HOME \
   -Dforrest.home=$FORREST_HOME \
   -propertyfile cloudera/build.properties \
-  clean tar
+  clean package-native
 
 if [ -z "$SKIP_JDIFF" ]; then
 ant \
@@ -76,4 +76,4 @@ JAVA_HOME=$JAVA64_HOME \
   -Djava5.home=$JAVA5_HOME \
   -Dforrest.home=$FORREST_HOME \
   -propertyfile cloudera/build.properties \
-  compile-core-native compile-c++ tar
+  compile-core-native compile-c++ compile-c++-examples tar
