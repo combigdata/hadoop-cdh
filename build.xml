@@ -402,6 +402,7 @@
       of the output directory -->
     <exec executable="sh">
        <arg line="src/saveVersion.sh ${version}"/>
+       <env key="HADOOP_REVISION" value="${cloudera.hash}" />
     </exec>
 	
     <!-- Compile Java files (excluding JSPs) checking warnings -->
