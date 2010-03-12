@@ -38,7 +38,7 @@ MSG
 fi
 
 # the root of the Hadoop installation
-export HADOOP_HOME="${HADOOP_HOME:-/usr/lib/hadoop}"
+export HADOOP_HOME="${HADOOP_HOME:-/usr/lib/hadoop-0.20}"
 
 #check to see if the conf dir is given as an optional argument
 if [ $# -gt 1 ]
@@ -53,8 +53,8 @@ then
 fi
  
 # Allow alternate conf dir location.
-HADOOP_CONF_DIR="${HADOOP_CONF_DIR:-/etc/hadoop/conf}"
-HADOOP_LOG_DIR="${HADOOP_LOG_DIR:-/var/log/hadoop}"
+HADOOP_CONF_DIR="${HADOOP_CONF_DIR:-/etc/hadoop-0.20/conf}"
+HADOOP_LOG_DIR="${HADOOP_LOG_DIR:-/var/log/hadoop-0.20}"
 
 #check to see it is specified whether to use the slaves or the
 # masters file
