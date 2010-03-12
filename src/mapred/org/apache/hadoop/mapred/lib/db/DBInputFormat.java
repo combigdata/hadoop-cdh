@@ -393,6 +393,7 @@ public class DBInputFormat<T  extends DBWritable>
         splits[i] = split;
       }
 
+      connection.commit();
       return splits;
     } catch (SQLException e) {
       throw new IOException(e.getMessage());
