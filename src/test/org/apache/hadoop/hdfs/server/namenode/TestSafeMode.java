@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.hadoop.hdfs;
+package org.apache.hadoop.hdfs.server.namenode;
 
 import java.io.IOException;
 
@@ -25,7 +25,9 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.protocol.FSConstants.SafeModeAction;
-
+import org.apache.hadoop.hdfs.DistributedFileSystem;
+import org.apache.hadoop.hdfs.MiniDFSCluster;
+import org.apache.hadoop.hdfs.DFSTestUtil;
 import junit.framework.TestCase;
 
 /**
@@ -106,6 +108,50 @@ public class TestSafeMode extends TestCase {
     } finally {
       if(fs != null) fs.close();
       if(cluster!= null) cluster.shutdown();
+    }
+  }
+
+
+  /**
+   * Verify that the NameNode stays in safemode when dfs.safemode.datanode.min
+   * is set to a number greater than the number of live datanodes.
+   */
+  public void testDatanodeThreshold() throws IOException {
+    MiniDFSCluster cluster = null;
+    DistributedFileSystem fs = null;
+    try {
+      Configuration conf = new Configuration();
+      conf.set("dfs.safemode.extension", "0");
+      conf.set("dfs.safemode.min.datanodes", "1");
+
+      // bring up a cluster with no datanodes
+      cluster = new MiniDFSCluster(conf, 0, false, null);
+      cluster.waitActive();
+      fs = (DistributedFileSystem)cluster.getFileSystem();
+
+      assertTrue("No datanode started, but we require one - safemode expected",
+                 fs.setSafeMode(SafeModeAction.SAFEMODE_GET));
+
+      String tipMsg = cluster.getNameNode().getNamesystem().getSafeModeTip();
+      assertTrue("Safemode tip message looks right",
+                 tipMsg.contains("The number of live datanodes 0 needs an " +
+                                 "additional 1 live"));
+
+      // Start a datanode
+      cluster.startDataNodes(conf, 1, true, null, null);
+
+      // Wait long enough for safemode check to refire
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException ignored) {}
+
+      // We now should be out of safe mode.
+      assertFalse(
+        "Out of safe mode after starting datanode.",
+        fs.setSafeMode(SafeModeAction.SAFEMODE_GET));
+    } finally {
+      if (fs != null) fs.close();
+      if (cluster != null) cluster.shutdown();
     }
   }
 }

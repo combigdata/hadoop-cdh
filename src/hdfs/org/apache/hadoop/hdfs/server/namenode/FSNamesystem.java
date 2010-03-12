@@ -2129,6 +2129,10 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
     resolveNetworkLocation(nodeDescr);
     unprotectedAddDatanode(nodeDescr);
     clusterMap.add(nodeDescr);
+
+    if (safeMode != null) {
+      safeMode.checkMode();
+    }
       
     // also treat the registration message as a heartbeat
     synchronized(heartbeats) {
@@ -2779,6 +2783,10 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
     }
     unprotectedRemoveDatanode(nodeInfo);
     clusterMap.remove(nodeInfo);
+
+    if (safeMode != null) {
+      safeMode.checkMode();
+    }
   }
 
   void unprotectedRemoveDatanode(DatanodeDescriptor nodeDescr) {
@@ -3986,6 +3994,8 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
     // configuration fields
     /** Safe mode threshold condition %.*/
     private double threshold;
+    /** Safe mode minimum number of datanodes alive */
+    private int datanodeThreshold;
     /** Safe mode extension after the threshold. */
     private int extension;
     /** Min replication required by safe mode. */
@@ -4015,6 +4025,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
      */
     SafeModeInfo(Configuration conf) {
       this.threshold = conf.getFloat("dfs.safemode.threshold.pct", 0.95f);
+      this.datanodeThreshold = conf.getInt("dfs.safemode.min.datanodes", 0);
       this.extension = conf.getInt("dfs.safemode.extension", 0);
       this.safeReplication = conf.getInt("dfs.replication.min", 1);
       this.blockTotal = 0; 
@@ -4031,6 +4042,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
      */
     private SafeModeInfo() {
       this.threshold = 1.5f;  // this threshold can never be reached
+      this.datanodeThreshold = Integer.MAX_VALUE;
       this.extension = Integer.MAX_VALUE;
       this.safeReplication = Short.MAX_VALUE + 1; // more than maxReplication
       this.blockTotal = -1;
@@ -4123,13 +4135,14 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
      * if DFS is empty or {@link #threshold} == 0
      */
     boolean needEnter() {
-      return threshold != 0 && blockSafe < blockThreshold;
+      return (threshold != 0 && blockSafe < blockThreshold) ||
+        (numLiveDataNodes() < datanodeThreshold);
     }
       
     /**
      * Check and trigger safe mode if needed. 
      */
-    private void checkMode() {
+    private synchronized void checkMode() {
       if (needEnter()) {
         enter();
         reportStatus("STATE* Safe mode ON.", false);
@@ -4213,17 +4226,37 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
       }
       if(blockTotal < 0)
         return leaveMsg + ".";
-      
-      String msg = null;
+
+      int numLive = numLiveDataNodes();
+      String msg = "";
       if (reached == 0) {
-        msg = String.format("The reported blocks %d needs additional %d"
-            + " blocks to reach the threshold %.4f of total blocks %d. %s",
-            blockSafe, (blockThreshold - blockSafe), threshold, blockTotal,
-            leaveMsg);
+        if (blockSafe < blockThreshold) {
+          msg += String.format(
+            "The reported blocks %d needs additional %d"
+            + " blocks to reach the threshold %.4f of total blocks %d.",
+            blockSafe, (blockThreshold - blockSafe), threshold, blockTotal);
+        }
+        if (numLive < datanodeThreshold) {
+          if (!"".equals(msg)) {
+            msg += "\n";
+          }
+          msg += String.format(
+            "The number of live datanodes %d needs an additional %d live "
+            + "datanodes to reach the minimum number %d.",
+            numLive, datanodeThreshold - numLive, datanodeThreshold);
+        }
+        msg += " " + leaveMsg;
       } else {
         msg = String.format("The reported blocks %d has reached the threshold"
-            + " %.4f of total blocks %d. %s", blockSafe, threshold, 
-            blockTotal, leaveMsg);
+            + " %.4f of total blocks %d.", blockSafe, threshold, 
+            blockTotal);
+
+        if (datanodeThreshold > 0) {
+          msg += String.format(" The number of live datanodes %d has reached "
+                               + "the minimum number %d.",
+                               numLive, datanodeThreshold);
+        }
+        msg += " " + leaveMsg;
       }
       if(reached == 0 || isManual()) {  // threshold is not reached or manual       
         return msg + ".";
