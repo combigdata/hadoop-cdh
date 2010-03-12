@@ -43,6 +43,7 @@ import org.apache.hadoop.hdfs.server.protocol.UpgradeCommand;
 import org.apache.hadoop.http.HttpServer;
 import org.apache.hadoop.ipc.*;
 import org.apache.hadoop.conf.*;
+import org.apache.hadoop.util.ServicePlugin;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.net.NetUtils;
@@ -59,6 +60,7 @@ import java.io.*;
 import java.net.*;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 
 /**********************************************************
  * NameNode serves as both directory namespace manager and
@@ -135,6 +137,8 @@ public class NameNode implements ClientProtocol, DatanodeProtocol,
   private boolean stopRequested = false;
   /** Is service level authorization enabled? */
   private boolean serviceAuthEnabled = false;
+  /** Activated plug-ins. */
+  private List<ServicePlugin> plugins;
   
   /** Format a new filesystem.  Destroys any filesystem that may already
    * exist at this location.  **/
@@ -202,6 +206,15 @@ public class NameNode implements ClientProtocol, DatanodeProtocol,
     startHttpServer(conf);
     this.server.start();  //start RPC server   
     startTrashEmptier(conf);
+    
+    plugins = conf.getInstances("dfs.namenode.plugins", ServicePlugin.class);
+    for (ServicePlugin p: plugins) {
+      try {
+        p.start(this);
+      } catch (Throwable t) {
+        LOG.warn("ServicePlugin " + p + " could not be started", t);
+      }
+    }
   }
 
   private void startTrashEmptier(Configuration conf) throws IOException {
@@ -301,6 +314,15 @@ public class NameNode implements ClientProtocol, DatanodeProtocol,
     if (stopRequested)
       return;
     stopRequested = true;
+    if (plugins != null) {
+      for (ServicePlugin p : plugins) {
+        try {
+          p.stop();
+        } catch (Throwable t) {
+          LOG.warn("ServicePlugin " + p + " could not be stopped", t);
+        }
+      }
+    }
     try {
       if (httpServer != null) httpServer.stop();
     } catch (Exception e) {
