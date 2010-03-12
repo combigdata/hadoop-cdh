@@ -88,8 +88,10 @@ import org.apache.hadoop.security.authorize.PolicyProvider;
 import org.apache.hadoop.security.authorize.ServiceAuthorizationManager;
 import org.apache.hadoop.util.Daemon;
 import org.apache.hadoop.util.DiskChecker;
-import org.apache.hadoop.util.ServicePlugin;
+import org.apache.hadoop.util.PluginDispatcher;
 import org.apache.hadoop.util.ReflectionUtils;
+import org.apache.hadoop.util.ServicePlugin;
+import org.apache.hadoop.util.SingleArgumentRunnable;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.util.DiskChecker.DiskErrorException;
 import org.apache.hadoop.util.DiskChecker.DiskOutOfSpaceException;
@@ -192,7 +194,7 @@ public class DataNode extends Configured
   public Daemon blockScannerThread = null;
   
   /** Activated plug-ins. */
-  private List<ServicePlugin> plugins;
+  private PluginDispatcher<DatanodePlugin> pluginDispatcher;
   
   private static final Random R = new Random();
   
@@ -402,15 +404,9 @@ public class DataNode extends Configured
 
     LOG.info("dnRegistration = " + dnRegistration);
     
-    plugins = conf.getInstances("dfs.datanode.plugins", ServicePlugin.class);
-    for (ServicePlugin p: plugins) {
-      try {
-        p.start(this);
-        LOG.info("Started plug-in " + p);
-      } catch (Throwable t) {
-        LOG.warn("ServicePlugin " + p + " could not be started", t);
-      }
-    }
+    pluginDispatcher = PluginDispatcher.createFromConfiguration(
+      conf, "dfs.datanode.plugins", DatanodePlugin.class);
+    pluginDispatcher.dispatchStart(this);
   }
 
   /**
@@ -551,6 +547,7 @@ public class DataNode extends Configured
         } catch (InterruptedException ie) {}
       }
     }
+
     assert ("".equals(storage.getStorageID()) 
             && !"".equals(dnRegistration.getStorageID()))
             || storage.getStorageID().equals(dnRegistration.getStorageID()) :
@@ -578,17 +575,10 @@ public class DataNode extends Configured
    * Otherwise, deadlock might occur.
    */
   public void shutdown() {
-    if (plugins != null) {
-      for (ServicePlugin p : plugins) {
-        try {
-          p.stop();
-          LOG.info("Stopped plug-in " + p);
-        } catch (Throwable t) {
-          LOG.warn("ServicePlugin " + p + " could not be stopped", t);
-        }
-      }
+    if (pluginDispatcher != null) {
+      pluginDispatcher.dispatchStop();
     }
-    
+
     if (infoServer != null) {
       try {
         infoServer.stop();
@@ -906,6 +896,10 @@ public class DataNode extends Configured
       LOG.info("DatanodeCommand action: DNA_REGISTER");
       if (shouldRun) {
         register();
+        pluginDispatcher.dispatchCall(
+          new SingleArgumentRunnable<DatanodePlugin>() {
+            public void run(DatanodePlugin p) { p.reregistrationComplete(); }
+          });
       }
       break;
     case DatanodeProtocol.DNA_FINALIZE:
@@ -1231,6 +1225,10 @@ public class DataNode extends Configured
     if (dn != null) {
       //register datanode
       dn.register();
+      dn.pluginDispatcher.dispatchCall(
+        new SingleArgumentRunnable<DatanodePlugin>() {
+          public void run(DatanodePlugin p) { p.initialRegistrationComplete(); }
+        });
       dn.dataNodeThread = new Thread(dn, dnThreadName);
       dn.dataNodeThread.setDaemon(true); // needed for JUnit testing
       dn.dataNodeThread.start();
