@@ -29,6 +29,24 @@ to call at top-level: ant deploy-contrib compile-core-test
   <property name="mrunit.class.dir" value="${build.dir}/../mrunit/classes" />
 
   <!-- ================================================================== -->
+  <!-- Compile                                                            -->
+  <!-- Override with our own version so we can enforce build dependencies -->
+  <!-- on doc                                                             -->
+  <!-- ================================================================== -->
+  <target name="compile" depends="init, ivy-retrieve-common, doc" unless="skip.contrib">
+    <echo message="contrib: ${name}"/>
+    <javac
+     encoding="${build.encoding}"
+     srcdir="${src.dir}"
+     includes="**/*.java"
+     destdir="${build.classes}"
+     debug="${javac.debug}"
+     deprecation="${javac.deprecation}">
+     <classpath refid="contrib-classpath"/>
+    </javac>
+  </target>
+
+  <!-- ================================================================== -->
   <!-- Compile test code                                                  -->
   <!-- Override with our own version so we can enforce build dependencies -->
   <!-- on compile-core-test for MiniMRCluster, and MRUnit.                -->
