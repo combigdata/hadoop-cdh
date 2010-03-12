@@ -88,6 +88,7 @@ public class ImportOptions {
   private ControlAction action;
   private String hadoopHome;
   private String orderByCol;
+  private String whereClause;
   private String debugSqlCmd;
   private String driverClassName;
   private String warehouseDir;
@@ -139,6 +140,7 @@ public class ImportOptions {
       this.tableName = props.getProperty("db.table", this.tableName);
       this.connectString = props.getProperty("db.connect.url", this.connectString);
       this.orderByCol = props.getProperty("db.sort.column", this.orderByCol);
+      this.whereClause = props.getProperty("db.where.clause", this.whereClause);
       this.driverClassName = props.getProperty("jdbc.driver", this.driverClassName);
       this.warehouseDir = props.getProperty("hdfs.warehouse.dir", this.warehouseDir);
       this.hiveHome = props.getProperty("hive.home", this.hiveHome);
@@ -217,6 +219,7 @@ public class ImportOptions {
     System.out.println("--table (tablename)          Table to read");
     System.out.println("--columns (col,col,col...)   Columns to export from table");
     System.out.println("--order-by (column-name)     Column of the table used to order results");
+    System.out.println("--where (where clause)       Where clause to use during export");
     System.out.println("--hadoop-home (dir)          Override $HADOOP_HOME");
     System.out.println("--hive-home (dir)            Override $HIVE_HOME");
     System.out.println("--warehouse-dir (dir)        HDFS path for table destination");
@@ -275,6 +278,8 @@ public class ImportOptions {
           this.columns = columnString.split(",");
         } else if (args[i].equals("--order-by")) {
           this.orderByCol = args[++i];
+        } else if (args[i].equals("--where")) {
+          this.whereClause = args[++i];
         } else if (args[i].equals("--list-tables")) {
           this.action = ControlAction.ListTables;
         } else if (args[i].equals("--all-tables")) {
@@ -391,6 +396,10 @@ public class ImportOptions {
 
   public String getOrderByCol() {
     return orderByCol;
+  }
+  
+  public String getWhereClause() {
+    return whereClause;
   }
 
   public ControlAction getAction() {
