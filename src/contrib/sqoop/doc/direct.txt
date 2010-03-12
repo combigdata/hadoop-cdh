@@ -17,14 +17,16 @@
 ////
 
 
-Fast MySQL Imports
+Direct-mode Imports
 ------------------
 
 While the JDBC-based import method used by Sqoop provides it with the
 ability to read from a variety of databases using a generic driver, it
 is not the most high-performance method available. Sqoop can read from
-a local MySQL database considerably faster by using the +mysqldump+ tool
-distributed with MySQL. If you run Sqoop on the same machine where a
+certain database systems faster by using their built-in export tools.
+
+For example, Sqoop can read from a local MySQL database by using the +mysqldump+
+tool distributed with MySQL. If you run Sqoop on the same machine where a
 MySQL database is present, you can take advantage of this faster
 import method by running Sqoop with the +--direct+ argument. This
 combined with a connect string that begins with +jdbc:mysql://+ will
@@ -39,4 +41,11 @@ For convenience, the +--mysql-delimiters+
 argument will set all the output delimiters to be consistent with
 +mysqldump+'s format.
 
+Sqoop also provides a direct-mode backend for PostgreSQL that uses the
++COPY TO STDOUT+ protocol from +psql+. No specific delimiter set provides
+better performance; Sqoop will forward delimiter control arguments to
++psql+.
+
+The "Supported Databases" section provides a full list of database vendors
+which have direct-mode support from Sqoop.
 

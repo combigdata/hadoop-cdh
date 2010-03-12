@@ -55,7 +55,7 @@ include::classnames.txt[]
 
 include::misc-args.txt[]
 
-include::mysql.txt[]
+include::direct.txt[]
 
 include::hive.txt[]
 
