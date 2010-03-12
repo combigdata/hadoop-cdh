@@ -248,6 +248,7 @@ public class DBInputFormat<T extends DBWritable>
         splits.add(split);
       }
 
+      connection.commit();
       return splits;
     } catch (SQLException e) {
       try {
