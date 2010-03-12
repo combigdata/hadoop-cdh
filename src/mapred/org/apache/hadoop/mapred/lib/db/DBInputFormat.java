@@ -22,6 +22,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -48,16 +49,17 @@ import org.apache.hadoop.util.ReflectionUtils;
  */
 public class DBInputFormat<T  extends DBWritable>
   implements InputFormat<LongWritable, T>, JobConfigurable {
+
+   private String dbProductName = "DEFAULT";
+
   /**
    * A RecordReader that reads records from a SQL table.
    * Emits LongWritables containing the record number as 
    * key and DBWritables as value.  
    */
-  protected class DBRecordReader implements
+  public static class DBRecordReader<T extends DBWritable> implements
   RecordReader<LongWritable, T> {
     private ResultSet results;
-
-    private Statement statement;
 
     private Class<T> inputClass;
 
@@ -67,26 +69,51 @@ public class DBInputFormat<T  extends DBWritable>
 
     private long pos = 0;
 
+    private PreparedStatement statement;
+
+    private Connection connection;
+
+    private DBConfiguration dbConf;
+ 
+    private String conditions;
+ 
+    private String [] fieldNames;
+ 
+    private String tableName;
+
     /**
      * @param split The InputSplit to read data for
      * @throws SQLException 
      */
-    protected DBRecordReader(DBInputSplit split, Class<T> inputClass, JobConf job) throws SQLException {
+    protected DBRecordReader(DBInputSplit split, 
+         Class<T> inputClass, JobConf job, Connection conn, DBConfiguration dbConfig,
+         String cond, String [] fields, String table)
+         throws SQLException {
       this.inputClass = inputClass;
       this.split = split;
       this.job = job;
+      this.connection = conn;
+      this.dbConf = dbConfig;
+      this.conditions = cond;
+      this.fieldNames = fields;
+      this.tableName = table;
       
-      statement = connection.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
-
-      //statement.setFetchSize(Integer.MIN_VALUE);
-      results = statement.executeQuery(getSelectQuery());
+      this.results = executeQuery(getSelectQuery());
     }
+
+    protected ResultSet executeQuery(String query) throws SQLException {
+      this.statement = connection.prepareStatement(query,
+          ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+      return statement.executeQuery();
+    }
+
 
     /** Returns the query for selecting the records, 
      * subclasses can override this for custom behaviour.*/
     protected String getSelectQuery() {
       StringBuilder query = new StringBuilder();
       
+      // Default codepath for MySQL, HSQLDB, etc. Relies on LIMIT/OFFSET for splits.
       if(dbConf.getInputQuery() == null) {
         query.append("SELECT ");
 
@@ -99,23 +126,23 @@ public class DBInputFormat<T  extends DBWritable>
 
         query.append(" FROM ").append(tableName);
         query.append(" AS ").append(tableName); //in hsqldb this is necessary
-        if (conditions != null && conditions.length() > 0)
+        if (conditions != null && conditions.length() > 0) {
           query.append(" WHERE (").append(conditions).append(")");
+        }
         String orderBy = dbConf.getInputOrderBy();
-        if(orderBy != null && orderBy.length() > 0) {
+        if (orderBy != null && orderBy.length() > 0) {
           query.append(" ORDER BY ").append(orderBy);
         }
-      }
-      else {
+      } else {
+        // PREBUILT QUERY
         query.append(dbConf.getInputQuery());
       }
 
       try {
         query.append(" LIMIT ").append(split.getLength());
         query.append(" OFFSET ").append(split.getStart());
-      }
-      catch (IOException ex) {
-        //ignore, will not throw
+      } catch (IOException ex) {
+        //ignore, will not throw.
       }
       return query.toString();
     }
@@ -123,9 +150,15 @@ public class DBInputFormat<T  extends DBWritable>
     /** {@inheritDoc} */
     public void close() throws IOException {
       try {
-        connection.commit();
-        results.close();
-        statement.close();
+        if (null != results) {
+          results.close();
+        }
+        if (null != statement) {
+          statement.close();
+        }
+        if (null != connection) {
+          connection.commit();
+        }
       } catch (SQLException e) {
         throw new IOException(e.getMessage());
       }
@@ -167,6 +200,30 @@ public class DBInputFormat<T  extends DBWritable>
         throw new IOException(e.getMessage());
       }
       return true;
+    }
+
+    protected DBInputSplit getSplit() {
+      return split;
+    }
+
+    protected String [] getFieldNames() {
+      return fieldNames;
+    }
+
+    protected String getTableName() {
+      return tableName;
+    }
+
+    protected String getConditions() {
+      return conditions;
+    }
+
+    protected DBConfiguration getDBConf() {
+      return dbConf;
+    }
+
+    protected Connection getConnection() {
+      return connection;
     }
   }
 
@@ -266,6 +323,9 @@ public class DBInputFormat<T  extends DBWritable>
       this.connection = dbConf.getConnection();
       this.connection.setAutoCommit(false);
       connection.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+
+      DatabaseMetaData dbMeta = connection.getMetaData();
+      this.dbProductName = dbMeta.getDatabaseProductName().toUpperCase();
     }
     catch (Exception ex) {
       throw new RuntimeException(ex);
@@ -283,9 +343,21 @@ public class DBInputFormat<T  extends DBWritable>
 
     Class inputClass = dbConf.getInputClass();
     try {
-      return new DBRecordReader((DBInputSplit) split, inputClass, job);
-    }
-    catch (SQLException ex) {
+      // use database product name to determine appropriate record reader.
+      if (dbProductName.startsWith("ORACLE")) {
+        // use Oracle-specific db reader.
+        return new OracleDBRecordReader((DBInputSplit) split, inputClass,
+            job, connection, dbConf, conditions, fieldNames, tableName);
+      } else if (dbProductName.startsWith("MYSQL")) {
+        // use MySQL-specific db reader.
+        return new MySQLDBRecordReader((DBInputSplit) split, inputClass,
+            job, connection, dbConf, conditions, fieldNames, tableName);
+      } else {
+        // Generic reader.
+        return new DBRecordReader((DBInputSplit) split, inputClass,
+            job, connection, dbConf, conditions, fieldNames, tableName);
+      }
+    } catch (SQLException ex) {
       throw new IOException(ex.getMessage());
     }
   }
