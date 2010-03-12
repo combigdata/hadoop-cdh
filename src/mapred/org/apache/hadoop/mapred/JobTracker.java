@@ -77,6 +77,7 @@ import org.apache.hadoop.security.authorize.PolicyProvider;
 import org.apache.hadoop.security.authorize.RefreshAuthorizationPolicyProtocol;
 import org.apache.hadoop.security.authorize.ServiceAuthorizationManager;
 import org.apache.hadoop.util.HostsFileReader;
+import org.apache.hadoop.util.PluginDispatcher;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.util.VersionInfo;
@@ -158,6 +159,8 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
   private int nextJobId = 1;
 
   public static final Log LOG = LogFactory.getLog(JobTracker.class);
+  
+  private PluginDispatcher<JobTrackerPlugin> pluginDispatcher;
     
   /**
    * Start the JobTracker with given configuration.
@@ -201,7 +204,7 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
     }
     if (result != null) {
       JobEndNotifier.startNotifier();
-    }
+    }    
     return result;
   }
 
@@ -1736,6 +1739,10 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
 
     //initializes the job status store
     completedJobStatusStore = new CompletedJobStatusStore(conf);
+    
+    pluginDispatcher = PluginDispatcher.createFromConfiguration(
+            conf, "mapred.jobtracker.plugins", JobTrackerPlugin.class);
+    pluginDispatcher.dispatchStart(this);
   }
 
   private static SimpleDateFormat getDateFormat() {
@@ -1802,7 +1809,7 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
   }
 
   public static InetSocketAddress getAddress(Configuration conf) {
-    String jobTrackerStr =
+    String jobTrackerStr = 
       conf.get("mapred.job.tracker", "localhost:8012");
     return NetUtils.createSocketAddr(jobTrackerStr);
   }
@@ -1860,6 +1867,10 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
   }
 
   void close() throws IOException {
+    if (this.pluginDispatcher != null) {
+        LOG.info("Stopping pluginDispatcher");
+        pluginDispatcher.dispatchStop();
+      }
     if (this.infoServer != null) {
       LOG.info("Stopping infoServer");
       try {

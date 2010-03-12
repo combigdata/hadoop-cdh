@@ -321,6 +321,13 @@
 </property>
 
 <property>
+  <name>mapred.jobtracker.plugins</name>
+  <value></value>
+  <description>Comma-separated list of jobtracker plug-ins to be activated.
+  </description>
+</property>
+
+<property>
   <name>mapred.child.java.opts</name>
   <value>-Xmx200m</value>
   <description>Java opts for the task tracker child processes.  

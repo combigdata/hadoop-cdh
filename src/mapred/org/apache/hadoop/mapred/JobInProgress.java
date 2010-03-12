@@ -53,7 +53,7 @@ import org.apache.hadoop.util.StringUtils;
  * doing bookkeeping of its Tasks.
  * ***********************************************************
  */
-class JobInProgress {
+public class JobInProgress {
   /**
    * Used when the a kill is issued to a job which is initializing.
    */
