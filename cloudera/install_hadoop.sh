@@ -122,13 +122,14 @@ done
 mkdir -p $BIN_DIR
 
 for bin_wrapper in hadoop sqoop ; do
-  cat > $BIN_DIR/$bin_wrapper-$APACHE_BRANCH <<EOF
+  wrapper=$BIN_DIR/$bin_wrapper-$APACHE_BRANCH
+  cat > $wrapper <<EOF
 #!/bin/sh
 
 export HADOOP_HOME=$INSTALLED_LIB_DIR
 exec $INSTALLED_LIB_DIR/bin/$bin_wrapper \$*
 EOF
-  chmod 755 $BIN_DIR/$bin_wrapper
+  chmod 755 $wrapper
 done
 
 # Fix some bad permissions in HOD
