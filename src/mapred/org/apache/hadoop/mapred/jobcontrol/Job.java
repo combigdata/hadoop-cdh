@@ -75,7 +75,7 @@ public class Job {
     this.state = Job.WAITING;
     this.jobID = "unassigned";
     this.mapredJobID = null; //not yet assigned 
-    this.jobName = "unassigned";
+    this.jobName = jobConf.getJobName();
     this.message = "just initialized";
     this.jc = new JobClient(jobConf);
   }
