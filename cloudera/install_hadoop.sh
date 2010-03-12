@@ -13,8 +13,6 @@ usage: $0 <options>
 
   Optional options:
      --native-build-string       eg Linux-amd-64 (optional - no native installed if not set)
-     --hadoop-config-location    eg /usr/bin/hadoop-config.sh or /etc/default/hadoop
-     --java-home                 eg /usr/lib/jvm/java-6-sun/
      ... [ see source for more similar options ]
   "
   exit 1
@@ -27,13 +25,11 @@ OPTS=$(getopt \
   -l 'prefix:' \
   -l 'build-dir:' \
   -l 'native-build-string:' \
-  -l 'hadoop-config-location:' \
   -l 'installed-lib-dir:' \
   -l 'lib-dir:' \
   -l 'src-dir:' \
   -l 'etc-dir:' \
   -l 'doc-dir:' \
-  -l 'java-home:' \
   -l 'man-dir:' \
   -l 'example-dir:' \
   -- "$@")
@@ -66,14 +62,8 @@ while true ; do
         --etc-dir)
         ETC_DIR=$2 ; shift 2
         ;;
-        --hadoop-config-location)
-        HADOOP_CONFIG_INSTALL_LOCATION=$2 ; shift 2
-        ;;
         --installed-lib-dir)
         INSTALLED_LIB_DIR=$2 ; shift 2
-        ;;
-        --java-home)
-        JAVA_HOME=$2 ; shift 2
         ;;
         --man-dir)
         MAN_DIR=$2 ; shift 2
@@ -109,8 +99,6 @@ MAN_DIR=${MAN_DIR:-$PREFIX/usr/man}
 EXAMPLE_DIR=${EXAMPLE_DIR:-$DOC_DIR/examples}
 SRC_DIR=${SRC_DIR:-$PREFIX/usr/src/hadoop}
 ETC_DIR=${ETC_DIR:-$PREFIX/etc/hadoop}
-HADOOP_CONFIG_INSTALL_LOCATION=${HADOOP_CONFIG_INSTALL_LOCATION:-/etc/default/hadoop}
-JAVA_HOME=${JAVA_HOME:-/usr/lib/jvm/java-6-sun/}
 
 INSTALLED_LIB_DIR=${INSTALLED_LIB_DIR:-/usr/lib/hadoop}
 
@@ -127,19 +115,18 @@ for x in docs lib/native c++ src conf ; do
 done
 
 
-# First, lets point all the bin scripts to the correct hadoop-config.sh file
-for file in $LIB_DIR/bin/* ; do
-    sed -i -e "s|^.*hadoop-config.sh.*\$|. $HADOOP_CONFIG_INSTALL_LOCATION|" $file
-    sed -i -e 's|"$HADOOP_HOME"/bin/hadoop|/usr/bin/hadoop|' $file
-done
-
-# Point the sqoop script at the correct target for its jar.
-sed -i -e "s|SQOOP_PREFIX|$INSTALLED_LIB_DIR|" "$LIB_DIR/bin/sqoop"
-
-# Mv bin elsewhere
+# Make bin wrappers
 mkdir -p $BIN_DIR
-ln -sf $INSTALLED_LIB_DIR/bin/hadoop $BIN_DIR
-ln -sf $INSTALLED_LIB_DIR/bin/sqoop $BIN_DIR
+
+for bin_wrapper in hadoop sqoop ; do
+  cat > $BIN_DIR/$bin_wrapper <<EOF
+#!/bin/sh
+
+export HADOOP_HOME=$INSTALLED_LIB_DIR
+exec $INSTALLED_LIB_DIR/bin/$bin_wrapper \$*
+EOF
+  chmod 755 $BIN_DIR/$bin_wrapper
+done
 
 # Fix some bad permissions in HOD
 chmod 755 $LIB_DIR/contrib/hod/support/checklimits.sh
@@ -167,6 +154,14 @@ cp -a ${HADOOP_SRC_DIR}/* $SRC_DIR/
 install -d -m 0755 $ETC_DIR/conf.empty
 (cd ${BUILD_DIR}/conf && tar cf - .) | (cd $ETC_DIR/conf.empty && tar xf -)
 
+# Link the HADOOP_HOME conf dir and log dir to installed locations
+rm -rf $LIB_DIR/conf
+ln -s ${ETC_DIR#$PREFIX}/conf $LIB_DIR/conf
+rm -rf $LIB_DIR/logs
+ln -s /var/log/hadoop $LIB_DIR/logs
+
+
+
 # Make the pseudo-distributed config
 for conf in conf.pseudo ; do
   install -d -m 0755 $ETC_DIR/$conf
@@ -175,10 +170,6 @@ for conf in conf.pseudo ; do
   # Overlay the -site files
   (cd ${BUILD_DIR}/../../example-confs/$conf && tar -cf - .) | (cd $ETC_DIR/$conf && tar -xf -)
 done
-
-mkdir -p `dirname $PREFIX$HADOOP_CONFIG_INSTALL_LOCATION`
-mv $LIB_DIR/bin/hadoop-config.sh $PREFIX$HADOOP_CONFIG_INSTALL_LOCATION
-sed -i -e "s|@JAVA_HOME@|$JAVA_HOME|" $PREFIX$HADOOP_CONFIG_INSTALL_LOCATION
 
 # man page
 mkdir -p $MAN_DIR/man1
