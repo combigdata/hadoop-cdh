@@ -59,6 +59,13 @@ JAVA_HOME=$JAVA32_HOME \
   -propertyfile cloudera/build.properties \
   clean tar
 
+if [ -z "$SKIP_JDIFF" ]; then
+ant \
+  -Djdiff.stable=0.20.0 \
+  -Djdiff.build.dir=build/docs/jdiff-cloudera \
+  -propertyfile cloudera/build.properties api-report
+fi
+
 JAVA_HOME=$JAVA64_HOME \
   CFLAGS=-m64 \
   CXXFLAGS=-m64 \
