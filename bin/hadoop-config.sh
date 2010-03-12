@@ -17,27 +17,28 @@
 # should not be executable directly
 # also should not be passed any arguments, since we need original $*
 
-# resolve links - $0 may be a softlink
-
-this="$0"
-while [ -h "$this" ]; do
-  ls=`ls -ld "$this"`
-  link=`expr "$ls" : '.*-> \(.*\)$'`
-  if expr "$link" : '.*/.*' > /dev/null; then
-    this="$link"
+# Honor the JAVA_HOME variable if set, otherwise try to find Java
+if [ -z $JAVA_HOME ]; then
+  if [ -e @JAVA_HOME@ ]; then
+	export JAVA_HOME="@JAVA_HOME@"
   else
-    this=`dirname "$this"`/"$link"
+	cat <<MSG
++======================================================================+
+|      Error: JAVA_HOME is not set and Java could not be found         |
++----------------------------------------------------------------------+
+| Please download the latest Sun JDK from the Sun Java web site        |
+|       > http://java.sun.com/javase/downloads/ <                      |
+|                                                                      |
+| NOTE: This script will find Sun Java whether you install using the   |
+|       binary or the RPM based installer.                             |
++======================================================================+
+MSG
+	exit 1
   fi
-done
-
-# convert relative path to absolute path
-bin=`dirname "$this"`
-script=`basename "$this"`
-bin=`cd "$bin"; pwd`
-this="$bin/$script"
+fi
 
 # the root of the Hadoop installation
-export HADOOP_HOME=`dirname "$this"`/..
+export HADOOP_HOME="${HADOOP_HOME:-/usr/lib/hadoop}"
 
 #check to see if the conf dir is given as an optional argument
 if [ $# -gt 1 ]
@@ -52,7 +53,8 @@ then
 fi
  
 # Allow alternate conf dir location.
-HADOOP_CONF_DIR="${HADOOP_CONF_DIR:-$HADOOP_HOME/conf}"
+HADOOP_CONF_DIR="${HADOOP_CONF_DIR:-/etc/hadoop/conf}"
+HADOOP_LOG_DIR="${HADOOP_LOG_DIR:-/var/log/hadoop}"
 
 #check to see it is specified whether to use the slaves or the
 # masters file
