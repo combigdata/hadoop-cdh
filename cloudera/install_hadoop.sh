@@ -32,6 +32,7 @@ OPTS=$(getopt \
   -l 'doc-dir:' \
   -l 'man-dir:' \
   -l 'example-dir:' \
+  -l 'apache-branch:' \
   -- "$@")
 
 if [ $? != 0 ] ; then
@@ -71,6 +72,9 @@ while true ; do
         --example-dir)
         EXAMPLE_DIR=$2 ; shift 2
         ;;
+        --apache-branch)
+        APACHE_BRANCH=$2 ; shift 2
+        ;;
         --src-dir)
         SRC_DIR=$2 ; shift 2
         ;;
@@ -85,22 +89,22 @@ while true ; do
     esac
 done
 
-for var in CLOUDERA_SOURCE_DIR PREFIX BUILD_DIR ; do
+for var in CLOUDERA_SOURCE_DIR PREFIX BUILD_DIR APACHE_BRANCH; do
   if [ -z "$(eval "echo \$$var")" ]; then
     echo Missing param: $var
     usage
   fi
 done
 
-LIB_DIR=${LIB_DIR:-$PREFIX/usr/lib/hadoop}
+LIB_DIR=${LIB_DIR:-$PREFIX/usr/lib/hadoop-$APACHE_BRANCH}
 BIN_DIR=${BIN_DIR:-$PREFIX/usr/bin}
-DOC_DIR=${DOC_DIR:-$PREFIX/usr/share/doc/hadoop}
+DOC_DIR=${DOC_DIR:-$PREFIX/usr/share/doc/hadoop-$APACHE_BRANCH}
 MAN_DIR=${MAN_DIR:-$PREFIX/usr/man}
 EXAMPLE_DIR=${EXAMPLE_DIR:-$DOC_DIR/examples}
-SRC_DIR=${SRC_DIR:-$PREFIX/usr/src/hadoop}
-ETC_DIR=${ETC_DIR:-$PREFIX/etc/hadoop}
+SRC_DIR=${SRC_DIR:-$PREFIX/usr/src/hadoop-$APACHE_BRANCH}
+ETC_DIR=${ETC_DIR:-$PREFIX/etc/hadoop-$APACHE_BRANCH}
 
-INSTALLED_LIB_DIR=${INSTALLED_LIB_DIR:-/usr/lib/hadoop}
+INSTALLED_LIB_DIR=${INSTALLED_LIB_DIR:-/usr/lib/hadoop-$APACHE_BRANCH}
 
 # TODO(todd) right now we're using bin-package, so we don't copy
 # src/ into the dist. otherwise this would be BUILD_DIR/src
@@ -114,11 +118,10 @@ for x in docs lib/native c++ src conf ; do
   rm -rf $LIB_DIR/$x
 done
 
-
 # Make bin wrappers
 mkdir -p $BIN_DIR
 
-for bin_wrapper in hadoop sqoop ; do
+for bin_wrapper in hadoop-$APACHE_BRANCH sqoop-$APACHE_BRANCH ; do
   cat > $BIN_DIR/$bin_wrapper <<EOF
 #!/bin/sh
 
@@ -158,8 +161,7 @@ install -d -m 0755 $ETC_DIR/conf.empty
 rm -rf $LIB_DIR/conf
 ln -s ${ETC_DIR#$PREFIX}/conf $LIB_DIR/conf
 rm -rf $LIB_DIR/logs
-ln -s /var/log/hadoop $LIB_DIR/logs
-
+ln -s /var/log/hadoop-$APACHE_BRANCH $LIB_DIR/logs
 
 
 # Make the pseudo-distributed config
@@ -173,7 +175,7 @@ done
 
 # man page
 mkdir -p $MAN_DIR/man1
-cp ${CLOUDERA_SOURCE_DIR}/hadoop.1.gz $MAN_DIR/man1/
+cp ${CLOUDERA_SOURCE_DIR}/hadoop-$APACHE_BRANCH.1.gz $MAN_DIR/man1/
 
 ############################################################
 # ARCH DEPENDENT STUFF
