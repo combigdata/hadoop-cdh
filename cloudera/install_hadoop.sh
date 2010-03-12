@@ -150,6 +150,9 @@ cp -a $HADOOP_SRC_DIR/examples/* $EXAMPLE_DIR/src
 mkdir -p $DOC_DIR
 cp -r ${BUILD_DIR}/../../docs/* $DOC_DIR
 
+mkdir -p $DOC_DIR/sqoop
+cp ${HADOOP_SRC_DIR}/contrib/sqoop/doc/SqoopUserGuide.html $DOC_DIR/sqoop
+
 # Install source
 mkdir -p $SRC_DIR
 cp -a ${HADOOP_SRC_DIR}/* $SRC_DIR/
@@ -174,9 +177,10 @@ for conf in conf.pseudo ; do
   (cd ${BUILD_DIR}/../../example-confs/$conf && tar -cf - .) | (cd $ETC_DIR/$conf && tar -xf -)
 done
 
-# man page
+# man pages
 mkdir -p $MAN_DIR/man1
 cp ${CLOUDERA_SOURCE_DIR}/hadoop-$APACHE_BRANCH.1.gz $MAN_DIR/man1/
+gzip -c ${HADOOP_SRC_DIR}/contrib/sqoop/doc/sqoop.1 > $MAN_DIR/man1/sqoop-$APACHE_BRANCH.1.gz
 
 ############################################################
 # ARCH DEPENDENT STUFF
