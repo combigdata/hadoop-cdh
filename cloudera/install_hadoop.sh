@@ -121,8 +121,8 @@ done
 # Make bin wrappers
 mkdir -p $BIN_DIR
 
-for bin_wrapper in hadoop-$APACHE_BRANCH sqoop-$APACHE_BRANCH ; do
-  cat > $BIN_DIR/$bin_wrapper <<EOF
+for bin_wrapper in hadoop sqoop ; do
+  cat > $BIN_DIR/$bin_wrapper-$APACHE_BRANCH <<EOF
 #!/bin/sh
 
 export HADOOP_HOME=$INSTALLED_LIB_DIR
