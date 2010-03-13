@@ -1254,6 +1254,14 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
       // I. Init the jobs and cache the recovered job history filenames
       Map<JobID, Path> jobHistoryFilenameMap = new HashMap<JobID, Path>();
       Iterator<JobID> idIter = jobsToRecover.iterator();
+
+      // 0. Cleanup
+      try {
+        JobHistory.JobInfo.deleteConfFiles();
+      } catch (IOException ioe) {
+        LOG.info("Error in cleaning up job history folder", ioe);
+      }
+
       while (idIter.hasNext()) {
         JobID id = idIter.next();
         LOG.info("Trying to recover details of job " + id);
