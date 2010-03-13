@@ -4,10 +4,14 @@
 <!-- Put site-specific property overrides in this file. -->
 
 <configuration>
-
 <property>
   <name>mapred.system.dir</name>
   <value>build/contrib/${contrib.name}/test/system</value>
+</property>
+
+<property>
+  <name>io.sort.mb</name>
+  <value>10</value>
 </property>
 
 </configuration>

@@ -41,7 +41,7 @@ public class TestStreamingCombiner extends TestStreaming {
     };
   }
 
-  public void testCommandLine() throws IOException {
+  public void testCommandLine() throws Exception {
     super.testCommandLine();
     // validate combiner counters
     String counterGrp = "org.apache.hadoop.mapred.Task$Counter";

@@ -68,26 +68,12 @@ public class TestStreamingExitStatus extends TestCase
     out.close();
   }
 
-  private static String join(CharSequence separator, Iterable<String> strings) {
-    StringBuilder sb = new StringBuilder();
-    boolean first = true;
-    for (String s : strings) {
-      if (first) {
-        first = false;
-      } else {
-        sb.append(separator);
-      }
-      sb.append(s);
-    }
-    return sb.toString();
-  }
-
   public void runStreamJob(boolean exitStatusIsFailure, boolean failMap) throws Exception {
     boolean mayExit = false;
     int returnStatus = 0;
     String args[] = genArgs(exitStatusIsFailure, failMap);
     System.err.println("Testing streaming command line:\n" +
-               join(" ", Arrays.asList(args)));
+               StringUtils.join(" ", Arrays.asList(args)));
     StreamJob job = new StreamJob(genArgs(exitStatusIsFailure, failMap), mayExit);
     returnStatus = job.go();
     
