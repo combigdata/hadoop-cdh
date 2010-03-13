@@ -46,7 +46,6 @@ public class TestStreaming extends TestCase
   {
     UtilTest utilTest = new UtilTest(getClass().getName());
     utilTest.checkUserDir();
-    utilTest.redirectIfAntJunit();
     TEST_DIR = new File(getClass().getName()).getAbsoluteFile();
     OUTPUT_DIR = new File(TEST_DIR, "out");
     INPUT_FILE = new File(TEST_DIR, "input.txt");

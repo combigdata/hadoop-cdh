@@ -44,6 +44,7 @@ public class JobContext {
     "mapreduce.outputformat.class";
   protected static final String PARTITIONER_CLASS_ATTR = 
     "mapreduce.partitioner.class";
+  public static final String JAR_UNPACK_PATTERN = "mapreduce.job.jar.unpack.pattern";
 
   protected final org.apache.hadoop.mapred.JobConf conf;
   private final JobID jobId;

@@ -812,9 +812,12 @@ public class TaskTracker
           } finally {
             out.close();
           }
-          // also unjar the job.jar files 
-          RunJar.unJar(new File(localJarFile.toString()),
-                       new File(localJarFile.getParent().toString()));
+          // also unjar the parts of the job.jar that need to end up on the
+          // classpath, or explicitly requested by the user.
+          RunJar.unJar(
+            new File(localJarFile.toString()),
+            new File(localJarFile.getParent().toString()),
+            localJobConf.getJarUnpackPattern());
         }
         rjob.keepJobFiles = ((localJobConf.getKeepTaskFilesPattern() != null) ||
                              localJobConf.getKeepFailedTaskFiles());
