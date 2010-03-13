@@ -1003,9 +1003,14 @@ public class FairScheduler extends TaskScheduler {
     List<TaskStatus> statuses = new ArrayList<TaskStatus>();
     for (TaskInProgress tip: tips) {
       for (TaskAttemptID id: tip.getActiveTasks().keySet()) {
-        statuses.add(tip.getTaskStatus(id));
+        TaskStatus stat = tip.getTaskStatus(id);
+        // status is null when the task has been scheduled but not yet running
+        if (stat != null) {
+          statuses.add(stat);
+        }
       }
     }
+
     // Sort the statuses in order of start time, with the latest launched first
     Collections.sort(statuses, new Comparator<TaskStatus>() {
       public int compare(TaskStatus t1, TaskStatus t2) {
