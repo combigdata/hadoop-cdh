@@ -19,6 +19,7 @@
 package org.apache.hadoop.util;
 
 import junit.framework.TestCase;
+import static org.junit.Assert.assertArrayEquals;
 
 public class TestStringUtils extends TestCase {
   final private static String NULL_STR = null;
@@ -118,4 +119,25 @@ public class TestStringUtils extends TestCase {
     assertEquals(-1259520L, StringUtils.TraditionalBinaryPrefix.string2long("-1230k"));
     assertEquals(956703965184L, StringUtils.TraditionalBinaryPrefix.string2long("891g"));
   }
+
+  public void testGetTrimmedStrings() throws Exception {
+    String compactDirList = "/spindle1/hdfs,/spindle2/hdfs,/spindle3/hdfs";
+    String spacedDirList = "/spindle1/hdfs, /spindle2/hdfs, /spindle3/hdfs";
+    String pathologicalDirList1 = " /spindle1/hdfs  ,  /spindle2/hdfs ,/spindle3/hdfs ";
+    String pathologicalDirList2 = " /spindle1/hdfs  ,  /spindle2/hdfs ,/spindle3/hdfs , ";
+    String emptyList1 = "";
+    String emptyList2 = "   ";
+    
+    String[] expectedArray = {"/spindle1/hdfs", "/spindle2/hdfs", "/spindle3/hdfs"};
+    String[] emptyArray = {};
+    
+    assertArrayEquals(expectedArray, StringUtils.getTrimmedStrings(compactDirList));
+    assertArrayEquals(expectedArray, StringUtils.getTrimmedStrings(spacedDirList));
+    assertArrayEquals(expectedArray, StringUtils.getTrimmedStrings(pathologicalDirList1));
+    assertArrayEquals(expectedArray, StringUtils.getTrimmedStrings(pathologicalDirList2));
+    
+    assertArrayEquals(emptyArray, StringUtils.getTrimmedStrings(emptyList1));
+    assertArrayEquals(emptyArray, StringUtils.getTrimmedStrings(emptyList2));
+  } 
+
 }
