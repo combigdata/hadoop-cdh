@@ -65,7 +65,8 @@ public abstract class SqlManager implements ConnManager {
    * be tuned per-database, but the main extraction loop is still inheritable.
    */
   protected String getColNamesQuery(String tableName) {
-    return "SELECT t.* FROM " + tableName + " AS t";
+    // adding where clause to prevent loading a big table
+    return "SELECT t.* FROM " + tableName + " AS t WHERE 1=0";
   }
 
   @Override
