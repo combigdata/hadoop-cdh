@@ -43,6 +43,8 @@ import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.WeakHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -166,6 +168,9 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    */
   private static final CopyOnWriteArrayList<String> defaultResources =
     new CopyOnWriteArrayList<String>();
+
+  private static final ConcurrentMap<ClassLoader, Map<String, Class<?>>>
+    CACHE_CLASSES = new ConcurrentHashMap<ClassLoader, Map<String, Class<?>>>();
   
   static{
     //print deprecation warning if hadoop-site.xml is found in classpath
@@ -760,7 +765,24 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    * @throws ClassNotFoundException if the class is not found.
    */
   public Class<?> getClassByName(String name) throws ClassNotFoundException {
-    return Class.forName(name, true, classLoader);
+    Map<String, Class<?>> map = CACHE_CLASSES.get(classLoader);
+    if (map == null) {
+      Map<String, Class<?>> newMap = new ConcurrentHashMap<String, Class<?>>();
+      map = CACHE_CLASSES.putIfAbsent(classLoader, newMap);
+      if (map == null) {
+        map = newMap;
+      }
+    }
+
+    Class clazz = map.get(name);
+    if (clazz == null) {
+      clazz = Class.forName(name, true, classLoader);
+      if (clazz != null) {
+        map.put(name, clazz);
+      }
+    }
+
+    return clazz;
   }
 
   /** 
