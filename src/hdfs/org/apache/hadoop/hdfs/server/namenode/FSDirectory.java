@@ -33,6 +33,7 @@ import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.protocol.QuotaExceededException;
 import org.apache.hadoop.hdfs.server.common.HdfsConstants.StartupOption;
 import org.apache.hadoop.hdfs.server.namenode.BlocksMap.BlockInfo;
+import org.mortbay.log.Log;
 
 /*************************************************
  * FSDirectory stores the filesystem directory state.
@@ -1306,6 +1307,11 @@ class FSDirectory implements FSConstants, Closeable {
   boolean unprotectedSetTimes(String src, long mtime, long atime, boolean force) 
                               throws IOException {
     INodeFile inode = getFileINode(src);
+    if (inode == null) {
+      NameNode.stateChangeLog.warn("DIR* FSDirectory.unprotectedSetTimes: "
+          +"failed to setTimes " + src + " because source does not exist");
+      return false;
+    }
     return unprotectedSetTimes(src, inode, mtime, atime, force);
   }
 
