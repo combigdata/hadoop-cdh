@@ -52,7 +52,7 @@ if which aclocal-1.9 && which autoconf ; then
     -Dcompile.native=true create-c++-configure
 fi
 
-if which libtoolize ; then
+if which libtoolize && libtoolize --version | grep --silent 2.2 ; then
   for dir in src/native src/examples/pipes src/c++/libhdfs/ src/c++/pipes src/c++/utils ; do
     (cd $dir && libtoolize --force)
   done
