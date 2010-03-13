@@ -40,7 +40,7 @@ import org.apache.hadoop.mapred.lib.db.DBInputFormat;
 import org.apache.hadoop.mapred.lib.db.DBWritable;
 
 import org.apache.hadoop.sqoop.ConnFactory;
-import org.apache.hadoop.sqoop.ImportOptions;
+import org.apache.hadoop.sqoop.SqoopOptions;
 import org.apache.hadoop.sqoop.manager.ConnManager;
 import org.apache.hadoop.sqoop.orm.TableClassName;
 import org.apache.hadoop.sqoop.util.ClassLoaderStack;
@@ -53,9 +53,9 @@ public class ImportJob {
 
   public static final Log LOG = LogFactory.getLog(ImportJob.class.getName());
 
-  private ImportOptions options;
+  private SqoopOptions options;
 
-  public ImportJob(final ImportOptions opts) {
+  public ImportJob(final SqoopOptions opts) {
     this.options = opts;
   }
 
@@ -98,7 +98,7 @@ public class ImportJob {
         outputPath = new Path(tableName);
       }
 
-      if (options.getFileLayout() == ImportOptions.FileLayout.TextFile) {
+      if (options.getFileLayout() == SqoopOptions.FileLayout.TextFile) {
         job.setOutputFormat(RawKeyTextOutputFormat.class);
         job.setMapperClass(TextImportMapper.class);
         job.setOutputKeyClass(Text.class);
@@ -107,7 +107,7 @@ public class ImportJob {
           FileOutputFormat.setCompressOutput(job, true);
           FileOutputFormat.setOutputCompressorClass(job, GzipCodec.class);
         }
-      } else if (options.getFileLayout() == ImportOptions.FileLayout.SequenceFile) {
+      } else if (options.getFileLayout() == SqoopOptions.FileLayout.SequenceFile) {
         job.setOutputFormat(SequenceFileOutputFormat.class);
         if (options.shouldUseCompression()) {
           SequenceFileOutputFormat.setCompressOutput(job, true);

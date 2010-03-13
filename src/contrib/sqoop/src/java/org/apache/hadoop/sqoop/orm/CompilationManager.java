@@ -41,7 +41,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.mapred.JobConf;
 
-import org.apache.hadoop.sqoop.ImportOptions;
+import org.apache.hadoop.sqoop.SqoopOptions;
 import org.apache.hadoop.sqoop.util.FileListing;
 
 /**
@@ -58,10 +58,10 @@ public class CompilationManager {
 
   public static final Log LOG = LogFactory.getLog(CompilationManager.class.getName());
 
-  private ImportOptions options;
+  private SqoopOptions options;
   private List<String> sources;
 
-  public CompilationManager(final ImportOptions opts) {
+  public CompilationManager(final SqoopOptions opts) {
     options = opts;
     sources = new ArrayList<String>();
   }
@@ -238,8 +238,6 @@ public class CompilationManager {
     // read the file into a buffer, and write it to the jar file.
     for (File entry : dirEntries) {
       if (!entry.isDirectory()) {
-        LOG.debug("Considering entry: " + entry);
-
         // chomp off the portion of the full path that is shared
         // with the base directory where class files were put;
         // we only record the subdir parts in the zip entry.
