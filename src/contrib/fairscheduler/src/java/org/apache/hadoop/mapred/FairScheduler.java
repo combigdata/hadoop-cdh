@@ -43,7 +43,7 @@ public class FairScheduler extends TaskScheduler {
       "org.apache.hadoop.mapred.FairScheduler");
 
   // How often fair shares are re-calculated
-  protected long updateInterval = 500;
+  protected long updateInterval = 2500;
 
   // How often to dump scheduler state to the event log
   protected long dumpInterval = 10000;
@@ -179,7 +179,7 @@ public class FairScheduler extends TaskScheduler {
       }
 
       updateInterval = conf.getLong(
-          "mapred.fairscheduler.update.interval", 500);
+          "mapred.fairscheduler.update.interval", 2500);
       dumpInterval = conf.getLong(
           "mapred.fairscheduler.dump.interval", 10000);
       preemptionInterval = conf.getLong(
@@ -549,61 +549,60 @@ public class FairScheduler extends TaskScheduler {
    * and needed tasks of each type. 
    */
   protected void update() {
-    // Making more granular locking so that clusterStatus can be fetched 
-    // from Jobtracker without locking the scheduler.
-    ClusterStatus clusterStatus = taskTrackerManager.getClusterStatus();
-    
-    // Recompute locality delay from JobTracker heartbeat interval if enabled.
-    // This will also lock the JT, so do it outside of a fair scheduler lock.
-    if (autoComputeLocalityDelay) {
-      JobTracker jobTracker = (JobTracker) taskTrackerManager;
-      localityDelay = Math.min(MAX_AUTOCOMPUTED_LOCALITY_DELAY,
-          (long) (1.5 * jobTracker.getNextHeartbeatInterval()));
-    }
-    
-    // Got clusterStatus hence acquiring scheduler lock now.
-    synchronized (this) {
-      // Reload allocations file if it hasn't been loaded in a while
-      poolMgr.reloadAllocsIfNecessary();
-      
-      // Remove any jobs that have stopped running
-      List<JobInProgress> toRemove = new ArrayList<JobInProgress>();
-      for (JobInProgress job: infos.keySet()) { 
-        int runState = job.getStatus().getRunState();
-        if (runState == JobStatus.SUCCEEDED || runState == JobStatus.FAILED
-          || runState == JobStatus.KILLED) {
-            toRemove.add(job);
+    synchronized (taskTrackerManager) {
+      synchronized (this) {
+        ClusterStatus clusterStatus = taskTrackerManager.getClusterStatus();
+
+        // Recompute locality delay from JobTracker heartbeat interval if enabled.
+        // This will also lock the JT, so do it outside of a fair scheduler lock.
+        if (autoComputeLocalityDelay) {
+          JobTracker jobTracker = (JobTracker) taskTrackerManager;
+          localityDelay = Math.min(MAX_AUTOCOMPUTED_LOCALITY_DELAY,
+              (long) (1.5 * jobTracker.getNextHeartbeatInterval()));
         }
+
+        // Reload allocations file if it hasn't been loaded in a while
+        poolMgr.reloadAllocsIfNecessary();
+
+        // Remove any jobs that have stopped running
+        List<JobInProgress> toRemove = new ArrayList<JobInProgress>();
+        for (JobInProgress job: infos.keySet()) { 
+          int runState = job.getStatus().getRunState();
+          if (runState == JobStatus.SUCCEEDED || runState == JobStatus.FAILED
+            || runState == JobStatus.KILLED) {
+              toRemove.add(job);
+          }
+        }
+        for (JobInProgress job: toRemove) {
+          infos.remove(job);
+          poolMgr.removeJob(job);
+        }
+
+        updateRunnability(); // Set job runnability based on user/pool limits 
+
+        // Update demands of jobs and pools
+        for (Pool pool: poolMgr.getPools()) {
+          pool.getMapSchedulable().updateDemand();
+          pool.getReduceSchedulable().updateDemand();
+        }
+
+        // Compute fair shares based on updated demands
+        List<PoolSchedulable> mapScheds = getPoolSchedulables(TaskType.MAP);
+        List<PoolSchedulable> reduceScheds = getPoolSchedulables(TaskType.REDUCE);
+        SchedulingAlgorithms.computeFairShares(
+            mapScheds, clusterStatus.getMaxMapTasks());
+        SchedulingAlgorithms.computeFairShares(
+            reduceScheds, clusterStatus.getMaxReduceTasks());
+
+        // Use the computed shares to assign shares within each pool
+        for (Pool pool: poolMgr.getPools()) {
+          pool.getMapSchedulable().redistributeShare();
+          pool.getReduceSchedulable().redistributeShare();
+        }
+
+        if (preemptionEnabled)
+          updatePreemptionVariables();
       }
-      for (JobInProgress job: toRemove) {
-        infos.remove(job);
-        poolMgr.removeJob(job);
-      }
-      
-      updateRunnability(); // Set job runnability based on user/pool limits 
-      
-      // Update demands of jobs and pools
-      for (Pool pool: poolMgr.getPools()) {
-        pool.getMapSchedulable().updateDemand();
-        pool.getReduceSchedulable().updateDemand();
-      }
-      
-      // Compute fair shares based on updated demands
-      List<PoolSchedulable> mapScheds = getPoolSchedulables(TaskType.MAP);
-      List<PoolSchedulable> reduceScheds = getPoolSchedulables(TaskType.REDUCE);
-      SchedulingAlgorithms.computeFairShares(
-          mapScheds, clusterStatus.getMaxMapTasks());
-      SchedulingAlgorithms.computeFairShares(
-          reduceScheds, clusterStatus.getMaxReduceTasks());
-      
-      // Use the computed shares to assign shares within each pool
-      for (Pool pool: poolMgr.getPools()) {
-        pool.getMapSchedulable().redistributeShare();
-        pool.getReduceSchedulable().redistributeShare();
-      }
-      
-      if (preemptionEnabled)
-        updatePreemptionVariables();
     }
   }
   
@@ -689,6 +688,8 @@ public class FairScheduler extends TaskScheduler {
    * Update the preemption fields for all PoolScheduables, i.e. the times since
    * each pool last was at its guaranteed share and at > 1/2 of its fair share
    * for each type of task.
+   * 
+   * Requires locks on both the JobTracker and the FairScheduler to be held.
    */
   private void updatePreemptionVariables() {
     long now = clock.getTime();
