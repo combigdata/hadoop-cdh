@@ -621,11 +621,16 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
       synchronized (taskTrackers) {
         // remove the capacity of trackers on this host
         for (TaskTrackerStatus status : getStatusesOnHost(hostName)) {
-          totalMapTaskCapacity -= status.getMaxMapTasks();
-          totalReduceTaskCapacity -= status.getMaxReduceTasks();
+          int mapSlots = status.getMaxMapTasks();
+          totalMapTaskCapacity -= mapSlots;
+          int reduceSlots = status.getMaxReduceTasks();
+          totalReduceTaskCapacity -= reduceSlots;
+          getInstrumentation().addBlackListedMapSlots(
+              mapSlots);
+          getInstrumentation().addBlackListedReduceSlots(
+              reduceSlots);
         }
-        numBlacklistedTrackers +=
-          uniqueHostsMap.remove(hostName);
+        numBlacklistedTrackers += uniqueHostsMap.remove(hostName);
       }
     }
     
@@ -635,9 +640,13 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
         int numTrackersOnHost = 0;
         // add the capacity of trackers on the host
         for (TaskTrackerStatus status : getStatusesOnHost(hostName)) {
-          totalMapTaskCapacity += status.getMaxMapTasks();
-          totalReduceTaskCapacity += status.getMaxReduceTasks();
+          int mapSlots = status.getMaxMapTasks();
+          totalMapTaskCapacity += mapSlots;
+          int reduceSlots = status.getMaxReduceTasks();
+          totalReduceTaskCapacity += reduceSlots;
           numTrackersOnHost++;
+          getInstrumentation().decBlackListedMapSlots(mapSlots);
+          getInstrumentation().decBlackListedReduceSlots(reduceSlots);
         }
         uniqueHostsMap.put(hostName,
                            numTrackersOnHost);
@@ -2689,8 +2698,10 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
       totalMaps -= oldStatus.countMapTasks();
       totalReduces -= oldStatus.countReduceTasks();
       if (!faultyTrackers.isBlacklisted(oldStatus.getHost())) {
-        totalMapTaskCapacity -= oldStatus.getMaxMapTasks();
-        totalReduceTaskCapacity -= oldStatus.getMaxReduceTasks();
+        int mapSlots = oldStatus.getMaxMapTasks();
+        totalMapTaskCapacity -= mapSlots;
+        int reduceSlots = oldStatus.getMaxReduceTasks();
+        totalReduceTaskCapacity -= reduceSlots;
       }
       if (status == null) {
         taskTrackers.remove(trackerName);
@@ -2709,8 +2720,10 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
       totalMaps += status.countMapTasks();
       totalReduces += status.countReduceTasks();
       if (!faultyTrackers.isBlacklisted(status.getHost())) {
-        totalMapTaskCapacity += status.getMaxMapTasks();
-        totalReduceTaskCapacity += status.getMaxReduceTasks();
+        int mapSlots = status.getMaxMapTasks();
+        totalMapTaskCapacity += mapSlots;
+        int reduceSlots = status.getMaxReduceTasks();
+        totalReduceTaskCapacity += reduceSlots;
       }
       boolean alreadyPresent = false;
       if (taskTrackers.containsKey(trackerName)) {
@@ -2728,6 +2741,8 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
         uniqueHostsMap.put(status.getHost(), numTaskTrackersInHost);
       }
     }
+    getInstrumentation().setMapSlots(totalMapTaskCapacity);
+    getInstrumentation().setReduceSlots(totalReduceTaskCapacity);
     return oldStatus != null;
   }
     
