@@ -606,7 +606,7 @@ public class NameNode implements ClientProtocol, DatanodeProtocol,
   }
 
   /** @inheritDoc */
-  public long[] getStats() throws IOException {
+  public long[] getStats() {
     return namesystem.getStats();
   }
 

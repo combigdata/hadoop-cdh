@@ -3433,8 +3433,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
     return Math.max(missingBlocksInPrevIter, missingBlocksInCurIter); 
   }
   
-  long[] getStats() throws IOException {
-    checkSuperuserPrivilege();
+  long[] getStats() {
     synchronized(heartbeats) {
       return new long[] {this.capacityTotal, this.capacityUsed, 
                          this.capacityRemaining,
@@ -3448,18 +3447,14 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
    * Total raw bytes including non-dfs used space.
    */
   public long getCapacityTotal() {
-    synchronized (heartbeats) {
-      return this.capacityTotal;
-    }
+    return getStats()[0];
   }
 
   /**
    * Total used space by data nodes
    */
   public long getCapacityUsed() {
-    synchronized(heartbeats){
-      return this.capacityUsed;
-    }
+    return getStats()[1];
   }
   /**
    * Total used space by data nodes as percentage of total capacity
@@ -3488,9 +3483,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
    * Total non-used raw bytes.
    */
   public long getCapacityRemaining() {
-    synchronized (heartbeats) {
-      return this.capacityRemaining;
-    }
+    return getStats()[2];
   }
 
   /**
