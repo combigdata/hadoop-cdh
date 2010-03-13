@@ -56,6 +56,10 @@
       name="commons-io"
       rev="${commons-io.version}"
       conf="common->default"/>
+    <dependency org="commons-codec"
+      name="commons-codec"
+      rev="${commons-codec.version}"
+      conf="common->default"/>
     <dependency org="junit"
       name="junit"
       rev="${junit.version}"
@@ -68,9 +72,9 @@
       name="hsqldb"
       rev="${hsqldb.version}"
       conf="common->default"/>
-    <dependency org="javax.servlet"
-      name="servlet-api"
-      rev="${servlet-api.version}"
+    <dependency org="org.mortbay.jetty"
+      name="servlet-api-2.5"
+      rev="${servlet-api-2.5.version}"
       conf="common->master"/>
     <dependency org="org.mortbay.jetty"
       name="jetty"
