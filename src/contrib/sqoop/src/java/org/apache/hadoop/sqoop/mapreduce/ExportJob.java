@@ -31,6 +31,7 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.SequenceFile;
+import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.db.DBConfiguration;
 import org.apache.hadoop.mapreduce.lib.db.DBOutputFormat;
@@ -171,6 +172,10 @@ public class ExportJob {
 
       FileInputFormat.addInputPath(job, inputPath);
       job.setNumReduceTasks(0);
+
+      // Concurrent writes of the same records would be problematic.
+      JobConf jobConf = (JobConf) job.getConfiguration();
+      jobConf.setMapSpeculativeExecution(false);
 
       ConnManager mgr = new ConnFactory(conf).getManager(options);
       String username = options.getUsername();
