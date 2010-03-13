@@ -1299,6 +1299,46 @@ public class JobClient extends Configured implements MRConstants, Tool  {
   }
   
   /**
+   * @return true if the profile parameters indicate that this is using
+   * hprof, which generates profile files in a particular location
+   * that we can retrieve to the client.
+   */
+  private boolean shouldDownloadProfile(JobConf conf) {
+    // Check the argument string that was used to initialize profiling.
+    // If this indicates hprof and file-based output, then we're ok to
+    // download.
+    String profileParams = conf.getProfileParams();
+
+    if (null == profileParams) {
+      return false;
+    }
+
+    // Split this on whitespace.
+    String [] parts = profileParams.split("[ \\t]+");
+
+    // If any of these indicate hprof, and the use of output files, return true.
+    boolean hprofFound = false;
+    boolean fileFound = false;
+    for (String p : parts) {
+      if (p.startsWith("-agentlib:hprof") || p.startsWith("-Xrunhprof")) {
+        hprofFound = true;
+
+        // This contains a number of comma-delimited components, one of which
+        // may specify the file to write to. Make sure this is present and
+        // not empty.
+        String [] subparts = p.split(",");
+        for (String sub : subparts) {
+          if (sub.startsWith("file=") && sub.length() != "file=".length()) {
+            fileFound = true;
+          }
+        }
+      }
+    }
+
+    return hprofFound && fileFound;
+  }
+
+  /**
    * Monitor a job and print status in real-time as progress is made and tasks 
    * fail.
    * @param conf the job's configuration
@@ -1335,7 +1375,7 @@ public class JobClient extends Configured implements MRConstants, Tool  {
       eventCounter += events.length;
       for(TaskCompletionEvent event : events){
         TaskCompletionEvent.Status status = event.getTaskStatus();
-        if (profiling && 
+        if (profiling && shouldDownloadProfile(conf) &&
             (status == TaskCompletionEvent.Status.SUCCEEDED ||
                 status == TaskCompletionEvent.Status.FAILED) &&
                 (event.isMap ? mapRanges : reduceRanges).
