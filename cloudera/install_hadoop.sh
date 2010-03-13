@@ -127,7 +127,7 @@ for bin_wrapper in hadoop sqoop ; do
 #!/bin/sh
 
 export HADOOP_HOME=$INSTALLED_LIB_DIR
-exec $INSTALLED_LIB_DIR/bin/$bin_wrapper \$*
+exec $INSTALLED_LIB_DIR/bin/$bin_wrapper "\$@"
 EOF
   chmod 755 $wrapper
 done
