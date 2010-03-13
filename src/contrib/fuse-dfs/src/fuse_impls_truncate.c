@@ -29,8 +29,11 @@
 int dfs_truncate(const char *path, off_t size)
 {
   TRACE1("truncate", path)
+  // Silently supress truncates with non-zero sizes, this allows
+  // fuse-dfs to work with some programs like scp, which truncate
+  // the files to the number of bytes they have written.
   if (size != 0) {
-    return -ENOTSUP;
+    return 0;
   }
 
   dfs_context *dfs = (dfs_context*)fuse_get_context()->private_data;
