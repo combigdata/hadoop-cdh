@@ -57,6 +57,10 @@ if which libtoolize && libtoolize --version | grep --silent 2.2 ; then
     (cd $dir && libtoolize --force)
   done
 fi
+  
+for dir in src/native src/examples/pipes src/c++/libhdfs/ src/c++/pipes src/c++/utils ; do
+    (cd $dir && rm -rf autom4te.cache) 
+done
 
 
 JAVA_HOME=$JAVA32_HOME \
@@ -89,12 +93,3 @@ JAVA_HOME=$JAVA64_HOME \
   -Dforrest.home=$FORREST_HOME \
   -propertyfile cloudera/build.properties \
   compile-core-native compile-c++ compile-c++-examples tar
-
-cd $RELEASE_DIR/src/contrib/sqoop
-
-JAVA_HOME=$JAVA64_HOME \
-  ant \
-  -Djava5.home=$JAVA5_HOME \
-  -Dforrest.home=$FORREST_HOME \
-  -propertyfile cloudera/build.properties \
-  doc
