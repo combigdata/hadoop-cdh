@@ -6,6 +6,14 @@ bin=`cd ${bin} && pwd`
 . "$bin"/hadoop-config.sh
 SQOOP_JAR_PATH="$HADOOP_HOME/contrib/sqoop"
 
-SQOOP_JAR=`ls -1 ${SQOOP_JAR_PATH}/hadoop-*-sqoop.jar | head -n 1`
-${bin}/hadoop jar ${SQOOP_JAR} org.apache.hadoop.sqoop.Sqoop "$@"
+# Add sqoop dependencies to classpath.
+SQOOP_CLASSPATH=""
+if [ -d "$SQOOP_JAR_PATH/lib" ]; then
+  for f in $SQOOP_JAR_PATH/lib/*.jar; do
+    SQOOP_CLASSPATH=${SQOOP_CLASSPATH}:$f;
+  done
+fi
 
+SQOOP_JAR=`ls -1 ${SQOOP_JAR_PATH}/hadoop-*-sqoop.jar | head -n 1`
+HADOOP_CLASSPATH="${SQOOP_CLASSPATH}:${HADOOP_CLASSPATH}" \
+    ${bin}/hadoop jar ${SQOOP_JAR} org.apache.hadoop.sqoop.Sqoop "$@"
