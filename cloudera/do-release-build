@@ -79,7 +79,7 @@ JAVA_HOME=$JAVA32_HOME \
 
 if [ -z "$SKIP_JDIFF" ]; then
 ant \
-  -Djdiff.stable=0.20.0 \
+  -Djdiff.stable=0.20.1 \
   -Djdiff.build.dir=build/docs/jdiff-cloudera \
   -propertyfile cloudera/build.properties api-report
 fi
