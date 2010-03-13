@@ -53,7 +53,7 @@ public class ServletUtil {
 
   public static final String HTML_TAIL = "<hr />\n"
     + "<a href=\"http://www.cloudera.com/hadoop/\">Cloudera's Distribution"
-    + " of Hadoop</a>, " + 
+    + " for Hadoop</a>, " + 
     + Calendar.getInstance().get(Calendar.YEAR) + ".\n"
     + "</body></html>";
   
