@@ -1115,7 +1115,7 @@ public class DFSClient implements FSConstants, java.io.Closeable {
    */
   public static class BlockReader extends FSInputChecker {
 
-    private Socket dnSock; //for now just sending checksumOk.
+    Socket dnSock; //for now just sending checksumOk.
     private DataInputStream in;
     private DataChecksum checksum;
     private long lastChunkOffset = -1;
@@ -1146,6 +1146,8 @@ public class DFSClient implements FSConstants, java.io.Closeable {
     public synchronized int read(byte[] buf, int off, int len) 
                                  throws IOException {
       
+      boolean eosBefore = gotEOS;
+
       //for the first read, skip the extra bytes at the front.
       if (lastChunkLen < 0 && startOffset > firstChunkOffset && len > 0) {
         // Skip these bytes. But don't call this.skip()!
@@ -1159,7 +1161,6 @@ public class DFSClient implements FSConstants, java.io.Closeable {
         }
       }
       
-      boolean eosBefore = gotEOS;
       int nRead = super.read(buf, off, len);
       
       // if gotEOS was set in the previous read and checksum is enabled :
@@ -1426,7 +1427,7 @@ public class DFSClient implements FSConstants, java.io.Closeable {
      * errors, we send OP_STATUS_CHECKSUM_OK to datanode to inform that 
      * checksum was verified and there was no error.
      */ 
-    private void checksumOk(Socket sock) {
+    void checksumOk(Socket sock) {
       try {
         OutputStream out = NetUtils.getOutputStream(sock, HdfsConstants.WRITE_TIMEOUT);
         byte buf[] = { (DataTransferProtocol.OP_STATUS_CHECKSUM_OK >>> 8) & 0xff,
