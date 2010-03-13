@@ -807,9 +807,10 @@ class BlockReceiver implements java.io.Closeable, FSConstants {
                     DataNode.EMPTY_DEL_HINT);
                 if (ClientTraceLog.isInfoEnabled() &&
                     receiver.clientName.length() > 0) {
+                  long offset = 0;
                   ClientTraceLog.info(String.format(DN_CLIENTTRACE_FORMAT,
-                        receiver.inAddr, receiver.myAddr, block.getNumBytes(),
-                        "HDFS_WRITE", receiver.clientName,
+                        receiver.inAddr, receiver.myAddr, block.getNumBytes(), 
+                        "HDFS_WRITE", receiver.clientName, offset,
                         datanode.dnRegistration.getStorageID(), block));
                 } else {
                   LOG.info("Received block " + block + 
@@ -943,9 +944,10 @@ class BlockReceiver implements java.io.Closeable, FSConstants {
                   DataNode.EMPTY_DEL_HINT);
               if (ClientTraceLog.isInfoEnabled() &&
                   receiver.clientName.length() > 0) {
+                long offset = 0;
                 ClientTraceLog.info(String.format(DN_CLIENTTRACE_FORMAT,
-                      receiver.inAddr, receiver.myAddr, block.getNumBytes(),
-                      "HDFS_WRITE", receiver.clientName,
+                      receiver.inAddr, receiver.myAddr, block.getNumBytes(), 
+                      "HDFS_WRITE", receiver.clientName, offset, 
                       datanode.dnRegistration.getStorageID(), block));
               } else {
                 LOG.info("Received block " + block + 
