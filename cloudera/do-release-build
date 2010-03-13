@@ -5,10 +5,18 @@
 
 set -e
 
+if [ $(uname -s) = "SunOS" ]; then
+if [ $(isainfo -b) != "64" ]; then
+  echo Release build should be done on a 64-bit box to generate 1>&2
+  echo both 64 and 32 bit native libraries. 1>&2
+  exit 1
+fi
+else
 if [ $(uname -m) != "x86_64" ]; then
   echo Release build should be done on a 64-bit box to generate 1>&2
   echo both 64 and 32 bit native libraries. 1>&2
   exit 1
+fi
 fi
 
 JAVA32_HOME=${JAVA32_HOME:-$JAVA_HOME}
