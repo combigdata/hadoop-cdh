@@ -186,6 +186,9 @@ no import or code generation is performed.
 --list-tables::
   List tables in database and exit
 
+--verbose::
+  Print more information while working
+
 Database-specific options
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
