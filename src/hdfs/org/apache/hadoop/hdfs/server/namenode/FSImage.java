@@ -1548,7 +1548,7 @@ public class FSImage extends Storage {
 
   static Collection<File> getCheckpointDirs(Configuration conf,
                                             String defaultName) {
-    Collection<String> dirNames = conf.getStringCollection("fs.checkpoint.dir");
+    Collection<String> dirNames = conf.getTrimmedStringCollection("fs.checkpoint.dir");
     if (dirNames.size() == 0 && defaultName != null) {
       dirNames.add(defaultName);
     }
@@ -1562,7 +1562,7 @@ public class FSImage extends Storage {
   static Collection<File> getCheckpointEditsDirs(Configuration conf,
                                                  String defaultName) {
     Collection<String> dirNames = 
-                conf.getStringCollection("fs.checkpoint.edits.dir");
+                conf.getTrimmedStringCollection("fs.checkpoint.edits.dir");
  if (dirNames.size() == 0 && defaultName != null) {
    dirNames.add(defaultName);
  }

@@ -349,7 +349,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
   }
 
   public static Collection<File> getNamespaceDirs(Configuration conf) {
-    Collection<String> dirNames = conf.getStringCollection("dfs.name.dir");
+    Collection<String> dirNames = conf.getTrimmedStringCollection("dfs.name.dir");
     if (dirNames.isEmpty())
       dirNames.add("/tmp/hadoop/dfs/name");
     Collection<File> dirs = new ArrayList<File>(dirNames.size());
@@ -361,7 +361,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
   
   public static Collection<File> getNamespaceEditsDirs(Configuration conf) {
     Collection<String> editsDirNames = 
-            conf.getStringCollection("dfs.name.edits.dir");
+            conf.getTrimmedStringCollection("dfs.name.edits.dir");
     if (editsDirNames.isEmpty())
       editsDirNames.add("/tmp/hadoop/dfs/name");
     Collection<File> dirs = new ArrayList<File>(editsDirNames.size());

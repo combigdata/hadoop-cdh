@@ -255,7 +255,7 @@ public class JobConf extends Configuration {
   }
 
   public String[] getLocalDirs() throws IOException {
-    return getStrings("mapred.local.dir");
+    return getTrimmedStrings("mapred.local.dir");
   }
 
   public void deleteLocalFiles() throws IOException {

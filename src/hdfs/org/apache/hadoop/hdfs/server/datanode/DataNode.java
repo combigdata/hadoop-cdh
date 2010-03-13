@@ -1258,7 +1258,7 @@ public class DataNode extends Configured
           " anymore. RackID resolution is handled by the NameNode.");
       System.exit(-1);
     }
-    String[] dataDirs = conf.getStrings("dfs.data.dir");
+    String[] dataDirs = conf.getTrimmedStrings("dfs.data.dir");
     dnThreadName = "DataNode: [" +
                         StringUtils.arrayToString(dataDirs) + "]";
     return makeInstance(dataDirs, conf);
