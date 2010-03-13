@@ -40,7 +40,6 @@ import java.util.TreeMap;
 import java.util.Vector;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.jar.JarEntry;
 import java.util.regex.Pattern;
 
 import javax.servlet.ServletContext;
@@ -84,7 +83,6 @@ import org.apache.hadoop.util.MemoryCalculatorPlugin;
 import org.apache.hadoop.util.ProcfsBasedProcessTree;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.RunJar;
-import org.apache.hadoop.util.RunJar.JarEntryFilter;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.util.VersionInfo;
 import org.apache.hadoop.util.DiskChecker.DiskErrorException;
@@ -813,17 +811,9 @@ public class TaskTracker
           } finally {
             out.close();
           }
-          // also unjar parts of the job.jar that need to be added
-          // to the classpath
-          JarEntryFilter filter = new JarEntryFilter() {
-              public boolean accept(JarEntry entry) {
-                return (entry.getName().startsWith("classes/") ||
-                        entry.getName().startsWith("lib/"));
-              }
-            };
+          // also unjar the job.jar files 
           RunJar.unJar(new File(localJarFile.toString()),
-                       new File(localJarFile.getParent().toString()),
-                       filter);
+                       new File(localJarFile.getParent().toString()));
         }
         rjob.keepJobFiles = ((localJobConf.getKeepTaskFilesPattern() != null) ||
                              localJobConf.getKeepFailedTaskFiles());
