@@ -97,6 +97,8 @@ popd
 mkdir -p build/hadoop-$FULL_VERSION/docs/
 cp -r build/contrib/sqoop/doc/ build/hadoop-$FULL_VERSION/docs/sqoop
 
+cp build/hadoop-$FULL_VERSION/docs/sqoop/sqoop.1.gz \
+   build/hadoop-$FULL_VERSION/docs/sqoop/sqoop-0.20.1.gz
 
 JAVA_HOME=$JAVA64_HOME \
   CFLAGS=-m64 \
