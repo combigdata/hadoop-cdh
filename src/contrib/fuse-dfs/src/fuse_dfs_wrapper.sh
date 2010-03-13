@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 #
 # Copyright 2005 The Apache Software Foundation
 #
@@ -18,12 +19,6 @@ if [ "$HADOOP_HOME" = "" ]; then
 export HADOOP_HOME=/usr/local/share/hadoop
 fi
 
-export PATH=$HADOOP_HOME/contrib/fuse_dfs:$PATH
-
-for f in ls $HADOOP_HOME/lib/*.jar $HADOOP_HOME/*.jar ; do
-export  CLASSPATH=$CLASSPATH:$f
-done
-
 if [ "$OS_ARCH" = "" ]; then
 export OS_ARCH=amd64
 fi
@@ -36,4 +31,16 @@ if [ "$LD_LIBRARY_PATH" = "" ]; then
 export LD_LIBRARY_PATH=$JAVA_HOME/jre/lib/$OS_ARCH/server:/usr/local/share/hdfs/libhdfs/:/usr/local/lib
 fi
 
-./fuse_dfs $@
+# If dev build set paths accordingly
+if [ -d $HADOOP_HOME/build ]; then
+  for f in ${HADOOP_HOME}/build/*.jar ; do
+    export CLASSPATH=$CLASSPATH:$f
+  done
+  for f in $HADOOP_HOME/build/ivy/lib/Hadoop/common/*.jar ; do
+    export CLASSPATH=$CLASSPATH:$f
+  done
+  export PATH=$HADOOP_HOME/build/contrib/fuse-dfs:$PATH
+  export LD_LIBRARY_PATH=$HADOOP_HOME/build/c++/lib:$JAVA_HOME/jre/lib/$OS_ARCH/server
+fi
+
+fuse_dfs $@
