@@ -70,6 +70,10 @@ public class TestFileArgs extends TestStreaming
       new FileOutputStream(SIDE_FILE.getAbsoluteFile()));
     dos.write("hello world\n".getBytes("UTF-8"));
     dos.close();
+
+    // Since ls doesn't read stdin, we don't want to write anything
+    // to it, or else we risk Broken Pipe exceptions.
+    input = "";
   }
 
   @Override
