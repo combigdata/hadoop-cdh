@@ -261,12 +261,14 @@ hdfsFS hdfsConnectAsUser(const char* host, tPort port, const char *user , const 
           destroyLocalReference(env, jGroups);
         }          
         destroyLocalReference(env, jUgi);
+        destroyLocalReference(env, jAttrString);
         return NULL;
       }
 
       destroyLocalReference(env, jUserString);
       destroyLocalReference(env, jGroups);
       destroyLocalReference(env, jUgi);
+      destroyLocalReference(env, jAttrString);
     }
 #else
     
@@ -447,12 +449,14 @@ hdfsFS hdfsConnectAsUserNewInstance(const char* host, tPort port, const char *us
           destroyLocalReference(env, jGroups);
         }          
         destroyLocalReference(env, jUgi);
+        destroyLocalReference(env, jAttrString);
         return NULL;
       }
 
       destroyLocalReference(env, jUserString);
       destroyLocalReference(env, jGroups);
       destroyLocalReference(env, jUgi);
+      destroyLocalReference(env, jAttrString);
     }
 #else
     
@@ -731,12 +735,12 @@ hdfsFile hdfsOpenFile(hdfsFS fs, const char* path, int flags,
     file = malloc(sizeof(struct hdfsFile_internal));
     if (!file) {
         errno = ENOMEM;
-        return NULL;
-    }
-    file->file = (*env)->NewGlobalRef(env, jVal.l);
-    file->type = (((flags & O_WRONLY) == 0) ? INPUT : OUTPUT);
+    } else {
+        file->file = (*env)->NewGlobalRef(env, jVal.l);
+        file->type = (((flags & O_WRONLY) == 0) ? INPUT : OUTPUT);
 
-    destroyLocalReference(env, jVal.l);
+        destroyLocalReference(env, jVal.l);
+    }
 
     done:
 
@@ -1654,6 +1658,7 @@ int hdfsChmod(hdfsFS fs, const char* path, short mode)
     //Create an object of org.apache.hadoop.fs.Path
     jobject jPath = constructNewObjectOfPath(env, path);
     if (jPath == NULL) {
+      destroyLocalReference(env, jPermObj);
       return -3;
     }
 
