@@ -41,19 +41,17 @@ if [ -z "$HADOOP_HOME" ]; then
   export HADOOP_HOME=`dirname "$this"`/..
 fi
 
-# double check that our HADOOP_HOME looks reasonable
+# double check that our HADOOP_HOME looks reasonable.
 # cding to / here verifies that we have an absolute path, which is
 # necessary for the daemons to function properly
-if [ -z $(cd / && ls $HADOOP_HOME/hadoop-*-core.jar 2>/dev/null) ]; then
+if [ -z "$(cd / && ls $HADOOP_HOME/hadoop-*-core.jar $HADOOP_HOME/build 2>/dev/null)" ]; then
   cat 1>&2 <<EOF
-+======================================================================+
-|      Error: HADOOP_HOME is not set and could not be guessed          |
-+----------------------------------------------------------------------+
-| This script attempts to find HADOOP_HOME based on its location, but  |
-| could not locate it. If you have a nonstandard install, please set   |
-| your HADOOP_HOME variable to the absolute path of the directory that |
-| contains hadoop-VERSION-core.jar                                     |
-+======================================================================+
++================================================================+
+|      Error: HADOOP_HOME is not set correctly                   |
++----------------------------------------------------------------+
+| Please set your HADOOP_HOME variable to the absolute path of   |
+| the directory that contains hadoop-VERSION-core.jar            |
++================================================================+
 EOF
   exit 1
 fi
