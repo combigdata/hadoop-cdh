@@ -42,7 +42,8 @@ import org.w3c.dom.Text;
 import org.xml.sax.SAXException;
 
 /**
- * Maintains a hierarchy of pools.
+ * Maintains a list of pools as well as scheduling parameters for each pool,
+ * such as guaranteed share allocations, from the fair scheduler config file.
  */
 public class PoolManager {
   public static final Log LOG = LogFactory.getLog(
@@ -71,9 +72,24 @@ public class PoolManager {
   private int userMaxJobsDefault = Integer.MAX_VALUE;
   private int poolMaxJobsDefault = Integer.MAX_VALUE;
 
+  // Min share preemption timeout for each pool in seconds. If a job in the pool
+  // waits this long without receiving its guaranteed share, it is allowed to
+  // preempt other jobs' tasks.
+  private Map<String, Long> minSharePreemptionTimeouts =
+    new HashMap<String, Long>();
+  
+  // Default min share preemption timeout for pools where it is not set
+  // explicitly.
+  private long defaultMinSharePreemptionTimeout = Long.MAX_VALUE;
+  
+  // Preemption timeout for jobs below fair share in seconds. If a job remains
+  // below half its fair share for this long, it is allowed to preempt tasks.
+  private long fairSharePreemptionTimeout = Long.MAX_VALUE;
+
+
   private String allocFile; // Path to XML file containing allocations
   private String poolNameProperty; // Jobconf property to use for determining a
-                                   // job's pool name (default: mapred.job.queue.name)
+                                   // job's pool name (default: user.name)
   
   private Map<String, Pool> pools = new HashMap<String, Pool>();
   
@@ -132,7 +148,7 @@ public class PoolManager {
         // We log the error only on the first failure so we don't fill up the
         // JobTracker's log with these messages.
         if (!lastReloadAttemptFailed) {
-          LOG.error("Failed to reload allocations file - " +
+          LOG.error("Failed to reload fair scheduler config file - " +
               "will use existing allocations.", e);
         }
         lastReloadAttemptFailed = true;
@@ -167,11 +183,14 @@ public class PoolManager {
     Map<String, Integer> poolMaxJobs = new HashMap<String, Integer>();
     Map<String, Integer> userMaxJobs = new HashMap<String, Integer>();
     Map<String, Double> poolWeights = new HashMap<String, Double>();
+    Map<String, Long> minSharePreemptionTimeouts = new HashMap<String, Long>();
     int userMaxJobsDefault = Integer.MAX_VALUE;
     int poolMaxJobsDefault = Integer.MAX_VALUE;
     
     // Remember all pool names so we can display them on web UI, etc.
     List<String> poolNamesInAllocFile = new ArrayList<String>();
+    long fairSharePreemptionTimeout = Long.MAX_VALUE;
+    long defaultMinSharePreemptionTimeout = Long.MAX_VALUE;
     
     // Read and parse the allocations file.
     DocumentBuilderFactory docBuilderFactory =
@@ -181,8 +200,8 @@ public class PoolManager {
     Document doc = builder.parse(new File(allocFile));
     Element root = doc.getDocumentElement();
     if (!"allocations".equals(root.getTagName()))
-      throw new AllocationConfigurationException("Bad allocations file: " + 
-          "top-level element not <allocations>");
+      throw new AllocationConfigurationException("Bad fair scheduler config " + 
+          "file: top-level element not <allocations>");
     NodeList elements = root.getChildNodes();
     for (int i = 0; i < elements.getLength(); i++) {
       Node node = elements.item(i);
@@ -214,6 +233,10 @@ public class PoolManager {
             String text = ((Text)field.getFirstChild()).getData().trim();
             double val = Double.parseDouble(text);
             poolWeights.put(poolName, val);
+          } else if ("minSharePreemptionTimeout".equals(field.getTagName())) {
+            String text = ((Text)field.getFirstChild()).getData().trim();
+            long val = Long.parseLong(text) * 1000L;
+            minSharePreemptionTimeouts.put(poolName, val);
           }
         }
       } else if ("user".equals(element.getTagName())) {
@@ -238,6 +261,14 @@ public class PoolManager {
         String text = ((Text)element.getFirstChild()).getData().trim();
         int val = Integer.parseInt(text);
         poolMaxJobsDefault = val;
+      } else if ("fairSharePreemptionTimeout".equals(element.getTagName())) {
+        String text = ((Text)element.getFirstChild()).getData().trim();
+        long val = Long.parseLong(text) * 1000L;
+        fairSharePreemptionTimeout = val;
+      } else if ("defaultMinSharePreemptionTimeout".equals(element.getTagName())) {
+        String text = ((Text)element.getFirstChild()).getData().trim();
+        long val = Long.parseLong(text) * 1000L;
+        defaultMinSharePreemptionTimeout = val;
       } else {
         LOG.warn("Bad element in allocations file: " + element.getTagName());
       }
@@ -253,6 +284,9 @@ public class PoolManager {
       this.userMaxJobsDefault = userMaxJobsDefault;
       this.poolMaxJobsDefault = poolMaxJobsDefault;
       this.poolWeights = poolWeights;
+      this.minSharePreemptionTimeouts = minSharePreemptionTimeouts;
+      this.fairSharePreemptionTimeout = fairSharePreemptionTimeout;
+      this.defaultMinSharePreemptionTimeout = defaultMinSharePreemptionTimeout;
       for (String name: poolNamesInAllocFile) {
         getPool(name);
       }
@@ -305,7 +339,7 @@ public class PoolManager {
    * "mapred.fairscheduler.poolnameproperty".
    */
   public String getPoolName(JobInProgress job) {
-    JobConf conf = job.getJobConf();
+    Configuration conf = job.getJobConf();
     return conf.get(poolNameProperty, Pool.DEFAULT_POOL_NAME).trim();
   }
 
@@ -344,5 +378,27 @@ public class PoolManager {
     } else {
       return 1.0;
     }
+  }
+
+  /**
+   * Get a pool's min share preemption timeout, in milliseconds. This is the
+   * time after which jobs in the pool may kill other pools' tasks if they
+   * are below their min share.
+   */
+  public long getMinSharePreemptionTimeout(String pool) {
+    if (minSharePreemptionTimeouts.containsKey(pool)) {
+      return minSharePreemptionTimeouts.get(pool);
+    } else {
+      return defaultMinSharePreemptionTimeout;
+    }
+  }
+  
+  /**
+   * Get the fair share preemption, in milliseconds. This is the time
+   * after which any job may kill other jobs' tasks if it is below half
+   * its fair share.
+   */
+  public long getFairSharePreemptionTimeout() {
+    return fairSharePreemptionTimeout;
   }
 }

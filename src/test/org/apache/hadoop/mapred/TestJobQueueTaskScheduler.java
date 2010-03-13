@@ -191,6 +191,12 @@ public class TestJobQueueTaskScheduler extends TestCase {
     public void failJob(JobInProgress job) {
       // do nothing
     }
+
+    @Override
+    public boolean killTask(TaskAttemptID attemptId, boolean shouldFail) {
+      return true;
+    }
+
     
     // Test methods
     

@@ -154,6 +154,11 @@ public class TestParallelInitialization extends TestCase {
         failJob(job);
       }
     }
+
+    public boolean killTask(TaskAttemptID attemptId, boolean shouldFail) {
+      return true;
+    }
+
     // Test methods
     
     public synchronized void failJob(JobInProgress job) {
