@@ -57,6 +57,8 @@ public class PoolManager {
    * (this is done to prevent loading a file that hasn't been fully written).
    */
   public static final long ALLOC_RELOAD_WAIT = 5 * 1000; 
+
+  private final FairScheduler scheduler;
   
   // Map and reduce minimum allocations for each pool
   private Map<String, Integer> mapAllocs = new HashMap<String, Integer>();
@@ -86,6 +88,7 @@ public class PoolManager {
   // below half its fair share for this long, it is allowed to preempt tasks.
   private long fairSharePreemptionTimeout = Long.MAX_VALUE;
 
+  SchedulingMode defaultSchedulingMode = SchedulingMode.FAIR;
 
   private String allocFile; // Path to XML file containing allocations
   private String poolNameProperty; // Jobconf property to use for determining a
@@ -97,8 +100,13 @@ public class PoolManager {
   private long lastSuccessfulReload; // Last time we successfully reloaded pools
   private boolean lastReloadAttemptFailed = false;
 
-  public PoolManager(Configuration conf) throws IOException, SAXException,
+  public PoolManager(FairScheduler scheduler) {
+    this.scheduler = scheduler;
+  }
+  
+  public void initialize() throws IOException, SAXException,
       AllocationConfigurationException, ParserConfigurationException {
+    Configuration conf = scheduler.getConf();
     this.poolNameProperty = conf.get(
         "mapred.fairscheduler.poolnameproperty", "user.name");
     this.allocFile = conf.get("mapred.fairscheduler.allocation.file");
@@ -119,10 +127,18 @@ public class PoolManager {
   public synchronized Pool getPool(String name) {
     Pool pool = pools.get(name);
     if (pool == null) {
-      pool = new Pool(name);
+      pool = new Pool(scheduler, name);
+      pool.setSchedulingMode(defaultSchedulingMode);
       pools.put(name, pool);
     }
     return pool;
+  }
+  
+  /**
+   * Get the pool that a given job is in.
+   */
+  public Pool getPool(JobInProgress job) {
+    return getPool(getPoolName(job));
   }
 
   /**
@@ -183,6 +199,7 @@ public class PoolManager {
     Map<String, Integer> poolMaxJobs = new HashMap<String, Integer>();
     Map<String, Integer> userMaxJobs = new HashMap<String, Integer>();
     Map<String, Double> poolWeights = new HashMap<String, Double>();
+    Map<String, SchedulingMode> poolModes = new HashMap<String, SchedulingMode>();
     Map<String, Long> minSharePreemptionTimeouts = new HashMap<String, Long>();
     int userMaxJobsDefault = Integer.MAX_VALUE;
     int poolMaxJobsDefault = Integer.MAX_VALUE;
@@ -191,6 +208,7 @@ public class PoolManager {
     List<String> poolNamesInAllocFile = new ArrayList<String>();
     long fairSharePreemptionTimeout = Long.MAX_VALUE;
     long defaultMinSharePreemptionTimeout = Long.MAX_VALUE;
+    SchedulingMode defaultSchedulingMode = SchedulingMode.FAIR;
     
     // Read and parse the allocations file.
     DocumentBuilderFactory docBuilderFactory =
@@ -237,6 +255,9 @@ public class PoolManager {
             String text = ((Text)field.getFirstChild()).getData().trim();
             long val = Long.parseLong(text) * 1000L;
             minSharePreemptionTimeouts.put(poolName, val);
+          } else if ("schedulingMode".equals(field.getTagName())) {
+            String text = ((Text)field.getFirstChild()).getData().trim();
+            poolModes.put(poolName, parseSchedulingMode(text));
           }
         }
       } else if ("user".equals(element.getTagName())) {
@@ -269,6 +290,9 @@ public class PoolManager {
         String text = ((Text)element.getFirstChild()).getData().trim();
         long val = Long.parseLong(text) * 1000L;
         defaultMinSharePreemptionTimeout = val;
+      } else if ("defaultPoolSchedulingMode".equals(element.getTagName())) {
+        String text = ((Text)element.getFirstChild()).getData().trim();
+        defaultSchedulingMode = parseSchedulingMode(text);
       } else {
         LOG.warn("Bad element in allocations file: " + element.getTagName());
       }
@@ -287,9 +311,28 @@ public class PoolManager {
       this.minSharePreemptionTimeouts = minSharePreemptionTimeouts;
       this.fairSharePreemptionTimeout = fairSharePreemptionTimeout;
       this.defaultMinSharePreemptionTimeout = defaultMinSharePreemptionTimeout;
+      this.defaultSchedulingMode = defaultSchedulingMode;
       for (String name: poolNamesInAllocFile) {
-        getPool(name);
+        Pool pool = getPool(name);
+        if (poolModes.containsKey(name)) {
+          pool.setSchedulingMode(poolModes.get(name));
+        } else {
+          pool.setSchedulingMode(defaultSchedulingMode);
+        }
       }
+    }
+  }
+
+  private SchedulingMode parseSchedulingMode(String text)
+      throws AllocationConfigurationException {
+    text = text.toLowerCase();
+    if (text.equals("fair")) {
+      return SchedulingMode.FAIR;
+    } else if (text.equals("fifo")) {
+      return SchedulingMode.FIFO;
+    } else {
+      throw new AllocationConfigurationException(
+          "Unknown scheduling mode : " + text + "; expected 'fifo' or 'fair'");
     }
   }
 

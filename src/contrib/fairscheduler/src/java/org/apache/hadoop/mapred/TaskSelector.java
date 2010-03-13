@@ -86,7 +86,7 @@ public abstract class TaskSelector implements Configurable {
    * @throws IOException 
    */
   public abstract Task obtainNewMapTask(TaskTrackerStatus taskTracker,
-      JobInProgress job) throws IOException;
+      JobInProgress job, int localityLevel) throws IOException;
 
   /**
    * Choose a reduce task to run from the given job on the given TaskTracker.

@@ -304,6 +304,14 @@ public class JobInProgress {
     this.resourceEstimator = new ResourceEstimator(this);
   }
 
+  public boolean hasSpeculativeMaps() {
+    return hasSpeculativeMaps;
+  }
+
+  public boolean hasSpeculativeReduces() {
+    return hasSpeculativeReduces;
+  }
+
   /**
    * Called periodically by JobTrackerMetrics to update the metrics for
    * this job.
@@ -951,15 +959,16 @@ public class JobInProgress {
    */
   public synchronized Task obtainNewMapTask(TaskTrackerStatus tts, 
                                             int clusterSize, 
-                                            int numUniqueHosts
+                                            int numUniqueHosts,
+                                            int maxCacheLevel
                                            ) throws IOException {
     if (status.getRunState() != JobStatus.RUNNING) {
       LOG.info("Cannot create task split for " + profile.getJobID());
       return null;
     }
         
-    int target = findNewMapTask(tts, clusterSize, numUniqueHosts, anyCacheLevel,
-                                status.mapProgress());
+    int target = findNewMapTask(tts, clusterSize, numUniqueHosts, maxCacheLevel,
+         getStatus().mapProgress());
     if (target == -1) {
       return null;
     }
@@ -970,6 +979,16 @@ public class JobInProgress {
     }
 
     return result;
+  } 
+  
+  /**
+   * Return a MapTask, if appropriate, to run on the given tasktracker
+   */
+  public synchronized Task obtainNewMapTask(TaskTrackerStatus tts, 
+                                            int clusterSize, 
+                                            int numUniqueHosts
+                                           ) throws IOException {
+    return obtainNewMapTask(tts, clusterSize, numUniqueHosts, anyCacheLevel);
   }    
 
   /*
@@ -1019,18 +1038,7 @@ public class JobInProgress {
       return null;
     }
 
-    int target = findNewMapTask(tts, clusterSize, numUniqueHosts, maxLevel, 
-                                status.mapProgress());
-    if (target == -1) {
-      return null;
-    }
-
-    Task result = maps[target].getTaskToRun(tts.getTrackerName());
-    if (result != null) {
-      addRunningTaskToTIP(maps[target], result.getTaskID(), tts, true);
-    }
-
-    return result;
+    return obtainNewMapTask(tts, clusterSize, numUniqueHosts, maxLevel);
   }
   
   public synchronized Task obtainNewNonLocalMapTask(TaskTrackerStatus tts,
@@ -1042,18 +1050,8 @@ public class JobInProgress {
       return null;
     }
 
-    int target = findNewMapTask(tts, clusterSize, numUniqueHosts, 
-                                NON_LOCAL_CACHE_LEVEL, status.mapProgress());
-    if (target == -1) {
-      return null;
-    }
-
-    Task result = maps[target].getTaskToRun(tts.getTrackerName());
-    if (result != null) {
-      addRunningTaskToTIP(maps[target], result.getTaskID(), tts, true);
-    }
-
-    return result;
+    return obtainNewMapTask(tts, clusterSize, numUniqueHosts,
+        NON_LOCAL_CACHE_LEVEL);
   }
   
   /**
@@ -1319,23 +1317,7 @@ public class JobInProgress {
     // data locality.
     if (tip.isMapTask() && !tip.isJobSetupTask() && !tip.isJobCleanupTask()) {
       // increment the data locality counter for maps
-      Node tracker = jobtracker.getNode(tts.getHost());
-      int level = this.maxLevel;
-      // find the right level across split locations
-      for (String local : maps[tip.getIdWithinJob()].getSplitLocations()) {
-        Node datanode = jobtracker.getNode(local);
-        int newLevel = this.maxLevel;
-        if (tracker != null && datanode != null) {
-          newLevel = getMatchingLevelForNodes(tracker, datanode);
-        }
-        if (newLevel < level) {
-          level = newLevel;
-          // an optimization
-          if (level == 0) {
-            break;
-          }
-        }
-      }
+      int level = getLocalityLevel(tip, tts);
       switch (level) {
       case 0 :
         LOG.info("Choosing data-local task " + tip.getTIPId());
@@ -2711,4 +2693,31 @@ public class JobInProgress {
       return Values.REDUCE.name();
     }
   }
+
+  /*
+  * Get the level of locality that a given task would have if launched on
+  * a particular TaskTracker. Returns 0 if the task has data on that machine,
+  * 1 if it has data on the same rack, etc (depending on number of levels in
+  * the network hierarchy).
+  */
+ int getLocalityLevel(TaskInProgress tip, TaskTrackerStatus tts) {
+   Node tracker = jobtracker.getNode(tts.getHost());
+   int level = this.maxLevel;
+   // find the right level across split locations
+   for (String local : maps[tip.getIdWithinJob()].getSplitLocations()) {
+     Node datanode = jobtracker.getNode(local);
+     int newLevel = this.maxLevel;
+     if (tracker != null && datanode != null) {
+       newLevel = getMatchingLevelForNodes(tracker, datanode);
+     }
+     if (newLevel < level) {
+       level = newLevel;
+       // an optimization
+       if (level == 0) {
+         break;
+       }
+     }
+   }
+   return level;
+ }
 }
