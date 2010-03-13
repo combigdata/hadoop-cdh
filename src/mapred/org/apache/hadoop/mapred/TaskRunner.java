@@ -220,7 +220,7 @@ abstract class TaskRunner extends Thread {
         classPath.append(sep);
         classPath.append(new File(jobCacheDir, "classes"));
         classPath.append(sep);
-        classPath.append(jobCacheDir);
+        classPath.append(new File(jobCacheDir, "job.jar"));
        
       }
 

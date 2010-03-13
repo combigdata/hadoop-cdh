@@ -33,12 +33,21 @@ public class RunJar {
 
   /** Unpack a jar file into a directory. */
   public static void unJar(File jarFile, File toDir) throws IOException {
+    unJar(jarFile, toDir, JarEntryFilter.ACCEPT_ALL);
+  }
+
+  /**
+   * Unpack entries inside a jar file that match a certain filter
+   * into a directory.
+   */
+  public static void unJar(File jarFile, File toDir, JarEntryFilter filter)
+    throws IOException {
     JarFile jar = new JarFile(jarFile);
     try {
       Enumeration entries = jar.entries();
       while (entries.hasMoreElements()) {
         JarEntry entry = (JarEntry)entries.nextElement();
-        if (!entry.isDirectory()) {
+        if (!entry.isDirectory() && filter.accept(entry)) {
           InputStream in = jar.getInputStream(entry);
           try {
             File file = new File(toDir, entry.getName());
@@ -66,6 +75,26 @@ public class RunJar {
     } finally {
       jar.close();
     }
+  }
+
+  /**
+   * Simple "Predicate" interface to filter the entries inside a jar
+   * that are to be extracted.
+   */
+  public interface JarEntryFilter {
+    /**
+     * Implementations should return true if the entry should be unpacked.
+     * Note that directories are only unpacked implicitly by the files inside
+     * them, so this will only be called on file entries.
+     */
+    public boolean accept(JarEntry entry);
+
+    /** Unpacks all files */
+    public static final JarEntryFilter ACCEPT_ALL = new JarEntryFilter() {
+        public final boolean accept(JarEntry entry) {
+          return true;
+        }
+      };
   }
 
   /** Run a Hadoop job jar.  If the main class is not in the jar's manifest,
