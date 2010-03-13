@@ -260,7 +260,6 @@
       name="mockito-all"
       rev="${mockito-all.version}"
       conf="common->master"/>
-    </dependencies>
     <dependency org="org.codehaus.jackson"
       name="jackson-mapper-asl"
       rev="1.0.1"
