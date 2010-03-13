@@ -746,7 +746,6 @@ public class TaskInProgress {
   /**
    * Get the status of the specified task
    * @param taskid
-   * @return
    */
   public TaskStatus getTaskStatus(TaskAttemptID taskid) {
     return taskStatuses.get(taskid);
