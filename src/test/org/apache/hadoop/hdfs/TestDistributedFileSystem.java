@@ -131,13 +131,11 @@ public class TestDistributedFileSystem extends junit.framework.TestCase {
     final MiniDFSCluster cluster = new MiniDFSCluster(conf, 2, true, null);
     final FileSystem hdfs = cluster.getFileSystem();
 
-    final String hftpuri = "hftp://127.0.0.1:" +
-      cluster.getNameNode().getHttpAddress().getPort();
+    String hftpuri = "hftp://" + conf.get("dfs.http.address");
 
     System.out.println("hftpuri=" + hftpuri);
     final FileSystem hftp = new Path(hftpuri).getFileSystem(conf);
-    System.out.println("hftpuri back=" + hftp.getUri());
-    assertEquals(hftp.getUri().toString(), hftpuri.toString());
+    hftpuri = hftp.getUri().toString();
 
     final String dir = "/filechecksum";
     final int block_size = 1024;
