@@ -255,13 +255,25 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    * added.
    * @param name file name. File should be present in the classpath.
    */
-  public static synchronized void addDefaultResource(String name) {
-    if(!defaultResources.contains(name)) {
+  public static void addDefaultResource(String name) {
+    // The lock heirarchy is that we must always lock
+    // instances before locking the class. Since reloadConfiguration
+    // is synchronized on the instance, we must not call conf.reloadConfiguration
+    // while holding a lock on Configuration.class. Otherwise we could deadlock
+    // if that conf is attempting to lock the Class
+    ArrayList<Configuration> toReload;
+    synchronized (Configuration.class) {
+      if(defaultResources.contains(name)) {
+        return;
+      }
       defaultResources.add(name);
-      for(Configuration conf : REGISTRY.keySet()) {
-        if(conf.loadDefaults) {
-          conf.reloadConfiguration();
-        }
+      // Make a copy so we don't iterate while not holding the lock
+      toReload = new ArrayList<Configuration>(REGISTRY.size());
+      toReload.addAll(REGISTRY.keySet());
+    }
+    for(Configuration conf : toReload) {
+      if(conf.loadDefaults) {
+        conf.reloadConfiguration();
       }
     }
   }
@@ -1075,11 +1087,14 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
                              boolean quiet) {
     if(loadDefaults) {
       // To avoid addResource causing a ConcurrentModificationException
-      synchronized(Configuration.class) {
-        for (String resource : defaultResources) {
-          loadResource(properties, resource, quiet);
-        }
-      }    
+      ArrayList<String> toLoad;
+      synchronized (Configuration.class) {
+        toLoad = new ArrayList<String>(defaultResources);
+      }
+      for (String resource : toLoad) {
+        loadResource(properties, resource, quiet);
+      }
+
       //support the hadoop-site.xml as a deprecated case
       if(getResource("hadoop-site.xml")!=null) {
         loadResource(properties, "hadoop-site.xml", quiet);
