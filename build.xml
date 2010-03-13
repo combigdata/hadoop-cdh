@@ -1144,6 +1144,7 @@
 
     <mkdir dir="${dist.dir}"/>
     <mkdir dir="${dist.dir}/lib"/>
+    <mkdir dir="${dist.dir}/pids"/>
     <mkdir dir="${dist.dir}/contrib"/>
     <mkdir dir="${dist.dir}/bin"/>
     <copy todir="${dist.dir}/lib" includeEmptyDirs="false" flatten="true">

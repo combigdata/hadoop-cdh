@@ -104,6 +104,10 @@ fi
 # Allow alternate conf dir location.
 HADOOP_CONF_DIR="${HADOOP_CONF_DIR:-$HADOOP_HOME/conf}"
 
+if [ -d $HADOOP_HOME/pids ]; then
+HADOOP_PID_DIR="${HADOOP_PID_DIR:-$HADOOP_HOME/pids}"
+fi
+
 #check to see it is specified whether to use the slaves or the
 # masters file
 if [ $# -gt 1 ]
