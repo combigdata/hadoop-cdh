@@ -27,24 +27,33 @@
   String type = task.get(Keys.TASK_TYPE);
 %>
 <html>
+<head>
+<title><%=taskid %> attempts for <%=jobid %></title>
+<link rel="stylesheet" type="text/css" href="/static/hadoop.css">
+<link rel="icon" type="image/vnd.microsoft.icon" href="/static/images/favicon.ico" />
+</head>
 <body>
 <h2><%=taskid %> attempts for <a href="jobdetailshistory.jsp?jobid=<%=jobid%>&&logFile=<%=encodedLogFileName%>"> <%=jobid %> </a></h2>
 <center>
-<table border="2" cellpadding="5" cellspacing="2">
-<tr><td>Task Id</td><td>Start Time</td>
+<table class="jobtasks datatable">
+<thead>
+<tr><th>Task Id</th><th>Start Time</th>
 <%	
   if (Values.REDUCE.name().equals(type)) {
 %>
-    <td>Shuffle Finished</td><td>Sort Finished</td>
+    <th>Shuffle Finished</th><th>Sort Finished</th>
 <%
   }
 %>
-<td>Finish Time</td><td>Host</td><td>Error</td><td>Task Logs</td></tr>
+<th>Finish Time</th><th>Host</th><th>Error</th><th>Task Logs</th></tr>
+</thead>
+<tbody>
 <%
   for (JobHistory.TaskAttempt attempt : task.getTaskAttempts().values()) {
     printTaskAttempt(attempt, type, out);
   }
 %>
+</tbody>
 </table>
 </center>
 <%	

@@ -124,9 +124,11 @@
       return;
     }
     	
-    out.print("<table border=2 cellpadding=\"5\" cellspacing=\"2\">");
+    out.print("<table class=\"jobtasks datatable\">");
+    out.print("<thead>");
     out.print("<tr><th>Attempt</th><th>Task</th><th>Machine</th><th>State</th>" +
               "<th>Error</th><th>Logs</th></tr>\n");
+    out.print("</thead><tbody>\n");
     if (includeMap) {
       TaskInProgress[] tips = job.getMapTasks();
       for(int i=0; i < tips.length; ++i) {
@@ -139,6 +141,7 @@
         printFailedAttempts(out, tracker, jobId, tips[i], state);
       }
     }
+    out.print("</tbody>\n");
     out.print("</table>\n");
   }
 %>
@@ -155,7 +158,11 @@
 %>
 
 <html>
+<head>
 <title>Hadoop <%=jobId%> failures on <%=trackerName%></title>
+<link rel="stylesheet" type="text/css" href="/static/hadoop.css">
+<link rel="icon" type="image/vnd.microsoft.icon" href="/static/images/favicon.ico" />
+</head>
 <body>
 <h1>Hadoop <a href="jobdetails.jsp?jobid=<%=jobId%>"><%=jobId%></a>
 failures on <a href="jobtracker.jsp"><%=trackerName%></a></h1>

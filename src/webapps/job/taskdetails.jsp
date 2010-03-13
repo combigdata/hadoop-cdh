@@ -90,6 +90,7 @@
 <html>
 <head>
   <link rel="stylesheet" type="text/css" href="/static/hadoop.css">
+  <link rel="icon" type="image/vnd.microsoft.icon" href="/static/images/favicon.ico" />
   <title>Hadoop Task Details</title>
 </head>
 <body>
@@ -106,16 +107,19 @@
 <%
     } else {
 %>
-<table border=2 cellpadding="5" cellspacing="2">
-<tr><td align="center">Task Attempts</td><td>Machine</td><td>Status</td><td>Progress</td><td>Start Time</td> 
+<table class="jobtasks datatable">
+<thead>
+<tr><th align="center">Task Attempts</th><th>Machine</th><th>Status</th><th>Progress</th><th>Start Time</th> 
   <%
    if (!ts[0].getIsMap() && !isCleanupOrSetup) {
    %>
-<td>Shuffle Finished</td><td>Sort Finished</td>
+<th>Shuffle Finished</th><th>Sort Finished</th>
   <%
   }
   %>
-<td>Finish Time</td><td>Errors</td><td>Task Logs</td><td>Counters</td><td>Actions</td></tr>
+<th>Finish Time</th><th>Errors</th><th>Task Logs</th><th>Counters</th><th>Actions</th></tr>
+  </thead>
+  <tbody>
   <%
     for (int i = 0; i < ts.length; i++) {
       TaskStatus status = ts[i];
@@ -247,6 +251,7 @@
         out.println("</td></tr>");
       }
   %>
+</tbody>
 </table>
 </center>
 
@@ -254,7 +259,7 @@
       if (ts[0].getIsMap() && !isCleanupOrSetup) {
 %>
 <h3>Input Split Locations</h3>
-<table border=2 cellpadding="5" cellspacing="2">
+<table class="datatable">
 <%
         for (String split: StringUtils.split(tracker.getTip(
                                          tipidObj).getSplitNodes())) {

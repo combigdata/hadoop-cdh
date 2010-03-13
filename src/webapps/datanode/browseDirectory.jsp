@@ -99,8 +99,9 @@
       }
       else {
         jspHelper.addTableHeader(out);
-        int row=0;
-        jspHelper.addTableRow(out, headings, row++);
+        out.print("<thead>\n");
+        jspHelper.addTableHeadingRow(out, headings);
+        out.print("</thead><tbody>\n");
         String cols [] = new String[headings.length];
         for (int i = 0; i < files.length; i++) {
           //Get the location of the first block of the file
@@ -125,8 +126,9 @@
           cols[6] = files[i].getPermission().toString();
           cols[7] = files[i].getOwner();
           cols[8] = files[i].getGroup();
-          jspHelper.addTableRow(out, cols, row++);
+          jspHelper.addTableRow(out, cols);
         }
+        out.print("</tbody>\n");
         jspHelper.addTableFooter(out);
       }
     } 
@@ -141,14 +143,8 @@
 
 <html>
 <head>
-<style type=text/css>
-<!--
-body 
-  {
-  font-face:sanserif;
-  }
--->
-</style>
+<link rel="stylesheet" type="text/css" href="/static/hadoop.css">
+<link rel="icon" type="image/vnd.microsoft.icon" href="/static/images/favicon.ico" />
 <%JspHelper.createTitle(out, request, request.getParameter("dir")); %>
 </head>
 

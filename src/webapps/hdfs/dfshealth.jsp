@@ -234,6 +234,7 @@
 <html>
 
 <link rel="stylesheet" type="text/css" href="/static/hadoop.css">
+<link rel="icon" type="image/vnd.microsoft.icon" href="/static/images/favicon.ico" />
 <title>Hadoop NameNode <%=namenodeLabel%></title>
     
 <body>

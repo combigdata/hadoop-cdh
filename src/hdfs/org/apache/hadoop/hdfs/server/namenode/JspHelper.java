@@ -161,32 +161,25 @@ public class JspHelper {
       fsn.DFSNodesStatus(live, dead);
   }
   public void addTableHeader(JspWriter out) throws IOException {
-    out.print("<table border=\"1\""+
-              " cellpadding=\"2\" cellspacing=\"2\">");
-    out.print("<tbody>");
+    out.print("<table class=\"nnbrowse datatable\">\n");
   }
-  public void addTableRow(JspWriter out, String[] columns) throws IOException {
+
+  public void addTableHeadingRow(JspWriter out, String[] columns) throws IOException {
     out.print("<tr>");
-    for (int i = 0; i < columns.length; i++) {
-      out.print("<td style=\"vertical-align: top;\"><B>"+columns[i]+"</B><br></td>");
+    for (String col : columns) {
+      out.print("<th>" + col + "</th>\n");
     }
     out.print("</tr>");
   }
-  public void addTableRow(JspWriter out, String[] columns, int row) throws IOException {
+  public void addTableRow(JspWriter out, String[] columns) throws IOException {
     out.print("<tr>");
-      
-    for (int i = 0; i < columns.length; i++) {
-      if (row/2*2 == row) {//even
-        out.print("<td style=\"vertical-align: top;background-color:LightGrey;\"><B>"+columns[i]+"</B><br></td>");
-      } else {
-        out.print("<td style=\"vertical-align: top;background-color:LightBlue;\"><B>"+columns[i]+"</B><br></td>");
-          
-      }
+    for (String col : columns) {
+      out.print("<td>" + col + "</td>\n");
     }
     out.print("</tr>");
   }
   public void addTableFooter(JspWriter out) throws IOException {
-    out.print("</tbody></table>");
+    out.print("</table>");
   }
 
   public String getSafeModeText() {

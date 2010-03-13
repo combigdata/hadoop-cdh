@@ -17,7 +17,7 @@
 %>
 <%!	private static final long serialVersionUID = 1L;
 %>
-<html><body>
+<html>
 <%
   String jobid = request.getParameter("jobid");
   String logFile = request.getParameter("logFile");
@@ -29,6 +29,13 @@
   }
   JobInfo job = (JobInfo)request.getSession().getAttribute("job");
 %>
+<head>
+  <title>Analyze Job - Hadoop Job <%=jobid %></title>
+  <link rel="stylesheet" type="text/css" href="/static/hadoop.css">
+  <link rel="icon" type="image/vnd.microsoft.icon" href="/static/images/favicon.ico" />
+</head>
+
+<body>
 <h2>Hadoop Job <a href="jobdetailshistory.jsp?jobid=<%=jobid%>&&logFile=<%=encodedLogFileName%>"><%=jobid %> </a></h2>
 <b>User : </b> <%=job.get(Keys.USER) %><br/> 
 <b>JobName : </b> <%=job.get(Keys.JOBNAME) %><br/> 
@@ -108,8 +115,11 @@
 <h3>Average time taken by Map tasks: 
 <%=StringUtils.formatTimeDiff(avgMapTime, 0) %></h3>
 <h3>Worse performing map tasks</h3>
-<table border="2" cellpadding="5" cellspacing="2">
-<tr><td>Task Id</td><td>Time taken</td></tr>
+<table class="jobtasks datatable">
+<thead>
+<tr><th>Task Id</th><th>Time taken</th></tr>
+</thead>
+<tbody>
 <%
   for (int i=0;i<showTasks && i<mapTasks.length; i++) {
 %>
@@ -121,6 +131,7 @@
 <%
   }
 %>
+</tbody>
 </table>
 <%  
   Comparator<JobHistory.Task> cFinishMapRed = 
@@ -157,8 +168,10 @@ finished at (relative to the Job launch time):
 <h3>Average time taken by Shuffle: 
 <%=StringUtils.formatTimeDiff(avgShuffleTime, 0) %></h3>
 <h3>Worse performing Shuffle(s)</h3>
-<table border="2" cellpadding="5" cellspacing="2">
-<tr><td>Task Id</td><td>Time taken</td></tr>
+<table class="jobtasks datatable">
+<thead>
+<tr><th>Task Id</th><th>Time taken</th></tr>
+</thead><tbody>
 <%
   for (int i=0;i<showTasks && i<reduceTasks.length; i++) {
 %>
@@ -175,6 +188,7 @@ finished at (relative to the Job launch time):
 <%
   }
 %>
+</tbody>
 </table>
 <%  
   Comparator<JobHistory.Task> cFinishShuffle = 
@@ -220,8 +234,11 @@ finished at (relative to the Job launch time):
 <h3>Average time taken by Reduce tasks: 
 <%=StringUtils.formatTimeDiff(avgReduceTime, 0) %></h3>
 <h3>Worse performing reduce tasks</h3>
-<table border="2" cellpadding="5" cellspacing="2">
-<tr><td>Task Id</td><td>Time taken</td></tr>
+<table class="jobtasks datatable">
+<thead>
+<tr><th>Task Id</th><th>Time taken</th></tr>
+</thead>
+<tbody>
 <%
   for (int i=0;i<showTasks && i<reduceTasks.length; i++) {
 %>
@@ -235,6 +252,7 @@ finished at (relative to the Job launch time):
 <%
   }
 %>
+</tbody>
 </table>
 <%  
   Arrays.sort(reduceTasks, cFinishMapRed);

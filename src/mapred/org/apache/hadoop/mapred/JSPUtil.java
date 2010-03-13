@@ -88,11 +88,13 @@ class JSPUtil {
                                       PRIVATE_ACTIONS_KEY, false);
     StringBuffer sb = new StringBuffer();
     
-    sb.append("<table border=\"1\" cellpadding=\"5\" cellspacing=\"0\">\n");
-
+    sb.append("<table class=\"datatable\">\n");
     if (jobs.size() > 0) {
       if (isModifiable) {
         sb.append("<form action=\"/jobtracker.jsp\" onsubmit=\"return confirmAction();\" method=\"POST\">");
+      }
+      sb.append("<thead>");
+      if (isModifiable) {
         sb.append("<tr>");
         sb.append("<td><input type=\"Button\" onclick=\"selectAll()\" " +
         		"value=\"Select All\" id=\"checkEm\"></td>");
@@ -114,22 +116,25 @@ class JSPUtil {
         sb.append("</nobr></td>");
         sb.append("<td colspan=\"10\">&nbsp;</td>");
         sb.append("</tr>");
-        sb.append("<td>&nbsp;</td>");
-      } else {
-        sb.append("<tr>");
       }
+      sb.append("<tr>");
 
-      sb.append("<td><b>Jobid</b></td><td><b>Priority" +
-      		"</b></td><td><b>User</b></td>");
-      sb.append("<td><b>Name</b></td>");
-      sb.append("<td><b>Map % Complete</b></td>");
-      sb.append("<td><b>Map Total</b></td>");
-      sb.append("<td><b>Maps Completed</b></td>");
-      sb.append("<td><b>Reduce % Complete</b></td>");
-      sb.append("<td><b>Reduce Total</b></td>");
-      sb.append("<td><b>Reduces Completed</b></td>");
-      sb.append("<td><b>Job Scheduling Information</b></td>");
+      if (isModifiable) {
+        sb.append("<td>&nbsp;</td>");
+      }
+      sb.append("<th>");
+      sb.append("<b>Jobid</b></th><th><b>Priority" +
+      		"</b></th><th><b>User</b></th>");
+      sb.append("<th><b>Name</b></th>");
+      sb.append("<th><b>Map % Complete</b></th>");
+      sb.append("<th><b>Map Total</b></th>");
+      sb.append("<th><b>Maps Completed</b></th>");
+      sb.append("<th><b>Reduce % Complete</b></th>");
+      sb.append("<th><b>Reduce Total</b></th>");
+      sb.append("<th><b>Reduces Completed</b></th>");
+      sb.append("<th><b>Job Scheduling Information</b></th>");
       sb.append("</tr>\n");
+      sb.append("</thead><tbody>");
       for (Iterator<JobInProgress> it = jobs.iterator(); it.hasNext(); ++rowId) {
         JobInProgress job = it.next();
         JobProfile profile = job.getProfile();
@@ -169,6 +174,7 @@ class JSPUtil {
             + "</td><td>" + schedulingInfo
             + "</td></tr>\n");
       }
+      sb.append("</tbody>");
       if (isModifiable) {
         sb.append("</form>\n");
       }

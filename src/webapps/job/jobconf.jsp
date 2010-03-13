@@ -21,9 +21,11 @@
 %>
   
 <html>
-
+<head>
 <title>Job Configuration: JobId - <%= jobId %></title>
-
+<link rel="stylesheet" type="text/css" href="/static/hadoop.css">
+<link rel="icon" type="image/vnd.microsoft.icon" href="/static/images/favicon.ico" />
+</head>
 <body>
 <h2>Job Configuration: JobId - <%= jobId %></h2><br>
 

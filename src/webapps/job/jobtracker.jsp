@@ -65,6 +65,7 @@
 <head>
 <title><%= trackerName %> Hadoop Map/Reduce Administration</title>
 <link rel="stylesheet" type="text/css" href="/static/hadoop.css">
+<link rel="icon" type="image/vnd.microsoft.icon" href="/static/images/favicon.ico" />
 <script type="text/javascript" src="/static/jobtracker.js"></script>
 </head>
 <body>

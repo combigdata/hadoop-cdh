@@ -16,9 +16,11 @@
 %>
 
 <html>
-
+<head>
 <title><%= trackerName %> Task Tracker Status</title>
-
+<link rel="stylesheet" type="text/css" href="/static/hadoop.css">
+<link rel="icon" type="image/vnd.microsoft.icon" href="/static/images/favicon.ico" />
+</head>
 <body>
 <h1><%= trackerName %> Task Tracker Status</h1>
 <img src="/static/hadoop-logo.jpg"/><br>

@@ -367,6 +367,8 @@
 <html>
 <head>
 <%JspHelper.createTitle(out, request, request.getParameter("filename")); %>
+<link rel="stylesheet" type="text/css" href="/static/hadoop.css">
+<link rel="icon" type="image/vnd.microsoft.icon" href="/static/images/favicon.ico" />
 </head>
 <body onload="document.goto.dir.focus()">
 <% 

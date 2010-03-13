@@ -32,14 +32,15 @@
       out.print("There are currently no known " + type + " Task Trackers.");
     } else {
       out.print("<center>\n");
-      out.print("<table border=\"2\" cellpadding=\"5\" cellspacing=\"2\">\n");
-      out.print("<tr><td align=\"center\" colspan=\"6\"><b>Task Trackers</b></td></tr>\n");
-      out.print("<tr><td><b>Name</b></td><td><b>Host</b></td>" +
-                "<td><b># running tasks</b></td>" +
-                "<td><b>Max Map Tasks</b></td>" +
-                "<td><b>Max Reduce Tasks</b></td>" +
-                "<td><b>Failures</b></td>" +
-                "<td><b>Seconds since heartbeat</b></td></tr>\n");
+      out.print("<table class=\"datatable\">\n");
+      out.print("<thead>\n");
+      out.print("<tr><th><b>Name</b></th><th><b>Host</b></th>" +
+                "<th><b># running tasks</b></th>" +
+                "<th><b>Max Map Tasks</b></th>" +
+                "<th><b>Max Reduce Tasks</b></th>" +
+                "<th><b>Failures</b></th>" +
+                "<th><b>Seconds since heartbeat</b></th></tr>\n");
+      out.print("</thead><tbody>");
       int maxFailures = 0;
       String failureKing = null;
       for (Iterator it = c.iterator(); it.hasNext(); ) {
@@ -67,6 +68,7 @@
                   "</td><td>" + numFailures + 
                   "</td><td>" + sinceHeartbeat + "</td></tr>\n");
       }
+      out.print("</tbody>\n");
       out.print("</table>\n");
       out.print("</center>\n");
       if (maxFailures > 0) {
@@ -79,9 +81,11 @@
 %>
 
 <html>
-
+<head>
 <title><%=trackerName%> Hadoop Machine List</title>
-
+<link rel="stylesheet" type="text/css" href="/static/hadoop.css">
+<link rel="icon" type="image/vnd.microsoft.icon" href="/static/images/favicon.ico" />
+</head>
 <body>
 <h1><a href="jobtracker.jsp"><%=trackerName%></a> Hadoop Machine List</h1>
 

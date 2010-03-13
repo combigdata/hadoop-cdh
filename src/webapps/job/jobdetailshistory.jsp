@@ -28,7 +28,16 @@
     JobInfo job = (JobInfo)request.getSession().getAttribute("job");
     FileSystem fs = (FileSystem)request.getSession().getAttribute("fs");
 %>
-<html><body>
+<html>
+<head>
+<title>
+Hadoop Job <%=jobid %> on History Viewer
+</title>
+<link rel="stylesheet" type="text/css" href="/static/hadoop.css">
+<link rel="icon" type="image/vnd.microsoft.icon" href="/static/images/favicon.ico" />
+</head>
+<body>
+
 <h2>Hadoop Job <%=jobid %> on <a href="jobhistory.jsp">History Viewer</a></h2>
 
 <b>User: </b> <%=job.get(Keys.USER) %><br/> 
@@ -135,12 +144,12 @@
 <b><a href="analysejobhistory.jsp?jobid=<%=jobid %>&logFile=<%=encodedLogFileName%>">Analyse This Job</a></b> 
 <hr/>
 <center>
-<table border="2" cellpadding="5" cellspacing="2">
+<table>
 <tr>
-<td>Kind</td><td>Total Tasks(successful+failed+killed)</td><td>Successful tasks</td><td>Failed tasks</td><td>Killed tasks</td><td>Start Time</td><td>Finish Time</td>
+<th>Kind</th><th>Total Tasks(successful+failed+killed)</th><th>Successful tasks</th><th>Failed tasks</th><th>Killed tasks</th><th>Start Time</th><th>Finish Time</th>
 </tr>
 <tr>
-<td>Setup</td>
+<th>Setup</th>
     <td><a href="jobtaskshistory.jsp?jobid=<%=jobid %>&logFile=<%=encodedLogFileName%>&taskType=<%=Values.SETUP.name() %>&status=all">
         <%=totalSetups%></a></td>
     <td><a href="jobtaskshistory.jsp?jobid=<%=jobid %>&logFile=<%=encodedLogFileName%>&taskType=<%=Values.SETUP.name() %>&status=<%=Values.SUCCESS %>">
@@ -153,7 +162,7 @@
     <td><%=StringUtils.getFormattedTimeWithDiff(dateFormat, setupFinished, setupStarted) %></td>
 </tr>
 <tr>
-<td>Map</td>
+<th>Map</th>
     <td><a href="jobtaskshistory.jsp?jobid=<%=jobid %>&logFile=<%=encodedLogFileName%>&taskType=<%=Values.MAP.name() %>&status=all">
         <%=totalMaps %></a></td>
     <td><a href="jobtaskshistory.jsp?jobid=<%=jobid %>&logFile=<%=encodedLogFileName%>&taskType=<%=Values.MAP.name() %>&status=<%=Values.SUCCESS %>">
@@ -166,7 +175,7 @@
     <td><%=StringUtils.getFormattedTimeWithDiff(dateFormat, mapFinished, mapStarted) %></td>
 </tr>
 <tr>
-<td>Reduce</td>
+<th>Reduce</th>
     <td><a href="jobtaskshistory.jsp?jobid=<%=jobid %>&logFile=<%=encodedLogFileName%>&taskType=<%=Values.REDUCE.name() %>&status=all">
         <%=totalReduces%></a></td>
     <td><a href="jobtaskshistory.jsp?jobid=<%=jobid %>&logFile=<%=encodedLogFileName%>&taskType=<%=Values.REDUCE.name() %>&status=<%=Values.SUCCESS %>">
@@ -179,7 +188,7 @@
     <td><%=StringUtils.getFormattedTimeWithDiff(dateFormat, reduceFinished, reduceStarted) %></td>
 </tr>
 <tr>
-<td>Cleanup</td>
+<th>Cleanup</th>
     <td><a href="jobtaskshistory.jsp?jobid=<%=jobid %>&logFile=<%=encodedLogFileName%>&taskType=<%=Values.CLEANUP.name() %>&status=all">
         <%=totalCleanups%></a></td>
     <td><a href="jobtaskshistory.jsp?jobid=<%=jobid %>&logFile=<%=encodedLogFileName%>&taskType=<%=Values.CLEANUP.name() %>&status=<%=Values.SUCCESS %>">

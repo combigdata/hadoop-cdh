@@ -46,8 +46,11 @@
     }
 %>
 
-<html>
+<html><head>
 <title>Hadoop <%=jobId%>'s black-listed tasktrackers</title>
+<link rel="stylesheet" type="text/css" href="/static/hadoop.css">
+<link rel="icon" type="image/vnd.microsoft.icon" href="/static/images/favicon.ico" />
+</head>
 <body>
 <h1>Hadoop <a href="jobdetails.jsp?jobid=<%=jobId%>"><%=jobId%></a> - 
 Black-listed task-trackers</h1>

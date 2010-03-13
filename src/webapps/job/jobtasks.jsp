@@ -51,6 +51,7 @@
   <head>
     <title>Hadoop <%=type%> task list for <%=jobid%> on <%=trackerName%></title>
     <link rel="stylesheet" type="text/css" href="/static/hadoop.css">
+    <link rel="icon" type="image/vnd.microsoft.icon" href="/static/images/favicon.ico" />
   </head>
 <body>
 <h1>Hadoop <%=type%> task list for 
@@ -85,9 +86,11 @@
     out.print("<h2>" + Character.toUpperCase(state.charAt(0)) 
               + state.substring(1).toLowerCase() + " Tasks</h2>");
     out.print("<center>");
-    out.print("<table border=2 cellpadding=\"5\" cellspacing=\"2\">");
-    out.print("<tr><td align=\"center\">Task</td><td>Complete</td><td>Status</td>" +
-              "<td>Start Time</td><td>Finish Time</td><td>Errors</td><td>Counters</td></tr>");
+    out.print("<table class=\"jobtasks datatable\">");
+    out.print("<thead>");
+    out.print("<tr><th align=\"center\">Task</th><th>Complete</th><th>Status</th>" +
+              "<th>Start Time</th><th>Finish Time</th><th>Errors</th><th>Counters</th></tr>");
+    out.print("</thead><tbody>");
     if (end_index > report_len){
         end_index = report_len;
     }
@@ -114,6 +117,7 @@
              "\">" + report.getCounters().size() +
              "</a></td></tr>");
     }
+    out.print("</tbody>");
     out.print("</table>");
     out.print("</center>");
   }

@@ -37,9 +37,9 @@ window.location.href = url;
 }
 //-->
 </script>
-<link rel="stylesheet" type="text/css" href="/static/hadoop.css">
 <title><%= trackerName %> Hadoop Map/Reduce History Viewer</title>
 <link rel="stylesheet" type="text/css" href="/static/hadoop.css">
+<link rel="icon" type="image/vnd.microsoft.icon" href="/static/images/favicon.ico" />
 </head>
 <body>
 <h1> <a href="jobtracker.jsp"><%= trackerName %></a> Hadoop Map/Reduce 
@@ -201,12 +201,14 @@ window.location.href = url;
     // print the navigation info (top)
     printNavigation(pageno, size, maxPageNo, search, out);
 
-    out.print("<table align=center border=2 cellpadding=\"5\" cellspacing=\"2\">");
+    out.print("<table class=\"datatable\">");
+    out.print("<thead>\n");
     out.print("<tr>");
-    out.print("<td>Job tracker Host Name</td>" +
-              "<td>Job tracker Start time</td>" +
-              "<td>Job Id</td><td>Name</td><td>User</td>") ; 
+    out.print("<th>Job tracker Host Name</th>" +
+              "<th>Job tracker Start time</th>" +
+              "<th>Job Id</th><th>Name</th><th>User</th>") ; 
     out.print("</tr>"); 
+    out.print("</thead><tbody>\n");
     
     Set<String> displayedJobs = new HashSet<String>();
     for (int i = start - 1; i < start + length - 1; ++i) {
@@ -243,6 +245,7 @@ window.location.href = url;
 </center> 
 <%
     } // end while trackers 
+    out.print("</tbody>");
     out.print("</table>");
 
     // show the navigation info (bottom)

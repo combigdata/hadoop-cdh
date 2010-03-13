@@ -26,6 +26,7 @@ private static final long serialVersionUID = 526456771152222127L;
 <head>
 <title>Queue details for <%=queueName!=null?queueName:""%> </title>
 <link rel="stylesheet" type="text/css" href="/static/hadoop.css">
+<link rel="icon" type="image/vnd.microsoft.icon" href="/static/images/favicon.ico" />
 <script type="text/javascript" src="/static/jobtracker.js"></script>
 </head>
 <body>

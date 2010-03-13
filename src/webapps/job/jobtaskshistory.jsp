@@ -31,11 +31,19 @@
   Map<String, JobHistory.Task> tasks = job.getAllTasks(); 
 %>
 <html>
+<head>
+  <title><%=taskStatus%> <%=taskType %> task list for <%=jobid %></title>
+  <link rel="stylesheet" type="text/css" href="/static/hadoop.css">
+  <link rel="icon" type="image/vnd.microsoft.icon" href="/static/images/favicon.ico" />
+</head>
 <body>
 <h2><%=taskStatus%> <%=taskType %> task list for <a href="jobdetailshistory.jsp?jobid=<%=jobid%>&&logFile=<%=encodedLogFileName%>"><%=jobid %> </a></h2>
 <center>
-<table border="2" cellpadding="5" cellspacing="2">
-<tr><td>Task Id</td><td>Start Time</td><td>Finish Time<br/></td><td>Error</td></tr>
+<table class="jobtasks datatable">
+<thead>
+<tr><th>Task Id</th><th>Start Time</th><th>Finish Time<br/></th><th>Error</th></tr>
+</thead>
+<tbody>
 <%
   for (JobHistory.Task task : tasks.values()) {
     if (taskType.equals(task.get(Keys.TASK_TYPE))){
@@ -49,6 +57,7 @@
     }
   }
 %>
+</tbody>
 </table>
 <%!
   private void printTask(String jobid, String logFile,

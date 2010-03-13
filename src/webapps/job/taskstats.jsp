@@ -40,6 +40,8 @@
 <html>
   <head>
     <title>Counters for <%=taskid%></title>
+    <link rel="stylesheet" type="text/css" href="/static/hadoop.css">
+    <link rel="icon" type="image/vnd.microsoft.icon" href="/static/images/favicon.ico" />
   </head>
 <body>
 <h1>Counters for <%=taskid%></h1>
