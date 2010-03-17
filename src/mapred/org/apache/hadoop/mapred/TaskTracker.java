@@ -54,7 +54,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.filecache.TrackerDistributedCacheManager;
-import org.apache.hadoop.mapreduce.server.tasktracker.Localizer;
+import org.apache.hadoop.mapreduce.server.tasktracker.*;
+import org.apache.hadoop.mapreduce.server.tasktracker.userlogs.*;
 import org.apache.hadoop.fs.DF;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -128,11 +129,6 @@ public class TaskTracker
   @Deprecated
   static final String MAPRED_TASKTRACKER_PMEM_RESERVED_PROPERTY =
      "mapred.tasktracker.pmem.reserved";
-
-  static final String MAP_USERLOG_RETAIN_SIZE =
-      "mapreduce.cluster.map.userlog.retain-size";
-  static final String REDUCE_USERLOG_RETAIN_SIZE =
-      "mapreduce.cluster.reduce.userlog.retain-size";
 
   static final long WAIT_FOR_DONE = 3 * 1000;
   private int httpPort;
@@ -277,7 +273,7 @@ public class TaskTracker
   private long reduceSlotSizeMemoryOnTT = JobConf.DISABLED_MEMORY_LIMIT;
   private long totalMemoryAllottedForTasks = JobConf.DISABLED_MEMORY_LIMIT;
 
-  private TaskLogsMonitor taskLogsMonitor;
+  private UserLogManager userLogManager;
 
   static final String MAPRED_TASKTRACKER_MEMORY_CALCULATOR_PLUGIN_PROPERTY =
       "mapred.tasktracker.memory_calculator_plugin";
@@ -459,12 +455,12 @@ public class TaskTracker
     }
   }
 
-  TaskLogsMonitor getTaskLogsMonitor() {
-    return this.taskLogsMonitor;
+  UserLogManager getUserLogManager() {
+    return this.userLogManager;
   }
 
-  void setTaskLogsMonitor(TaskLogsMonitor t) {
-    this.taskLogsMonitor = t;
+  void setUserLogManager(UserLogManager u) {
+    this.userLogManager = u;
   }
 
   public static String getUserDir(String user) {
@@ -724,9 +720,7 @@ public class TaskTracker
 
     initializeMemoryManagement();
 
-    setTaskLogsMonitor(new TaskLogsMonitor(getMapUserLogRetainSize(),
-        getReduceUserLogRetainSize()));
-    getTaskLogsMonitor().start();
+    getUserLogManager().clearOldUserLogs(fConf);
 
     setIndexCache(new IndexCache(this.fConf));
 
@@ -964,10 +958,8 @@ public class TaskTracker
                               new LocalDirAllocator("mapred.local.dir");
 
   // intialize the job directory
-  @SuppressWarnings("unchecked")
-  private void localizeJob(TaskInProgress tip) 
+  RunningJob localizeJob(TaskInProgress tip) 
   throws IOException, InterruptedException {
-    Path localJarFile = null;
     Task t = tip.getTask();
     JobID jobId = t.getJobID();
     RunningJob rjob = addTaskToJob(jobId, tip);
@@ -978,7 +970,8 @@ public class TaskTracker
     synchronized (rjob) {
       if (!rjob.localized) {
         JobConf localJobConf = localizeJobFiles(t, rjob);
-        
+        // initialize job log directory
+        initializeJobLogDir(jobId);
         // Now initialize the job via task-controller so as to set
         // ownership/permissions of jars, job-work-dir. Note that initializeJob
         // should be the last call after every other directory/file to be
@@ -996,7 +989,7 @@ public class TaskTracker
         rjob.localized = true;
       }
     }
-    launchTaskForJob(tip, new JobConf(rjob.jobConf)); 
+    return rjob;
   }
 
   /**
@@ -1071,6 +1064,15 @@ public class TaskTracker
     localizeJobJarFile(userName, jobId, userFs, localJobConf);
 
     return localJobConf;
+  }
+
+  // create job userlog dir
+  void initializeJobLogDir(JobID jobId) {
+    // remove it from tasklog cleanup thread first,
+    // it might be added there because of tasktracker reinit or restart
+    JobStartedEvent jse = new JobStartedEvent(jobId);
+    getUserLogManager().addLogEvent(jse);
+    localizer.initializeJobLogDir(jobId);
   }
 
   /**
@@ -1211,10 +1213,6 @@ public class TaskTracker
     this.mapLauncher.interrupt();
     this.reduceLauncher.interrupt();
 
-    // All tasks are killed. So, they are removed from TaskLog monitoring also.
-    // Interrupt the monitor.
-    getTaskLogsMonitor().interrupt();
-
     jvmManager.stop();
     
     // shutdown RPC connections
@@ -1289,7 +1287,8 @@ public class TaskTracker
     server.start();
     this.httpPort = server.getPort();
     checkJettyPort(httpPort);
-    
+    // create user log manager
+    setUserLogManager(new UserLogManager(conf));
     // Initialize the jobACLSManager
     jobACLsManager = new TaskTrackerJobACLsManager(this);
     initialize();
@@ -1648,22 +1647,6 @@ public class TaskTracker
     return heartbeatResponse;
   }
 
-  long getMapUserLogRetainSize() {
-    return fConf.getLong(MAP_USERLOG_RETAIN_SIZE, -1);
-  }
-
-  void setMapUserLogRetainSize(long retainSize) {
-    fConf.setLong(MAP_USERLOG_RETAIN_SIZE, retainSize);
-  }
-
-  long getReduceUserLogRetainSize() {
-    return fConf.getLong(REDUCE_USERLOG_RETAIN_SIZE, -1);
-  }
-
-  void setReduceUserLogRetainSize(long retainSize) {
-    fConf.setLong(REDUCE_USERLOG_RETAIN_SIZE, retainSize);
-  }
-
   /**
    * Return the total virtual memory available on this TaskTracker.
    * @return total size of virtual memory.
@@ -1806,7 +1789,7 @@ public class TaskTracker
    * @param action The action with the job
    * @throws IOException
    */
-  private synchronized void purgeJob(KillJobAction action) throws IOException {
+  synchronized void purgeJob(KillJobAction action) throws IOException {
     JobID jobId = action.getJobID();
     LOG.info("Received 'KillJobAction' for job: " + jobId);
     RunningJob rjob = null;
@@ -1831,6 +1814,13 @@ public class TaskTracker
         if (!rjob.keepJobFiles) {
           removeJobFiles(rjob.jobConf.getUser(), rjob.getJobID());
         }
+        // add job to user log manager
+        long now = System.currentTimeMillis();
+        JobCompletedEvent jca = new JobCompletedEvent(rjob
+            .getJobID(), now, UserLogCleaner.getUserlogRetainHours(rjob
+            .getJobConf()));
+        getUserLogManager().addLogEvent(jca);
+
         // Remove this job 
         rjob.tasks.clear();
       }
@@ -2185,7 +2175,8 @@ public class TaskTracker
    */
   void startNewTask(TaskInProgress tip) {
     try {
-      localizeJob(tip);
+      RunningJob rjob = localizeJob(tip);
+      launchTaskForJob(tip, new JobConf(rjob.jobConf)); 
     } catch (Throwable e) {
       String msg = ("Error initializing " + tip.getTask().getTaskID() + 
                     ":\n" + StringUtils.stringifyException(e));
@@ -2245,6 +2236,7 @@ public class TaskTracker
    */
   public void run() {
     try {
+      getUserLogManager().start();
       startCleanupThreads();
       boolean denied = false;
       while (running && !shuttingDown && !denied) {
@@ -2739,8 +2731,9 @@ public class TaskTracker
 
               // Debug-command is run. Do the post-debug-script-exit debug-logs
               // processing. Truncate the logs.
-              getTaskLogsMonitor().addProcessForLogTruncation(
-                  task.getTaskID(), Arrays.asList(task));
+              JvmFinishedEvent jvmFinished = new JvmFinishedEvent(
+                  new JVMInfo(task.getTaskID(), Arrays.asList(task)));
+              getUserLogManager().addLogEvent(jvmFinished);
             }
           }
           taskStatus.setProgress(0.0f);
@@ -3286,6 +3279,10 @@ public class TaskTracker
       
     FetchStatus getFetchStatus() {
       return f;
+    }
+
+    JobConf getJobConf() {
+      return jobConf;
     }
   }
 
