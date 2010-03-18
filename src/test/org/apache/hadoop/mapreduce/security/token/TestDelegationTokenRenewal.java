@@ -23,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 
@@ -62,11 +63,14 @@ public class TestDelegationTokenRenewal {
     
     // create a fake FileSystem (MyFS) and assosiate it
     // with "hdfs" schema.
-    URI uri = new URI(DelegationTokenRenewal.SCHEME+"://localhost:0");
+    InetAddress iaddr = InetAddress.getByName("localhost");
+    String localhostDnsName = iaddr.getCanonicalHostName();
+    URI uri = new URI(DelegationTokenRenewal.SCHEME+"://" + localhostDnsName + ":0");
     System.out.println("scheme is : " + uri.getScheme());
     conf.setClass("fs." + uri.getScheme() + ".impl", MyFS.class, DistributedFileSystem.class);
     FileSystem.setDefaultUri(conf, uri);
     System.out.println("filesystem uri = " + FileSystem.getDefaultUri(conf).toString());
+
   }
   
   private static class MyDelegationTokenSecretManager extends DelegationTokenSecretManager {
@@ -127,7 +131,7 @@ public class TestDelegationTokenRenewal {
    * exception
    */
   static class MyFS extends DistributedFileSystem {
-    int counter=0;
+    volatile int counter=0;
     MyToken token;
     MyToken tokenToRenewIn2Sec;
     

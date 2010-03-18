@@ -99,6 +99,7 @@ import org.apache.hadoop.ipc.RemoteException;
 import org.apache.hadoop.ipc.Server;
 import org.apache.hadoop.net.DNS;
 import org.apache.hadoop.net.NetUtils;
+import org.apache.hadoop.security.SecurityUtil;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.Daemon;
 import org.apache.hadoop.util.DiskChecker;
@@ -252,7 +253,7 @@ public class DataNode extends Configured
            final AbstractList<File> dataDirs) throws IOException {
     super(conf);
     UserGroupInformation.setConfiguration(conf);
-    DFSUtil.login(conf, DFSConfigKeys.DFS_DATANODE_KEYTAB_FILE_KEY, 
+    SecurityUtil.login(conf, DFSConfigKeys.DFS_DATANODE_KEYTAB_FILE_KEY, 
         DFSConfigKeys.DFS_DATANODE_USER_NAME_KEY);
 
     datanodeObject = this;
