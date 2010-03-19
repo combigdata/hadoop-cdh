@@ -25,7 +25,7 @@
   }
 
   Path logFile = new Path(logFileString);
-  String jobId = JSPUtil.getJobID(logFile.getName()).toString();
+  String jobId = JSPUtil.getJobID(logFile.getName());
 
 %>
   

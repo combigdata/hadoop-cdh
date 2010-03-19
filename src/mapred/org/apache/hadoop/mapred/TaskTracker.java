@@ -1043,8 +1043,7 @@ public class TaskTracker
     
     // set the location of the token file into jobConf to transfer 
     // the name to TaskRunner
-    localJobConf.set(TokenCache.JOB_TOKENS_FILENAME,
-        localJobTokenFile.toString());
+    localJobConf.set(TokenCache.JOB_TOKENS_FILENAME, localJobTokenFile);
     // create the 'job-work' directory: job-specific shared directory for use as
     // scratch space by all tasks of the same job running on this TaskTracker.
     Path workDir =

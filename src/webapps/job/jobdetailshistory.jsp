@@ -16,6 +16,7 @@
 %>
 <%!	private static final long serialVersionUID = 1L;
 %>
+
 <%! static SimpleDateFormat dateFormat = new SimpleDateFormat("d-MMM-yyyy HH:mm:ss") ; %>
 <%
     String logFile = request.getParameter("logFile");

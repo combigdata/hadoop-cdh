@@ -169,8 +169,8 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
   // in a second
   static final String JT_HEARTBEATS_IN_SECOND = "mapred.heartbeats.in.second";
   private int NUM_HEARTBEATS_IN_SECOND;
-  private final int DEFAULT_NUM_HEARTBEATS_IN_SECOND = 100;
-  private final int MIN_NUM_HEARTBEATS_IN_SECOND = 1;
+  private static final int DEFAULT_NUM_HEARTBEATS_IN_SECOND = 100;
+  private static final int MIN_NUM_HEARTBEATS_IN_SECOND = 1;
   
   // Scaling factor for heartbeats, used for testing only
   static final String JT_HEARTBEATS_SCALING_FACTOR = 
@@ -1629,6 +1629,8 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
       fs.rename(tmpRestartFile, restartFile);
     }
 
+                                   // mapred.JobID::forName returns
+    @SuppressWarnings("unchecked") // mapreduce.JobID
     public void recover() {
       if (!shouldRecover()) {
         // clean up jobs structure
@@ -1691,8 +1693,10 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
           /* THIS PART OF THE CODE IS USELESS. JOB RECOVERY SHOULD BE
            * BACKPORTED (MAPREDUCE-873)
            */
-          job = new JobInProgress(JobTracker.this, conf, null, 
-                                  restartCount, new Credentials() /*HACK*/);
+          job = new JobInProgress(JobTracker.this, conf,
+              new JobInfo((org.apache.hadoop.mapreduce.JobID) id,
+                new Text(user), new Path(getStagingAreaDirInternal(user))),
+              restartCount, new Credentials() /*HACK*/);
 
           // 2. Check if the user has appropriate access
           // Get the user group info for the job's owner
@@ -3740,21 +3744,26 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
    */
   public String getStagingAreaDir() throws IOException {
     try{
-      final String user = UserGroupInformation.getCurrentUser().getShortUserName();
+      final String user =
+        UserGroupInformation.getCurrentUser().getShortUserName();
       return mrOwner.doAs(new PrivilegedExceptionAction<String>() {
         @Override
         public String run() throws Exception {
-          Path stagingRootDir =
-            new Path(conf.get("mapreduce.jobtracker.staging.root.dir",
-                "/tmp/hadoop/mapred/staging"));
-          FileSystem fs = stagingRootDir.getFileSystem(conf);
-          return fs.makeQualified(new Path(stagingRootDir,
-                                    user+"/.staging")).toString();
+          return getStagingAreaDirInternal(user);
         }
       });
     } catch(InterruptedException ie) {
       throw new IOException(ie);
     }
+  }
+
+  private String getStagingAreaDirInternal(String user) throws IOException {
+    final Path stagingRootDir =
+      new Path(conf.get("mapreduce.jobtracker.staging.root.dir",
+            "/tmp/hadoop/mapred/staging"));
+    final FileSystem fs = stagingRootDir.getFileSystem(conf);
+    return fs.makeQualified(new Path(stagingRootDir,
+                              user+"/.staging")).toString();
   }
 
   /**
