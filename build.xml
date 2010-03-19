@@ -1123,6 +1123,7 @@
           <exclude name="${final.name}/contrib/*/bin/*" />
           <exclude name="${final.name}/src/contrib/ec2/bin/*" />
           <exclude name="${final.name}/src/contrib/ec2/bin/image/*" />
+          <exclude name="${final.name}/src/contrib/cloud/src/py/hadoop-*" />
           <include name="${final.name}/**" />
         </tarfileset>
         <tarfileset dir="${build.dir}" mode="755">
@@ -1130,6 +1131,7 @@
           <include name="${final.name}/contrib/*/bin/*" />
           <include name="${final.name}/src/contrib/ec2/bin/*" />
           <include name="${final.name}/src/contrib/ec2/bin/image/*" />
+          <include name="${final.name}/src/contrib/cloud/src/py/hadoop-*" />
         </tarfileset>
       </param.listofitems>
     </macro_tar>
