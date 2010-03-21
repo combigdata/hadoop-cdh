@@ -342,6 +342,7 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
   }
 
   class FSVolume {
+    private File currentDir;
     private FSDir dataDir;
     private File tmpDir;
     private File blocksBeingWritten;     // clients write here
@@ -354,6 +355,7 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
     FSVolume(File currentDir, Configuration conf) throws IOException {
       this.reserved = conf.getLong("dfs.datanode.du.reserved", 0);
       this.dataDir = new FSDir(currentDir);
+      this.currentDir = currentDir;
       boolean supportAppends = conf.getBoolean("dfs.support.append", false);
       File parent = currentDir.getParentFile();
 
@@ -401,8 +403,16 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
       this.dfsUsage.start();
     }
 
+    File getCurrentDir() {
+      return currentDir;
+    }
+    
     void decDfsUsed(long value) {
-      dfsUsage.decDfsUsed(value);
+      // The caller to this method (BlockFileDeleteTask.run()) does
+      // not have locked FSDataset.this yet.
+      synchronized(FSDataset.this) {
+        dfsUsage.decDfsUsed(value);
+      }
     }
     
     long getDfsUsed() throws IOException {
@@ -835,6 +845,8 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
   static  Random random = new Random();
   private int validVolsRequired;
 
+  FSDatasetAsyncDiskService asyncDiskService;
+
   /**
    * An FSDataset has a directory where it loads its data files.
    */
@@ -856,6 +868,11 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
     }
     volumes = new FSVolumeSet(volArray);
     volumes.getVolumeMap(volumeMap);
+    File[] roots = new File[storage.getNumStorageDirs()];
+    for (int idx = 0; idx < storage.getNumStorageDirs(); idx++) {
+      roots[idx] = storage.getStorageDir(idx).getCurrentDir();
+    }
+    asyncDiskService = new FSDatasetAsyncDiskService(roots);
     registerMBean(storage.getStorageID());
   }
 
@@ -1615,22 +1632,10 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
         volumeMap.remove(invalidBlks[i]);
       }
       File metaFile = getMetaFile( f, invalidBlks[i] );
-      long blockSize = f.length()+metaFile.length();
-      if ( !f.delete() || ( !metaFile.delete() && metaFile.exists() ) ) {
-        DataNode.LOG.warn("Unexpected error trying to delete block "
-                          + invalidBlks[i] + " at file " + f);
-        error = true;
-        continue;
-      }
-      v.decDfsUsed(blockSize);
-      DataNode.LOG.info("Deleting block " + invalidBlks[i] + " file " + f);
-      if (f.exists()) {
-        //
-        // This is a temporary check especially for hadoop-1220. 
-        // This will go away in the future.
-        //
-        DataNode.LOG.info("File " + f + " was deleted but still exists!");
-      }
+      long dfsBytes = f.length() + metaFile.length();
+      
+      // Delete the block asynchronously to make sure we can do it fast enough
+      asyncDiskService.deleteAsync(v, f, metaFile, dfsBytes, invalidBlks[i].toString());
     }
     if (error) {
       throw new IOException("Error in deleting blocks.");
@@ -1734,6 +1739,10 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
   public void shutdown() {
     if (mbeanName != null)
       MBeanUtil.unregisterMBean(mbeanName);
+    
+    if (asyncDiskService != null) {
+      asyncDiskService.shutdown();
+    }
     
     if(volumes != null) {
       for (FSVolume volume : volumes.volumes) {
