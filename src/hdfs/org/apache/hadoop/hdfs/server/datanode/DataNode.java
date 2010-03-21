@@ -1537,8 +1537,13 @@ public class DataNode extends Configured
       //check generation stamps
       for(DatanodeID id : datanodeids) {
         try {
-          InterDatanodeProtocol datanode = dnRegistration.equals(id)?
-              this: DataNode.createInterDataNodeProtocolProxy(id, getConf());
+          InterDatanodeProtocol datanode;
+          if (dnRegistration.getHost().equals(id.getHost()) &&
+              dnRegistration.getIpcPort() == id.getIpcPort()) {
+            datanode = this;
+          } else {
+            datanode = DataNode.createInterDataNodeProtocolProxy(id, getConf());
+          }
           BlockMetaDataInfo info = datanode.getBlockMetaDataInfo(block);
           if (info != null && info.getGenerationStamp() >= block.getGenerationStamp()) {
             if (keepLength) {
