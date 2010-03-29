@@ -20,6 +20,7 @@ package org.apache.hadoop.mapreduce.lib.input;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.HashMap;
@@ -78,7 +79,7 @@ public abstract class CombineFileInputFormat<K, V>
   private ArrayList<MultiPathFilter> pools = new  ArrayList<MultiPathFilter>();
 
   // mapping from a rack name to the set of Nodes in the rack 
-  private static HashMap<String, Set<String>> rackToNodes = 
+  private HashMap<String, Set<String>> rackToNodes = 
                             new HashMap<String, Set<String>>();
   /**
    * Specify the maximum size (in bytes) of each split. Each split is
@@ -187,6 +188,16 @@ public abstract class CombineFileInputFormat<K, V>
       return splits;    
     }
 
+    // Convert them to Paths first. This is a costly operation and 
+    // we should do it first, otherwise we will incur doing it multiple
+    // times, one time each for each pool in the next loop.
+    List<Path> newpaths = new LinkedList<Path>();
+    for (int i = 0; i < paths.length; i++) {
+      Path p = new Path(paths[i].toUri().getPath());
+      newpaths.add(p);
+    }
+    paths = null;
+
     // In one single iteration, process all the paths in a single pool.
     // Processing one pool at a time ensures that a split contains paths
     // from a single pool only.
@@ -195,14 +206,11 @@ public abstract class CombineFileInputFormat<K, V>
       
       // pick one input path. If it matches all the filters in a pool,
       // add it to the output set
-      for (int i = 0; i < paths.length; i++) {
-        if (paths[i] == null) {  // already processed
-          continue;
-        }
-        Path p = new Path(paths[i].toUri().getPath());
+      for (Iterator<Path> iter = newpaths.iterator(); iter.hasNext();) {
+        Path p = iter.next();
         if (onepool.accept(p)) {
-          myPaths.add(paths[i]); // add it to my output set
-          paths[i] = null;       // already processed
+          myPaths.add(p); // add it to my output set
+          iter.remove();
         }
       }
       // create splits for all files in this pool.
@@ -210,16 +218,8 @@ public abstract class CombineFileInputFormat<K, V>
                     maxSize, minSizeNode, minSizeRack, splits);
     }
 
-    // Finally, process all paths that do not belong to any pool.
-    ArrayList<Path> myPaths = new ArrayList<Path>();
-    for (int i = 0; i < paths.length; i++) {
-      if (paths[i] == null) {  // already processed
-        continue;
-      }
-      myPaths.add(paths[i]);
-    }
     // create splits for all files that are not in any pool.
-    getMoreSplits(conf, myPaths.toArray(new Path[myPaths.size()]), 
+    getMoreSplits(conf, newpaths.toArray(new Path[newpaths.size()]), 
                   maxSize, minSizeNode, minSizeRack, splits);
 
     // free up rackToNodes map
@@ -259,7 +259,7 @@ public abstract class CombineFileInputFormat<K, V>
     long totLength = 0;
     for (int i = 0; i < paths.length; i++) {
       files[i] = new OneFileInfo(paths[i], conf, 
-                                 rackToBlocks, blockToNodes, nodeToBlocks);
+                                 rackToBlocks, blockToNodes, nodeToBlocks, rackToNodes);
       totLength += files[i].getLength();
     }
 
@@ -457,7 +457,8 @@ public abstract class CombineFileInputFormat<K, V>
     OneFileInfo(Path path, Configuration conf,
                 HashMap<String, List<OneBlockInfo>> rackToBlocks,
                 HashMap<OneBlockInfo, String[]> blockToNodes,
-                HashMap<String, List<OneBlockInfo>> nodeToBlocks)
+                HashMap<String, List<OneBlockInfo>> nodeToBlocks,
+                HashMap<String, Set<String>> rackToNodes)
                 throws IOException {
       this.fileSize = 0;
 
@@ -494,7 +495,7 @@ public abstract class CombineFileInputFormat<K, V>
             }
             blklist.add(oneblock);
             // Add this host to rackToNodes map
-            addHostToRack(oneblock.racks[j], oneblock.hosts[j]);
+            addHostToRack(rackToNodes, oneblock.racks[j], oneblock.hosts[j]);
          }
 
           // add this block to the node --> block map
@@ -558,7 +559,8 @@ public abstract class CombineFileInputFormat<K, V>
     }
   }
 
-  private static void addHostToRack(String rack, String host) {
+  private static void addHostToRack(HashMap<String, Set<String>> rackToNodes,
+                                    String rack, String host) {
     Set<String> hosts = rackToNodes.get(rack);
     if (hosts == null) {
       hosts = new HashSet<String>();
@@ -567,7 +569,7 @@ public abstract class CombineFileInputFormat<K, V>
     hosts.add(host);
   }
   
-  private static List<String> getHosts(List<String> racks) {
+  private List<String> getHosts(List<String> racks) {
     List<String> hosts = new ArrayList<String>();
     for (String rack : racks) {
       hosts.addAll(rackToNodes.get(rack));
