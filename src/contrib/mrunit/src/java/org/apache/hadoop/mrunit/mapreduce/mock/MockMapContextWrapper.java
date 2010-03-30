@@ -56,15 +56,39 @@ public class MockMapContextWrapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT>
     private Pair<KEYIN, VALUEIN> curInput;
     private MockOutputCollector<KEYOUT, VALUEOUT> output;
 
-    public MockMapContext(final List<Pair<KEYIN, VALUEIN>> in, final Counters counters)
-        throws IOException, InterruptedException {
+    /**
+     * Create a new instance with the passed configuration, map key/value input 
+     * pairs and counters
+     * 
+     * @param configuration Configuration for the mapper
+     * @param in input key/value pairs for the mapper
+     * @param counters pre-initialized counter values
+     */
+    public MockMapContext(final Configuration configuration,
+        final List<Pair<KEYIN, VALUEIN>> in,
+        final Counters counters) throws IOException, InterruptedException {
 
-      super(new Configuration(),
+      super(configuration,
             new TaskAttemptID("mrunit-jt", 0, true, 0, 0),
             null, null, new MockOutputCommitter(), new MockReporter(counters), null);
       this.inputIter = in.iterator();
       this.output = new MockOutputCollector<KEYOUT, VALUEOUT>();
     }
+
+    /**
+     * Create a new instance with the passed map key/value input pairs and
+     * counters. A new {@link Configuration} object will be created and used
+     * to configure the mapper
+     * 
+     * @param in input key/value pairs for the mapper
+     * @param counters pre-initialized counter values
+     */
+    public MockMapContext(final List<Pair<KEYIN, VALUEIN>> in,
+        final Counters counters)
+        throws IOException, InterruptedException {
+      this(new Configuration(), in, counters);
+    }
+
 
     @Override
     public InputSplit getInputSplit() {
@@ -114,7 +138,14 @@ public class MockMapContextWrapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT>
     }
   }
 
-  public MockMapContext getMockContext(List<Pair<KEYIN, VALUEIN>> inputs, Counters counters)
+  public MockMapContext getMockContext(Configuration configuration,
+      List<Pair<KEYIN, VALUEIN>> inputs, Counters counters)
+      throws IOException, InterruptedException {
+    return new MockMapContext(configuration, inputs, counters);
+  }
+
+  public MockMapContext getMockContext(
+      List<Pair<KEYIN, VALUEIN>> inputs, Counters counters)
       throws IOException, InterruptedException {
     return new MockMapContext(inputs, counters);
   }
