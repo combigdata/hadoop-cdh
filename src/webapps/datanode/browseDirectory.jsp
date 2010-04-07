@@ -170,7 +170,7 @@
 <body onload="document.goto.dir.focus()">
 <% 
   Configuration conf = 
-    (Configuration) getServletContext().getAttribute("datanode.conf");
+    (Configuration) getServletContext().getAttribute(JspHelper.CURRENT_CONF);
   try {
     generateDirectoryStructure(out,request,response,conf);
   }

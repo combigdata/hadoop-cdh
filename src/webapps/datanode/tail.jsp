@@ -127,7 +127,7 @@
 <form action="/tail.jsp" method="GET">
 <% 
    Configuration conf = 
-     (Configuration) application.getAttribute("datanode.conf");
+     (Configuration) application.getAttribute(JspHelper.CURRENT_CONF);
    generateFileChunks(out, request, conf);
 %>
 </form>
