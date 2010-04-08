@@ -114,7 +114,7 @@ mkdir -p $LIB_DIR
 (cd ${BUILD_DIR} && tar cf - .) | (cd $LIB_DIR && tar xf - )
 # Take out things we've installed elsewhere
 
-for x in docs lib/native c++ src conf ; do
+for x in docs lib/native c++ src conf usr/bin/fuse_dfs contrib/fuse ; do
   rm -rf $LIB_DIR/$x 
 done
 
@@ -191,8 +191,6 @@ cp ${BUILD_DIR}/../../docs/sqoop/sqoop.1.gz $MAN_DIR/man1/sqoop-$APACHE_BRANCH.1
 ############################################################
 
 if [ ! -z "$NATIVE_BUILD_STRING" ]; then
-<<<<<<< HEAD:cloudera/install_hadoop.sh
-=======
   # Fuse 
   mkdir -p $LIB_DIR/bin
   mv  ${BUILD_DIR}/contrib/fuse-dfs/* $LIB_DIR/bin
@@ -205,8 +203,17 @@ if [ "\$HADOOP_HOME" = "" ]
         then export HADOOP_HOME=/usr/lib/hadoop
 fi
 
+if [ -f /etc/default/hadoop-0.20-fuse ] 
+	then . /etc/default/hadoop-0.20-fuse
+fi
+
 if [ "\$JAVA_HOME" = "" ]
-        then export JAVA_HOME=/usr/java/default
+	then if [ -d /usr/java/default ]
+		then JAVA_HOME=/usr/java/default/
+	elif [ -d /usr/lib/jvm/java-6-sun ]
+		then JAVA_HOME=/usr/lib/jvm/java-6-sun
+	fi
+	export JAVA_HOME
 fi
 
 if [ "\$LD_LIBRARY_PATH" = "" ]
@@ -214,15 +221,17 @@ if [ "\$LD_LIBRARY_PATH" = "" ]
         export LD_LIBRARY_PATH=\`dirname \$JVM_LIB\`:/usr/lib/
 
 fi
+for i in \${HADOOP_HOME}/*.jar \${HADOOP_HOME}/lib/*.jar
+        do CLASSPATH+=\$i:
+done
 
 export PATH=\$PATH:\${HADOOP_HOME}/bin/
 
-\${HADOOP_HOME}/bin/fuse_dfs \$@
+env CLASSPATH=\$CLASSPATH \${HADOOP_HOME}/bin/fuse_dfs \$@
 EOF
 
   chmod 755 $fuse_wrapper
 
->>>>>>> da634a1... CLOUDERA-BUILD. Added an RPM for fuse:cloudera/install_hadoop.sh
   # Native compression libs
   mkdir -p $LIB_DIR/lib/native/
   cp -r ${BUILD_DIR}/lib/native/${NATIVE_BUILD_STRING} $LIB_DIR/lib/native/
