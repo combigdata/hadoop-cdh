@@ -310,6 +310,10 @@ public class SecondaryNameNode implements Runnable {
         break;
       }
       try {
+        // We may have lost our ticket since last checkpoint, log in again, just in case
+        if(UserGroupInformation.isSecurityEnabled())
+          UserGroupInformation.getCurrentUser().reloginFromKeytab();
+        
         long now = System.currentTimeMillis();
 
         long size = namenode.getEditLogSize();
@@ -419,9 +423,6 @@ public class SecondaryNameNode implements Runnable {
                             "after creating edits.new");
     }
 
-    // We may have lost our ticket since last checkpoint, log in again, just in case
-    if(UserGroupInformation.isSecurityEnabled())
-      UserGroupInformation.getCurrentUser().reloginFromKeytab();
     downloadCheckpointFiles(sig);   // Fetch fsimage and edits
     doMerge(sig);                   // Do the merge
   
