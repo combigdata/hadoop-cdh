@@ -225,6 +225,7 @@ public class UserGroupInformation {
   // All non-static fields must be read-only caches that come from the subject.
   private final User user;
   private final boolean isKeytab;
+  private final boolean isKrbTkt;
   
   private static final String OS_LOGIN_MODULE_NAME;
   private static final Class<? extends Principal> OS_PRINCIPAL_CLASS;
@@ -366,6 +367,15 @@ public class UserGroupInformation {
     this.subject = subject;
     this.user = subject.getPrincipals(User.class).iterator().next();
     this.isKeytab = !subject.getPrivateCredentials(KerberosKey.class).isEmpty();
+    this.isKrbTkt = !subject.getPrivateCredentials(KerberosTicket.class).isEmpty();
+  }
+  
+  /**
+   * checks if logged in using kerberos
+   * @return true if the subject logged via keytab or has a Kerberos TGT
+   */
+  public boolean hasKerberosCredentials() {
+    return isKeytab || isKrbTkt;
   }
 
   /**
@@ -548,7 +558,7 @@ public class UserGroupInformation {
   throws IOException {
     if (!isSecurityEnabled() || 
         user.getAuthenticationMethod() != AuthenticationMethod.KERBEROS ||
-        isKeytab)
+        !isKrbTkt)
       return;
     LoginContext login = getLogin();
     if (login == null) {
