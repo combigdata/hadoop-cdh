@@ -191,6 +191,7 @@ cp ${BUILD_DIR}/../../docs/sqoop/sqoop.1.gz $MAN_DIR/man1/sqoop-$APACHE_BRANCH.1
 ############################################################
 
 if [ ! -z "$NATIVE_BUILD_STRING" ]; then
+  cp ${CLOUDERA_SOURCE_DIR}/fuse_dfs.1.gz $MAN_DIR/man1/
   # Fuse 
   mkdir -p $LIB_DIR/bin
   mv  ${BUILD_DIR}/contrib/fuse-dfs/* $LIB_DIR/bin
