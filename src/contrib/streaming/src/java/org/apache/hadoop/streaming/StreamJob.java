@@ -430,7 +430,6 @@ public class StreamJob implements Tool {
     Option info = createBoolOption("info", "print verbose output"); 
     Option help = createBoolOption("help", "print this help message"); 
     Option debug = createBoolOption("debug", "print debug output"); 
-    Option inputtagged = createBoolOption("inputtagged", "inputtagged"); 
     
     allOptions = new Options().
       addOption(input).
@@ -457,7 +456,6 @@ public class StreamJob implements Tool {
       addOption(verbose).
       addOption(info).
       addOption(debug).
-      addOption(inputtagged).
       addOption(help);
   }
 
