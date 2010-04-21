@@ -4411,6 +4411,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
    * @throws IOException
    */
   synchronized void enterSafeMode() throws IOException {
+    getEditLog().logSyncAll();
     if (!isInSafeMode()) {
       safeMode = new SafeModeInfo();
       return;
