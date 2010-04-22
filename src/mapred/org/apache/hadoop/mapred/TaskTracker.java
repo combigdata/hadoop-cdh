@@ -2608,8 +2608,9 @@ public class TaskTracker
               String taskSyslog ="";
               String jobConf = task.getJobFile();
               try {
-                Map<LogName, LogFileDetail> allFilesDetails =
-                    TaskLog.getAllLogsFileDetails(task.getTaskID(), false);
+                Map<LogName, LogFileDetail> allFilesDetails = TaskLog
+                    .getAllLogsFileDetails(task.getTaskID(), task
+                        .isTaskCleanupTask());
                 // get task's stdout file
                 taskStdout =
                     TaskLog.getRealTaskLogFilePath(
@@ -2643,8 +2644,8 @@ public class TaskTracker
                           StringUtils.stringifyException(e));
               }
               // Build the command  
-              File stdout = TaskLog.getRealTaskLogFileLocation(
-                                   task.getTaskID(), TaskLog.LogName.DEBUGOUT);
+              File stdout = TaskLog.getTaskLogFile(task.getTaskID(), task
+                  .isTaskCleanupTask(), TaskLog.LogName.DEBUGOUT);
               // add pipes program as argument if it exists.
               String program ="";
               String executable = Submitter.getExecutable(localJobConf);
@@ -2689,8 +2690,9 @@ public class TaskTracker
 
               // Debug-command is run. Do the post-debug-script-exit debug-logs
               // processing. Truncate the logs.
-              JvmFinishedEvent jvmFinished = new JvmFinishedEvent(
-                  new JVMInfo(task.getTaskID(), Arrays.asList(task)));
+              JvmFinishedEvent jvmFinished = new JvmFinishedEvent(new JVMInfo(
+                  TaskLog.getAttemptDir(task.getTaskID(), task
+                      .isTaskCleanupTask()), Arrays.asList(task)));
               getUserLogManager().addLogEvent(jvmFinished);
             }
           }
