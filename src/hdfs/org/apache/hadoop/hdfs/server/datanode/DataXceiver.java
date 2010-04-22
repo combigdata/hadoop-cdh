@@ -213,17 +213,18 @@ class DataXceiver extends Thread implements Runnable, FSConstants {
       out.writeShort(DataTransferProtocol.OP_STATUS_SUCCESS); // send op status
       long read = blockSender.sendBlock(out, baseStream, null); // send data
 
-      if (blockSender.isBlockReadFully()) {
-        // See if client verification succeeded. 
-        // This is an optional response from client.
-        try {
-          if (in.readShort() == DataTransferProtocol.OP_STATUS_CHECKSUM_OK  && 
-              datanode.blockScanner != null) {
+      // If client verification succeeded, and if it's for the whole block,
+      // tell the DataBlockScanner that it's good. This is an optional response
+      // from client. If absent, we close the connection (which is what we
+      // always do anyways).
+      try {
+        if (in.readShort() == DataTransferProtocol.OP_STATUS_CHECKSUM_OK) {
+          if (blockSender.isBlockReadFully() && datanode.blockScanner != null) {
             datanode.blockScanner.verifiedByClient(block);
           }
-        } catch (IOException ignored) {}
-      }
-      
+        }
+      } catch (IOException ignored) {}
+
       datanode.myMetrics.bytesRead.inc((int) read);
       datanode.myMetrics.blocksRead.inc();
     } catch ( SocketException ignored ) {

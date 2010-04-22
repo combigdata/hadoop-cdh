@@ -1522,7 +1522,7 @@ public class DFSClient implements FSConstants, java.io.Closeable {
       return readFully(this, buf, offset, len);
     }
     
-    /* When the reader reaches end of a block and there are no checksum
+    /* When the reader reaches end of the read and there are no checksum
      * errors, we send OP_STATUS_CHECKSUM_OK to datanode to inform that 
      * checksum was verified and there was no error.
      */ 
