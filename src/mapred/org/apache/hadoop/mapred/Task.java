@@ -478,7 +478,9 @@ abstract public class Task implements Writable, Configurable {
       setState(TaskStatus.State.RUNNING);
     }
     if (useNewApi) {
-      LOG.debug("using new api for output committer");
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("using new api for output committer");
+      }
       outputFormat =
         ReflectionUtils.newInstance(taskContext.getOutputFormatClass(), job);
       committer = outputFormat.getOutputCommitter(taskContext);
@@ -598,8 +600,10 @@ abstract public class Task implements Writable, Configurable {
             Thread.sleep(PROGRESS_INTERVAL);
           } 
           catch (InterruptedException e) {
-            LOG.debug(getTaskID() + " Progress/ping thread exiting " +
-            "since it got interrupted");
+            if (LOG.isDebugEnabled()) {
+              LOG.debug(getTaskID() + " Progress/ping thread exiting " +
+                "since it got interrupted");
+            }
             break;
           }
 
@@ -668,7 +672,9 @@ abstract public class Task implements Writable, Configurable {
     SortedRanges.Range range = 
       new SortedRanges.Range(currentRecStartIndex, len);
     taskStatus.setNextRecordRange(range);
-    LOG.debug("sending reportNextRecordRange " + range);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("sending reportNextRecordRange " + range);
+    }
     umbilical.reportNextRecordRange(taskId, range);
   }
 
