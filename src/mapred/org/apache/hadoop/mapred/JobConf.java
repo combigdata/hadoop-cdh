@@ -171,6 +171,8 @@ public class JobConf extends Configuration {
 
   public static final String JOB_LEVEL_AUTHORIZATION_ENABLING_FLAG = 
 	    "mapreduce.cluster.job-authorization-enabled";
+  static final String MR_ACLS_ENABLED = "mapred.acls.enabled";
+
   static final String MR_SUPERGROUP = "mapred.permissions.supergroup";
 
   /**

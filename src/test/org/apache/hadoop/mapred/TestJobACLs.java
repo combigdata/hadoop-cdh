@@ -30,8 +30,8 @@ import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.JobPriority;
 import org.apache.hadoop.mapred.JobStatus;
-import org.apache.hadoop.mapred.JobTracker;
 import org.apache.hadoop.mapred.RunningJob;
+import org.apache.hadoop.mapred.QueueManager.QueueOperation;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.junit.Before;
 import org.junit.Test;
@@ -55,6 +55,8 @@ public class TestJobACLs {
           TestJobACLs.class.getCanonicalName() + Path.SEPARATOR
               + "completed-job-store");
 
+  private String jobSubmitter = "user1";
+
   /**
    * Start the cluster before running the actual test.
    * 
@@ -70,8 +72,13 @@ public class TestJobACLs {
     UserGroupInformation MR_UGI = UserGroupInformation.getLoginUser();
     JobConf conf = new JobConf();
 
-    // Enable job-level authorization
-    conf.setBoolean(JobConf.JOB_LEVEL_AUTHORIZATION_ENABLING_FLAG, true);
+    // Enable queue and job level authorization
+    conf.setBoolean(JobConf.MR_ACLS_ENABLED, true);
+    // no queue admins for default queue
+    conf.set(QueueManager.toFullPropertyName(
+        "default", QueueOperation.ADMINISTER_JOBS.getAclName()), " ");
+    conf.set(QueueManager.toFullPropertyName(
+        "default", QueueOperation.SUBMIT_JOB.getAclName()), jobSubmitter);
 
     // Enable CompletedJobStore
     FileSystem fs = FileSystem.getLocal(conf);
@@ -126,10 +133,10 @@ public class TestJobACLs {
 
     // Set the job up.
     final JobConf myConf = mr.createJobConf();
-    myConf.set(JobContext.JOB_ACL_VIEW_JOB, "user1,user3");
+    myConf.set(JobContext.JOB_ACL_VIEW_JOB, "user3");
 
     // Submit the job as user1
-    RunningJob job = submitJobAsUser(myConf, "user1");
+    RunningJob job = submitJobAsUser(myConf, jobSubmitter);
 
     final JobID jobId = job.getID();
 
@@ -265,10 +272,10 @@ public class TestJobACLs {
 
     // Set the job up.
     final JobConf myConf = mr.createJobConf();
-    myConf.set(JobContext.JOB_ACL_MODIFY_JOB, "user1,user3");
+    myConf.set(JobContext.JOB_ACL_MODIFY_JOB, "user3");
 
     // Submit the job as user1
-    RunningJob job = submitJobAsUser(myConf, "user1");
+    RunningJob job = submitJobAsUser(myConf, jobSubmitter);
 
     final JobID jobId = job.getID();
 
@@ -367,10 +374,10 @@ public class TestJobACLs {
 
     // Set the job up.
     final JobConf myConf = mr.createJobConf();
-    myConf.set(JobContext.JOB_ACL_VIEW_JOB, "user1,user2");
+    myConf.set(JobContext.JOB_ACL_VIEW_JOB, "user2");
 
     // Submit the job as user1
-    RunningJob job = submitJobAsUser(myConf, "user1");
+    RunningJob job = submitJobAsUser(myConf, jobSubmitter);
 
     final JobID jobId = job.getID();
 
