@@ -40,7 +40,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
-import javax.security.auth.login.LoginException;
 import java.security.PrivilegedExceptionAction;
 
 import org.apache.commons.logging.Log;
@@ -698,6 +697,8 @@ public class JobClient extends Configured implements MRConstants, Tool  {
      }
     }
     
+    // First we check whether the cached archives and files are legal.
+    TrackerDistributedCacheManager.validate(job);
     //  set the timestamps of the archives and files
     TrackerDistributedCacheManager.determineTimestamps(job);
     //  set the public/private visibility of the archives and files
@@ -791,7 +792,6 @@ public class JobClient extends Configured implements MRConstants, Tool  {
       ClassNotFoundException,
       InterruptedException,
       IOException{
-
         JobConf jobCopy = job;
         Path jobStagingArea = JobSubmissionFiles.getStagingDir(JobClient.this,
             jobCopy);
@@ -847,7 +847,6 @@ public class JobClient extends Configured implements MRConstants, Tool  {
           } finally {
             out.close();
           }
-
 
           //
           // Now, actually submit the job (using the submit name)
