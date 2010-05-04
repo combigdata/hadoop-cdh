@@ -20,13 +20,16 @@ package org.apache.hadoop.test.system;
 
 import java.io.File;
 import java.io.IOException;
+import java.security.PrivilegedExceptionAction;
 import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Properties;
-
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.Shell.ShellCommandExecutor;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -47,7 +50,8 @@ public aspect DaemonProtocolAspect {
   @SuppressWarnings("unchecked")
   private HashMap<Object, List<ControlAction>> DaemonProtocol.actions = 
     new HashMap<Object, List<ControlAction>>();
-  
+  private static final Log LOG = LogFactory.getLog(
+      DaemonProtocolAspect.class.getName());
   /**
    * Set if the daemon process is ready or not, concrete daemon protocol should
    * implement pointcuts to determine when the daemon is ready and use the
@@ -155,17 +159,26 @@ public aspect DaemonProtocolAspect {
         fileStatus.getPath());
   }
 
-  private FileSystem DaemonProtocol.getFS(Path path, boolean local) 
-    throws IOException {
-    FileSystem fs = null;
-    if (local) {
-      fs = FileSystem.getLocal(getDaemonConf());
-    } else {
-      fs = path.getFileSystem(getDaemonConf());
+  private FileSystem DaemonProtocol.getFS(final Path path, final boolean local)
+      throws IOException {
+    FileSystem ret = null;
+    try {
+      ret = UserGroupInformation.getLoginUser().doAs (
+          new PrivilegedExceptionAction<FileSystem>() {
+            public FileSystem run() throws IOException {
+              FileSystem fs = null;
+              if (local) {
+                fs = FileSystem.getLocal(getDaemonConf());
+              } else {
+                fs = path.getFileSystem(getDaemonConf());
+              }
+              return fs;
+            }
+          });
+    } catch (InterruptedException ie) {
     }
-    return fs;
+    return ret;
   }
-  
   
   @SuppressWarnings("unchecked")
   public ControlAction[] DaemonProtocol.getActions(Writable key) 
@@ -239,20 +252,36 @@ public aspect DaemonProtocolAspect {
     return  logDir+File.separator+daemonLogPattern+"*";
   }
 
-  public int DaemonProtocol.getNumberOfMatchesInLogFile(String pattern)
-      throws IOException {
-    String filePattern = getFilePattern();
+  public int DaemonProtocol.getNumberOfMatchesInLogFile(String pattern,
+      String[] list) throws IOException {
+    StringBuffer filePattern = new StringBuffer(getFilePattern());    
+    if(list != null){
+      for(int i =0; i < list.length; ++i)
+      {
+        filePattern.append(" | grep -v " + list[i] );
+      }
+    }  
     String[] cmd =
         new String[] {
             "bash",
             "-c",
             "grep -c "
                 + pattern + " " + filePattern
-                + " | awk -F: '{s+=$2} END {print s}'" };
+                + " | awk -F: '{s+=$2} END {print s}'" };    
     ShellCommandExecutor shexec = new ShellCommandExecutor(cmd);
     shexec.execute();
     String output = shexec.getOutput();
     return Integer.parseInt(output.replaceAll("\n", "").trim());
+  }
+
+  private String DaemonProtocol.user = null;
+  
+  public String DaemonProtocol.getDaemonUser() {
+    return user;
+  }
+  
+  public void DaemonProtocol.setUser(String user) {
+    this.user = user;
   }
 }
 
