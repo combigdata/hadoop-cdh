@@ -771,6 +771,9 @@ public class UserGroupInformation {
     return result;
   }
 
+  /**
+   * existing types of authentications' methods
+   */
   public static enum AuthenticationMethod {
     SIMPLE,
     KERBEROS,
@@ -780,7 +783,8 @@ public class UserGroupInformation {
     PROXY;
   }
 
-  /* Create a proxy user using username of the effective user and the ugi of the
+  /**
+   * Create a proxy user using username of the effective user and the ugi of the
    * real user.
    *
    * @param effective
@@ -804,6 +808,10 @@ public class UserGroupInformation {
     return result;
   }
 
+  /**
+   * get RealUser (vs. EffectiveUser)
+   * @return realUser running over proxy user
+   */
   public UserGroupInformation getRealUser() {
     for (RealUser p: subject.getPrincipals(RealUser.class)) {
       return p.getRealUser();
