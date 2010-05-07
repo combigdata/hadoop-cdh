@@ -1707,7 +1707,8 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
           // check the access
           try {
             aclsManager.checkAccess(job, ugi,
-                QueueManager.QueueOperation.SUBMIT_JOB, null);
+                QueueManager.QueueOperation.SUBMIT_JOB, null,
+                QueueManager.QueueOperation.SUBMIT_JOB.name());
           } catch (Throwable t) {
             LOG.warn("Access denied for user " + ugi.getShortUserName() 
                      + " in groups : [" 
@@ -3715,7 +3716,8 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
       // check for access
       try {
         aclsManager.checkAccess(job, ugi,
-            QueueManager.QueueOperation.SUBMIT_JOB, null);
+            QueueManager.QueueOperation.SUBMIT_JOB, null,
+            QueueManager.QueueOperation.SUBMIT_JOB.name());
       } catch (IOException ioe) {
         LOG.warn("Access denied for user " + job.getJobConf().getUser()
             + ". Ignoring job " + jobId, ioe);
@@ -3874,7 +3876,8 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
         
     // check both queue-level and job-level access
     aclsManager.checkAccess(job, UserGroupInformation.getCurrentUser(),
-        QueueManager.QueueOperation.ADMINISTER_JOBS, JobACL.MODIFY_JOB);
+        QueueManager.QueueOperation.ADMINISTER_JOBS, JobACL.MODIFY_JOB,
+        "KILL_JOB");
 
     killJob(job);
   }
@@ -4080,7 +4083,8 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
       if (job != null) {
 
         // check the job-access
-        aclsManager.checkAccess(job, callerUGI, null, JobACL.VIEW_JOB);
+        aclsManager.checkAccess(job, callerUGI, null, JobACL.VIEW_JOB,
+            JobACL.VIEW_JOB.name());
 
         return isJobInited(job) ? job.getCounters() : EMPTY_COUNTERS;
       } 
@@ -4097,7 +4101,7 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
     if (job != null) {
       // Check authorization
       aclsManager.checkAccess(job, UserGroupInformation.getCurrentUser(), null,
-          JobACL.VIEW_JOB);
+          JobACL.VIEW_JOB, JobACL.VIEW_JOB.name());
     }
     if (job == null || !isJobInited(job)) {
       return EMPTY_TASK_REPORTS;
@@ -4125,7 +4129,7 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
     if (job != null) {
       // Check authorization
       aclsManager.checkAccess(job, UserGroupInformation.getCurrentUser(), null,
-          JobACL.VIEW_JOB);
+          JobACL.VIEW_JOB, JobACL.VIEW_JOB.name());
     }
     if (job == null || !isJobInited(job)) {
       return EMPTY_TASK_REPORTS;
@@ -4151,7 +4155,7 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
     if (job != null) {
       // Check authorization
       aclsManager.checkAccess(job, UserGroupInformation.getCurrentUser(), null,
-          JobACL.VIEW_JOB);
+          JobACL.VIEW_JOB, JobACL.VIEW_JOB.name());
     }
     if (job == null || !isJobInited(job)) {
       return EMPTY_TASK_REPORTS;
@@ -4180,7 +4184,7 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
     if (job != null) {
       // Check authorization
       aclsManager.checkAccess(job, UserGroupInformation.getCurrentUser(), null,
-          JobACL.VIEW_JOB);
+          JobACL.VIEW_JOB, JobACL.VIEW_JOB.name());
     }
     if (job == null || !isJobInited(job)) {
       return EMPTY_TASK_REPORTS;
@@ -4247,7 +4251,7 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
     if (job != null) {
       // Check authorization
       aclsManager.checkAccess(job, UserGroupInformation.getCurrentUser(), null,
-          JobACL.VIEW_JOB);
+          JobACL.VIEW_JOB, JobACL.VIEW_JOB.name());
     }
     if (job != null && isJobInited(job)) {
       TaskInProgress tip = job.getTaskInProgress(tipId);
@@ -4308,7 +4312,8 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
       // check both queue-level and job-level access
       aclsManager.checkAccess(tip.getJob(),
           UserGroupInformation.getCurrentUser(),
-          QueueManager.QueueOperation.ADMINISTER_JOBS, JobACL.MODIFY_JOB);
+          QueueManager.QueueOperation.ADMINISTER_JOBS, JobACL.MODIFY_JOB,
+          shouldFail ? "FAIL_TASK" : "KILL_TASK");
 
       return tip.killTask(taskid, shouldFail);
     }
@@ -4380,7 +4385,8 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
 
       // check both queue-level and job-level access
       aclsManager.checkAccess(job, UserGroupInformation.getCurrentUser(),
-          QueueManager.QueueOperation.ADMINISTER_JOBS, JobACL.MODIFY_JOB);
+          QueueManager.QueueOperation.ADMINISTER_JOBS, JobACL.MODIFY_JOB,
+          "SET_JOB_PRIORITY");
 
       synchronized (taskScheduler) {
         JobStatus oldStatus = (JobStatus)job.getStatus().clone();
