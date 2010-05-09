@@ -675,7 +675,7 @@ public class JobClient extends Configured implements MRConstants, Tool  {
         Path tmp = new Path(tmpjars);
         Path newPath = copyRemoteFiles(fs, libjarsDir, tmp, job, replication);
         DistributedCache.addFileToClassPath(
-            new Path(newPath.toUri().getPath()), job);
+          new Path(newPath.toUri().getPath()), job, fs);
       }
     }
     
