@@ -37,7 +37,7 @@ AM_LDFLAGS = @JNI_LDFLAGS@ -m$(JVM_DATA_MODEL)
 lib_LTLIBRARIES = libhadoop.la
 libhadoop_la_SOURCES = 
 libhadoop_la_LDFLAGS = -version-info 1:0:0
-libhadoop_la_LIBADD = $(HADOOP_OBJS) -ldl -ljvm
+libhadoop_la_LIBADD = $(HADOOP_OBJS) -ldl
 
 #
 #vim: sw=4: ts=4: noet

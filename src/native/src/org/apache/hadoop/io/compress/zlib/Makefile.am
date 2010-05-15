@@ -43,7 +43,7 @@ AM_CFLAGS = -g -Wall -fPIC -O2 -m$(JVM_DATA_MODEL)
 
 noinst_LTLIBRARIES = libnativezlib.la
 libnativezlib_la_SOURCES = ZlibCompressor.c ZlibDecompressor.c
-libnativezlib_la_LIBADD = -ldl -ljvm
+libnativezlib_la_LIBADD = -ldl
 
 #
 #vim: sw=4: ts=4: noet
