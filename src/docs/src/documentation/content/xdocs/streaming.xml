@@ -315,6 +315,7 @@ Similarly, you can use "-D stream.reduce.output.field.separator=SEP" and "-D str
 <p> Similarly, you can specify "stream.map.input.field.separator" and 
 "stream.reduce.input.field.separator" as the input separator for map/reduce 
 inputs. By default the separator is the tab character.</p>
+<p> You can specify "stream.map.input.ignoreKey" so the key is not emitted to the mapper when using text input. This is the default behavior when using TextInputFormat.</p>
 </section>
 
 
