@@ -2420,6 +2420,8 @@ public class DFSClient implements FSConstants, java.io.Closeable {
 
           // This is used by unit test to trigger race conditions.
           if (artificialSlowdown != 0 && clientRunning) {
+            LOG.debug("Sleeping for artificial slowdown of " +
+                artificialSlowdown + "ms");
             try { 
               Thread.sleep(artificialSlowdown); 
             } catch (InterruptedException e) {}
@@ -3279,6 +3281,16 @@ public class DFSClient implements FSConstants, java.io.Closeable {
         s.close();
         s = null;
       }
+    }
+    
+    /**
+     * Harsh abort method that should only be used from tests - this
+     * is in order to prevent pipeline recovery when eg a DN shuts down.
+     */
+    void abortForTests() throws IOException {
+      streamer.close();
+      response.close();
+      closed = true;
     }
  
     // shutdown datastreamer and responseprocessor threads.
