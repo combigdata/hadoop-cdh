@@ -656,7 +656,7 @@ public class SimulatedFSDataset  implements FSConstants, FSDatasetInterface, Con
     return "Simulated FSDataset-" + storageId;
   }
   
-  public boolean hasEnoughResource() {
+  public boolean hasEnoughResources() {
     return true;
   }
 }

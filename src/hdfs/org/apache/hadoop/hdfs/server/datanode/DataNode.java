@@ -679,25 +679,19 @@ public class DataNode extends Configured
   }
   
   private void handleDiskError(String errMsgr) {
-    boolean hasEnoughResource = data.hasEnoughResource();
-    LOG.warn("DataNode.handleDiskError: Keep Running: " + hasEnoughResource);
-    
-    //if hasEnoughtResource = true - more volumes are available, so we don't want 
-    // to shutdown DN completely and don't want NN to remove it.
-    int dp_error = DatanodeProtocol.DISK_ERROR;
-    if(hasEnoughResource == false) {
-      // DN will be shutdown and NN should remove it
-      dp_error = DatanodeProtocol.FATAL_DISK_ERROR;
-    }
-    //inform NameNode
+    final boolean hasEnoughResources = data.hasEnoughResources();
+    LOG.warn("DataNode.handleDiskError: Keep Running: " + hasEnoughResources);
+          
+    // If we have enough active valid volumes then we do not want to 
+    // shutdown the DN completely.
+    int dpError = hasEnoughResources ? DatanodeProtocol.DISK_ERROR  
+                                     : DatanodeProtocol.FATAL_DISK_ERROR; 
     try {
-      namenode.errorReport(
-                           dnRegistration, dp_error, errMsgr);
-    } catch(IOException ignored) {              
+      namenode.errorReport(dnRegistration, dpError, errMsgr);
+    } catch(IOException ignored) {
     }
     
-    
-    if(hasEnoughResource) {
+    if (hasEnoughResources) {
       scheduleBlockReport(0);
       return; // do not shutdown
     }
