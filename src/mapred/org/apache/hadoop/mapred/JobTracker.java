@@ -78,6 +78,7 @@ import org.apache.hadoop.mapred.JobHistory.Listener;
 import org.apache.hadoop.mapred.JobHistory.Values;
 import org.apache.hadoop.mapred.JobInProgress.KillInterruptedException;
 import org.apache.hadoop.mapred.JobStatusChangeEvent.EventType;
+import org.apache.hadoop.mapred.QueueManager.QueueACL;
 import org.apache.hadoop.mapred.TaskTrackerStatus.TaskTrackerHealthStatus;
 import org.apache.hadoop.net.DNSToSwitchMapping;
 import org.apache.hadoop.net.NetUtils;
@@ -91,6 +92,7 @@ import org.apache.hadoop.security.RefreshUserMappingsProtocol;
 import org.apache.hadoop.security.SecurityUtil;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.UserGroupInformation.AuthenticationMethod;
+import org.apache.hadoop.security.authorize.AccessControlList;
 import org.apache.hadoop.security.authorize.AuthorizationException;
 import org.apache.hadoop.security.authorize.ProxyUsers;
 import org.apache.hadoop.security.authorize.RefreshAuthorizationPolicyProtocol;
@@ -104,7 +106,6 @@ import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.util.VersionInfo;
 
 import org.apache.hadoop.mapreduce.ClusterMetrics;
-import org.apache.hadoop.mapreduce.JobACL;
 import org.apache.hadoop.mapreduce.TaskType;
 import org.apache.hadoop.mapreduce.security.token.DelegationTokenRenewal;
 import org.apache.hadoop.mapreduce.security.token.JobTokenSecretManager;
@@ -1706,9 +1707,7 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
 
           // check the access
           try {
-            aclsManager.checkAccess(job, ugi,
-                QueueManager.QueueOperation.SUBMIT_JOB, null,
-                QueueManager.QueueOperation.SUBMIT_JOB.name());
+            aclsManager.checkAccess(job, ugi, Operation.SUBMIT_JOB);
           } catch (Throwable t) {
             LOG.warn("Access denied for user " + ugi.getShortUserName() 
                      + " in groups : [" 
@@ -3715,9 +3714,7 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
 
       // check for access
       try {
-        aclsManager.checkAccess(job, ugi,
-            QueueManager.QueueOperation.SUBMIT_JOB, null,
-            QueueManager.QueueOperation.SUBMIT_JOB.name());
+        aclsManager.checkAccess(job, ugi, Operation.SUBMIT_JOB);
       } catch (IOException ioe) {
         LOG.warn("Access denied for user " + job.getJobConf().getUser()
             + ". Ignoring job " + jobId, ioe);
@@ -3802,7 +3799,7 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
              + job.getJobConf().getUser() + "' to queue '" 
              + job.getJobConf().getQueueName() + "'");
     AuditLogger.logSuccess(job.getUser(), 
-        QueueManager.QueueOperation.SUBMIT_JOB.name(), jobId.toString());
+        Operation.SUBMIT_JOB.name(), jobId.toString());
     return job.getStatus();
   }
 
@@ -3876,8 +3873,7 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
         
     // check both queue-level and job-level access
     aclsManager.checkAccess(job, UserGroupInformation.getCurrentUser(),
-        QueueManager.QueueOperation.ADMINISTER_JOBS, JobACL.MODIFY_JOB,
-        "KILL_JOB");
+        Operation.KILL_JOB);
 
     killJob(job);
   }
@@ -4083,8 +4079,7 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
       if (job != null) {
 
         // check the job-access
-        aclsManager.checkAccess(job, callerUGI, null, JobACL.VIEW_JOB,
-            JobACL.VIEW_JOB.name());
+        aclsManager.checkAccess(job, callerUGI, Operation.VIEW_JOB_COUNTERS);
 
         return isJobInited(job) ? job.getCounters() : EMPTY_COUNTERS;
       } 
@@ -4100,8 +4095,8 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
     JobInProgress job = jobs.get(jobid);
     if (job != null) {
       // Check authorization
-      aclsManager.checkAccess(job, UserGroupInformation.getCurrentUser(), null,
-          JobACL.VIEW_JOB, JobACL.VIEW_JOB.name());
+      aclsManager.checkAccess(job, UserGroupInformation.getCurrentUser(),
+          Operation.VIEW_JOB_DETAILS);
     }
     if (job == null || !isJobInited(job)) {
       return EMPTY_TASK_REPORTS;
@@ -4128,8 +4123,8 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
     JobInProgress job = jobs.get(jobid);
     if (job != null) {
       // Check authorization
-      aclsManager.checkAccess(job, UserGroupInformation.getCurrentUser(), null,
-          JobACL.VIEW_JOB, JobACL.VIEW_JOB.name());
+      aclsManager.checkAccess(job, UserGroupInformation.getCurrentUser(),
+          Operation.VIEW_JOB_DETAILS);
     }
     if (job == null || !isJobInited(job)) {
       return EMPTY_TASK_REPORTS;
@@ -4154,8 +4149,8 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
     JobInProgress job = jobs.get(jobid);
     if (job != null) {
       // Check authorization
-      aclsManager.checkAccess(job, UserGroupInformation.getCurrentUser(), null,
-          JobACL.VIEW_JOB, JobACL.VIEW_JOB.name());
+      aclsManager.checkAccess(job, UserGroupInformation.getCurrentUser(),
+          Operation.VIEW_JOB_DETAILS);
     }
     if (job == null || !isJobInited(job)) {
       return EMPTY_TASK_REPORTS;
@@ -4183,8 +4178,8 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
     JobInProgress job = jobs.get(jobid);
     if (job != null) {
       // Check authorization
-      aclsManager.checkAccess(job, UserGroupInformation.getCurrentUser(), null,
-          JobACL.VIEW_JOB, JobACL.VIEW_JOB.name());
+      aclsManager.checkAccess(job, UserGroupInformation.getCurrentUser(),
+          Operation.VIEW_JOB_DETAILS);
     }
     if (job == null || !isJobInited(job)) {
       return EMPTY_TASK_REPORTS;
@@ -4250,8 +4245,8 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
     JobInProgress job = jobs.get(jobId);
     if (job != null) {
       // Check authorization
-      aclsManager.checkAccess(job, UserGroupInformation.getCurrentUser(), null,
-          JobACL.VIEW_JOB, JobACL.VIEW_JOB.name());
+      aclsManager.checkAccess(job, UserGroupInformation.getCurrentUser(),
+          Operation.VIEW_JOB_DETAILS);
     }
     if (job != null && isJobInited(job)) {
       TaskInProgress tip = job.getTaskInProgress(tipId);
@@ -4306,14 +4301,14 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
   /**
    * @see JobSubmissionProtocol#killTask(TaskAttemptID, boolean)
    */
-  public synchronized boolean killTask(TaskAttemptID taskid, boolean shouldFail) throws IOException{
+  public synchronized boolean killTask(TaskAttemptID taskid, boolean shouldFail)
+      throws IOException {
     TaskInProgress tip = taskidToTIPMap.get(taskid);
     if(tip != null) {
       // check both queue-level and job-level access
       aclsManager.checkAccess(tip.getJob(),
           UserGroupInformation.getCurrentUser(),
-          QueueManager.QueueOperation.ADMINISTER_JOBS, JobACL.MODIFY_JOB,
-          shouldFail ? "FAIL_TASK" : "KILL_TASK");
+          shouldFail ? Operation.FAIL_TASK : Operation.KILL_TASK);
 
       return tip.killTask(taskid, shouldFail);
     }
@@ -4352,7 +4347,19 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
     Path sysDir = new Path(conf.get("mapred.system.dir", "/tmp/hadoop/mapred/system"));  
     return fs.makeQualified(sysDir).toString();
   }
-  
+
+  /**
+   * @see org.apache.hadoop.mapred.JobSubmissionProtocol#getQueueAdmins(String)
+   */
+  public AccessControlList getQueueAdmins(String queueName) throws IOException {
+    AccessControlList acl =
+        queueManager.getQueueACL(queueName, QueueACL.ADMINISTER_JOBS);
+    if (acl == null) {
+      acl = new AccessControlList(" ");
+    }
+    return acl;
+  }
+
   ///////////////////////////////////////////////////////////////
   // JobTracker methods
   ///////////////////////////////////////////////////////////////
@@ -4385,8 +4392,7 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
 
       // check both queue-level and job-level access
       aclsManager.checkAccess(job, UserGroupInformation.getCurrentUser(),
-          QueueManager.QueueOperation.ADMINISTER_JOBS, JobACL.MODIFY_JOB,
-          "SET_JOB_PRIORITY");
+          Operation.SET_JOB_PRIORITY);
 
       synchronized (taskScheduler) {
         JobStatus oldStatus = (JobStatus)job.getStatus().clone();
