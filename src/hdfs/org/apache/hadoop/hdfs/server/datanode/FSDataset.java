@@ -1489,8 +1489,9 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
         FSVolume vol = volumeMap.get(b).getVolume();
         for(FSVolume fv: failed_vols) {
           if(vol == fv) {
-            DataNode.LOG.warn("removing block " + b.getBlockId() + " from vol " 
-                + vol.dataDir.dir.getAbsolutePath());
+            DataNode.LOG.warn("Removing replica info for block " + 
+                b.getBlockId() + " on failed volume " +
+                vol.dataDir.dir.getAbsolutePath());
             ib.remove();
             removed_blocks++;
             break;

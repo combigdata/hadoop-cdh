@@ -835,7 +835,7 @@ class BlockReceiver implements java.io.Closeable, FSConstants {
             try {
               datanode.checkDiskError(e); // may throw an exception here
             } catch (IOException ioe) {
-              LOG.warn("DataNode.chekDiskError failed in lastDataNodeRun with: ",
+              LOG.warn("DataNode.checkDiskError failed in lastDataNodeRun with: ",
                   ioe);
             }
             LOG.info("PacketResponder " + block + " " + numTargets + 
@@ -1009,7 +1009,7 @@ class BlockReceiver implements java.io.Closeable, FSConstants {
             try {
               datanode.checkDiskError(e); // may throw an exception here
             } catch (IOException ioe) {
-              LOG.warn("DataNode.chekDiskError failed in run() with: ", ioe);
+              LOG.warn("DataNode.checkDiskError failed in run() with: ", ioe);
             }
             LOG.info("PacketResponder " + block + " " + numTargets + 
                      " Exception " + StringUtils.stringifyException(e));
