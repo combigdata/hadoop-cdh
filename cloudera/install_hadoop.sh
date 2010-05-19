@@ -199,22 +199,18 @@ if [ ! -z "$NATIVE_BUILD_STRING" ]; then
 
   fuse_wrapper=${BIN_DIR}/fuse_dfs
   cat > $fuse_wrapper << EOF
-#!/bin/sh
-if [ "\$HADOOP_HOME" = "" ]
-        then export HADOOP_HOME=/usr/lib/hadoop
-fi
+#!/bin/bash
+
+/sbin/modprobe fuse
+
+export HADOOP_HOME=$INSTALLED_LIB_DIR
 
 if [ -f /etc/default/hadoop-0.20-fuse ] 
 	then . /etc/default/hadoop-0.20-fuse
 fi
 
-if [ "\$JAVA_HOME" = "" ]
-	then if [ -d /usr/java/default ]
-		then JAVA_HOME=/usr/java/default/
-	elif [ -d /usr/lib/jvm/java-6-sun ]
-		then JAVA_HOME=/usr/lib/jvm/java-6-sun
-	fi
-	export JAVA_HOME
+if [ -f \$HADOOP_HOME/bin/hadoop-config.sh ] 
+	then . \$HADOOP_HOME/bin/hadoop-config.sh  
 fi
 
 if [ "\$LD_LIBRARY_PATH" = "" ]
