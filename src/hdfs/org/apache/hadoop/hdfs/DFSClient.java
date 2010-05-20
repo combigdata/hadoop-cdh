@@ -2141,8 +2141,8 @@ public class DFSClient implements FSConstants, java.io.Closeable {
     boolean closed = false;
   
     private String src;
-    private DataOutputStream blockStream;
-    private DataInputStream blockReplyStream;
+    DataOutputStream blockStream;
+    DataInputStream blockReplyStream;
     private Block block;
     final private long blockSize;
     private DataChecksum checksum;
@@ -2518,6 +2518,7 @@ public class DFSClient implements FSConstants, java.io.Closeable {
                        " for block " + block +
                         StringUtils.stringifyException(e));
               closed = true;
+              streamer.interrupt();
             }
           }
 
