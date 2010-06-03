@@ -1453,8 +1453,8 @@ public class DataNode extends Configured
   }
   
   @Override
-  public BlockRecoveryInfo getBlockRecoveryInfo(Block block) throws IOException {
-    return data.getBlockRecoveryInfo(block.getBlockId());
+  public BlockRecoveryInfo startBlockRecovery(Block block) throws IOException {
+    return data.startBlockRecovery(block.getBlockId());
   }
 
   public Daemon recoverBlocks(final Block[] blocks, final DatanodeInfo[][] targets) {
@@ -1566,7 +1566,7 @@ public class DataNode extends Configured
           } else {
             datanode = DataNode.createInterDataNodeProtocolProxy(id, getConf());
           }
-          BlockRecoveryInfo info = datanode.getBlockRecoveryInfo(block);
+          BlockRecoveryInfo info = datanode.startBlockRecovery(block);
           if (info == null) {
             LOG.info("No block metadata found for block " + block + " on datanode "
                 + id);
