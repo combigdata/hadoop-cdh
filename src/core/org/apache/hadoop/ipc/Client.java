@@ -35,7 +35,14 @@ import java.io.InputStream;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Map.Entry;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import javax.net.SocketFactory;
@@ -80,6 +87,25 @@ public class Client {
   final private static String PING_INTERVAL_NAME = "ipc.ping.interval";
   final static int DEFAULT_PING_INTERVAL = 60000; // 1 min
   final static int PING_CALL_ID = -1;
+  
+  private static final ThreadFactory DAEMON_THREAD_FACTORY = new ThreadFactory() {
+    private final ThreadFactory defaultThreadFactory = 
+      Executors.defaultThreadFactory();
+    private final AtomicInteger counter = new AtomicInteger(0);
+    @Override
+    public Thread newThread(Runnable r) {
+      Thread thread = defaultThreadFactory.newThread(r);
+        
+      thread.setDaemon(true);
+      thread.setName("sendParams-" + counter.getAndIncrement());
+        
+      return thread;
+    }
+  };
+  
+  private static final ExecutorService SEND_PARAMS_EXECUTOR = 
+    Executors.newCachedThreadPool(DAEMON_THREAD_FACTORY);
+  
   
   /**
    * set the ping interval value in configuration
@@ -187,6 +213,8 @@ public class Client {
     private AtomicLong lastActivity = new AtomicLong();// last I/O activity time
     private AtomicBoolean shouldCloseConnection = new AtomicBoolean();  // indicate if the connection is closed
     private IOException closeException; // close reason
+    
+    private final Object sendParamsLock = new Object();
 
     public Connection(ConnectionId remoteId) throws IOException {
       this.remoteId = remoteId;
@@ -467,34 +495,64 @@ public class Client {
      * Note: this is not called from the Connection thread, but by other
      * threads.
      */
-    public void sendParam(Call call) {
+    public void sendParam(final Call call) throws InterruptedException {
       if (shouldCloseConnection.get()) {
         return;
       }
+      
+      // lock the connection for the period of submission and waiting
+      // in order to bound the # of threads in the executor by the number
+      // of connections
+      synchronized (sendParamsLock) {
+        Future senderFuture = SEND_PARAMS_EXECUTOR.submit(new Runnable() {
+          @Override
+          public void run() {
+            DataOutputBuffer d = null;
 
-      DataOutputBuffer d=null;
-      try {
-        synchronized (this.out) {
-          if (LOG.isDebugEnabled())
-            LOG.debug(getName() + " sending #" + call.id);
-          
-          //for serializing the
-          //data to be written
-          d = new DataOutputBuffer();
-          d.writeInt(call.id);
-          call.param.write(d);
-          byte[] data = d.getData();
-          int dataLength = d.getLength();
-          out.writeInt(dataLength);      //first put the data length
-          out.write(data, 0, dataLength);//write the data
-          out.flush();
+            synchronized (Connection.this.out) {
+              try {
+                if (shouldCloseConnection.get()) {
+                  return;
+                }
+                if (LOG.isDebugEnabled()) {
+                  LOG.debug(getName() + " sending #" + call.id);
+                }
+
+                //for serializing the
+                //data to be written
+                d = new DataOutputBuffer();
+                d.writeInt(call.id);
+                call.param.write(d);
+                byte[] data = d.getData();
+                int dataLength = d.getLength();
+                out.writeInt(dataLength);      //first put the data length
+                out.write(data, 0, dataLength);//write the data
+                out.flush();
+
+              } catch (IOException e) {
+                markClosed(e);
+              } finally {
+                //the buffer is just an in-memory buffer, but it is still polite to
+                // close early
+                IOUtils.closeStream(d);
+              }
+            }
+          }
+        });
+
+        try {
+          senderFuture.get();
+        } catch (ExecutionException e) {
+          Throwable cause = e.getCause();
+
+          // cause should only be a RuntimeException as the Runnable above
+          // catches IOException
+          if (cause instanceof RuntimeException) {
+            throw (RuntimeException) cause;
+          } else {
+            throw new RuntimeException("checked exception made it here", cause);
+          }
         }
-      } catch(IOException e) {
-        markClosed(e);
-      } finally {
-        //the buffer is just an in-memory buffer, but it is still polite to
-        // close early
-        IOUtils.closeStream(d);
       }
     }  
 
@@ -728,7 +786,16 @@ public class Client {
                        throws InterruptedException, IOException {
     Call call = new Call(param);
     Connection connection = getConnection(addr, protocol, ticket, call);
-    connection.sendParam(call);                 // send the parameter
+    try {
+      connection.sendParam(call);                 // send the parameter
+    } catch (RejectedExecutionException e) {
+      throw new IOException("connection has been closed", e);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      LOG.warn("interrupted waiting to send params to server", e);
+      throw new IOException(e);
+    }
+
     boolean interrupted = false;
     synchronized (call) {
       while (!call.done) {
@@ -819,11 +886,17 @@ public class Client {
           Connection connection = 
             getConnection(addresses[i], protocol, ticket, call);
           connection.sendParam(call);             // send each parameter
+        } catch (RejectedExecutionException e) {
+          throw new IOException("connection has been closed", e);
         } catch (IOException e) {
           // log errors
           LOG.info("Calling "+addresses[i]+" caught: " + 
                    e.getMessage(),e);
           results.size--;                         //  wait for one fewer result
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          LOG.warn("interrupted waiting to send params to server", e);
+          throw new IOException(e);
         }
       }
       while (results.count != results.size) {

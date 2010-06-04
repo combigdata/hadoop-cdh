@@ -26,6 +26,10 @@ import java.lang.reflect.Method;
 import junit.framework.TestCase;
 
 import java.util.Arrays;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.logging.*;
 
@@ -68,6 +72,7 @@ public class TestRPC extends TestCase {
     int error() throws IOException;
     void testServerGet() throws IOException;
     int[] exchange(int[] values) throws IOException;
+    String toString();
   }
 
   public class TestImpl implements TestProtocol {
@@ -381,6 +386,68 @@ public class TestRPC extends TestCase {
     // Reset authorization to expect failure
     conf.set(ACL_CONFIG, "invalid invalid");
     doRPCs(conf, true);
+  }
+
+  public void testRPCInterrupted3() throws IOException, InterruptedException {
+    final Configuration conf = new Configuration();
+    Server server = RPC.getServer(
+      new TestImpl(), ADDRESS, 0, 5, true, conf);
+
+    server.start();
+
+    int numConcurrentRPC = 200;
+    InetSocketAddress addr = NetUtils.getConnectAddress(server);
+    final CyclicBarrier barrier = new CyclicBarrier(numConcurrentRPC);
+    final CountDownLatch latch = new CountDownLatch(numConcurrentRPC);
+    final AtomicBoolean leaderRunning = new AtomicBoolean(true);
+    final AtomicReference<Throwable> error = new AtomicReference<Throwable>(null);
+    Thread leaderThread = null;
+    
+    for (int i = 0; i < numConcurrentRPC; i++) {
+      final int num = i;
+      final TestProtocol proxy = (TestProtocol) RPC.getProxy(
+      TestProtocol.class, TestProtocol.versionID, addr, conf);
+      Thread rpcThread = new Thread(new Runnable() {
+        @Override
+        public void run() {
+          try {
+            barrier.await();
+            while (num == 0 || leaderRunning.get()) {
+              proxy.slowPing(false);
+            }
+            
+            proxy.slowPing(false);
+          } catch (Exception e) {
+            if (num == 0) {
+              leaderRunning.set(false);
+            } else {
+              error.set(e);
+            }
+
+            LOG.error(e);
+          } finally {
+            latch.countDown();
+          }
+        }
+      });
+      rpcThread.start();
+
+      if (leaderThread == null) {
+       leaderThread = rpcThread;
+      }
+    }
+    // let threads get past the barrier
+    Thread.sleep(1000);
+
+    // stop a single thread
+    while (leaderRunning.get()) {
+      leaderThread.interrupt();
+    }
+
+    latch.await();
+    
+    // should not cause any other thread to get an error
+    assertNull("rpc got ClosedChannelException", error.get());
   }
   
   public static void main(String[] args) throws Exception {
