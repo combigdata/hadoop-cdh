@@ -2966,6 +2966,7 @@ public class DFSClient implements FSConstants, java.io.Closeable {
       } catch (IOException ie) {
 
         LOG.info("Exception in createBlockOutputStream " + ie);
+        IOUtils.closeSocket(s);
 
         // find the datanode that matches
         if (firstBadLink.length() != 0) {
