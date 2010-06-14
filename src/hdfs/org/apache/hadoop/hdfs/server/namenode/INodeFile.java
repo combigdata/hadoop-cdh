@@ -89,6 +89,17 @@ class INodeFile extends INode {
   }
 
   /**
+   * Return the last block in this file, or null
+   * if there are no blocks.
+   */
+  Block getLastBlock() {
+    if (this.blocks == null ||
+        this.blocks.length == 0)
+      return null;
+    return this.blocks[this.blocks.length - 1];
+  }
+
+  /**
    * add a block to the block list
    */
   void addBlock(BlockInfo newblock) {

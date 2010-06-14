@@ -193,7 +193,13 @@ public class DataNode extends Configured
   int socketWriteTimeout = 0;  
   boolean transferToAllowed = true;
   int writePacketSize = 0;
-  
+
+  /**
+   * Testing hook that allows tests to delay the sending of blockReceived
+   * RPCs to the namenode. This can help find bugs in append.
+   */
+  int artificialBlockReceivedDelay = 0;
+
   public DataBlockScanner blockScanner = null;
   public Daemon blockScannerThread = null;
   
@@ -312,7 +318,10 @@ public class DataNode extends Configured
       this.data = new FSDataset(storage, conf);
     }
 
-      
+    // Allow configuration to delay block reports to find bugs
+    artificialBlockReceivedDelay = conf.getInt(
+      "dfs.datanode.artificialBlockReceivedDelay", 0);
+
     // find free port
     ServerSocket ss = (socketWriteTimeout > 0) ? 
           ServerSocketChannel.open().socket() : new ServerSocket();
@@ -835,6 +844,7 @@ public class DataNode extends Configured
               receivedBlockList.wait(waitTime);
             } catch (InterruptedException ie) {
             }
+            delayBeforeBlockReceived();
           }
         } // synchronized
       } catch(RemoteException re) {
@@ -856,6 +866,25 @@ public class DataNode extends Configured
       }
     } // while (shouldRun)
   } // offerService
+
+  /**
+   * When a block has been received, we can delay some period of time before
+   * reporting it to the DN, for the purpose of testing. This simulates
+   * the actual latency of blockReceived on a real network (where the client
+   * may be closer to the NN than the DNs).
+   */
+  private void delayBeforeBlockReceived() {
+    if (artificialBlockReceivedDelay > 0 && !receivedBlockList.isEmpty()) {
+      try {
+        long sleepFor = (long)R.nextInt(artificialBlockReceivedDelay);
+        LOG.debug("DataNode " + dnRegistration + " sleeping for " +
+                  "artificial delay: " + sleepFor + " ms");
+        Thread.sleep(sleepFor);
+      } catch (InterruptedException ie) {
+        Thread.currentThread().interrupt();
+      }
+    }
+  }
 
   /**
    * Process an array of datanode commands

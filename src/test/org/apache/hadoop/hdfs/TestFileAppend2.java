@@ -80,12 +80,9 @@ public class TestFileAppend2 {
   int numberOfFiles = 50;
   int numThreads = 10;
   int numAppendsPerThread = 20;
+  int artificialBlockReceivedDelay = 50;
   long sleepBetweenSizeChecks = 5000;
-/***
-  int numberOfFiles = 1;
-  int numThreads = 1;
-  int numAppendsPerThread = 2000;
-****/
+
   Workload[] workload = null;
   ArrayList<Path> testFiles = new ArrayList<Path>();
   AtomicReference<Throwable> err = new AtomicReference<Throwable>();
@@ -394,11 +391,14 @@ public class TestFileAppend2 {
     conf.setInt("dfs.socket.timeout", 30000);
     conf.setInt("dfs.datanode.socket.write.timeout", 30000);
     conf.setInt("dfs.datanode.handler.count", 50);
+    conf.setInt("dfs.datanode.artificialBlockReceivedDelay",
+                artificialBlockReceivedDelay);
     conf.setBoolean("dfs.support.append", true);
 
     MiniDFSCluster cluster = new MiniDFSCluster(conf, numDatanodes, 
                                                 true, null);
     cluster.waitActive();
+
     FileSystem fs = cluster.getFileSystem();
 
     try {
