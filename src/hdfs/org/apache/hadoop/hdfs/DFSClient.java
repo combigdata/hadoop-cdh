@@ -2168,7 +2168,6 @@ public class DFSClient implements FSConstants, java.io.Closeable {
     private long lastFlushOffset = 0; // offset when flush was invoked
     private boolean persistBlocks = false; // persist blocks on namenode
     private int recoveryErrorCount = 0; // number of times block recovery failed
-    private int maxRecoveryErrorCount = 5; // try block recovery 5 times
     private volatile boolean appendChunk = false;   // appending to existing partial block
     private long initialFileSize = 0; // at time of file open
     private Progressable progress;
@@ -2630,6 +2629,10 @@ public class DFSClient implements FSConstants, java.io.Closeable {
         } catch (IOException e) {
           LOG.warn("Failed recovery attempt #" + recoveryErrorCount +
               " from primary datanode " + primaryNode, e);
+
+          // try block recovery 5 times by default
+          int maxRecoveryErrorCount = conf.getInt("dfs.client.block.recovery.retries", 5);
+
           recoveryErrorCount++;
           if (recoveryErrorCount > maxRecoveryErrorCount) {
             if (nodes.length > 1) {
