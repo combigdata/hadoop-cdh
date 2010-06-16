@@ -466,8 +466,12 @@ public class TestFileAppend4 extends TestCase {
           fs1.getFileStatus(file1), 0, BLOCK_SIZE);
       LOG.info("Checking blocks");
       assertTrue("Should have one block", bl.length == 1);
-      assertTrue("Should have 2 replicas for that block, not " + 
-                 bl[0].getNames().length, bl[0].getNames().length == 2);  
+      
+      // Wait up to 1 second for block replication - we may have
+      // only replication 1 for a brief moment after close, since
+      // closing only waits for fs.replcation.min replicas, and
+      // it may take some millis before the other DN reports block
+      waitForBlockReplication(fs1, file1.toString(), 2, 1);
 
       assertFileSize(fs1, BLOCK_SIZE*3/4);
       checkFile(fs1, BLOCK_SIZE*3/4);
