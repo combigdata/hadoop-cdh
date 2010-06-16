@@ -167,14 +167,7 @@ public class TestFileAppend4 extends TestCase {
       }
     }
     if (out != null) {
-      try {
-        out.close();
-        LOG.info("Successfully obtained lease");
-      } catch (IOException e) {
-        LOG.info("Unable to close file after opening for appends. " + e);
-        recovered = false;
-      }
-//      out.close();
+      out.close();
     }
     if (!recovered) {
       fail((tries > 0) ? "Recovery failed" : "Recovery should take < 1 min");

@@ -2017,6 +2017,10 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
       List<DatanodeDescriptor> descriptorsList =
         new ArrayList<DatanodeDescriptor>(newtargets.length);
       for(int i = 0; i < newtargets.length; i++) {
+        // We don't use getDatanode here since that method can
+        // throw. If we were to throw an exception during this commit
+        // process, we'd fall out of sync since DNs have already finalized
+        // the block with the new GS.
         DatanodeDescriptor node =
           datanodeMap.get(newtargets[i].getStorageID());
         if (node != null) {
@@ -3081,10 +3085,17 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
         if (cursize == 0) {
           storedBlock.setNumBytes(block.getNumBytes());
         } else if (cursize != block.getNumBytes()) {
-          LOG.warn("Inconsistent size for block " + block + 
+          String logMsg = "Inconsistent size for block " + block + 
                    " reported from " + node.getName() + 
                    " current size is " + cursize +
-                   " reported size is " + block.getNumBytes());
+                   " reported size is " + block.getNumBytes();
+          // If the block is still under construction this isn't likely
+          // to be a problem, so just log at INFO level.
+          if (underConstruction) {
+            LOG.info(logMsg);
+          } else {
+            LOG.warn(logMsg);
+          }
           try {
             if (cursize > block.getNumBytes()) {
               // new replica is smaller in size than existing block.
@@ -3163,7 +3174,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
                                       +"blockMap updated: "+node.getName()+" is added to "+block+" size "+block.getNumBytes());
       }
     } else {
-      NameNode.stateChangeLog.warn("BLOCK* NameSystem.addStoredBlock: "
+      NameNode.stateChangeLog.info("BLOCK* NameSystem.addStoredBlock: "
                                    + "Redundant addStoredBlock request received for " 
                                    + block + " on " + node.getName()
                                    + " size " + block.getNumBytes());
@@ -3187,6 +3198,13 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
     if (fileINode.isUnderConstruction()) {
       INodeFileUnderConstruction cons = (INodeFileUnderConstruction) fileINode;
       Block[] blocks = fileINode.getBlocks();
+      if (blocks == null || blocks.length == 0) {
+        // This should never happen, but better to handle it properly than to throw
+        // an NPE below.
+        LOG.error("Null blocks for reported block=" + block + " stored=" + storedBlock +
+          " inode=" + fileINode);
+        return block;
+      }
       // If this is the last block of this
       // file, then set targets. This enables lease recovery to occur.
       // This is especially important after a restart of the NN.
