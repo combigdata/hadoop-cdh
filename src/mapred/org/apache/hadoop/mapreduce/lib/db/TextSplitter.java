@@ -61,7 +61,7 @@ public class TextSplitter extends BigDecimalSplitter {
     LOG.warn("Generating splits for a textual index column.");
     LOG.warn("If your database sorts in a case-insensitive order, "
         + "this may result in a partial import or duplicate records.");
-    LOG.warn("You are strongly encouraged to choose a numeric split column.");
+    LOG.warn("You are strongly encouraged to choose an integral split column.");
 
     String minString = results.getString(1);
     String maxString = results.getString(2);

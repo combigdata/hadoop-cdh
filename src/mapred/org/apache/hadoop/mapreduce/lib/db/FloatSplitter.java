@@ -23,18 +23,29 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.InputSplit;
+import org.apache.hadoop.mapreduce.JobContext;
 
 /**
  * Implement DBSplitter over floating-point values.
  */
 public class FloatSplitter implements DBSplitter {
 
+  private static final Log LOG = LogFactory.getLog(FloatSplitter.class);
+
   private static final double MIN_INCREMENT = 10000 * Double.MIN_VALUE;
 
   public List<InputSplit> split(Configuration conf, ResultSet results, String colName)
       throws SQLException {
+
+    LOG.warn("Generating splits for a floating-point index column. Due to the");
+    LOG.warn("imprecise representation of floating-point values in Java, this");
+    LOG.warn("may result in an incomplete import.");
+    LOG.warn("You are strongly encouraged to choose an integral split column.");
 
     List<InputSplit> splits = new ArrayList<InputSplit>();
 
