@@ -44,13 +44,13 @@ public class TestDistributedCache extends TestCase {
   /** test delete cache */
   public void testDeleteCache() throws Exception {
     DistributedCache.getLocalCache(firstCacheFile.toUri(), conf, new Path(TEST_CACHE_BASE_DIR), 
-        false, System.currentTimeMillis(), new Path(TEST_ROOT_DIR));
+        false, System.currentTimeMillis(), new Path(TEST_ROOT_DIR), null);
     DistributedCache.releaseCache(firstCacheFile.toUri(), conf);
     //in above code,localized a file of size 4K and then release the cache which will cause the cache 
     //be deleted when the limit goes out. The below code localize another cache which's designed to 
     //sweep away the first cache.
     DistributedCache.getLocalCache(secondCacheFile.toUri(), conf, new Path(TEST_CACHE_BASE_DIR), 
-        false, System.currentTimeMillis(), new Path(TEST_ROOT_DIR));
+        false, System.currentTimeMillis(), new Path(TEST_ROOT_DIR), null);
     FileStatus[] dirStatuses = localfs.listStatus(new Path(TEST_CACHE_BASE_DIR));
     assertTrue("DistributedCache failed deleting old cache when the cache store is full.",
         dirStatuses.length > 1);

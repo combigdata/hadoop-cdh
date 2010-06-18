@@ -79,11 +79,11 @@ import org.apache.hadoop.security.authorize.PolicyProvider;
 import org.apache.hadoop.security.authorize.RefreshAuthorizationPolicyProtocol;
 import org.apache.hadoop.security.authorize.ServiceAuthorizationManager;
 import org.apache.hadoop.util.HostsFileReader;
+import org.apache.hadoop.util.MRAsyncDiskService;
 import org.apache.hadoop.util.PluginDispatcher;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.util.VersionInfo;
-import org.apache.hadoop.mapreduce.util.MRAsyncDiskService;
 
 /*******************************************************
  * JobTracker is the central location for submitting and 

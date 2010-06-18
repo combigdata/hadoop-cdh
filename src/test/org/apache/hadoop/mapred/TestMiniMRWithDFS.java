@@ -149,7 +149,7 @@ public class TestMiniMRWithDFS extends TestCase {
       }
       for(int fileIdx = 0; fileIdx < contents.length; ++fileIdx) {
         String name = contents[fileIdx];
-        if (!("taskTracker".equals(contents[fileIdx]))) {
+        if (!("taskTracker".equals(name)) && !("toBeDeleted".equals(name))) {
           LOG.debug("Looking at " + name);
           assertTrue("Spurious directory " + name + " found in " +
                      localDir, false);

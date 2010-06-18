@@ -79,6 +79,7 @@ import org.apache.hadoop.security.authorize.ConfiguredPolicy;
 import org.apache.hadoop.security.authorize.PolicyProvider;
 import org.apache.hadoop.security.authorize.ServiceAuthorizationManager;
 import org.apache.hadoop.util.DiskChecker;
+import org.apache.hadoop.util.MRAsyncDiskService;
 import org.apache.hadoop.util.MemoryCalculatorPlugin;
 import org.apache.hadoop.util.ProcfsBasedProcessTree;
 import org.apache.hadoop.util.ReflectionUtils;
@@ -87,7 +88,6 @@ import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.util.VersionInfo;
 import org.apache.hadoop.util.DiskChecker.DiskErrorException;
 import org.apache.hadoop.util.Shell.ShellCommandExecutor;
-import org.apache.hadoop.mapreduce.util.MRAsyncDiskService;
 
 /*******************************************************
  * TaskTracker is a process that starts and tracks MR Tasks
@@ -440,10 +440,12 @@ public class TaskTracker
        fConf.get("mapred.tasktracker.dns.nameserver","default"));
     }
  
-    //check local disk and start async disk service
+    // Check local disk, start async disk service, and clean up all 
+    // local directories.
     checkLocalDirs(this.fConf.getLocalDirs());
-    asyncDiskService = new MRAsyncDiskService(FileSystem.getLocal(fConf), fConf.getLocalDirs());
-    asyncDiskService.moveAndDeleteFromEachVolume(SUBDIR);
+    asyncDiskService = new MRAsyncDiskService(FileSystem.getLocal(fConf),
+        fConf.getLocalDirs());
+    asyncDiskService.cleanupAllVolumes();
 
     // Clear out state tables
     this.tasks.clear();
@@ -512,10 +514,6 @@ public class TaskTracker
     this.taskTrackerName = "tracker_" + localHostname + ":" + taskReportAddress;
     LOG.info("Starting tracker " + taskTrackerName);
 
-    // Clear out temporary files that might be lying around
-    DistributedCache.purgeCache(this.fConf);
-    cleanupStorage();
-
     this.jobClient = (InterTrackerProtocol) 
       RPC.waitForProxy(InterTrackerProtocol.class,
                        InterTrackerProtocol.versionID, 
@@ -552,10 +550,14 @@ public class TaskTracker
         t, TaskTrackerInstrumentation.class);
   }
   
-  /** 
-   * Removes all contents of temporary storage.  Called upon 
+  /**
+   * Removes all contents of temporary storage.  Called upon
    * startup, to remove any leftovers from previous run.
+   * 
+   * Use MRAsyncDiskService.moveAndDeleteAllVolumes instead.
+   * @see org.apache.hadoop.util.MRAsyncDiskService#cleanupAllVolumes()
    */
+  @Deprecated
   public void cleanupStorage() throws IOException {
     this.fConf.deleteLocalFiles();
   }
@@ -872,7 +874,22 @@ public class TaskTracker
     this.running = false;
         
     // Clear local storage
-    cleanupStorage();
+    if (asyncDiskService != null) {
+      // Clear local storage
+      asyncDiskService.cleanupAllVolumes();
+      
+      // Shutdown all async deletion threads with up to 10 seconds of delay
+      asyncDiskService.shutdown();
+      try {
+        if (!asyncDiskService.awaitTermination(10000)) {
+          asyncDiskService.shutdownNow();
+          asyncDiskService = null;
+        }
+      } catch (InterruptedException e) {
+        asyncDiskService.shutdownNow();
+        asyncDiskService = null;
+      }
+    }
         
     // Shutdown the fetcher thread
     this.mapEventsFetcher.interrupt();
@@ -1264,6 +1281,13 @@ public class TaskTracker
     return heartbeatResponse;
   }
 
+  /**
+   * Returns the MRAsyncDiskService object for async deletions.
+   */
+  public MRAsyncDiskService getAsyncDiskService() {
+    return asyncDiskService;
+  }
+  
   /**
    * Return the total virtual memory available on this TaskTracker.
    * @return total size of virtual memory.

@@ -152,10 +152,11 @@ public class DistributedCache {
   public static Path getLocalCache(URI cache, Configuration conf, 
                                    Path baseDir, FileStatus fileStatus,
                                    boolean isArchive, long confFileStamp,
-                                   Path currentWorkDir) 
+                                   Path currentWorkDir,
+                                   MRAsyncDiskService asyncDiskService) 
   throws IOException {
     return getLocalCache(cache, conf, baseDir, fileStatus, isArchive, 
-        confFileStamp, currentWorkDir, true);
+        confFileStamp, currentWorkDir, true, asyncDiskService);
   }
   /**
    * Get the locally cached file or archive; it could either be 
@@ -188,7 +189,8 @@ public class DistributedCache {
   public static Path getLocalCache(URI cache, Configuration conf, 
       Path baseDir, FileStatus fileStatus,
       boolean isArchive, long confFileStamp,
-      Path currentWorkDir, boolean honorSymLinkConf) 
+        Path currentWorkDir, boolean honorSymLinkConf,
+        MRAsyncDiskService asyncDiskService) 
   throws IOException {
     String cacheId = makeRelative(cache, conf);
     CacheStatus lcacheStatus;
@@ -203,7 +205,7 @@ public class DistributedCache {
 
       synchronized (lcacheStatus) {
         localizedPath = localizeCache(conf, cache, confFileStamp, lcacheStatus, 
-            fileStatus, isArchive, currentWorkDir, honorSymLinkConf);
+            fileStatus, isArchive, currentWorkDir, honorSymLinkConf, asyncDiskService);
         lcacheStatus.refcount++;
       }
     }
@@ -220,7 +222,7 @@ public class DistributedCache {
     long allowedSize = conf.getLong("local.cache.size", DEFAULT_CACHE_SIZE);
     if (allowedSize < size) {
       // try some cache deletions
-      deleteCache(conf);
+      deleteCache(conf, asyncDiskService);
     }
     return localizedPath;
   }
@@ -253,11 +255,13 @@ public class DistributedCache {
    */
   public static Path getLocalCache(URI cache, Configuration conf, 
                                    Path baseDir, boolean isArchive,
-                                   long confFileStamp, Path currentWorkDir) 
+                                   long confFileStamp, Path currentWorkDir,
+                                   MRAsyncDiskService asyncDiskService) 
   throws IOException {
     return getLocalCache(cache, conf, 
                          baseDir, null, isArchive,
-                         confFileStamp, currentWorkDir);
+                         confFileStamp, currentWorkDir,
+                         asyncDiskService);
   }
   
   /**
@@ -283,7 +287,8 @@ public class DistributedCache {
   
   // To delete the caches which have a refcount of zero
   
-  private static void deleteCache(Configuration conf) throws IOException {
+  private static void deleteCache(Configuration conf,
+      MRAsyncDiskService asyncDiskService) throws IOException {
     // try deleting cache Status with refcount of zero
     synchronized (cachedArchives) {
       for (Iterator it = cachedArchives.keySet().iterator(); it.hasNext();) {
@@ -292,7 +297,8 @@ public class DistributedCache {
         synchronized (lcacheStatus) {
           if (lcacheStatus.refcount == 0) {
             // delete this cache entry
-            FileSystem.getLocal(conf).delete(lcacheStatus.localLoadPath, true);
+            deleteLocalPath(asyncDiskService, FileSystem.getLocal(conf),
+                lcacheStatus.localLoadPath);
             synchronized (baseDirSize) {
               Long dirSize = baseDirSize.get(lcacheStatus.baseDir);
               if ( dirSize != null ) {
@@ -307,6 +313,30 @@ public class DistributedCache {
     }
   }
 
+  /**
+   * Delete a local path with asyncDiskService if available,
+   * or otherwise synchronously with local file system.
+   */
+  private static void deleteLocalPath(MRAsyncDiskService asyncDiskService,
+      LocalFileSystem fs, Path path) throws IOException {
+    boolean deleted = false;
+    if (asyncDiskService != null) {
+      // Try to delete using asyncDiskService
+      String localPathToDelete = 
+        path.toUri().getPath();
+      deleted = asyncDiskService.moveAndDeleteAbsolutePath(localPathToDelete);
+      if (!deleted) {
+        LOG.warn("Cannot find DistributedCache path " + localPathToDelete
+            + " on any of the asyncDiskService volumes!");
+      }
+    }
+    if (!deleted) {
+      // If no asyncDiskService, we will delete the files synchronously
+      fs.delete(path, true);
+    }
+    LOG.info("Deleted path " + path);
+  }
+  
   /*
    * Returns the relative path of the dir this cache will be localized in
    * relative path that this cache will be localized in. For
@@ -344,7 +374,9 @@ public class DistributedCache {
                                     CacheStatus cacheStatus,
                                     FileStatus fileStatus,
                                     boolean isArchive, 
-                                    Path currentWorkDir,boolean honorSymLinkConf) 
+                                    Path currentWorkDir,
+                                    boolean honorSymLinkConf,
+                                    MRAsyncDiskService asyncDiskService) 
   throws IOException {
     boolean doSymlink = honorSymLinkConf && getSymlink(conf);
     if(cache.getFragment() == null) {
@@ -380,8 +412,9 @@ public class DistributedCache {
         throw new IOException("Cache " + cacheStatus.localLoadPath.toString()
                               + " is in use and cannot be refreshed");
       
-      FileSystem localFs = FileSystem.getLocal(conf);
-      localFs.delete(cacheStatus.localLoadPath, true);
+      LocalFileSystem localFs = FileSystem.getLocal(conf);
+      deleteLocalPath(asyncDiskService, localFs, cacheStatus.localLoadPath);
+      
       synchronized (baseDirSize) {
     	Long dirSize = baseDirSize.get(cacheStatus.baseDir);
     	if ( dirSize != null ) {
@@ -874,12 +907,13 @@ public class DistributedCache {
    * should only be used when the server is reinitializing, because the users
    * are going to lose their files.
    */
-  public static void purgeCache(Configuration conf) throws IOException {
+  public static void purgeCache(Configuration conf,
+      MRAsyncDiskService service) throws IOException {
     synchronized (cachedArchives) {
-      FileSystem localFs = FileSystem.getLocal(conf);
+      LocalFileSystem localFs = FileSystem.getLocal(conf);
       for (Map.Entry<String,CacheStatus> f: cachedArchives.entrySet()) {
         try {
-          localFs.delete(f.getValue().localLoadPath, true);
+          deleteLocalPath(service, localFs, f.getValue().localLoadPath);
         } catch (IOException ie) {
           LOG.debug("Error cleaning up cache", ie);
         }

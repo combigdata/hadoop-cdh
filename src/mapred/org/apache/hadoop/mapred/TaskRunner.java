@@ -151,7 +151,8 @@ abstract class TaskRunner extends Thread {
                                                         archivesTimestamps[i]),
                                                   new Path(workDir.
                                                         getAbsolutePath()), 
-                                                  false);
+                                                  false,
+                                                  tracker.getAsyncDiskService());
             
           }
           DistributedCache.setLocalArchives(conf, stringifyPathArray(p));
@@ -177,7 +178,8 @@ abstract class TaskRunner extends Thread {
                                                            fileTimestamps[i]),
                                                   new Path(workDir.
                                                         getAbsolutePath()), 
-                                                  false);
+                                                  false,
+                                                  tracker.getAsyncDiskService());
           }
           DistributedCache.setLocalFiles(conf, stringifyPathArray(p));
         }
