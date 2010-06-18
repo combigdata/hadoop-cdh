@@ -172,8 +172,9 @@ public class DataDrivenDBInputFormat<T extends DBWritable>
 
     ResultSet results = null;
     Statement statement = null;
+    Connection connection = getConnection();
     try {
-      statement = getConnection().createStatement();
+      statement = connection.createStatement();
 
       results = statement.executeQuery(getBoundingValsQuery());
       results.next();
@@ -209,7 +210,8 @@ public class DataDrivenDBInputFormat<T extends DBWritable>
       }
 
       try {
-        getConnection().commit();
+        connection.commit();
+        closeConnection();
       } catch (SQLException se) {
         LOG.debug("SQLException committing split transaction: " + se.toString());
       }
