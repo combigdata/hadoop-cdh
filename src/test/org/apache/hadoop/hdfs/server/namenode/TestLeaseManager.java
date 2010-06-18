@@ -25,14 +25,14 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.util.Daemon;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
 
 import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 
 public class TestLeaseManager extends TestCase {
@@ -57,15 +57,6 @@ public class TestLeaseManager extends TestCase {
     String path1 = "/file-1";
     String path2 = "/file-2";
     
-    CalledAnswer internalReleaseCalled = new CalledAnswer();
-    CalledAnswer internalReleaseOneCalled = new CalledAnswer();
-    doAnswer(internalReleaseCalled)
-        .when(spyNamesystem)
-        .internalReleaseLease((LeaseManager.Lease) anyObject(), anyString());
-    doAnswer(internalReleaseOneCalled)
-        .when(spyNamesystem)
-        .internalReleaseLeaseOne((LeaseManager.Lease) anyObject(), anyString());
-    
     leaseManager.setLeasePeriod(1, 2);
     leaseManager.addLease(holder, path1);
     leaseManager.addLease(holder, path2);
@@ -74,23 +65,8 @@ public class TestLeaseManager extends TestCase {
     synchronized (spyNamesystem) { // checkLeases is always called with FSN lock
       leaseManager.checkLeases();
     }
-    
-    assertTrue("internalReleaseOne not called", internalReleaseOneCalled.isCalled());
-    assertFalse("internalRelease called", internalReleaseCalled.isCalled());
-  }
-  
-  private static class CalledAnswer<T> implements Answer<T>{
-    private volatile boolean called = false;
-
-    @Override
-    public T answer(InvocationOnMock invocationOnMock) throws Throwable {
-      called = true;
-      
-      return (T)invocationOnMock.callRealMethod();
-    }
-
-    public boolean isCalled() {
-      return called;
-    }
+    verify(spyNamesystem).internalReleaseLeaseOne((LeaseManager.Lease)anyObject(), eq("/file-1"));
+    verify(spyNamesystem).internalReleaseLeaseOne((LeaseManager.Lease)anyObject(), eq("/file-2"));
+    verify(spyNamesystem, never()).internalReleaseLease((LeaseManager.Lease)anyObject(), anyString());
   }
 }
