@@ -2,6 +2,7 @@
   contentType="text/html; charset=UTF-8"
   import="java.io.*"
   import="java.util.*"
+  import="java.net.URLEncoder"
   import="org.apache.hadoop.mapred.*"
   import="org.apache.hadoop.util.*"
   import="org.apache.hadoop.fs.*"
@@ -260,7 +261,7 @@ window.location.href = url;
       out.print("<td>" + trackerHostName + "</td>"); 
       out.print("<td>" + new Date(Long.parseLong(trackerid)) + "</td>"); 
       out.print("<td>" + "<a href=\"jobdetailshistory.jsp?jobid=" + jobId + 
-                "&logFile=" + logFile.toString() + "\">" + jobId + "</a></td>"); 
+                "&logFile=" + URLEncoder.encode(logFile.toString(), "UTF-8") + "\">" + jobId + "</a></td>"); 
       out.print("<td>" + jobName + "</td>"); 
       out.print("<td>" + user + "</td>"); 
       out.print("</tr>");
