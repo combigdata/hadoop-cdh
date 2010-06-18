@@ -87,6 +87,7 @@ import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.util.VersionInfo;
 import org.apache.hadoop.util.DiskChecker.DiskErrorException;
 import org.apache.hadoop.util.Shell.ShellCommandExecutor;
+import org.apache.hadoop.mapreduce.util.MRAsyncDiskService;
 
 /*******************************************************
  * TaskTracker is a process that starts and tracks MR Tasks
@@ -219,6 +220,8 @@ public class TaskTracker
   static final String MAPRED_TASKTRACKER_MEMORY_CALCULATOR_PLUGIN_PROPERTY =
       "mapred.tasktracker.memory_calculator_plugin";
 
+  private MRAsyncDiskService asyncDiskService;
+  
   /**
    * the minimum interval between jobtracker polls
    */
@@ -437,9 +440,10 @@ public class TaskTracker
        fConf.get("mapred.tasktracker.dns.nameserver","default"));
     }
  
-    //check local disk
+    //check local disk and start async disk service
     checkLocalDirs(this.fConf.getLocalDirs());
-    fConf.deleteLocalFiles(SUBDIR);
+    asyncDiskService = new MRAsyncDiskService(FileSystem.getLocal(fConf), fConf.getLocalDirs());
+    asyncDiskService.moveAndDeleteFromEachVolume(SUBDIR);
 
     // Clear out state tables
     this.tasks.clear();

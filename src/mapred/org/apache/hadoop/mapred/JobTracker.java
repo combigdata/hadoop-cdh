@@ -83,6 +83,7 @@ import org.apache.hadoop.util.PluginDispatcher;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.util.VersionInfo;
+import org.apache.hadoop.mapreduce.util.MRAsyncDiskService;
 
 /*******************************************************
  * JobTracker is the central location for submitting and 
@@ -133,6 +134,8 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
   final static FsPermission SYSTEM_FILE_PERMISSION =
     FsPermission.createImmutable((short) 0700); // rwx------
 
+  private MRAsyncDiskService asyncDiskService;
+  
   /**
    * A client tried to submit a job before the Job Tracker was ready.
    */
@@ -1673,6 +1676,10 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
     // start the recovery manager
     recoveryManager = new RecoveryManager();
     
+    // start async disk service for asynchronous deletion service
+    asyncDiskService = new MRAsyncDiskService(FileSystem.getLocal(jobConf),
+        jobConf.getLocalDirs());
+    
     while (!Thread.currentThread().isInterrupted()) {
       try {
         // if we haven't contacted the namenode go ahead and do it
@@ -1731,7 +1738,7 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
     }
     
     // Same with 'localDir' except it's always on the local disk.
-    jobConf.deleteLocalFiles(SUBDIR);
+    asyncDiskService.moveAndDeleteFromEachVolume(SUBDIR);
 
     // Initialize history DONE folder
     if (historyInitialized) {
