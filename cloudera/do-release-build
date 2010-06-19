@@ -90,21 +90,8 @@ ant \
   -propertyfile cloudera/build.properties api-report
 fi
 
-# Build the sqoop docs
-pushd $RELEASE_DIR/src/contrib/sqoop
-JAVA_HOME=$JAVA64_HOME \
-  ant \
-  -Djava5.home=$JAVA5_HOME \
-  -Dforrest.home=$FORREST_HOME \
-  -propertyfile cloudera/build.properties \
-  doc
-popd
 # Copy them into the main build directory to be included in the tarball
 mkdir -p build/hadoop-$FULL_VERSION/docs/
-cp -r build/contrib/sqoop/doc/ build/hadoop-$FULL_VERSION/docs/sqoop
-
-cp build/hadoop-$FULL_VERSION/docs/sqoop/sqoop.1.gz \
-   build/hadoop-$FULL_VERSION/docs/sqoop/sqoop-0.20.1.gz
 
 JAVA_HOME=$JAVA64_HOME \
   CFLAGS=-m64 \

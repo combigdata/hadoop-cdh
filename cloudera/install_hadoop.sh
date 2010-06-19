@@ -121,7 +121,7 @@ done
 # Make bin wrappers
 mkdir -p $BIN_DIR
 
-for bin_wrapper in hadoop sqoop ; do
+for bin_wrapper in hadoop ; do
   wrapper=$BIN_DIR/$bin_wrapper-$APACHE_BRANCH
   cat > $wrapper <<EOF
 #!/bin/sh
@@ -184,7 +184,6 @@ done
 # man pages
 mkdir -p $MAN_DIR/man1
 cp ${CLOUDERA_SOURCE_DIR}/hadoop-$APACHE_BRANCH.1.gz $MAN_DIR/man1/
-cp ${BUILD_DIR}/../../docs/sqoop/sqoop.1.gz $MAN_DIR/man1/sqoop-$APACHE_BRANCH.1.gz
 
 ############################################################
 # ARCH DEPENDENT STUFF
