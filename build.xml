@@ -330,6 +330,7 @@
     <copy todir="${build.webapps}">
       <fileset dir="${src.webapps}">
         <exclude name="**/*.jsp" />
+        <exclude name="**/*.jspx" />
       </fileset>
     </copy>
 

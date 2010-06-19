@@ -2287,6 +2287,13 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
     }
     return v;
   }
+
+  public synchronized List<JobInProgress> getFailedJobs() {
+    synchronized (jobs) {
+      return failedJobs();
+    }
+  }
+
   public Vector<JobInProgress> completedJobs() {
     Vector<JobInProgress> v = new Vector<JobInProgress>();
     for (Iterator it = jobs.values().iterator(); it.hasNext();) {
@@ -2297,6 +2304,12 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
       }
     }
     return v;
+  }
+
+  public synchronized List<JobInProgress> getCompletedJobs() {
+    synchronized (jobs) {
+      return completedJobs();
+    }
   }
 
   /**
