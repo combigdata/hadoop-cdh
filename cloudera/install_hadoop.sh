@@ -1,4 +1,4 @@
-#!/bin/sh -x
+#!/bin/bash -x
 # Copyright 2009 Cloudera, inc.
 
 set -ex
@@ -111,9 +111,19 @@ INSTALLED_LIB_DIR=${INSTALLED_LIB_DIR:-/usr/lib/hadoop-$APACHE_BRANCH}
 HADOOP_SRC_DIR=$BUILD_DIR/../../src
 
 mkdir -p $LIB_DIR
-(cd ${BUILD_DIR} && tar cf - .) | (cd $LIB_DIR && tar xf - )
-# Take out things we've installed elsewhere
+(cd $BUILD_DIR && tar cf - .) | (cd $LIB_DIR && tar xf - )
 
+# Create symlinks to preserve old jar names
+(cd $LIB_DIR &&
+for j in hadoop-*.jar; do
+  if [[ $j =~ hadoop-([a-zA-Z]+)-([0-9+\.-]+).jar ]]; then
+    name=${BASH_REMATCH[1]}
+    ver=${BASH_REMATCH[2]}
+    ln -s hadoop-$name-$ver.jar hadoop-$ver-$name.jar
+  fi
+done)
+
+# Take out things we've installed elsewhere
 for x in docs lib/native c++ src conf usr/bin/fuse_dfs contrib/fuse ; do
   rm -rf $LIB_DIR/$x 
 done
