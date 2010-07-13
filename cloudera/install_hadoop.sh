@@ -27,6 +27,7 @@ OPTS=$(getopt \
   -l 'native-build-string:' \
   -l 'installed-lib-dir:' \
   -l 'lib-dir:' \
+  -l 'system-lib-dir:' \
   -l 'src-dir:' \
   -l 'etc-dir:' \
   -l 'doc-dir:' \
@@ -50,6 +51,9 @@ while true ; do
         ;;
         --lib-dir)
         LIB_DIR=$2 ; shift 2
+        ;;
+        --system-lib-dir)
+        SYSTEM_LIB_DIR=$2 ; shift 2
         ;;
         --build-dir)
         BUILD_DIR=$2 ; shift 2
@@ -97,6 +101,7 @@ for var in CLOUDERA_SOURCE_DIR PREFIX BUILD_DIR APACHE_BRANCH; do
 done
 
 LIB_DIR=${LIB_DIR:-$PREFIX/usr/lib/hadoop-$APACHE_BRANCH}
+SYSTEM_LIB_DIR=${SYSTEM_LIB_DIR:-$PREFIX/usr/lib}
 BIN_DIR=${BIN_DIR:-$PREFIX/usr/bin}
 DOC_DIR=${DOC_DIR:-$PREFIX/usr/share/doc/hadoop-$APACHE_BRANCH}
 MAN_DIR=${MAN_DIR:-$PREFIX/usr/man}
@@ -243,15 +248,15 @@ EOF
   cp -r ${BUILD_DIR}/lib/native/${NATIVE_BUILD_STRING} $LIB_DIR/lib/native/
 
   # Pipes
-  mkdir -p $PREFIX/usr/lib $PREFIX/usr/include
+  mkdir -p $PREFIX/$SYSTEM_LIB_DIR $PREFIX/usr/include
   cp ${BUILD_DIR}/c++/${NATIVE_BUILD_STRING}/lib/libhadooppipes.a \
       ${BUILD_DIR}/c++/${NATIVE_BUILD_STRING}/lib/libhadooputils.a \
-      $PREFIX/usr/lib
+      $PREFIX/$SYSTEM_LIB_DIR
   cp -r ${BUILD_DIR}/c++/${NATIVE_BUILD_STRING}/include/hadoop $PREFIX/usr/include/
 
   # libhdfs
-  cp ${BUILD_DIR}/c++/${NATIVE_BUILD_STRING}/lib/libhdfs.so.0.0.0 $PREFIX/usr/lib
-  ln -sf libhdfs.so.0.0.0 $PREFIX/usr/lib/libhdfs.so.0
+  cp ${BUILD_DIR}/c++/${NATIVE_BUILD_STRING}/lib/libhdfs.so.0.0.0 $PREFIX/$SYSTEM_LIB_DIR
+  ln -sf libhdfs.so.0.0.0 $PREFIX/$SYSTEM_LIB_DIR/libhdfs.so.0
 
   # libhdfs-dev - hadoop doesn't realy install these things in nice places :(
   mkdir -p $PREFIX/usr/share/doc/libhdfs0-dev/examples
@@ -260,7 +265,7 @@ EOF
   cp ${HADOOP_SRC_DIR}/c++/libhdfs/hdfs_*.c $PREFIX/usr/share/doc/libhdfs0-dev/examples
 
   #    This is somewhat unintuitive, but the -dev package has this symlink (see Debian Library Packaging Guide)
-  ln -sf libhdfs.so.0.0.0 $PREFIX/usr/lib/libhdfs.so
-  sed -e "s|^libdir='.*'|libdir='/usr/lib'|" \
-      ${BUILD_DIR}/c++/${NATIVE_BUILD_STRING}/lib/libhdfs.la > $PREFIX/usr/lib/libhdfs.la
+  ln -sf libhdfs.so.0.0.0 $PREFIX/$SYSTEM_LIB_DIR/libhdfs.so
+  sed -e "s|^libdir='.*'|libdir=\"$SYSTEM_LIB_DIR\"|" \
+      ${BUILD_DIR}/c++/${NATIVE_BUILD_STRING}/lib/libhdfs.la > $PREFIX/$SYSTEM_LIB_DIR/libhdfs.la
 fi
