@@ -290,7 +290,8 @@ public class DataNode extends Configured
   void startDataNode(Configuration conf, 
                      AbstractList<File> dataDirs, SecureResources resources
                      ) throws IOException {
-    if(UserGroupInformation.isSecurityEnabled() && resources == null)
+    if(UserGroupInformation.isSecurityEnabled() && resources == null &&
+       conf.getBoolean("dfs.datanode.require.secure.ports", true))
       throw new RuntimeException("Cannot start secure cluster without " +
       		"privileged resources.");
     
