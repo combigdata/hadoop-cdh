@@ -36,6 +36,10 @@ int write_config_file(char *file_name) {
 
 void test_check_variable_against_config() {
 
+  char *value = NULL;
+  char **values = NULL;
+  char *conf_dir = NULL;
+
   // A temporary configuration directory
   char *conf_dir_templ = "/tmp/test-task-controller-conf-dir-XXXXXX";
 
@@ -54,7 +58,7 @@ void test_check_variable_against_config() {
 
   // create the configuration directory
   strcat(template, "/conf");
-  char *conf_dir = strdup(template);
+  conf_dir = strdup(template);
   mkdir(conf_dir, S_IRWXU);
 
   // create the configuration file
@@ -67,7 +71,7 @@ void test_check_variable_against_config() {
   // Test obtaining a value for a key from the config
   char *config_values[4] = { "/tmp/testing1", "/tmp/testing2",
       "/tmp/testing3", "/tmp/testing4" };
-  char *value = (char *) get_value("mapred.local.dir");
+  value = (char *) get_value("mapred.local.dir");
   if (strcmp(value, "/tmp/testing1,/tmp/testing2,/tmp/testing3,/tmp/testing4")
       != 0) {
     printf("Obtaining a value for a key from the config failed.\n");
@@ -75,7 +79,7 @@ void test_check_variable_against_config() {
   }
 
   // Test the parsing of a multiple valued key from the config
-  char **values = (char **) get_values("mapred.local.dir");
+  values = (char **) get_values("mapred.local.dir");
   char **values_ptr = values;
   int i = 0;
   while (*values_ptr != NULL) {

@@ -23,6 +23,10 @@ struct passwd *user_detail = NULL;
 //LOGFILE
 FILE *LOGFILE;
 
+int secure_single_path(char *path, uid_t uid, gid_t gid,
+    mode_t perm, int should_check_ownership);
+int check_ownership(char *path, uid_t uid, gid_t gid);
+
 //placeholder for global cleanup operations
 void cleanup() {
   free_configurations();
@@ -247,7 +251,7 @@ int check_tt_root(const char *tt_root) {
  * security pitfalls because of relative path components in the file name.
  */
 int check_path_for_relative_components(char *path) {
-  char * resolved_path = (char *) canonicalize_file_name(path);
+  char * resolved_path = realpath(path, NULL);
   if (resolved_path == NULL) {
     fprintf(LOGFILE,
         "Error resolving the path: %s. Passed path: %s\n",
@@ -831,6 +835,7 @@ int initialize_job(const char *jobid, const char *user) {
   mode_t permissions = is_tt_user ? (S_IRWXU | S_IRWXG)
                                   : (S_IRUSR | S_IXUSR | S_IRWXG);
   char *job_dir, *job_work_dir;
+  char *log_dir = NULL;
   char **local_dir_ptr = local_dir;
   int failed = 0;
   while (*local_dir_ptr != NULL) {
@@ -913,7 +918,7 @@ int initialize_job(const char *jobid, const char *user) {
     goto cleanup;
   }
 
-  char *log_dir = (char *) get_value(TT_LOG_DIR_KEY);
+  log_dir = (char *) get_value(TT_LOG_DIR_KEY);
   if (log_dir == NULL) {
     fprintf(LOGFILE, "Log directory is not configured.\n");
     exit_code = INVALID_TT_LOG_DIR;
@@ -1016,6 +1021,7 @@ int initialize_distributed_cache_file(const char *tt_root,
  */
 int initialize_task(const char *jobid, const char *taskid, const char *user) {
   int exit_code = 0;
+  char *log_dir = NULL;
 #ifdef DEBUG
   fprintf(LOGFILE, "job-id passed to initialize_task : %s.\n", jobid);
   fprintf(LOGFILE, "task-d passed to initialize_task : %s.\n", taskid);
@@ -1029,7 +1035,7 @@ int initialize_task(const char *jobid, const char *taskid, const char *user) {
     goto cleanup;
   }
 
-  char *log_dir = (char *) get_value(TT_LOG_DIR_KEY);
+  log_dir = (char *) get_value(TT_LOG_DIR_KEY);
   if (log_dir == NULL) {
     fprintf(LOGFILE, "Log directory is not configured.\n");
     exit_code = INVALID_TT_LOG_DIR;
@@ -1221,16 +1227,16 @@ static int enable_path_for_cleanup(const char *tt_root, const char *user,
      // Make sure that the path given is not having any relative components
   else if ((exit_code = check_path_for_relative_components(full_path)) != 0) {
     fprintf(LOGFILE,
-    "Not changing permissions. Path may contain relative components.\n",
+    "Not changing permissions. Path '%s' may contain relative components.\n",
          full_path);
   }
   else if (get_user_details(user) < 0) {
     fprintf(LOGFILE, "Couldn't get the user details of %s.\n", user);
     exit_code = INVALID_USER_NAME;
   }
-  else if (exit_code = secure_path(full_path, user_detail->pw_uid,
+  else if ((exit_code = secure_path(full_path, user_detail->pw_uid,
                tasktracker_gid,
-               S_IRWXU | S_IRWXG, S_ISGID | S_IRWXU | S_IRWXG, 0) != 0) {
+               S_IRWXU | S_IRWXG, S_ISGID | S_IRWXU | S_IRWXG, 0)) != 0) {
     // No setgid on files and setgid on dirs, 770.
     // set 770 permissions for user, TTgroup for all files/directories in
     // 'full_path' recursively sothat deletion of path by TaskTracker succeeds.

@@ -55,7 +55,7 @@ void display_usage(FILE *stream) {
 int check_taskcontroller_permissions(char *executable_file) {
 
   errno = 0;
-  char * resolved_path = (char *) canonicalize_file_name(executable_file);
+  char * resolved_path = (char *) realpath(executable_file, NULL);
   if (resolved_path == NULL) {
     fprintf(LOGFILE,
         "Error resolving the canonical name for the executable : %s!",
@@ -124,7 +124,6 @@ int main(int argc, char **argv) {
   const char * job_id = NULL;
   const char * task_id = NULL;
   const char * tt_root = NULL;
-  const char *log_dir = NULL;
   const char * unique_string = NULL;
   int exit_code = 0;
   const char * task_pid = NULL;

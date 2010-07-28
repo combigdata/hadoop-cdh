@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+#include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,9 +24,6 @@
 
 #define INCREMENT_SIZE 1000
 #define MAX_SIZE 10
-
-//would be defined by the autoconfiguration tool
-#undef HADOOP_CONF_DIR
 
 struct confentry {
   const char *key;

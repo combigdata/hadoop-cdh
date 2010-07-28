@@ -15,6 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "configuration.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -32,8 +34,6 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <fts.h>
-
-#include "configuration.h"
 
 //command definitions
 enum command {
@@ -139,3 +139,18 @@ int check_variable_against_config(const char *config_key,
 int get_user_details(const char *user);
 
 char *get_task_launcher_file(const char *job_dir, const char *attempt_dir);
+
+char *get_user_directory(const char *tt_root, const char *user);
+
+char *get_job_directory(const char * tt_root, const char *user,
+    const char *jobid);
+
+char *get_task_log_dir(const char *log_dir, const char *job_id,
+    const char *attempt_id);
+
+char *get_job_log_dir(const char *log_dir, const char *job_id);
+
+char *get_job_acls_file(const char *log_dir);
+
+char *get_attempt_directory(const char *job_dir, const char *attempt_id);
+
