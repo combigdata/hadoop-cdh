@@ -40,6 +40,7 @@ import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.hdfs.server.datanode.DataNode;
 import org.apache.hadoop.hdfs.server.namenode.FSNamesystem;
 import org.apache.hadoop.net.NetUtils;
+import org.apache.hadoop.security.UserGroupInformation;
 
 /**
  * A JUnit test for HdfsProxy
@@ -202,13 +203,16 @@ public class TestHdfsProxy extends TestCase {
     MiniDFSCluster cluster = null;
     HdfsProxy proxy = null;
     try {
+      final UserGroupInformation CLIENT_UGI = UserGroupInformation.getCurrentUser();
+      final String testUser = CLIENT_UGI.getShortUserName();
+      final String testGroup = CLIENT_UGI.getGroupNames()[0];
 
       final Configuration dfsConf = new Configuration();
-      dfsConf.set("hadoop.proxyuser." + System.getProperty("user.name") +
-          ".groups", "users");
-      dfsConf.set("hadoop.proxyuser.users.hosts", "127.0.0.1,localhost");
-      dfsConf.set("hadoop.proxyuser." + System.getProperty("user.name") +
-          ".hosts", "127.0.0.1,localhost");
+      dfsConf.set("hadoop.proxyuser." + testUser + ".groups", testGroup);
+      dfsConf.set("hadoop.proxyuser." + testGroup + ".hosts",
+          "127.0.0.1,localhost");
+      dfsConf.set("hadoop.proxyuser." + testUser + ".hosts",
+          "127.0.0.1,localhost");
       dfsConf.set("hadoop.security.authentication", "simple");
       cluster = new MiniDFSCluster(dfsConf, 2, true, null);
       cluster.waitActive();
