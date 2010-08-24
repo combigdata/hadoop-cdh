@@ -1258,8 +1258,6 @@
     <!-- CLOUDERA HOOKS -->
     <copy todir="${dist.dir}/lib">
       <fileset dir="${build.dir}/contrib/fairscheduler" includes="*.jar"/>
-      <fileset dir="${build.dir}/contrib/scribe-log4j" includes="*.jar"/>
-      <fileset dir="src/contrib/scribe-log4j/lib" includes="*.jar"/>
     </copy>
 
     <copy todir="${dist.dir}/cloudera">
