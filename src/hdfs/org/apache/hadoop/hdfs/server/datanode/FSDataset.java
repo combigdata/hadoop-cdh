@@ -43,6 +43,7 @@ import org.apache.hadoop.fs.DU;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.protocol.FSConstants;
+import org.apache.hadoop.hdfs.server.common.GenerationStamp;
 import org.apache.hadoop.hdfs.server.datanode.metrics.FSDatasetMBean;
 import org.apache.hadoop.hdfs.server.protocol.BlockRecoveryInfo;
 import org.apache.hadoop.hdfs.server.protocol.InterDatanodeProtocol;
@@ -1139,8 +1140,12 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
    */
   private synchronized List<Thread> tryUpdateBlock(
       Block oldblock, Block newblock) throws IOException {
+    Block oldblockWildcardGS = new Block(
+      oldblock.getBlockId(), oldblock.getNumBytes(),
+      GenerationStamp.WILDCARD_STAMP);
+
     //check ongoing create threads
-    ArrayList<Thread> activeThreads = getActiveThreads(oldblock);
+    ArrayList<Thread> activeThreads = getActiveThreads(oldblockWildcardGS);
     if (activeThreads != null) {
       return activeThreads;
     }
@@ -1188,8 +1193,8 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
       throw new IOException("Cannot rename tmp meta file to " + newMetaFile);
     }
 
-    updateBlockMap(ongoingCreates, oldblock, newblock);
-    updateBlockMap(volumeMap, oldblock, newblock);
+    updateBlockMap(ongoingCreates, oldblockWildcardGS, newblock);
+    updateBlockMap(volumeMap, oldblockWildcardGS, newblock);
 
     // paranoia! verify that the contents of the stored block 
     // matches the block file on disk.
