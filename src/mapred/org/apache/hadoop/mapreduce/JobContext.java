@@ -47,10 +47,14 @@ public class JobContext {
   public static final String JAR_UNPACK_PATTERN = "mapreduce.job.jar.unpack.pattern";
 
   protected final org.apache.hadoop.mapred.JobConf conf;
-  private final JobID jobId;
+  private JobID jobId;
   
   public JobContext(Configuration conf, JobID jobId) {
     this.conf = new org.apache.hadoop.mapred.JobConf(conf);
+    this.jobId = jobId;
+  }
+
+  void setJobID(JobID jobId) {
     this.jobId = jobId;
   }
 
