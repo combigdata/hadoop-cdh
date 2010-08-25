@@ -177,7 +177,8 @@ class JobMonitor implements Gridmix.Component<Job> {
                 continue;
               }
             } catch (IOException e) {
-              if (e.getCause() instanceof ClosedByInterruptException) {
+              if (e.getCause() instanceof ClosedByInterruptException ||
+                  e.getCause() instanceof InterruptedException) {
                 // Job doesn't throw InterruptedException, but RPC socket layer
                 // is blocking and may throw a wrapped Exception if this thread
                 // is interrupted. Since the lower level cleared the flag,
