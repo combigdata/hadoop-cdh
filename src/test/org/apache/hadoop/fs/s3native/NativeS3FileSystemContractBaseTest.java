@@ -61,4 +61,18 @@ public abstract class NativeS3FileSystemContractBaseTest
   public void testNoTrailingBackslashOnBucket() throws Exception {
     assertTrue(fs.getFileStatus(new Path(fs.getUri().toString())).isDir());
   }
+  
+  public void testBlockSize() throws Exception {
+    Path file = path("/test/hadoop/file");
+    createFile(file);
+    assertEquals("Default block size", fs.getDefaultBlockSize(),
+    fs.getFileStatus(file).getBlockSize());
+
+    // Block size is determined at read time
+    long newBlockSize = fs.getDefaultBlockSize() * 2;
+    fs.getConf().setLong("fs.s3n.block.size", newBlockSize);
+    assertEquals("Double default block size", newBlockSize,
+    fs.getFileStatus(file).getBlockSize());
+  }
+
 }
