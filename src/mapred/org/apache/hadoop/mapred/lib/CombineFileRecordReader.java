@@ -19,9 +19,11 @@
 package org.apache.hadoop.mapred.lib;
 
 import java.io.*;
+import java.util.*;
 import java.lang.reflect.*;
 
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 
 import org.apache.hadoop.mapred.*;
 import org.apache.hadoop.conf.Configuration;
@@ -33,10 +35,8 @@ import org.apache.hadoop.conf.Configuration;
  * This class allows using different RecordReaders for processing
  * these data chunks from different files.
  * @see CombineFileSplit
- * @deprecated Use
- * {@link org.apache.hadoop.mapreduce.lib.input.CombineFileRecordReader}
  */
-@Deprecated
+
 public class CombineFileRecordReader<K, V> implements RecordReader<K, V> {
 
   static final Class [] constructorSignature = new Class [] 
@@ -92,6 +92,11 @@ public class CombineFileRecordReader<K, V> implements RecordReader<K, V> {
    * return progress based on the amount of data processed so far.
    */
   public float getProgress() throws IOException {
+    long subprogress = 0;    // bytes processed in current split
+    if (null != curReader) {
+      // idx is always one past the current subsplit's true index.
+      subprogress = (long)(curReader.getProgress() * split.getLength(idx - 1));
+    }
     return Math.min(1.0f,  progress/(float)(split.getLength()));
   }
   
