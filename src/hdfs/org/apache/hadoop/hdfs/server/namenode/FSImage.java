@@ -1772,7 +1772,10 @@ public class FSImage extends Storage {
   }
 
   static private final UTF8 U_STR = new UTF8();
-  static String readString(DataInputStream in) throws IOException {
+  // This should be reverted to package private once the ImageLoader
+  // code is moved into this package. This method should not be called
+  // by other code.
+  public static String readString(DataInputStream in) throws IOException {
     U_STR.readFields(in);
     return U_STR.toString();
   }
@@ -1782,7 +1785,8 @@ public class FSImage extends Storage {
     return s.isEmpty()? null: s;
   }
 
-  static byte[] readBytes(DataInputStream in) throws IOException {
+  // Same comments apply for this method as for readString()
+  public static byte[] readBytes(DataInputStream in) throws IOException {
     U_STR.readFields(in);
     int len = U_STR.getLength();
     byte[] bytes = new byte[len];
