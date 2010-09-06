@@ -17,28 +17,18 @@
 #
 
 #
-# Makefile template for building libhadoop.so 
+# Makefile template for building native IO utils for hadoop.
 #
 
-#
-# Notes: 
-# 1. This makefile is designed to do the actual builds in $(HADOOP_HOME)/build/native/${os.name}-${os.arch}/lib 
-# 2. This makefile depends on the following environment variables to function correctly:
-#    * HADOOP_NATIVE_SRCDIR 
-#    * JAVA_HOME
-#    * OS_ARCH 
-#    All these are setup by build.xml and/or the top-level makefile.
-#
+# The 'vpath directive' to locate the actual source files 
+vpath %.c $(HADOOP_NATIVE_SRCDIR)/$(subdir)
 
-# Add .lo files in $(SUBDIRS) to construct libhadoop.so
-HADOOP_OBJS = $(foreach path,$(addprefix ../,$(SUBDIRS)),$(wildcard $(path)/*.lo))
-AM_LDFLAGS = @JNI_LDFLAGS@ -m$(JVM_DATA_MODEL)
+AM_CPPFLAGS = @JNI_CPPFLAGS@ -I$(HADOOP_NATIVE_SRCDIR)/src
+AM_LDFLAGS = @JNI_LDFLAGS@
+AM_CFLAGS = -g -Wall -fPIC -O2 -m$(JVM_DATA_MODEL)
 
-lib_LTLIBRARIES = libhadoop.la
-libhadoop_la_SOURCES = 
-libhadoop_la_LDFLAGS = -version-info 1:0:0 $(AM_LDFLAGS)
-libhadoop_la_LIBADD = $(HADOOP_OBJS) -ldl
-
+noinst_LTLIBRARIES = libnativeio.la
+libnativeio_la_SOURCES = NativeIO.c file_descriptor.c errno_enum.c
 #
 #vim: sw=4: ts=4: noet
 #

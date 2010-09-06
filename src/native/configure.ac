@@ -92,8 +92,12 @@ AC_C_CONST
 # Checks for library functions.
 AC_CHECK_FUNCS([memset])
 
+# Check for nonstandard STRERROR_R
+AC_FUNC_STRERROR_R
+
 AC_CONFIG_FILES([Makefile
                  src/org/apache/hadoop/io/compress/zlib/Makefile
+                 src/org/apache/hadoop/io/nativeio/Makefile
                  lib/Makefile])
 AC_OUTPUT
 

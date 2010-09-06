@@ -33,21 +33,7 @@
 #
 
 #
-# Makefile template for building native 'zlib' for hadoop.
-#
-
-#
-# Notes: 
-# 1. This makefile is designed to do the actual builds in $(HADOOP_HOME)/build/native/${os.name}-${os.arch}/$(subdir) .
-# 2. This makefile depends on the following environment variables to function correctly:
-#    * HADOOP_NATIVE_SRCDIR 
-#    * JAVA_HOME
-#    * JVM_DATA_MODEL
-#    * OS_ARCH 
-#    * PLATFORM
-#    All these are setup by build.xml and/or the top-level makefile.
-# 3. The creation of requisite jni headers/stubs are also done by build.xml and they are
-#    assumed to be in $(HADOOP_HOME)/build/native/src/org/apache/hadoop/io/compress/zlib.
+# Makefile template for building native IO utils for hadoop.
 #
 
 VPATH = @srcdir@
@@ -68,7 +54,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-subdir = src/org/apache/hadoop/io/compress/zlib
+subdir = src/org/apache/hadoop/io/nativeio
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/acinclude.m4 \
@@ -79,9 +65,10 @@ mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES =
 LTLIBRARIES = $(noinst_LTLIBRARIES)
-libnativezlib_la_DEPENDENCIES =
-am_libnativezlib_la_OBJECTS = ZlibCompressor.lo ZlibDecompressor.lo
-libnativezlib_la_OBJECTS = $(am_libnativezlib_la_OBJECTS)
+libnativeio_la_LIBADD =
+am_libnativeio_la_OBJECTS = NativeIO.lo file_descriptor.lo \
+	errno_enum.lo
+libnativeio_la_OBJECTS = $(am_libnativeio_la_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/config/depcomp
 am__depfiles_maybe = depfiles
@@ -94,8 +81,8 @@ CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-SOURCES = $(libnativezlib_la_SOURCES)
-DIST_SOURCES = $(libnativezlib_la_SOURCES)
+SOURCES = $(libnativeio_la_SOURCES)
+DIST_SOURCES = $(libnativeio_la_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -214,9 +201,8 @@ top_srcdir = @top_srcdir@
 AM_CPPFLAGS = @JNI_CPPFLAGS@ -I$(HADOOP_NATIVE_SRCDIR)/src
 AM_LDFLAGS = @JNI_LDFLAGS@
 AM_CFLAGS = -g -Wall -fPIC -O2 -m$(JVM_DATA_MODEL)
-noinst_LTLIBRARIES = libnativezlib.la
-libnativezlib_la_SOURCES = ZlibCompressor.c ZlibDecompressor.c
-libnativezlib_la_LIBADD = -ldl
+noinst_LTLIBRARIES = libnativeio.la
+libnativeio_la_SOURCES = NativeIO.c file_descriptor.c errno_enum.c
 all: all-am
 
 .SUFFIXES:
@@ -230,9 +216,9 @@ $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign  src/org/apache/hadoop/io/compress/zlib/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign  src/org/apache/hadoop/io/nativeio/Makefile'; \
 	cd $(top_srcdir) && \
-	  $(AUTOMAKE) --foreign  src/org/apache/hadoop/io/compress/zlib/Makefile
+	  $(AUTOMAKE) --foreign  src/org/apache/hadoop/io/nativeio/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
@@ -259,8 +245,8 @@ clean-noinstLTLIBRARIES:
 	  echo "rm -f \"$${dir}/so_locations\""; \
 	  rm -f "$${dir}/so_locations"; \
 	done
-libnativezlib.la: $(libnativezlib_la_OBJECTS) $(libnativezlib_la_DEPENDENCIES) 
-	$(LINK)  $(libnativezlib_la_OBJECTS) $(libnativezlib_la_LIBADD) $(LIBS)
+libnativeio.la: $(libnativeio_la_OBJECTS) $(libnativeio_la_DEPENDENCIES) 
+	$(LINK)  $(libnativeio_la_OBJECTS) $(libnativeio_la_LIBADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -268,8 +254,9 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ZlibCompressor.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ZlibDecompressor.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/NativeIO.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/errno_enum.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/file_descriptor.Plo@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -476,7 +463,6 @@ uninstall-am:
 
 # The 'vpath directive' to locate the actual source files 
 vpath %.c $(HADOOP_NATIVE_SRCDIR)/$(subdir)
-
 #
 #vim: sw=4: ts=4: noet
 #
