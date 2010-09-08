@@ -35,6 +35,7 @@ import org.apache.hadoop.hdfs.security.token.delegation.DelegationTokenIdentifie
 import org.apache.hadoop.hdfs.server.common.HdfsConstants;
 import org.apache.hadoop.hdfs.server.common.UpgradeStatusReport;
 import org.apache.hadoop.hdfs.server.datanode.DataNode;
+import org.apache.hadoop.hdfs.server.namenode.LeaseExpiredException;
 import org.apache.hadoop.hdfs.server.namenode.NameNode;
 import org.apache.hadoop.hdfs.server.namenode.NotReplicatedYetException;
 import org.apache.hadoop.security.AccessControlException;
@@ -3369,17 +3370,36 @@ public class DFSClient implements FSConstants, java.io.Closeable {
         //
         boolean willPersist;
         synchronized (this) {
-          willPersist = persistBlocks;
+          willPersist = persistBlocks && !closed;
           persistBlocks = false;
         }
         if (willPersist) {
-          namenode.fsync(src, clientName);
+          try {
+            namenode.fsync(src, clientName);
+          } catch (RemoteException re) {
+            IOException unwrapped = re.unwrapRemoteException(LeaseExpiredException.class);
+            if (unwrapped instanceof LeaseExpiredException) {
+              // This situation is actually normal in the case of concurrent sync()
+              // and close(). The close() will do the flush and close the lease on the
+              // NN. Thus wewhen we try to persist, the file will already be closed,
+              // and we can ignore the error because the close() already persisted
+              // the blocks!
+              LOG.debug("Skipped persisting blocks because lease already closed");
+            } else {
+              throw unwrapped;
+            }
+          }
         }
       } catch (IOException e) {
-          lastException = new IOException("IOException flush:" + e);
-          closed = true;
-          closeThreads();
-          throw e;
+        LOG.warn("Error while syncing", e);
+        synchronized (this) {
+          if (!closed) {
+            lastException = new IOException("IOException flush:" + e);
+            closed = true;
+            closeThreads();
+          }
+        }
+        throw e;
       }
     }
 
