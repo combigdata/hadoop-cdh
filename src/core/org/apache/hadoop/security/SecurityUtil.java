@@ -21,7 +21,6 @@ import java.net.InetAddress;
 import java.net.URI;
 import java.net.URL;
 import java.net.UnknownHostException;
-import java.security.AccessController;
 import java.util.Set;
 
 import javax.security.auth.Subject;
@@ -50,7 +49,7 @@ public class SecurityUtil {
    *           if TGT can't be found
    */
   private static KerberosTicket getTgtFromSubject() throws IOException {
-    Subject current = Subject.getSubject(AccessController.getContext());
+    Subject current = UserGroupInformation.getCurrentUser().getSubject();
     if (current == null) {
       throw new IOException(
           "Can't get TGT from current Subject, because it is null");
@@ -109,7 +108,7 @@ public class SecurityUtil {
     if (serviceCred == null) {
       throw new IOException("Can't get service ticket for " + serviceName);
     }
-    Subject.getSubject(AccessController.getContext()).getPrivateCredentials()
+    UserGroupInformation.getCurrentUser().getSubject().getPrivateCredentials()
         .add(Krb5Util.credsToTicket(serviceCred));
   }
   
@@ -188,8 +187,12 @@ public class SecurityUtil {
       final String keytabFileKey, final String userNameKey, String hostname)
       throws IOException {
     String keytabFilename = conf.get(keytabFileKey);
-    if (keytabFilename == null)
+    if (keytabFilename == null) {
+      if (UserGroupInformation.isSecurityEnabled()) {
+        LOG.warn("No keytab file '" + keytabFileKey + "' configured.");
+      }
       return;
+    }
 
     String principalConfig = conf.get(userNameKey, System
         .getProperty("user.name"));
