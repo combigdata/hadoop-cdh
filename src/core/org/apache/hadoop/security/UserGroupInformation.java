@@ -547,7 +547,8 @@ public class UserGroupInformation {
                 return;
               } catch (IOException ie) {
                 LOG.warn("Exception encountered while running the" +
-                    " renewal command (but continuing)" + ie);
+                    " renewal command. Aborting renew thread",  ie);
+                return;
               }
             }
           }
