@@ -4035,6 +4035,13 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
     int excessReplicas() {
       return excessReplicas;
     }
+
+    public String toString() {
+      return "live=" + liveReplicas +
+        " decomissioned=" + decommissionedReplicas +
+        " corrupt=" + corruptReplicas +
+        " excess=" + excessReplicas;
+    }
   } 
 
   /**

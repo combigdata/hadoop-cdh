@@ -137,7 +137,7 @@ public class TestNodeCount extends TestCase {
       LOG.info("Waiting for excess replicas to be detected");
 
       // check if excessive replica is detected
-      waitForExcessReplicasToChange(namesystem, block, 0);
+      waitForExcessReplicasToChangeTo(namesystem, block, 1);
 
       LOG.info("Finding a non-excess node");
       // find out a non-excess node
@@ -168,24 +168,26 @@ public class TestNodeCount extends TestCase {
       do {
         num = namesystem.countNodes(block);
       } while (num.liveReplicas() != REPLICATION_FACTOR);
-      
+
       LOG.info("Restarting first DN");
       // restart the first datanode
       cluster.restartDataNode(dnprop);
       cluster.waitActive(false);
 
+      Thread.sleep(3000);
+
       LOG.info("Waiting for excess replicas to be detected");
       // check if excessive replica is detected
-      waitForExcessReplicasToChange(namesystem, block, 2);
+      waitForExcessReplicasToChangeTo(namesystem, block, 2);
     } finally {
       cluster.shutdown();
     }
   }
 
-  private void waitForExcessReplicasToChange(
+  private void waitForExcessReplicasToChangeTo(
     FSNamesystem namesystem,
     Block block,
-    int oldReplicas) throws Exception
+    int waitForReplicas) throws Exception
   {
     NumberReplicas num;
     long startChecking = System.currentTimeMillis();
@@ -193,14 +195,16 @@ public class TestNodeCount extends TestCase {
       synchronized (namesystem) {
         num = namesystem.countNodes(block);
       }
-      Thread.sleep(100);
+      LOG.info("Waiting for excess replicas == " + waitForReplicas +
+       " - current: " + num);
+      Thread.sleep(200);
       if (System.currentTimeMillis() - startChecking > 30000) {
         namesystem.metaSave("TestNodeCount.meta");
         LOG.warn("Dumping meta into log directory");
         fail("Timed out waiting for excess replicas to change");
       }
 
-    } while (num.excessReplicas() == oldReplicas);
+    } while (num.excessReplicas() != waitForReplicas);
   }
     
 }
