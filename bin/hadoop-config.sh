@@ -82,7 +82,9 @@ if [ -z "$JAVA_HOME" ]; then
     /usr/lib/j2sdk1.6-sun \
     /usr/java/jdk1.6* \
     /usr/java/jre1.6* \
-    /Library/Java/Home ; do
+    /Library/Java/Home \
+    /usr/java/default \
+    /usr/lib/jvm/default-java ; do
     if [ -e $candidate/bin/java ]; then
       export JAVA_HOME=$candidate
       break
