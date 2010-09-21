@@ -46,8 +46,6 @@ import org.apache.hadoop.ipc.*;
 import org.apache.hadoop.ipc.RPC.Server;
 import org.apache.hadoop.conf.*;
 import org.apache.hadoop.util.PluginDispatcher;
-import org.apache.hadoop.util.ReflectionUtils;
-import org.apache.hadoop.util.ServicePlugin;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.net.NetworkTopology;
@@ -243,7 +241,7 @@ public class NameNode implements ClientProtocol, DatanodeProtocol,
     startTrashEmptier(conf);
     
     pluginDispatcher = PluginDispatcher.createFromConfiguration(
-      conf, "dfs.namenode.plugins", NamenodePlugin.class);
+        conf, DFSConfigKeys.DFS_NAMENODE_PLUGINS_KEY, NamenodePlugin.class);
     pluginDispatcher.dispatchStart(this);
   }
 

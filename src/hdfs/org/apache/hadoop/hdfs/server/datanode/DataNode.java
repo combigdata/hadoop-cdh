@@ -464,7 +464,7 @@ public class DataNode extends Configured
     LOG.info("dnRegistration = " + dnRegistration);
     
     pluginDispatcher = PluginDispatcher.createFromConfiguration(
-      conf, "dfs.datanode.plugins", DatanodePlugin.class);
+        conf, DFSConfigKeys.DFS_DATANODE_PLUGINS_KEY, DatanodePlugin.class);
     pluginDispatcher.dispatchStart(this);
   }
 
