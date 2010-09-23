@@ -680,7 +680,7 @@ public class DFSAdmin extends FsShell {
                                              RefreshUserMappingsProtocol.class));
     
     // Refresh the user-to-groups mappings
-    refreshProtocol.refreshUserToGroupsMappings(conf);
+    refreshProtocol.refreshUserToGroupsMappings();
     
     return 0;
   }
@@ -710,7 +710,7 @@ public class DFSAdmin extends FsShell {
                        RefreshUserMappingsProtocol.class));
     
     // Refresh the user-to-groups mappings
-    refreshProtocol.refreshSuperUserGroupsConfiguration(conf);
+    refreshProtocol.refreshSuperUserGroupsConfiguration();
     
     return 0;
   }
