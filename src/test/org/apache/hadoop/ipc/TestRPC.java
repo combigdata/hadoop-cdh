@@ -45,7 +45,6 @@ import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.security.authorize.AuthorizationException;
 import org.apache.hadoop.security.authorize.PolicyProvider;
 import org.apache.hadoop.security.authorize.Service;
-import org.apache.hadoop.security.authorize.ServiceAuthorizationManager;
 import org.apache.hadoop.security.AccessControlException;
 
 /** Unit tests for RPC. */
@@ -364,9 +363,9 @@ public class TestRPC extends TestCase {
   }
   
   private void doRPCs(Configuration conf, boolean expectFailure) throws Exception {
-    ServiceAuthorizationManager.refresh(conf, new TestPolicyProvider());
-    
     Server server = RPC.getServer(new TestImpl(), ADDRESS, 0, 5, true, conf);
+
+    server.refreshServiceAcl(conf, new TestPolicyProvider());
 
     TestProtocol proxy = null;
 

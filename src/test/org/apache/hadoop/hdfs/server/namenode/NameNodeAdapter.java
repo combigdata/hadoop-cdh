@@ -18,6 +18,7 @@
 package org.apache.hadoop.hdfs.server.namenode;
 import java.io.IOException;
 import org.apache.hadoop.hdfs.protocol.Block;
+import org.apache.hadoop.ipc.Server;
 
 public abstract class NameNodeAdapter {
   public static boolean checkFileProgress(FSNamesystem fsn, String path, boolean checkall) throws IOException {
@@ -30,5 +31,11 @@ public abstract class NameNodeAdapter {
     return fsn.nextGenerationStampForBlock(block);
   }
 
+  /**
+   * Get the internal RPC server instance.
+   * @return rpc server
+   */
+  public static Server getRpcServer(NameNode namenode) {
+    return namenode.server;
+  }
 }
-
