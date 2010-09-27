@@ -2252,6 +2252,7 @@
       <property name="c++.jsvc.src" value="${c++.jsvc.src}" />
       <property name="build.c++.jsvc" value="${build.c++}/jsvc" />
       <property name="jsvc.install.dir" value="${dist.dir}/bin" /> 
+      <property name="jsvc.arch" value="${jvm.arch}" />
       <fileset file="${c++.jsvc.src}/build.xml"/>
     </subant>
   </target>
