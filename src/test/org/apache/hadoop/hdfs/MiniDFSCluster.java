@@ -19,17 +19,18 @@ package org.apache.hadoop.hdfs;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.nio.channels.FileChannel;
 import java.util.Random;
-import java.io.RandomAccessFile;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.net.*;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
 import org.apache.hadoop.hdfs.protocol.FSConstants.DatanodeReportType;
@@ -40,9 +41,10 @@ import org.apache.hadoop.hdfs.server.datanode.SimulatedFSDataset;
 import org.apache.hadoop.hdfs.server.namenode.FSNamesystem;
 import org.apache.hadoop.hdfs.server.namenode.NameNode;
 import org.apache.hadoop.hdfs.tools.DFSAdmin;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.FileUtil;
-import org.apache.hadoop.security.*;
+import org.apache.hadoop.net.DNSToSwitchMapping;
+import org.apache.hadoop.net.NetUtils;
+import org.apache.hadoop.net.StaticMapping;
+import org.apache.hadoop.security.authorize.ProxyUsers;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.util.ToolRunner;
 
@@ -277,6 +279,9 @@ public class MiniDFSCluster {
     startDataNodes(conf, numDataNodes, manageDataDfsDirs, 
                     operation, racks, hosts, simulatedCapacities);
     waitClusterUp();
+    
+    //make sure ProxyUsers uses the latest conf
+    ProxyUsers.refreshSuperUserGroupsConfiguration(conf);
   }
 
   /**
