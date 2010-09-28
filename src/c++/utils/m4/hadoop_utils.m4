@@ -52,7 +52,7 @@ AC_CHECK_HEADERS([pthread.h], [],
 AC_CHECK_LIB([pthread], [pthread_create], [], 
   AC_MSG_ERROR(Cannot find libpthread.so, please check))
 AC_CHECK_LIB([ssl], [HMAC_Init], [], 
-  AC_MSG_ERROR(Cannot find libssl.so, please check))
+  AC_MSG_ERROR(Cannot find libssl.so, please check), [-lcrypto])
 ])
 
 # define a macro for using hadoop pipes
