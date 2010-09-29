@@ -52,9 +52,12 @@ import org.apache.hadoop.security.authorize.AccessControlList;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.fs.CommonConfigurationKeys;
 
+import org.mortbay.io.Buffer;
 import org.mortbay.jetty.Connector;
 import org.mortbay.jetty.Handler;
+import org.mortbay.jetty.MimeTypes;
 import org.mortbay.jetty.Server;
+import org.mortbay.jetty.handler.ContextHandler;
 import org.mortbay.jetty.handler.ContextHandlerCollection;
 import org.mortbay.jetty.nio.SelectChannelConnector;
 import org.mortbay.jetty.security.SslSocketConnector;
@@ -700,6 +703,7 @@ public class HttpServer implements FilterContainer {
    * all of the servlets resistant to cross-site scripting attacks.
    */
   public static class QuotingInputFilter implements Filter {
+    private FilterConfig config;
 
     public static class RequestQuoter extends HttpServletRequestWrapper {
       private final HttpServletRequest rawRequest;
@@ -787,6 +791,7 @@ public class HttpServer implements FilterContainer {
 
     @Override
     public void init(FilterConfig config) throws ServletException {
+      this.config = config;
     }
 
     @Override
@@ -801,11 +806,23 @@ public class HttpServer implements FilterContainer {
       HttpServletRequestWrapper quoted = 
         new RequestQuoter((HttpServletRequest) request);
       final HttpServletResponse httpResponse = (HttpServletResponse) response;
-      // set the default to UTF-8 so that we don't need to worry about IE7
-      // choosing to interpret the special characters as UTF-7
-      httpResponse.setContentType("text/html;charset=utf-8");
-      chain.doFilter(quoted, response);
-    }
 
+      // Infer the content type based on the path of the request.
+      String path = ((HttpServletRequest)request).getRequestURI();
+      ContextHandler.SContext sContext = (ContextHandler.SContext)config.getServletContext();
+      MimeTypes mimes = sContext.getContextHandler().getMimeTypes();
+      Buffer mimeBuffer = mimes.getMimeByExtension(path);
+      String mime = mimeBuffer != null ? mimeBuffer.toString() : "text/html";
+
+      // If it is HTML (default), force the character set to utf-8.
+      // This is to avoid the following security issue:
+      // http://openmya.hacker.jp/hasegawa/security/utf7cs.html
+      if (mime.startsWith("text/html")) {
+        httpResponse.setContentType(mime + "; charset=utf-8");
+      } else {
+        httpResponse.setContentType(mime);
+      }
+      chain.doFilter(quoted, httpResponse);
+    }
   }
 }
