@@ -43,6 +43,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.conf.ConfServlet;
 import org.apache.hadoop.log.LogLevel;
 import org.apache.hadoop.metrics.MetricsServlet;
 import org.apache.hadoop.security.Krb5AndCertsSslSocketConnector;
@@ -87,11 +88,10 @@ public class HttpServer implements FilterContainer {
 
   // The ServletContext attribute where the daemon Configuration
   // gets stored.
-  static final String CONF_CONTEXT_ATTRIBUTE = "hadoop.conf";
+  public static final String CONF_CONTEXT_ATTRIBUTE = "hadoop.conf";
   static final String ADMINS_ACL = "admins.acl";
 
   private AccessControlList adminsAcl;
-
   protected final Server webServer;
   protected final Connector listener;
   protected final WebAppContext webAppContext;
@@ -264,6 +264,7 @@ public class HttpServer implements FilterContainer {
     addServlet("stacks", "/stacks", StackServlet.class);
     addServlet("logLevel", "/logLevel", LogLevel.Servlet.class);
     addServlet("metrics", "/metrics", MetricsServlet.class);
+    addServlet("conf", "/conf", ConfServlet.class);
   }
 
   public void addContext(Context ctxt, boolean isFiltered)
