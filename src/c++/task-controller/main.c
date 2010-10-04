@@ -99,11 +99,11 @@ int check_taskcontroller_permissions(char *executable_file) {
     return -1;
   }
 
-  // check others do not have read/write/execute permissions
-  if ((filestat.st_mode & S_IROTH) == S_IROTH || (filestat.st_mode & S_IWOTH)
-      == S_IWOTH || (filestat.st_mode & S_IXOTH) == S_IXOTH) {
+  // check others do not have write/execute permissions
+  if ((filestat.st_mode & S_IWOTH) == S_IWOTH ||
+      (filestat.st_mode & S_IXOTH) == S_IXOTH) {
     fprintf(LOGFILE,
-      "The task-controller binary should not have read or write or execute for others.\n");
+      "The task-controller binary should not have write or execute for others.\n");
     return -1;
   }
 
