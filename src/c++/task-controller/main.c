@@ -50,7 +50,7 @@ void display_usage(FILE *stream) {
  *    * be user-owned by root
  *    * be group-owned by a configured special group.
  *    * others do not have any permissions
- *    * be setuid/setgid
+ *    * be setuid
  */
 int check_taskcontroller_permissions(char *executable_file) {
 
@@ -107,11 +107,10 @@ int check_taskcontroller_permissions(char *executable_file) {
     return -1;
   }
 
-  // Binary should be setuid/setgid executable
-  if ((filestat.st_mode & S_ISUID) != S_ISUID || (filestat.st_mode & S_ISGID)
-      != S_ISGID) {
+  // Binary should be setuid executable
+  if ((filestat.st_mode & S_ISUID) != S_ISUID) {
     fprintf(LOGFILE,
-        "The task-controller binary should be set setuid and setgid bits.\n");
+        "The task-controller binary should be set setuid.\n");
     return -1;
   }
 

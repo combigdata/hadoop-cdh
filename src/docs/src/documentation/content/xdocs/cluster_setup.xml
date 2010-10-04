@@ -581,7 +581,7 @@
             
             <p>
             The executable must have specific permissions as follows. The
-            executable should have <em>6050 or --Sr-s---</em> permissions
+            executable should have <em>4754 or -rwsr-xr--</em> permissions
             user-owned by root(super-user) and group-owned by a special group
             of which the TaskTracker's user is the group member and no job
             submitter is. If any job submitter belongs to this special group,
@@ -596,7 +596,7 @@
             another user (job submitter) <em>X</em> as its members, and X does
             not belong to <em>specialGroup</em>. Going by the above
             description, the setuid/setgid executable should be set
-            <em>6050 or --Sr-s---</em> with user-owner as <em>mapred</em> and
+            <em>4754 or -rwsr-xr--</em> with user-owner as <em>mapred</em> and
             group-owner as <em>specialGroup</em> which has
             <em>mapred</em> as its member(and not <em>users</em> which has
             <em>X</em> also as its member besides <em>mapred</em>).
