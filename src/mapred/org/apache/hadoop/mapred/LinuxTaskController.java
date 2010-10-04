@@ -35,6 +35,7 @@ import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.CleanupQueue.PathDeletionContext;
 import org.apache.hadoop.mapred.JvmManager.JvmEnv;
+import org.apache.hadoop.util.PlatformName;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.util.Shell.ExitCodeException;
 import org.apache.hadoop.util.Shell.ShellCommandExecutor;
@@ -71,11 +72,12 @@ class LinuxTaskController extends TaskController {
   private static String taskControllerExe;
   
   static {
-    // the task-controller is expected to be under the $HADOOP_HOME/bin
+    // the task-controller is expected to be under the $HADOOP_HOME/sbin/platform
     // directory.
-    File hadoopBin = new File(System.getenv("HADOOP_HOME"), "bin");
+    File hadoopSbin = new File(System.getenv("HADOOP_HOME"), "sbin");
+    File nativeSbin = new File(hadoopSbin, PlatformName.getPlatformName());
     taskControllerExe = 
-        new File(hadoopBin, "task-controller").getAbsolutePath();
+        new File(nativeSbin, "task-controller").getAbsolutePath();
   }
   
   public LinuxTaskController() {
