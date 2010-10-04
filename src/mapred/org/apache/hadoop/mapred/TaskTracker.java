@@ -3162,6 +3162,15 @@ public class TaskTracker
    */
   public synchronized void reportDiagnosticInfo(TaskAttemptID taskid, String info) throws IOException {
     ensureAuthorizedJVM(taskid.getJobID());
+    internalReportDiagnosticInfo(taskid, info);
+  }
+
+  /**
+   * Same as reportDiagnosticInfo but does not authorize caller. This is used
+   * internally within MapReduce, whereas reportDiagonsticInfo may be called
+   * via RPC.
+   */
+  synchronized void internalReportDiagnosticInfo(TaskAttemptID taskid, String info) throws IOException {
     TaskInProgress tip = tasks.get(taskid);
     if (tip != null) {
       tip.reportDiagnosticInfo(info);
