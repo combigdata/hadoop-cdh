@@ -82,7 +82,7 @@ JAVA_HOME=$JAVA32_HOME \
   -Dforrest.home=$FORREST_HOME \
   -Dhadoop.conf.dir=/etc/hadoop-0.20/conf \
   -propertyfile cloudera/build.properties \
-  clean package-native
+  clean task-controller package-native
 
 if [ -z "$SKIP_JDIFF" ]; then
 ant \

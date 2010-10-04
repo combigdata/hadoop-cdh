@@ -176,7 +176,7 @@
     value="${build.c++}/task-controller" />
   <!-- the default install dir is build directory override it using
    -Dtask-controller.install.dir=$HADOOP_HOME/bin -->
-  <property name="task-controller.install.dir" value="${dist.dir}/bin" />
+  <property name="task-controller.install.dir" value="${dist.dir}/sbin/${build.platform}/" />
   <!-- end of task-controller properties -->
 
   <!-- jsvc properties set here -->
@@ -2251,7 +2251,7 @@
     <subant target="jsvc">
       <property name="c++.jsvc.src" value="${c++.jsvc.src}" />
       <property name="build.c++.jsvc" value="${build.c++}/jsvc" />
-      <property name="jsvc.install.dir" value="${dist.dir}/bin" /> 
+      <property name="jsvc.install.dir" value="${dist.dir}/sbin/${build.platform}" /> 
       <property name="jsvc.arch" value="${jvm.arch}" />
       <fileset file="${c++.jsvc.src}/build.xml"/>
     </subant>
