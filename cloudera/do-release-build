@@ -80,6 +80,7 @@ JAVA_HOME=$JAVA32_HOME \
   -Dcompile.c++=true \
   -Djava5.home=$JAVA5_HOME \
   -Dforrest.home=$FORREST_HOME \
+  -Dhadoop.conf.dir=/etc/hadoop-0.20/conf \
   -propertyfile cloudera/build.properties \
   clean package-native
 
@@ -102,5 +103,6 @@ JAVA_HOME=$JAVA64_HOME \
   -Dcompile.c++=true \
   -Djava5.home=$JAVA5_HOME \
   -Dforrest.home=$FORREST_HOME \
+  -Dhadoop.conf.dir=/etc/hadoop-0.20/conf \
   -propertyfile cloudera/build.properties \
-  compile-core-native compile-c++ compile-c++-examples tar
+  compile-core-native compile-c++ compile-c++-examples task-controller tar
