@@ -36,13 +36,13 @@
 
   <property>
     <name>mapred.temp.dir</name>
-    <value>/var/local/hadoop/mapred/tmp</value>
+    <value>/var/lib/hadoop-0.20/cache/mapred/tmp</value>
     <final>true</final>
   </property>
 
   <property>
     <name>mapred.local.dir</name>
-    <value>/var/local/hadoop/mapred</value>
+    <value>/var/lib/hadoop-0.20/cache/mapred/local</value>
     <final>true</final>
   </property>
 
