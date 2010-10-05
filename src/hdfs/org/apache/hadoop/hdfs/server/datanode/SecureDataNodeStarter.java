@@ -58,10 +58,7 @@ public class SecureDataNodeStarter implements Daemon {
   @Override
   public void init(DaemonContext context) throws Exception {
     System.err.println("Initializing secure datanode resources");
-    // We should only start up a secure datanode in a Kerberos-secured cluster
-    Configuration conf = new Configuration(); // Skip UGI method to not log in
-    if(!conf.get(HADOOP_SECURITY_AUTHENTICATION).equals("kerberos"))
-      throw new RuntimeException("Cannot start secure datanode in unsecure cluster");
+    Configuration conf = new Configuration();
     
     // Stash command-line arguments for regular datanode
     args = context.getArguments();
