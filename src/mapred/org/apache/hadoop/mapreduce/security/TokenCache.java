@@ -95,17 +95,13 @@ public class TokenCache {
         //this block of code to do with reading the file
         if (readFile) {
           readFile = false;
-          String binaryTokenFilename =
-            conf.get("mapreduce.job.credentials.binary");
-          if (binaryTokenFilename != null) {
-            Credentials binary;
+          String tokenPath = conf.get("mapreduce.job.credentials.binary");
+          if (tokenPath != null) {
             try {
-              binary = Credentials.readTokenStorageFile(new Path("file:///" +  
-                  binaryTokenFilename), conf);
+              credentials.addAll(Credentials.readTokenStorageFiles(tokenPath, conf));
             } catch (IOException e) {
               throw new RuntimeException(e);
             }
-            credentials.addAll(binary);
           }
           if (TokenCache.getDelegationToken(credentials, fsName) != null) {
             LOG.debug("DT for " + fsName  + " is already present");

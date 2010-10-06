@@ -40,6 +40,7 @@ import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableUtils;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
+import org.apache.hadoop.util.StringUtils;
 
 /**
  * A class that provides the facilities of reading and writing 
@@ -111,6 +112,16 @@ public class Credentials implements Writable {
    */
   public void addSecretKey(Text alias, byte[] key) {
     secretKeysMap.put(alias, key);
+  }
+
+  public static Credentials readTokenStorageFiles(String paths, Configuration conf)
+  throws IOException {
+    Credentials credentials = new Credentials();
+    for (String path : StringUtils.getStrings(paths)) {
+      Credentials singleFileCredentials = readTokenStorageFile(new Path("file:///" + path), conf);
+      credentials.addAll(singleFileCredentials);
+    }
+    return credentials;
   }
  
   /**

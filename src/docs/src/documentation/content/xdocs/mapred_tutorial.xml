@@ -1635,7 +1635,8 @@
              HADOOP_TOKEN_FILE_LOCATION and the framework sets this to point to the
              localized file. In order to launch jobs from tasks or for doing any HDFS operation,
              tasks must set the configuration "mapreduce.job.credentials.binary" to point to
-             this token file.</p> 
+             this token file. Either of these variables may be set to a comma-separated list of
+             paths, each of which refers to a complete token file.</p> 
 
           <p>The HDFS delegation tokens passed to the JobTracker during job submission are
              are cancelled by the JobTracker when the job completes. This is the default behavior
