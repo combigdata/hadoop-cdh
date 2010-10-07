@@ -338,7 +338,7 @@ HADOOP_OPTS="$HADOOP_OPTS -Dhadoop.policy.file=$HADOOP_POLICYFILE"
 #           Uses sudo in order to assume the identity of the daemon user.
 #  "normal" - supported only when already running as the target user.
 ###########################################################################
-if [[ "$COMMAND" == *node ]]; then
+if [[ "$COMMAND" == *node ]] || [[ "$COMMAND" == *tracker ]]; then
   command_uc=$(echo $COMMAND| tr a-z A-Z)
   user_var="HADOOP_${command_uc}_USER"
   _HADOOP_DAEMON_USER=$(eval "echo \$$user_var")
