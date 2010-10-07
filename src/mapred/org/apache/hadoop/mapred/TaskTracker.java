@@ -3254,6 +3254,15 @@ public class TaskTracker
   public synchronized void fsError(TaskAttemptID taskId, String message) 
   throws IOException {
     ensureAuthorizedJVM(taskId.getJobID());
+    internalFsError(taskId, message);
+  }
+
+  /**
+   * Version of fsError() that does not do authorization checks, called by
+   * the TaskRunner.
+   */
+  synchronized void internalFsError(TaskAttemptID taskId, String message)
+  throws IOException {
     LOG.fatal("Task: " + taskId + " - Killed due to FSError: " + message);
     TaskInProgress tip = runningTasks.get(taskId);
     tip.reportDiagnosticInfo("FSError: " + message);

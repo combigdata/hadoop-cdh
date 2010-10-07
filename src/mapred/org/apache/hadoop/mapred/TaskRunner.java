@@ -219,7 +219,7 @@ abstract class TaskRunner extends Thread {
     } catch (FSError e) {
       LOG.fatal("FSError", e);
       try {
-        tracker.fsError(t.getTaskID(), e.getMessage());
+        tracker.internalFsError(t.getTaskID(), e.getMessage());
       } catch (IOException ie) {
         LOG.fatal(t.getTaskID()+" reporting FSError", ie);
       }
