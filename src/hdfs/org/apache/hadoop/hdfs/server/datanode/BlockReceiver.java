@@ -118,14 +118,16 @@ class BlockReceiver implements java.io.Closeable, FSConstants {
       
       // check if there is a disk error
       IOException cause = FSDataset.getCauseIfDiskError(ioe);
-      DataNode.LOG.warn("IOException in BlockReceiver constructor. Cause is ",
-          cause);
       
       if (cause != null) { // possible disk error
+        DataNode.LOG.warn("Disk-related IOException in BlockReceiver constructor. Cause is ",
+          cause);
         ioe = cause;
         datanode.checkDiskError(ioe); // may throw an exception here
+      } else {
+        DataNode.LOG.warn("Non-disk IOException in BlockReceiver constructor. Cause is ",
+          ioe);
       }
-      
       throw ioe;
     }
   }

@@ -1044,12 +1044,14 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
     return info.detachBlock(block, numLinks);
   }
 
-  static private <T> void updateBlockMap(Map<Block, T> blockmap,
+  static private <T> T updateBlockMap(Map<Block, T> blockmap,
       Block oldblock, Block newblock) throws IOException {
     if (blockmap.containsKey(oldblock)) {
       T value = blockmap.remove(oldblock);
       blockmap.put(newblock, value);
+      return value;
     }
+    return null;
   }
 
   /** {@inheritDoc} */
@@ -1193,8 +1195,15 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
       throw new IOException("Cannot rename tmp meta file to " + newMetaFile);
     }
 
-    updateBlockMap(ongoingCreates, oldblockWildcardGS, newblock);
-    updateBlockMap(volumeMap, oldblockWildcardGS, newblock);
+    ActiveFile newActive = updateBlockMap(ongoingCreates, oldblockWildcardGS, newblock);
+    if (newActive != null && !newActive.threads.isEmpty()) {
+      DataNode.LOG.error("Unexpected state updating block " + oldblockWildcardGS +
+        " -- there was an ongoing creator thread!");
+    }
+    if (updateBlockMap(volumeMap, oldblockWildcardGS, newblock) == null) {
+      DataNode.LOG.error("Unexpected state updating block " + oldblockWildcardGS +
+        " -- this block is not in the volume map");
+    }
 
     // paranoia! verify that the contents of the stored block 
     // matches the block file on disk.
@@ -1319,6 +1328,7 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
       //
       ActiveFile activeFile = ongoingCreates.get(b);
       if (activeFile != null) {
+        DataNode.LOG.debug("Interrupting current writers for ongoing create block: " + b);
         f = activeFile.file;
         threads = activeFile.threads;
         
@@ -1331,6 +1341,10 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
           }
         }
         ongoingCreates.remove(b);
+      }
+      if (ongoingCreates.containsKey(new Block(
+        b.getBlockId(), b.getNumBytes(), GenerationStamp.WILDCARD_STAMP))) {
+        DataNode.LOG.error("Unexpected: wildcard ongoingCreates exists for block " + b);
       }
       FSVolume v = null;
       if (!isRecovery) {
@@ -1498,7 +1512,9 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
     File dest = null;
     dest = v.addBlock(b, f);
     volumeMap.put(b, new DatanodeBlockInfo(v, dest));
-    ongoingCreates.remove(b);
+    if (ongoingCreates.remove(b) == null) {
+      DataNode.LOG.warn("Unexpected finalizing block " + b + " -- it wasn't in ongoingCreates");
+    }
   }
 
   /**
