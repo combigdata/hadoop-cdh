@@ -75,6 +75,10 @@ public class TaskLogsTruncater {
    * retainSize.
    */
   public void truncateLogs(JVMInfo lInfo) {
+    if (lInfo.getAllAttempts().isEmpty()) {
+      return;
+    }
+
     Task firstAttempt = lInfo.getAllAttempts().get(0);
     String owner;
     try {
