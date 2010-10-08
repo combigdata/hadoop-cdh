@@ -119,12 +119,15 @@ mkdir -p $LIB_DIR
 (cd $BUILD_DIR && tar cf - .) | (cd $LIB_DIR && tar xf - )
 
 # Create symlinks to preserve old jar names
+# Also create symlinks of versioned jars to jars without version names, which other
+# packages can depend on
 (cd $LIB_DIR &&
 for j in hadoop-*.jar; do
   if [[ $j =~ hadoop-([a-zA-Z]+)-([0-9+\.-]+).jar ]]; then
     name=${BASH_REMATCH[1]}
     ver=${BASH_REMATCH[2]}
     ln -s hadoop-$name-$ver.jar hadoop-$ver-$name.jar
+    ln -s hadoop-$name-$ver.jar hadoop-$name.jar
   fi
 done)
 
