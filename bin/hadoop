@@ -424,7 +424,11 @@ case "$_HADOOP_RUN_MODE" in
     fi
 
     if [ "$_HADOOP_DAEMON_DETACHED" = "true" ]; then
+      touch $_HADOOP_DAEMON_OUT
       nohup $_JAVA_EXEC -Dproc_$COMMAND $JAVA_HEAP_MAX $HADOOP_OPTS -classpath "$CLASSPATH" $CLASS "$@" > "$_HADOOP_DAEMON_OUT" 2>&1 < /dev/null &
+      if [ "$EUID" == "0" ]; then
+        chown $_HADOOP_DAEMON_USER $_HADOOP_DAEMON_OUT
+      fi
       echo $! > "$_HADOOP_DAEMON_PIDFILE"
       sleep 1
       head "$_HADOOP_DAEMON_OUT"
