@@ -371,8 +371,13 @@ public class SecondaryNameNode implements Runnable {
    * Copy the new fsimage into the NameNode
    */
   private void putFSImage(CheckpointSignature sig) throws IOException {
+    String externalAddress = infoBindAddress;
+    if ("0.0.0.0".equals(externalAddress)) {
+      externalAddress = InetAddress.getLocalHost().getHostAddress();
+    }
+
     String fileid = "putimage=1&port=" + imagePort +
-      "&machine=" + infoBindAddress +
+      "&machine=" + externalAddress +
       "&token=" + sig.toString();
     LOG.info("Posted URL " + fsName + fileid);
     TransferFsImage.getFileClient(fsName, fileid, (File[])null);
