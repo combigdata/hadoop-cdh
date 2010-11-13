@@ -26,6 +26,7 @@ import org.apache.hadoop.conf.Configuration;
 import java.util.concurrent.Semaphore;
 
 import junit.framework.TestCase;
+import static junit.framework.Assert.assertTrue;
 
 public class TestFileSystemCaching extends TestCase {
 
@@ -67,5 +68,21 @@ public class TestFileSystemCaching extends TestCase {
     FileSystem.get(new URI("cachedfile://a"), conf);
     t.interrupt();
     t.join();
+  }
+
+  public void testFsUniqueness() throws Exception {
+    final Configuration conf = new Configuration();
+    conf.set("fs.cachedfile.impl", conf.get("fs.file.impl"));
+    // multiple invocations of FileSystem.get return the same object.
+    FileSystem fs1 = FileSystem.get(conf);
+    FileSystem fs2 = FileSystem.get(conf);
+    assertTrue(fs1 == fs2);
+
+    // multiple invocations of FileSystem.newInstance return different objects
+    fs1 = FileSystem.newInstance(new URI("cachedfile://a"), conf, "bar");
+    fs2 = FileSystem.newInstance(new URI("cachedfile://a"), conf, "bar");
+    assertTrue(fs1 != fs2 && !fs1.equals(fs2));
+    fs1.close();
+    fs2.close();
   }
 }
