@@ -88,6 +88,7 @@ AC_CHECK_HEADERS([zlib.h zconf.h], AC_COMPUTE_NEEDED_DSO(z,HADOOP_ZLIB_LIBRARY),
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
+AC_SYS_LARGEFILE
 
 # Checks for library functions.
 AC_CHECK_FUNCS([memset])
