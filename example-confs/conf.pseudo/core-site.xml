@@ -11,4 +11,15 @@
      <name>hadoop.tmp.dir</name>
      <value>/var/lib/hadoop-0.20/cache/${user.name}</value>
   </property>
+
+  <!-- OOZIE proxy user setting -->
+  <property>
+    <name>hadoop.proxyuser.oozie.hosts</name>
+    <value>*</value>
+  </property>
+  <property>
+    <name>hadoop.proxyuser.oozie.groups</name>
+    <value>*</value>
+  </property>
+
 </configuration>
