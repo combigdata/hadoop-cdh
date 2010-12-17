@@ -42,6 +42,7 @@ import org.apache.hadoop.mapred.lib.IdentityReducer;
 import org.apache.hadoop.mapred.lib.HashPartitioner;
 import org.apache.hadoop.mapred.lib.KeyFieldBasedComparator;
 import org.apache.hadoop.mapred.lib.KeyFieldBasedPartitioner;
+import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.Tool;
@@ -1449,6 +1450,25 @@ public class JobConf extends Configuration {
    */
   public void setProfileEnabled(boolean newValue) {
     setBoolean("mapred.task.profile", newValue);
+  }
+  
+  /**
+   * Set the boolean property for specifying which classpath takes precedence -
+   * the user's one or the system one, when the tasks are launched
+   * @param value pass true if user's classes should take precedence
+   */
+  public void setUserClassesTakesPrecedence(boolean value) {
+    setBoolean(JobContext.MAPREDUCE_TASK_CLASSPATH_PRECEDENCE, value);
+  }
+  
+  /**
+   * Get the boolean value for the property that specifies which classpath
+   * takes precedence when tasks are launched. True - user's classes takes
+   * precedence. False - system's classes takes precedence.
+   * @return true if user's classes should take precedence
+   */
+  public boolean userClassesTakesPrecedence() {
+    return getBoolean(JobContext.MAPREDUCE_TASK_CLASSPATH_PRECEDENCE, false);
   }
 
   /**

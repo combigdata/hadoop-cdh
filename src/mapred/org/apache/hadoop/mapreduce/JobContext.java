@@ -67,6 +67,8 @@ public class JobContext {
     "mapreduce.job.complete.cancel.delegation.tokens";
   public static final String USER_LOG_RETAIN_HOURS = 
     "mapred.userlog.retain.hours";
+  public static final String MAPREDUCE_TASK_CLASSPATH_PRECEDENCE = 
+    "mapreduce.task.classpath.user.precedence";
   
   /**
    * The UserGroupInformation object that has a reference to the current user
@@ -175,6 +177,16 @@ public class JobContext {
    */
   public String getJobName() {
     return conf.getJobName();
+  }
+  
+  /**
+   * Get the boolean value for the property that specifies which classpath
+   * takes precedence when tasks are launched. True - user's classes takes
+   * precedence. False - system's classes takes precedence.
+   * @return true if user's classes should take precedence
+   */
+  public boolean userClassesTakesPrecedence() {
+    return conf.userClassesTakesPrecedence();
   }
 
   /**
