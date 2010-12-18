@@ -2244,22 +2244,34 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
             break; // if there is something to recover else clean the sys dir
           }
         }
-        LOG.info("Cleaning up the system directory");
-        fs.delete(systemDir, true);
-        if (FileSystem.mkdirs(fs, systemDir, 
-            new FsPermission(SYSTEM_DIR_PERMISSION))) {
+
+        if (!fs.exists(systemDir)) {
+          LOG.info("Creating the system directory");
+          if (FileSystem.mkdirs(fs, systemDir, 
+                                new FsPermission(SYSTEM_DIR_PERMISSION))) {
+            // success
+            break;
+          } else {
+            LOG.error("Mkdirs failed to create " + systemDir);
+          }
+        } else {
+          LOG.info("Cleaning up the system directory");
+          fs.setPermission(systemDir, new FsPermission(SYSTEM_DIR_PERMISSION));
+          // It exists, just set permissions and clean the contents up
+          deleteContents(fs, systemDir);
           break;
         }
-        LOG.error("Mkdirs failed to create " + systemDir);
       } catch (AccessControlException ace) {
-        LOG.warn("Failed to operate on mapred.system.dir (" + systemDir 
-                 + ") because of permissions.");
-        LOG.warn("Manually delete the mapred.system.dir (" + systemDir 
-                 + ") and then start the JobTracker.");
+        LOG.warn("Failed to operate on mapred.system.dir (" +
+                 systemDir.makeQualified(fs) +
+                 ") because of permissions.");
+        LOG.warn("This directory should be owned by the user '" +
+                 UserGroupInformation.getCurrentUser() + "'");
         LOG.warn("Bailing out ... ", ace);
         throw ace;
       } catch (IOException ie) {
-        LOG.info("problem cleaning system directory: " + systemDir, ie);
+        LOG.info("problem cleaning system directory: " +
+                 systemDir.makeQualified(fs), ie);
       }
       Thread.sleep(FS_ACCESS_RETRY_PERIOD);
     }
@@ -2300,6 +2312,18 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
     pluginDispatcher = PluginDispatcher.createFromConfiguration(
             conf, "mapred.jobtracker.plugins", JobTrackerPlugin.class);
     pluginDispatcher.dispatchStart(this);
+  }
+
+  /**
+   * Recursively delete the contents of a directory without deleting the
+   * directory itself.
+   */
+  private void deleteContents(FileSystem fs, Path dir) throws IOException {
+    for (FileStatus stat : fs.listStatus(dir)) {
+      if (!fs.delete(stat.getPath(), true)) {
+        throw new IOException("Unable to delete " + stat.getPath());
+      }
+    }
   }
 
   private static SimpleDateFormat getDateFormat() {
