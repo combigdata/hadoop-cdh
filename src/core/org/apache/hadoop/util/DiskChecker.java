@@ -22,6 +22,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
@@ -34,6 +36,7 @@ import org.apache.hadoop.fs.permission.FsPermission;
  */
 
 public class DiskChecker {
+  private static final Log LOG = LogFactory.getLog(DiskChecker.class);
 
   public static class DiskErrorException extends IOException {
     public DiskErrorException(String msg) {
@@ -99,18 +102,6 @@ public class DiskChecker {
                                    + dir.toString());
   }
 
-  private static void checkPermission(Path dir, 
-                                     FsPermission expected, FsPermission actual) 
-  throws IOException {
-    // Check for permissions
-    if (!actual.equals(expected)) {
-      throw new IOException("Incorrect permission for " + dir + 
-                            ", expected: " + expected + ", while actual: " + 
-                            actual);
-    }
-
-  }
-  
   /** 
    * Create the directory or check permissions if it already exists.
    * 
@@ -141,7 +132,13 @@ public class DiskChecker {
       }
     }
 
-    checkPermission(dir, expected, localFS.getFileStatus(dir).getPermission());
+    FsPermission actual = localFS.getFileStatus(dir).getPermission();
+    if (!actual.equals(expected)) {
+      LOG.warn("Incorrect permissions were set on " + dir +
+               ", expected: " + expected + ", while actual: " +
+               actual + ". Fixing...");
+      localFS.setPermission(dir, expected);
+    }
     return true;
   }
   

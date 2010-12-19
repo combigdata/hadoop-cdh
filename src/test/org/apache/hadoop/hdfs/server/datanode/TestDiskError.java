@@ -155,9 +155,9 @@ public class TestDiskError extends TestCase {
   
   public void testLocalDirs() throws Exception {
     Configuration conf = new Configuration();
-    final String permStr = "755";
+    final String permStr = conf.get(
+      DataNode.DATA_DIR_PERMISSION_KEY);
     FsPermission expected = new FsPermission(permStr);
-    conf.set(DataNode.DATA_DIR_PERMISSION_KEY, permStr);
     MiniDFSCluster cluster = null; 
     
     try {

@@ -230,7 +230,7 @@ public class DataNode extends Configured
   public static final String DATA_DIR_KEY = "dfs.data.dir";
   public final static String DATA_DIR_PERMISSION_KEY = 
     "dfs.datanode.data.dir.perm";
-  private static final String DEFAULT_DATA_DIR_PERMISSION = "755";
+  private static final String DEFAULT_DATA_DIR_PERMISSION = "700";
   
   // For InterDataNodeProtocol
   public Server ipcServer;
