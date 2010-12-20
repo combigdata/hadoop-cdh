@@ -292,7 +292,7 @@ public class TaskTracker
   /**
    * the minimum interval between jobtracker polls
    */
-  private volatile int heartbeatInterval = HEARTBEAT_INTERVAL_MIN;
+  private volatile int heartbeatInterval = MRConstants.HEARTBEAT_INTERVAL_MIN_DEFAULT;
   /**
    * Number of maptask completion events locations to poll for at one time
    */  

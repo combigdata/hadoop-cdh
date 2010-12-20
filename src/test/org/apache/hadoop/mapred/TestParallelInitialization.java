@@ -127,7 +127,7 @@ public class TestParallelInitialization extends TestCase {
     }
     
     public int getNextHeartbeatInterval() {
-      return MRConstants.HEARTBEAT_INTERVAL_MIN;
+      return MRConstants.HEARTBEAT_INTERVAL_MIN_DEFAULT;
     }
 
     public void killJob(JobID jobid) {

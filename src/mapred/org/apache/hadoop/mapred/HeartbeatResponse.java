@@ -48,7 +48,7 @@ class HeartbeatResponse implements Writable, Configurable {
   HeartbeatResponse(short responseId, TaskTrackerAction[] actions) {
     this.responseId = responseId;
     this.actions = actions;
-    this.heartbeatInterval = MRConstants.HEARTBEAT_INTERVAL_MIN;
+    this.heartbeatInterval = MRConstants.HEARTBEAT_INTERVAL_MIN_DEFAULT;
   }
   
   public void setResponseId(short responseId) {

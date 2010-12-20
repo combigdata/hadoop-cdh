@@ -471,7 +471,7 @@ public class TestCapacityScheduler extends TestCase {
     }
 
     public int getNextHeartbeatInterval() {
-      return MRConstants.HEARTBEAT_INTERVAL_MIN;
+      return MRConstants.HEARTBEAT_INTERVAL_MIN_DEFAULT;
     }
 
     @Override

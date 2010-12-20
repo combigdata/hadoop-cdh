@@ -167,6 +167,10 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
   static final String JT_HEARTBEATS_IN_SECOND = "mapred.heartbeats.in.second";
   private int NUM_HEARTBEATS_IN_SECOND;
   private static final int DEFAULT_NUM_HEARTBEATS_IN_SECOND = 100;
+  // Minimum time between heartbeats
+  static final String JT_HEARTBEAT_INTERVAL_MIN = "mapreduce.jobtracker.heartbeat.interval.min";
+  private int HEARTBEAT_INTERVAL_MIN;
+
   private static final int MIN_NUM_HEARTBEATS_IN_SECOND = 1;
   
   // Scaling factor for heartbeats, used for testing only
@@ -2069,6 +2073,9 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
     if (NUM_HEARTBEATS_IN_SECOND < MIN_NUM_HEARTBEATS_IN_SECOND) {
       NUM_HEARTBEATS_IN_SECOND = DEFAULT_NUM_HEARTBEATS_IN_SECOND;
     }
+
+    HEARTBEAT_INTERVAL_MIN =
+      conf.getInt(JT_HEARTBEAT_INTERVAL_MIN, HEARTBEAT_INTERVAL_MIN_DEFAULT);
     
     HEARTBEATS_SCALING_FACTOR = 
       conf.getFloat(JT_HEARTBEATS_SCALING_FACTOR, 
@@ -3230,7 +3237,7 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
     int clusterSize = getClusterStatus().getTaskTrackers();
     int heartbeatInterval =  Math.max(
                                 (int)(1000 * HEARTBEATS_SCALING_FACTOR *
-                                      Math.ceil((double)clusterSize / 
+                                      ((double)clusterSize / 
                                                 NUM_HEARTBEATS_IN_SECOND)),
                                 HEARTBEAT_INTERVAL_MIN) ;
     return heartbeatInterval;
