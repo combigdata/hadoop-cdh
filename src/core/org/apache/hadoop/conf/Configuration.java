@@ -414,6 +414,29 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
   public String get(String name) {
     return substituteVars(getProps().getProperty(name));
   }
+  
+  /**
+   * Get the value of the <code>name</code> property as a trimmed <code>String</code>, 
+   * <code>null</code> if no such property exists. 
+   * If the key is deprecated, it returns the value of
+   * the first key which replaces the deprecated key and is not null
+   * 
+   * Values are processed for <a href="#VariableExpansion">variable expansion</a> 
+   * before being returned. 
+   * 
+   * @param name the property name.
+   * @return the value of the <code>name</code> or its replacing property, 
+   *         or null if no such property exists.
+   */
+  public String getTrimmed(String name) {
+    String value = get(name);
+    
+    if (null == value) {
+      return null;
+    } else {
+      return value.trim();
+    }
+  }
 
   /**
    * Get the value of the <code>name</code> property, without doing
@@ -482,7 +505,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    *         or <code>defaultValue</code>. 
    */
   public int getInt(String name, int defaultValue) {
-    String valueString = get(name);
+    String valueString = getTrimmed(name);
     if (valueString == null)
       return defaultValue;
     try {
@@ -518,7 +541,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    *         or <code>defaultValue</code>. 
    */
   public long getLong(String name, long defaultValue) {
-    String valueString = get(name);
+    String valueString = getTrimmed(name);
     if (valueString == null)
       return defaultValue;
     try {
@@ -571,7 +594,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    *         or <code>defaultValue</code>. 
    */
   public float getFloat(String name, float defaultValue) {
-    String valueString = get(name);
+    String valueString = getTrimmed(name);
     if (valueString == null)
       return defaultValue;
     try {
@@ -601,7 +624,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    *         or <code>defaultValue</code>. 
    */
   public boolean getBoolean(String name, boolean defaultValue) {
-    String valueString = get(name);
+    String valueString = getTrimmed(name);
     if ("true".equals(valueString))
       return true;
     else if ("false".equals(valueString))
@@ -915,7 +938,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
       }
     }
 
-    Class clazz = map.get(name);
+    Class<?> clazz = map.get(name);
     if (clazz == null) {
       clazz = Class.forName(name, true, classLoader);
       if (clazz != null) {
@@ -939,7 +962,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    *         or <code>defaultValue</code>. 
    */
   public Class<?>[] getClasses(String name, Class<?> ... defaultValue) {
-    String[] classnames = getStrings(name);
+    String[] classnames = getTrimmedStrings(name);
     if (classnames == null)
       return defaultValue;
     try {
@@ -964,7 +987,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    *         or <code>defaultValue</code>. 
    */
   public Class<?> getClass(String name, Class<?> defaultValue) {
-    String valueString = get(name);
+    String valueString = getTrimmed(name);
     if (valueString == null)
       return defaultValue;
     try {
