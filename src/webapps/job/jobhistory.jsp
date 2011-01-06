@@ -242,14 +242,11 @@ window.location.href = url;
         displayedJobs.add(jobId);
       }
       
-      // Encode the logfile name again to cancel the decoding done by the browser
-      String encodedJobFileName = 
-          JobHistory.JobInfo.encodeJobHistoryFileName(jobFile.getName());
 %>
 <center>
 <%	
       printJob(trackerHostName, trackerStartTime, jobId,
-               jobName, userName, new Path(jobFile.getParent(), encodedJobFileName), 
+               jobName, userName, jobFile, 
                out) ; 
 %>
 </center> 
