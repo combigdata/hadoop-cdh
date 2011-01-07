@@ -224,8 +224,23 @@ public class UserGroupInformation {
     // Set the configuration for JAAS to be the Hadoop configuration. 
     // This is done here rather than a static initializer to avoid a
     // circular dependence.
-    javax.security.auth.login.Configuration.setConfiguration
-        (new HadoopConfiguration());
+    javax.security.auth.login.Configuration existingConfig = null;
+    try {
+      existingConfig =
+        javax.security.auth.login.Configuration.getConfiguration();
+    } catch (SecurityException se) {
+      // If no security configuration is on the classpath, then
+      // we catch this exception, and we don't need to delegate
+      // to anyone
+    }
+
+    if (existingConfig instanceof HadoopConfiguration) {
+      LOG.info("JAAS Configuration already set up for Hadoop, not re-installing.");
+    } else {
+      javax.security.auth.login.Configuration.setConfiguration(
+        new HadoopConfiguration(existingConfig));
+    }
+
     // give the configuration on how to translate Kerberos names
     try {
       KerberosName.setConfiguration(conf);
@@ -379,6 +394,12 @@ public class UserGroupInformation {
     private static final AppConfigurationEntry[] KEYTAB_KERBEROS_CONF =
       new AppConfigurationEntry[]{KEYTAB_KERBEROS_LOGIN, HADOOP_LOGIN};
 
+    private final javax.security.auth.login.Configuration parent;
+
+    HadoopConfiguration(javax.security.auth.login.Configuration parent) {
+      this.parent = parent;
+    }
+
     @Override
     public AppConfigurationEntry[] getAppConfigurationEntry(String appName) {
       if (SIMPLE_CONFIG_NAME.equals(appName)) {
@@ -389,6 +410,8 @@ public class UserGroupInformation {
         KEYTAB_KERBEROS_OPTIONS.put("keyTab", keytabFile);
         KEYTAB_KERBEROS_OPTIONS.put("principal", keytabPrincipal);
         return KEYTAB_KERBEROS_CONF;
+      } else if (parent != null) {
+        return parent.getAppConfigurationEntry(appName);
       }
       return null;
     }
