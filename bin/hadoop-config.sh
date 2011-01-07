@@ -17,23 +17,12 @@
 # should not be executable directly
 # also should not be passed any arguments, since we need original $*
 
-# resolve links - $0 may be a softlink
-
-this="$0"
-while [ -h "$this" ]; do
-  ls=`ls -ld "$this"`
-  link=`expr "$ls" : '.*-> \(.*\)$'`
-  if expr "$link" : '.*/.*' > /dev/null; then
-    this="$link"
-  else
-    this=`dirname "$this"`/"$link"
-  fi
-done
-
-# convert relative path to absolute path
-bin=`dirname "$this"`
-script=`basename "$this"`
-bin=`cd "$bin"; pwd`
+# Resolve links ($0 may be a softlink) and convert a relative path
+# to an absolute path.  NB: The -P option requires bash built-ins
+# or POSIX:2001 compliant cd and pwd.
+this="${BASH_SOURCE-$0}"
+bin=$(cd -P -- "$(dirname -- "$this")" && pwd -P)
+script="$(basename -- "$this")"
 this="$bin/$script"
 
 # the root of the Hadoop installation
