@@ -29,6 +29,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.CleanupQueue.PathDeletionContext;
 import org.apache.hadoop.mapred.JvmManager.JvmEnv;
 import org.apache.hadoop.mapreduce.server.tasktracker.Localizer;
+import org.apache.hadoop.util.DiskChecker;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.util.Shell.ShellCommandExecutor;
 
@@ -77,7 +78,7 @@ public abstract class TaskController implements Configurable {
     for (String localDir : this.mapredLocalDirs) {
       // Set up the mapred-local directories.
       File mapredlocalDir = new File(localDir);
-      if (!mapredlocalDir.exists() && !mapredlocalDir.mkdirs()) {
+      if (!mapredlocalDir.isDirectory() && !mapredlocalDir.mkdirs()) {
         LOG.warn("Unable to create mapred-local directory : "
             + mapredlocalDir.getPath());
       } else {
@@ -88,12 +89,13 @@ public abstract class TaskController implements Configurable {
 
     // Set up the user log directory
     File taskLog = TaskLog.getUserLogDir();
-    if (!taskLog.exists() && !taskLog.mkdirs()) {
+    if (!taskLog.isDirectory() && !taskLog.mkdirs()) {
       LOG.warn("Unable to create taskLog directory : " + taskLog.getPath());
     } else {
       Localizer.PermissionsHandler.setPermissions(taskLog,
           Localizer.PermissionsHandler.sevenFiveFive);
     }
+    DiskChecker.checkDir(TaskLog.getUserLogDir());
   }
 
   /**
