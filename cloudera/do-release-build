@@ -37,12 +37,6 @@ if ! $JAVA64_HOME/bin/java -d64 -version ; then
   exit 1
 fi
 
-if ! [ -e $JAVA5_HOME/bin/java ]; then
-  echo No JAVA5_HOME set. Forrest documentation requires Java 5 to be 1>&2
-  echo installed. 1>&2
-  exit 1
-fi
-
 if ! [ -e $FORREST_HOME/bin/forrest ]; then
   echo No FORREST_HOME set. Forrest documentation requires Forrest to be 1>&2
   echo installed. 1>&2
@@ -78,7 +72,6 @@ JAVA_HOME=$JAVA32_HOME \
   -Dlibhdfs=true \
   -Dcompile.native=true \
   -Dcompile.c++=true \
-  -Djava5.home=$JAVA5_HOME \
   -Dforrest.home=$FORREST_HOME \
   -Dhadoop.conf.dir=/etc/hadoop-0.20/conf \
   -propertyfile cloudera/build.properties \
@@ -101,7 +94,6 @@ JAVA_HOME=$JAVA64_HOME \
   -Dlibhdfs=true \
   -Dcompile.native=true \
   -Dcompile.c++=true \
-  -Djava5.home=$JAVA5_HOME \
   -Dforrest.home=$FORREST_HOME \
   -Dhadoop.conf.dir=/etc/hadoop-0.20/conf \
   -propertyfile cloudera/build.properties \
