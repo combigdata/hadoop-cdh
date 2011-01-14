@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.net.URLConnection;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -67,7 +68,7 @@ public class TestHttpServer {
     public void doGet(HttpServletRequest request, 
                       HttpServletResponse response
                       ) throws ServletException, IOException {
-      PrintStream out = new PrintStream(response.getOutputStream());
+      PrintWriter out = response.getWriter();
       Map<String, String[]> params = request.getParameterMap();
       SortedSet<String> keys = new TreeSet(params.keySet());
       for(String key: keys) {
@@ -94,7 +95,7 @@ public class TestHttpServer {
     public void doGet(HttpServletRequest request, 
                       HttpServletResponse response
                       ) throws ServletException, IOException {
-      PrintStream out = new PrintStream(response.getOutputStream());
+      PrintWriter out = response.getWriter();
       SortedSet<String> sortedKeys = new TreeSet();
       Enumeration<String> keys = request.getParameterNames();
       while(keys.hasMoreElements()) {
@@ -110,6 +111,20 @@ public class TestHttpServer {
     }    
   }
 
+  @SuppressWarnings("serial")
+  public static class HtmlContentServlet extends HttpServlet {
+    @SuppressWarnings("unchecked")
+    @Override
+    public void doGet(HttpServletRequest request, 
+                      HttpServletResponse response
+                      ) throws ServletException, IOException {
+      response.setContentType("text/html");
+      PrintWriter out = response.getWriter();
+      out.print("hello world");
+      out.close();
+    }
+  }
+
   private String readOutput(URL url) throws IOException {
     StringBuilder out = new StringBuilder();
     InputStream in = url.openConnection().getInputStream();
@@ -123,11 +138,10 @@ public class TestHttpServer {
   }
   
   @Before public void setup() throws Exception {
-    new File(System.getProperty("build.webapps", "build/webapps") + "/test"
-             ).mkdirs();
     server = new HttpServer("test", "0.0.0.0", 0, true);
     server.addServlet("echo", "/echo", EchoServlet.class);
     server.addServlet("echomap", "/echomap", EchoMapServlet.class);
+    server.addServlet("htmlcontent", "/htmlcontent", HtmlContentServlet.class);
     server.start();
     int port = server.getPort();
     baseUrl = new URL("http://localhost:" + port + "/");
@@ -154,13 +168,39 @@ public class TestHttpServer {
 
   @Test public void testContentTypes() throws Exception {
     // Static CSS files should have text/css
-    URL cssUrl = new URL(baseUrl, "/static/hadoop.css");
-    URLConnection conn = cssUrl.openConnection();
+    URL cssUrl = new URL(baseUrl, "/static/test.css");
+    HttpURLConnection conn = (HttpURLConnection)cssUrl.openConnection();
+    conn.connect();
+    assertEquals(200, conn.getResponseCode());
     assertEquals("text/css", conn.getContentType());
 
-    // Servlets should have text/html with proper encoding
+    // Servlets should have text/plain with proper encoding by default
     URL servletUrl = new URL(baseUrl, "/echo?a=b");
-    conn = servletUrl.openConnection();
+    conn = (HttpURLConnection)servletUrl.openConnection();
+    conn.connect();
+    assertEquals(200, conn.getResponseCode());
+    assertEquals("text/plain; charset=utf-8", conn.getContentType());
+
+    // We should ignore parameters for mime types - ie a parameter
+    // ending in .css should not change mime type
+    servletUrl = new URL(baseUrl, "/echo?a=b.css");
+    conn = (HttpURLConnection)servletUrl.openConnection();
+    conn.connect();
+    assertEquals(200, conn.getResponseCode());
+    assertEquals("text/plain; charset=utf-8", conn.getContentType());
+
+    // Servlets that specify text/html should get that content type
+    servletUrl = new URL(baseUrl, "/htmlcontent");
+    conn = (HttpURLConnection)servletUrl.openConnection();
+    conn.connect();
+    assertEquals(200, conn.getResponseCode());
+    assertEquals("text/html; charset=utf-8", conn.getContentType());
+
+    // JSPs should default to text/html with utf8
+    servletUrl = new URL(baseUrl, "/testjsp.jsp");
+    conn = (HttpURLConnection)servletUrl.openConnection();
+    conn.connect();
+    assertEquals(200, conn.getResponseCode());
     assertEquals("text/html; charset=utf-8", conn.getContentType());
   }
 

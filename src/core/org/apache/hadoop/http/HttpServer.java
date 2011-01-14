@@ -17,6 +17,7 @@
  */
 package org.apache.hadoop.http;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.BindException;
@@ -158,7 +159,7 @@ public class HttpServer implements FilterContainer {
 
     webServer.setThreadPool(new QueuedThreadPool());
 
-    final String appDir = getWebAppsPath();
+    final String appDir = getWebAppsPath(name);
     ContextHandlerCollection contexts = new ContextHandlerCollection();
     webServer.setHandler(contexts);
 
@@ -433,14 +434,17 @@ public class HttpServer implements FilterContainer {
 
   /**
    * Get the pathname to the webapps files.
+   * @param appName eg "secondary" or "datanode"
    * @return the pathname as a URL
-   * @throws IOException if 'webapps' directory cannot be found on CLASSPATH.
+   * @throws FileNotFoundException if 'webapps' directory cannot be found on CLASSPATH.
    */
-  protected String getWebAppsPath() throws IOException {
-    URL url = getClass().getClassLoader().getResource("webapps");
-    if (url == null) 
-      throw new IOException("webapps not found in CLASSPATH"); 
-    return url.toString();
+  private String getWebAppsPath(String appName) throws FileNotFoundException {
+    URL url = getClass().getClassLoader().getResource("webapps/" + appName);
+    if (url == null)
+      throw new FileNotFoundException("webapps/" + appName
+          + " not found in CLASSPATH");
+    String urlString = url.toString();
+    return urlString.substring(0, urlString.lastIndexOf('/'));
   }
 
   /**
@@ -690,8 +694,7 @@ public class HttpServer implements FilterContainer {
         return;
       }
 
-      PrintWriter out = new PrintWriter
-                    (HtmlQuoting.quoteOutputStream(response.getOutputStream()));
+      PrintWriter out = response.getWriter();
       ReflectionUtils.printThreadInfo(out, "");
       out.close();
       ReflectionUtils.logThreadInfo(LOG, "jsp requested", 1);      
@@ -808,22 +811,33 @@ public class HttpServer implements FilterContainer {
         new RequestQuoter((HttpServletRequest) request);
       final HttpServletResponse httpResponse = (HttpServletResponse) response;
 
-      // Infer the content type based on the path of the request.
+      String mime = inferMimeType(request);
+      if (mime == null) {
+        httpResponse.setContentType("text/plain; charset=utf-8");
+      } else if (mime.startsWith("text/html")) {
+        // HTML with unspecified encoding, we want to
+        // force HTML with utf-8 encoding
+        // This is to avoid the following security issue:
+        // http://openmya.hacker.jp/hasegawa/security/utf7cs.html
+        httpResponse.setContentType("text/html; charset=utf-8");
+      } else if (mime.startsWith("application/xml")) {
+        httpResponse.setContentType("text/xml; charset=utf-8");
+      }
+
+      chain.doFilter(quoted, httpResponse);
+    }
+
+    /**
+     * Infer the mime type for the response based on the extension of the request
+     * URI. Returns null if unknown.
+     */
+    private String inferMimeType(ServletRequest request) {
       String path = ((HttpServletRequest)request).getRequestURI();
       ContextHandler.SContext sContext = (ContextHandler.SContext)config.getServletContext();
       MimeTypes mimes = sContext.getContextHandler().getMimeTypes();
       Buffer mimeBuffer = mimes.getMimeByExtension(path);
-      String mime = mimeBuffer != null ? mimeBuffer.toString() : "text/html";
-
-      // If it is HTML (default), force the character set to utf-8.
-      // This is to avoid the following security issue:
-      // http://openmya.hacker.jp/hasegawa/security/utf7cs.html
-      if (mime.startsWith("text/html")) {
-        httpResponse.setContentType(mime + "; charset=utf-8");
-      } else {
-        httpResponse.setContentType(mime);
-      }
-      chain.doFilter(quoted, httpResponse);
+      return (mimeBuffer == null) ? null : mimeBuffer.toString();
     }
+
   }
 }
