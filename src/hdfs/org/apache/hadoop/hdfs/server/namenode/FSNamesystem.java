@@ -4903,7 +4903,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
 
   private void checkSuperuserPrivilege() throws AccessControlException {
     if (isPermissionEnabled) {
-      PermissionChecker.checkSuperuserPrivilege(fsOwner, supergroup);
+      FSPermissionChecker.checkSuperuserPrivilege(fsOwner, supergroup);
     }
   }
 
