@@ -487,7 +487,7 @@ public class RawLocalFileSystem extends FileSystem {
                      permission.toShort());
     } else {
       execCommand(pathToFile(p), Shell.SET_PERMISSION_COMMAND,
-          String.format("%04o", permission.toShort()));
+          String.format("%05o", permission.toShort()));
     }
   }
 

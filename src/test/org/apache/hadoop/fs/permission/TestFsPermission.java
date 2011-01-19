@@ -49,11 +49,52 @@ public class TestFsPermission extends TestCase {
     assertEquals(WRITE_EXECUTE, ALL.and(WRITE_EXECUTE));
   }
 
-  public void testFsPermission() {
-    for(short s = 0; s < (1<<9); s++) {
+  /**
+   * Ensure that when manually specifying permission modes we get
+   * the expected values back out for all combinations
+   */
+  public void testConvertingPermissions() {
+    for(short s = 0; s < 01777; s++) {
       assertEquals(s, new FsPermission(s).toShort());
     }
 
+    short s = 0;
+
+    for(boolean sb : new boolean [] { false, true }) {
+      for(FsAction u : FsAction.values()) {
+        for(FsAction g : FsAction.values()) {
+          for(FsAction o : FsAction.values()) {
+            FsPermission f = new FsPermission(u, g, o, sb);
+            assertEquals(s, f.toShort());
+            s++;
+          }
+        }
+      }
+    }
+  }
+
+  public void testStickyBitToString() {
+    // Check that every permission has its sticky bit represented correctly
+    for(boolean sb : new boolean [] { false, true }) {
+      for(FsAction u : FsAction.values()) {
+        for(FsAction g : FsAction.values()) {
+          for(FsAction o : FsAction.values()) {
+            FsPermission f = new FsPermission(u, g, o, sb);
+            if(f.getStickyBit() && f.getOtherAction().implies(EXECUTE))
+              assertEquals('t', f.toString().charAt(8));
+            else if(f.getStickyBit() && !f.getOtherAction().implies(EXECUTE))
+              assertEquals('T', f.toString().charAt(8));
+            else if(!f.getStickyBit()  && f.getOtherAction().implies(EXECUTE))
+              assertEquals('x', f.toString().charAt(8));
+            else
+              assertEquals('-', f.toString().charAt(8));
+          }
+        }
+      }
+    }
+  }
+
+  public void testFsPermission() {
     String symbolic = "-rwxrwxrwx";
     StringBuilder b = new StringBuilder("-123456789");
     for(int i = 0; i < (1<<9); i++) {

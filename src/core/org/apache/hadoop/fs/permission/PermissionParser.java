@@ -30,9 +30,11 @@ class PermissionParser {
   protected short userMode;
   protected short groupMode;
   protected short othersMode;
+  protected short stickyMode;
   protected char userType = '+';
   protected char groupType = '+';
   protected char othersType = '+';
+  protected char stickyBitType = '+';
   
   /**
    * Begin parsing permission stored in modeStr
@@ -64,14 +66,14 @@ class PermissionParser {
       }
 
       /*
-       * groups : 1 : [ugoa]* 2 : [+-=] 3 : [rwxX]+ 4 : [,\s]*
+       * groups : 1 : [ugoa]* 2 : [+-=] 3 : [rwxXt]+ 4 : [,\s]*
        */
 
       String str = matcher.group(2);
       char type = str.charAt(str.length() - 1);
 
-      boolean user, group, others;
-      user = group = others = false;
+      boolean user, group, others, stickyBit;
+      user = group = others = stickyBit = false;
 
       for (char c : matcher.group(1).toCharArray()) {
         switch (c) {
@@ -111,6 +113,9 @@ class PermissionParser {
         case 'X':
           mode |= 8;
           break;
+        case 't':
+          stickyBit = true;
+          break;
         default:
           throw new RuntimeException("Unexpected");
         }
@@ -129,6 +134,9 @@ class PermissionParser {
       if (others) {
         othersMode = mode;
         othersType = type;
+
+        stickyMode = (short) (stickyBit ? 1 : 0);
+        stickyBitType = type;
       }
 
       commaSeperated = matcher.group(4).contains(",");
@@ -139,14 +147,23 @@ class PermissionParser {
   private void applyOctalPattern(String modeStr, Matcher matcher) {
     userType = groupType = othersType = '=';
 
-    String str = matcher.group(1);
+    // Check if sticky bit is specified
+    String sb = matcher.group(1);
+    if (!sb.isEmpty()) {
+      stickyMode = Short.valueOf(sb.substring(0, 1));
+      stickyBitType = '=';
+    }
+
+    String str = matcher.group(2);
     userMode = Short.valueOf(str.substring(0, 1));
     groupMode = Short.valueOf(str.substring(1, 2));
     othersMode = Short.valueOf(str.substring(2, 3));
   }
 
   protected int combineModes(int existing, boolean exeOk) {
-    return   combineModeSegments(userType, userMode,
+    return   combineModeSegments(stickyBitType, stickyMode, 
+                (existing>>>9), false) << 9 |
+             combineModeSegments(userType, userMode,
                 (existing>>>6)&7, exeOk) << 6 |
              combineModeSegments(groupType, groupMode,
                 (existing>>>3)&7, exeOk) << 3 |

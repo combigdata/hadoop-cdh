@@ -27,9 +27,9 @@ import org.apache.hadoop.fs.FileStatus;
  */
 public class ChmodParser extends PermissionParser {
   private static Pattern chmodOctalPattern =
-    Pattern.compile("^\\s*[+]?([0-7]{3})\\s*$");
+    Pattern.compile("^\\s*[+]?([01]?)([0-7]{3})\\s*$");
   private static Pattern chmodNormalPattern =
-    Pattern.compile("\\G\\s*([ugoa]*)([+=-]+)([rwxX]+)([,\\s]*)\\s*");
+    Pattern.compile("\\G\\s*([ugoa]*)([+=-]+)([rwxXt]+)([,\\s]*)\\s*");
   
   public ChmodParser(String modeStr) throws IllegalArgumentException {
     super(modeStr, chmodNormalPattern, chmodOctalPattern);

@@ -22,12 +22,14 @@ import java.util.regex.Pattern;
 /**
  * Parse umask value provided as a string, either in octal or symbolic
  * format and return it as a short value. Umask values are slightly
- * different from standard modes as they cannot specify X.
+ * different from standard modes as they cannot specify sticky bit
+ * or X.
+ *
  */
 class UmaskParser extends PermissionParser {
   private static Pattern chmodOctalPattern =
-    Pattern.compile("^\\s*[+]?([0-7]{3})\\s*$");
-  private static Pattern umaskSymbolicPattern =    /* not allow X */
+    Pattern.compile("^\\s*[+]?()([0-7]{3})\\s*$"); // no leading 1 for sticky bit
+  private static Pattern umaskSymbolicPattern =    /* not allow X or t */
     Pattern.compile("\\G\\s*([ugoa]*)([+=-]+)([rwx]*)([,\\s]*)\\s*");
   final short umaskMode;
   

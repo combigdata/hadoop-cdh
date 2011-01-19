@@ -28,7 +28,7 @@ import org.apache.hadoop.fs.permission.ChmodParser;
 
 /**
  * This class is the home for file permissions related commands.
- * Moved to this seperate class since FsShell is getting too large.
+ * Moved to this separate class since FsShell is getting too large.
  */
 class FsShellPermissions {
   
