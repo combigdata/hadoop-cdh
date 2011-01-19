@@ -138,7 +138,7 @@ public class DFSClient implements FSConstants, java.io.Closeable {
   }
 
   static ClientDatanodeProtocol createClientDatanodeProtocolProxy (
-      DatanodeID datanodeid, Configuration conf, 
+      DatanodeID datanodeid, Configuration conf, int socketTimeout,
       Block block, Token<BlockTokenIdentifier> token) throws IOException {
     InetSocketAddress addr = NetUtils.createSocketAddr(
       datanodeid.getHost() + ":" + datanodeid.getIpcPort());
@@ -150,7 +150,7 @@ public class DFSClient implements FSConstants, java.io.Closeable {
     ticket.addToken(token);
     return (ClientDatanodeProtocol)RPC.getProxy(ClientDatanodeProtocol.class,
         ClientDatanodeProtocol.versionID, addr, ticket, conf, NetUtils
-        .getDefaultSocketFactory(conf));
+        .getDefaultSocketFactory(conf), socketTimeout);
   }
         
   /**
@@ -1611,7 +1611,8 @@ public class DFSClient implements FSConstants, java.io.Closeable {
           DatanodeInfo primaryNode = last.getLocations()[0];
           try {
             primary = createClientDatanodeProtocolProxy(
-              primaryNode, conf, last.getBlock(), last.getBlockToken());
+              primaryNode, conf, DFSClient.this.socketTimeout,
+              last.getBlock(), last.getBlockToken());
             Block newBlock = primary.getBlockInfo(last.getBlock());
             long newBlockSize = newBlock.getNumBytes();
             long delta = newBlockSize - last.getBlockSize();
@@ -2778,7 +2779,9 @@ public class DFSClient implements FSConstants, java.io.Closeable {
         try {
           // Pick the "least" datanode as the primary datanode to avoid deadlock.
           primaryNode = Collections.min(Arrays.asList(newnodes));
-          primary = createClientDatanodeProtocolProxy(primaryNode, conf, block, accessToken);
+          primary = createClientDatanodeProtocolProxy(
+              primaryNode, conf, DFSClient.this.socketTimeout,
+              block, accessToken);
           newBlock = primary.recoverBlock(block, isAppend, newnodes);
         } catch (IOException e) {
           LOG.warn("Failed recovery attempt #" + recoveryErrorCount +

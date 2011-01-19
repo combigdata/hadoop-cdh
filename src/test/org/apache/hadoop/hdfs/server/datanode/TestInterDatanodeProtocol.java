@@ -89,7 +89,7 @@ public class TestInterDatanodeProtocol extends junit.framework.TestCase {
 
       //connect to a data node
       InterDatanodeProtocol idp = DataNode.createInterDataNodeProtocolProxy(
-          datanodeinfo[0], conf);
+          datanodeinfo[0], conf, 0);
       DataNode datanode = cluster.getDataNode(datanodeinfo[0].getIpcPort());
       assertTrue(datanode != null);
       

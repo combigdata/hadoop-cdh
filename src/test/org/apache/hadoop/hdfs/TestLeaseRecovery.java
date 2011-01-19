@@ -95,7 +95,7 @@ public class TestLeaseRecovery extends junit.framework.TestCase {
       InterDatanodeProtocol[] idps = new InterDatanodeProtocol[REPLICATION_NUM];
       DataNode[] datanodes = new DataNode[REPLICATION_NUM];
       for(int i = 0; i < REPLICATION_NUM; i++) {
-        idps[i] = DataNode.createInterDataNodeProtocolProxy(datanodeinfos[i], conf);
+        idps[i] = DataNode.createInterDataNodeProtocolProxy(datanodeinfos[i], conf, 0);
         datanodes[i] = cluster.getDataNode(datanodeinfos[i].getIpcPort());
         assertTrue(datanodes[i] != null);
       }

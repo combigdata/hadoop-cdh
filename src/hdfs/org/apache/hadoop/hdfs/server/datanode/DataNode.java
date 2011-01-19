@@ -531,7 +531,8 @@ public class DataNode extends Configured
   } 
 
   public static InterDatanodeProtocol createInterDataNodeProtocolProxy(
-      DatanodeID datanodeid, final Configuration conf) throws IOException {
+      DatanodeID datanodeid, final Configuration conf, final int socketTimeout)
+    throws IOException {
     final InetSocketAddress addr = NetUtils.createSocketAddr(
         datanodeid.getHost() + ":" + datanodeid.getIpcPort());
     if (InterDatanodeProtocol.LOG.isDebugEnabled()) {
@@ -545,7 +546,8 @@ public class DataNode extends Configured
             public InterDatanodeProtocol run() throws IOException {
               return (InterDatanodeProtocol) RPC.getProxy(
                   InterDatanodeProtocol.class, InterDatanodeProtocol.versionID,
-                  addr, conf);
+                  addr, UserGroupInformation.getCurrentUser(), conf,
+                  NetUtils.getDefaultSocketFactory(conf), socketTimeout);
             }
           });
     } catch (InterruptedException ie) {
@@ -1725,7 +1727,8 @@ public class DataNode extends Configured
               dnRegistration.getIpcPort() == id.getIpcPort()) {
             datanode = this;
           } else {
-            datanode = DataNode.createInterDataNodeProtocolProxy(id, getConf());
+            datanode = DataNode.createInterDataNodeProtocolProxy(id, getConf(),
+                socketTimeout);
           }
           BlockRecoveryInfo info = datanode.startBlockRecovery(block);
           if (info == null) {
