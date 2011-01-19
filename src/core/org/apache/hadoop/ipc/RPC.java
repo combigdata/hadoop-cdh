@@ -209,9 +209,9 @@ public class RPC {
 
     public Invoker(Class<? extends VersionedProtocol> protocol,
         InetSocketAddress address, UserGroupInformation ticket,
-        Configuration conf, SocketFactory factory) throws IOException {
+        Configuration conf, SocketFactory factory, int rpcTimeout) throws IOException {
       this.remoteId = Client.ConnectionId.getConnectionId(address, protocol,
-          ticket, conf);
+          ticket, rpcTimeout, conf);
       this.client = CLIENTS.getClient(conf, factory);
     }
 
@@ -303,7 +303,7 @@ public class RPC {
    * @param clientVersion client version
    * @param addr remote address
    * @param conf configuration to use
-   * @param timeout time in milliseconds before giving up
+   * @param connTimeout time in milliseconds before giving up
    * @return the proxy
    * @throws IOException if the far end through a RemoteException
    */
@@ -312,13 +312,36 @@ public class RPC {
                                                long clientVersion,
                                                InetSocketAddress addr,
                                                Configuration conf,
-                                               long timeout
-                                               ) throws IOException { 
-    long startTime = System.currentTimeMillis();
+                                               long connTimeout
+                                               ) throws IOException {
+    return waitForProxy(protocol, clientVersion, addr, conf, 0, connTimeout);
+  }
+  
+  /**
+   * Get a proxy connection to a remote server
+   * @param protocol protocol class
+   * @param clientVersion client version
+   * @param addr remote address
+   * @param conf configuration to use
+   * @param connTimeout time in milliseconds before giving up
+   * @return the proxy
+   * @throws IOException if the far end through a RemoteException
+   */
+  static VersionedProtocol waitForProxy(
+                      Class<? extends VersionedProtocol> protocol,
+                                               long clientVersion,
+                                               InetSocketAddress addr,
+                                               Configuration conf,
+                                               int rpcTimeout,
+                                               long connTimeout
+                                               ) throws IOException {
+      long startTime = System.currentTimeMillis();
     IOException ioe;
     while (true) {
       try {
-        return getProxy(protocol, clientVersion, addr, conf);
+        return getProxy(protocol, clientVersion, addr,
+            UserGroupInformation.getCurrentUser(), conf, NetUtils
+            .getDefaultSocketFactory(conf), rpcTimeout);
       } catch(ConnectException se) {  // namenode has not been started
         LOG.info("Server at " + addr + " not available yet, Zzzzz...");
         ioe = se;
@@ -330,7 +353,7 @@ public class RPC {
         ioe = nrthe;
       }
       // check if timed out
-      if (System.currentTimeMillis()-timeout >= startTime) {
+      if (System.currentTimeMillis()-connTimeout >= startTime) {
         throw ioe;
       }
 
@@ -357,15 +380,21 @@ public class RPC {
   public static VersionedProtocol getProxy(
       Class<? extends VersionedProtocol> protocol,
       long clientVersion, InetSocketAddress addr, UserGroupInformation ticket,
-      Configuration conf, SocketFactory factory) throws IOException {    
-
+      Configuration conf, SocketFactory factory) throws IOException {
+    return getProxy(protocol, clientVersion, addr, ticket, conf, factory, 0);
+  }
+  
+  public static VersionedProtocol getProxy(
+      Class<? extends VersionedProtocol> protocol,
+      long clientVersion, InetSocketAddress addr, UserGroupInformation ticket,
+      Configuration conf, SocketFactory factory, int rpcTimeout) throws IOException {
     if (UserGroupInformation.isSecurityEnabled()) {
       SaslRpcServer.init(conf);
     }
     VersionedProtocol proxy =
         (VersionedProtocol) Proxy.newProxyInstance(
             protocol.getClassLoader(), new Class[] { protocol },
-            new Invoker(protocol, addr, ticket, conf, factory));
+            new Invoker(protocol, addr, ticket, conf, factory, rpcTimeout));
     long serverVersion = proxy.getProtocolVersion(protocol.getName(), 
                                                   clientVersion);
     if (serverVersion == clientVersion) {
