@@ -27,6 +27,7 @@ import org.apache.commons.daemon.DaemonContext;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.server.common.HdfsConstants;
 import org.apache.hadoop.http.HttpServer;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.mortbay.jetty.nio.SelectChannelConnector;
 
 /**
@@ -91,8 +92,10 @@ public class SecureDataNodeStarter implements Daemon {
     System.err.println("Successfully obtained privileged resources (streaming port = "
         + ss + " ) (http listener port = " + listener.getConnection() +")");
     
-    if(ss.getLocalPort() >= 1023 || listener.getPort() >= 1023)
-      System.err.println("Warning: Starting secure datanode with unprivileged ports");
+    if ((ss.getLocalPort() >= 1023 || listener.getPort() >= 1023) &&
+        UserGroupInformation.isSecurityEnabled()) {
+      throw new RuntimeException("Cannot start secure datanode with unprivileged ports");
+    }
     
     resources = new SecureResources(ss, listener);
   }
