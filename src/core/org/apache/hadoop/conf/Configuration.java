@@ -1416,7 +1416,6 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
   public void writeXml(Writer out) throws IOException {
     Document doc = asXmlDocument();
 
-    Properties properties = getProps();
     try {
       DOMSource source = new DOMSource(doc);
       StreamResult result = new StreamResult(out);
@@ -1446,6 +1445,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
     Element conf = doc.createElement("configuration");
     doc.appendChild(conf);
     conf.appendChild(doc.createTextNode("\n"));
+    getProps(); // ensure properties is set
     for (Enumeration e = properties.keys(); e.hasMoreElements();) {
       String name = (String)e.nextElement();
       Object object = properties.get(name);

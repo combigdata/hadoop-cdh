@@ -259,7 +259,17 @@ public class TestConfiguration extends TestCase {
       fileResource.toString();
     assertEquals(expectedOutput, conf.toString());
   }
-  
+
+  public void testWriteXml() throws IOException {
+    Configuration conf = new Configuration();
+    ByteArrayOutputStream baos = new ByteArrayOutputStream(); 
+    conf.writeXml(baos);
+    String result = baos.toString();
+    assertTrue("Result has proper header", result.startsWith(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?><configuration>"));
+    assertTrue("Result has proper footer", result.endsWith("</configuration>"));
+  }
+
   public void testIncludes() throws Exception {
     tearDown();
     System.out.println("XXX testIncludes");
