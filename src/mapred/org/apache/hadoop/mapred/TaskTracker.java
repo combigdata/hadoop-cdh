@@ -3550,6 +3550,7 @@ public class TaskTracker
         shuffleMetrics.serverHandlerBusy();
         if(ClientTraceLog.isInfoEnabled())
           startTime = System.nanoTime();
+        response.setContentType("application/octet-stream");
         outStream = response.getOutputStream();
         JobConf conf = (JobConf) context.getAttribute("conf");
         LocalDirAllocator lDirAlloc = 

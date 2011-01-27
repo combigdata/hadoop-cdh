@@ -265,6 +265,10 @@
       name="mockito-all"
       rev="${mockito-all.version}"
       conf="common->master"/>
+    <dependency org="org.mortbay.jetty"
+      name="jetty-servlet-tester"
+      rev="${jetty.version}"
+      conf="common->default" />
     <dependency org="org.codehaus.jackson"
       name="jackson-mapper-asl"
       rev="${jackson.version}"
