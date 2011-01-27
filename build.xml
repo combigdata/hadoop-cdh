@@ -325,6 +325,15 @@
     </sequential>
   </macrodef>
 
+  <!-- Initializes ivy/libraries.properties and build.properties with CDH versions -->
+  <target  name="init-cdh" unless="cdh.maven">
+    <exec  executable="mvn" dir="${basedir}" failonerror="true">
+      <arg value="-f" />
+      <arg value="cloudera-pom.xml" />
+      <arg value="process-resources"/>
+    </exec>
+  </target>
+
   <!-- ====================================================== -->
   <!-- Stuff needed by all targets                            -->
   <!-- ====================================================== -->
@@ -1445,6 +1454,8 @@
       <fileset dir="${build.dir}/contrib/fairscheduler" includes="*.jar"/>
     </copy>
 
+    <copy file="cloudera-pom.xml" tofile="${dist.dir}/cloudera-pom.xml"/>
+
     <copy todir="${dist.dir}/cloudera">
       <fileset dir="cloudera" />
     </copy>
@@ -1516,11 +1527,6 @@
     <delete dir="${build.dir}"/>
     <delete dir="${docs.src}/build"/>
     <delete dir="${src.docs.cn}/build"/>
-    <delete file="${basedir}/ivy/hadoop-core-pom.xml"/>
-    <delete file="${basedir}/ivy/hadoop-test-pom.xml"/>
-    <delete file="${basedir}/ivy/hadoop-examples-pom.xml"/>
-    <delete file="${basedir}/ivy/hadoop-tools-pom.xml"/>
-    <delete file="${basedir}/ivy/hadoop-streaming-pom.xml"/>
   </target>
 
   <target name="clean-sign" description="Clean.  Delete .asc files">
@@ -1885,7 +1891,7 @@
     </condition>
   </target>
 
-  <target name="ivy-download" description="To download ivy" unless="offline">
+  <target name="ivy-download" depends="init-cdh" description="To download ivy" unless="offline">
     <get src="${ivy_repo_url}" dest="${ivy.jar}" usetimestamp="true"/>
   </target>
 
@@ -2017,29 +2023,9 @@
          classpathref="mvn-ant-task.classpath"/>
   </target>  
 
-  <target name="mvn-install" depends="mvn-taskdef,bin-package,set-version"
+  <target name="mvn-install" depends=""
      description="To install hadoop core and test jars to local filesystem's m2 cache">
-     <artifact:pom file="${hadoop-core.pom}" id="hadoop.core"/>
-     <artifact:pom file="${hadoop-test.pom}" id="hadoop.test"/>
-     <artifact:pom file="${hadoop-examples.pom}" id="hadoop.examples"/>
-     <artifact:pom file="${hadoop-tools.pom}" id="hadoop.tools"/>
-     <artifact:pom file="${hadoop-streaming.pom}" id="hadoop.streaming"/>
-
-     <artifact:install file="${hadoop-core.jar}">
-        <pom refid="hadoop.core"/>
-     </artifact:install>
-     <artifact:install file="${hadoop-test.jar}">
-        <pom refid="hadoop.test"/>
-     </artifact:install>
-     <artifact:install file="${hadoop-tools.jar}">
-        <pom refid="hadoop.tools"/>
-     </artifact:install>
-     <artifact:install file="${hadoop-examples.jar}">
-        <pom refid="hadoop.examples"/>
-     </artifact:install>
-     <artifact:install file="${hadoop-streaming.jar}">
-        <pom refid="hadoop.streaming"/>
-     </artifact:install>
+    <echo>To install Cloudera hadoop core and test jars into Maven cache, run "mvn -f cloudera-pom.xml install" from this directory.</echo>
   </target>
 
   <target name="mvn-deploy" depends="mvn-taskdef, bin-package, set-version, signanddeploy, simpledeploy"
