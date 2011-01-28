@@ -138,18 +138,11 @@ class LinuxTaskController extends TaskController {
       TaskLog.buildCommandLine(env.setup, env.vargs, env.stdout, env.stderr,
           env.logSize, true);
 
-    StringBuffer sb = new StringBuffer();
+    StringBuilder sb = new StringBuilder();
     //export out all the environment variable before child command as
     //the setuid/setgid binaries would not be getting, any environmental
     //variables which begin with LD_*.
-    for(Entry<String, String> entry : env.env.entrySet()) {
-      sb.append("export ");
-      sb.append(entry.getKey());
-      sb.append("=");
-      sb.append(entry.getValue());
-      sb.append("\n");
-    }
-    sb.append(cmdLine);
+    appendEnvExports(sb, env.env);
     // write the command to a file in the
     // task specific cache directory
     writeCommand(sb.toString(), getTaskCacheDirectory(context));
@@ -218,6 +211,25 @@ class LinuxTaskController extends TaskController {
     }
   }
 
+  /**
+   * Append lines of the form 'export FOO="bar"' to sb to export the given
+   * environment map.
+   * 
+   * This should not be relied upon for security as the variable names are not
+   * sanitized in any way.
+   * @param sb StringBuilder to append to
+   * @param env Environment to export
+   */
+  static void appendEnvExports(StringBuilder sb, Map<String, String> env) {
+    for(Entry<String, String> entry : env.entrySet()) {
+      sb.append("export ");
+      sb.append(entry.getKey());
+      sb.append("=\"");
+      sb.append(StringUtils.escapeString(entry.getValue(), '\\', '"'));
+      sb.append("\"\n");
+    }
+  }
+  
   /**
    * Returns list of arguments to be passed while initializing a new task. See
    * {@code buildTaskControllerExecutor(TaskControllerCommands, String, 
