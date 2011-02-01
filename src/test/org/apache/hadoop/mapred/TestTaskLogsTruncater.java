@@ -523,18 +523,38 @@ public class TestTaskLogsTruncater {
 
       RunningJob job = JobClient.runJob(conf);
       assertTrue(job.getJobState() == JobStatus.SUCCEEDED);
-      for (TaskCompletionEvent tce : job.getTaskCompletionEvents(0)) {
-        long length =
-            TaskLog.getTaskLogFile(tce.getTaskAttemptId(), false,
-                TaskLog.LogName.STDOUT).length();
-        assertTrue("STDOUT log file length for " + tce.getTaskAttemptId()
-            + " is " + length + " and not <=" + 10000 + truncatedMsgSize,
-            length <= 10000 + truncatedMsgSize);
-        if (tce.isMap) {
-          String stderr = TestMiniMRMapRedDebugScript.readTaskLog(
-              LogName.STDERR, tce.getTaskAttemptId(), false);
-          System.out.println("STDERR log:" + stderr);
-          assertTrue(stderr.equals(STDERR_LOG));
+      
+      long maxLength = 10000 + truncatedMsgSize;
+      
+      // Log truncation may happen a few seconds after job completion, since the
+      // JVM may not exit until sleepTimeBeforeSigKill has expired. Only once
+      // the JVM has exited will the logs be truncated. Loop here to give
+      // it a chance to do truncation.
+      boolean truncated = false;
+      long stopLoopingTime = System.currentTimeMillis() + 20000;
+      while (!truncated) {
+        boolean expired = System.currentTimeMillis() > stopLoopingTime;
+        for (TaskCompletionEvent tce : job.getTaskCompletionEvents(0)) {
+          long length =
+              TaskLog.getTaskLogFile(tce.getTaskAttemptId(), false,
+                  TaskLog.LogName.STDOUT).length();
+          truncated = length <= maxLength;
+          
+          if (!truncated && expired) {
+            fail("STDOUT log file length for " + tce.getTaskAttemptId()
+              + " is " + length + " and not <=" + maxLength);
+          }
+          if (tce.isMap) {
+            String stderr = TestMiniMRMapRedDebugScript.readTaskLog(
+                LogName.STDERR, tce.getTaskAttemptId(), false);
+            System.out.println("STDERR log:" + stderr);
+            assertTrue(stderr.equals(STDERR_LOG));
+          }
+        }
+        try {
+          Thread.sleep(1000);
+        } catch (InterruptedException e) {
+          throw new RuntimeException(e);
         }
       }
     } finally {
@@ -543,6 +563,7 @@ public class TestTaskLogsTruncater {
       }
     }
   }
+  
 
   /**
    * Test the truncation of DEBUGOUT file by {@link TaskLogsTruncater}
@@ -612,15 +633,32 @@ public class TestTaskLogsTruncater {
         }
       } catch (IOException ioe) {
       } finally{
-        for (TaskCompletionEvent tce : job.getTaskCompletionEvents(0)) {
-          File debugOutFile =
-              TaskLog.getTaskLogFile(tce.getTaskAttemptId(), false,
-                  TaskLog.LogName.DEBUGOUT);
-          if (debugOutFile.exists()) {
-            long length = debugOutFile.length();
-            assertTrue("DEBUGOUT log file length for " + tce.getTaskAttemptId()
-                + " is " + length + " and not " + 10000 + truncatedMsgSize,
-                length == 10000 + truncatedMsgSize);
+        long maxLength = 10000 + truncatedMsgSize;
+
+        boolean truncated = false;
+        long stopLoopingTime = System.currentTimeMillis() + 20000;
+        
+        while (!truncated) {
+          boolean expired = System.currentTimeMillis() > stopLoopingTime;
+          
+          for (TaskCompletionEvent tce : job.getTaskCompletionEvents(0)) {
+            File debugOutFile =
+                TaskLog.getTaskLogFile(tce.getTaskAttemptId(), false,
+                    TaskLog.LogName.DEBUGOUT);
+            assertTrue("DEBUGOUT log file for " + tce.getTaskAttemptId() +
+                " should exist", !expired || debugOutFile.exists());
+            if (debugOutFile.exists()) {
+              long length = debugOutFile.length();
+              truncated = length == maxLength;
+              assertTrue("DEBUGOUT log file length for " + tce.getTaskAttemptId()
+                  + " is " + length + " and not " + maxLength,
+                  truncated || !expired);
+            }
+          }
+          try {
+            Thread.sleep(1000);
+          } catch (InterruptedException e) {
+            throw new RuntimeException(e);
           }
         }
       }
