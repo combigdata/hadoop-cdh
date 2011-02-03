@@ -237,8 +237,7 @@ public class TestRPC extends TestCase {
     }
   }
 
-
-  public void testCalls() throws Exception {
+  public void testCalls(Configuration conf) throws Exception {
     Server server = RPC.getServer(new TestImpl(), ADDRESS, 0, conf);
     TestProtocol proxy = null;
     try {
@@ -487,6 +486,16 @@ public class TestRPC extends TestCase {
     // should not cause any other thread to get an error
     assertNull("rpc got ClosedChannelException", error.get());
   }
+
+  public void testNoPings() throws Exception {
+    Configuration conf = new Configuration();
+   
+    conf.setBoolean("ipc.client.ping", false);
+    new TestRPC("testnoPings").testCalls(conf);
+   
+    conf.setInt(CommonConfigurationKeys.IPC_SERVER_RPC_READ_THREADS_KEY, 2);
+    new TestRPC("testnoPings").testCalls(conf);
+  }
   
   public void testErrorMsgForInsecureClient() throws Exception {
     final Server server = RPC.getServer(
@@ -510,11 +519,36 @@ public class TestRPC extends TestCase {
       }
     }
     assertTrue(succeeded);
+
+    conf.setInt(CommonConfigurationKeys.IPC_SERVER_RPC_READ_THREADS_KEY, 2);
+
+    final Server multiServer = RPC.getServer(new TestImpl(), 
+						ADDRESS, 0, 5, true, conf, null);
+    multiServer.enableSecurity();
+    multiServer.start();
+    succeeded = false;
+    final InetSocketAddress mulitServerAddr =
+                      NetUtils.getConnectAddress(multiServer);
+    proxy = null;
+    try {
+      proxy = (TestProtocol) RPC.getProxy(TestProtocol.class,
+          TestProtocol.versionID, mulitServerAddr, conf);
+    } catch (RemoteException e) {
+      LOG.info("LOGGING MESSAGE: " + e.getLocalizedMessage());
+      assertTrue(e.unwrapRemoteException() instanceof AccessControlException);
+      succeeded = true;
+    } finally {
+      multiServer.stop();
+      if (proxy != null) {
+        RPC.stopProxy(proxy);
+      }
+    }
+    assertTrue(succeeded);
   }
-  
+ 
   public static void main(String[] args) throws Exception {
 
-    new TestRPC("test").testCalls();
+    new TestRPC("test").testCalls(conf);
 
   }
 }
