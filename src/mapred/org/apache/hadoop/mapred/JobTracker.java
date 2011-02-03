@@ -4017,9 +4017,11 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
           StringUtils.stringifyException(kie));
       killJob(job);
     } catch (Throwable t) {
+      String failureInfo = 
+        "Job initialization failed:\n" + StringUtils.stringifyException(t);
       // If the job initialization is failed, job state will be FAILED
-      LOG.error("Job initialization failed:\n" +
-          StringUtils.stringifyException(t));
+      LOG.error(failureInfo);
+      job.getStatus().setFailureInfo(failureInfo);
       failJob(job);
     }
 	 }
