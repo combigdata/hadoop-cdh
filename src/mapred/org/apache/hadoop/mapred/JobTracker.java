@@ -148,7 +148,14 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
   // tracker could be blacklisted across all jobs
   private int MAX_BLACKLISTS_PER_TRACKER = 4;
   
-  //Delegation token related keys
+
+  /** the maximum allowed size of the jobconf **/
+  long MAX_JOBCONF_SIZE = 5*1024*1024L;
+  /** the config key for max user jobconf size **/
+  public static final String MAX_USER_JOBCONF_SIZE_KEY = 
+      "mapred.user.jobconf.limit";
+
+  // Delegation token related keys
   public static final String  DELEGATION_KEY_UPDATE_INTERVAL_KEY =  
     "mapreduce.cluster.delegation.key.update-interval";
   public static final long    DELEGATION_KEY_UPDATE_INTERVAL_DEFAULT =  
@@ -2054,7 +2061,7 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
                                        DELEGATION_TOKEN_GC_INTERVAL);
     secretManager.startThreads();
        
-
+    MAX_JOBCONF_SIZE = conf.getLong(MAX_USER_JOBCONF_SIZE_KEY, MAX_JOBCONF_SIZE);
     //
     // Grab some static constants
     //
