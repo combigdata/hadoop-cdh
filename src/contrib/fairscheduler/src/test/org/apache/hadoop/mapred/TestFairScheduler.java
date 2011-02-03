@@ -74,11 +74,7 @@ public class TestFairScheduler extends TestCase {
       this.startTime = System.currentTimeMillis();
       this.status = new JobStatus();
       this.status.setRunState(JobStatus.PREP);
-      this.nonLocalMaps = new LinkedList<TaskInProgress>();
-      this.nonLocalRunningMaps = new LinkedHashSet<TaskInProgress>();
       this.runningMapCache = new IdentityHashMap<Node, Set<TaskInProgress>>();
-      this.nonRunningReduces = new LinkedList<TaskInProgress>();   
-      this.runningReduces = new LinkedHashSet<TaskInProgress>();
       initTasks();
     }
     
