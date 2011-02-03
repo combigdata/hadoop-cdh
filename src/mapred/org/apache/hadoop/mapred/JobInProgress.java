@@ -228,6 +228,8 @@ public class JobInProgress {
   volatile private boolean hasSpeculativeMaps;
   volatile private boolean hasSpeculativeReduces;
   private long inputLength = 0;
+  private String submitHostName;
+  private String submitHostAddress;
   private String user;
   private String historyFile = "";
   private boolean historyFileCopied;
@@ -397,6 +399,8 @@ public class JobInProgress {
           jobFile, url, conf.getJobName(),
           conf.getQueueName());
 
+      this.submitHostName = conf.getJobSubmitHostName();
+      this.submitHostAddress = conf.getJobSubmitHostAddress();
       this.numMapTasks = conf.getNumMapTasks();
       this.numReduceTasks = conf.getNumReduceTasks();
 
@@ -3178,6 +3182,20 @@ public class JobInProgress {
     return jobId;
   }
   
+  /**
+   * @return submitHostName  of this JobInProgress.
+   */
+  public String getJobSubmitHostName() {
+    return this.submitHostName;
+  }
+  
+  /**
+   * @return submitHostAddress  of this JobInProgress.
+   */
+  public String getJobSubmitHostAddress() {
+    return this.submitHostAddress;
+  }
+
   public synchronized Object getSchedulingInfo() {
     return this.schedulingInfo;
   }
