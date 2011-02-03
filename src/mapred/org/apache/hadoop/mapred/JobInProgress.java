@@ -168,6 +168,19 @@ public class JobInProgress {
   private final int anyCacheLevel;
   
   /**
+   * Number of scheduling opportunities (heartbeats) given to this Job
+   */
+  private volatile long numSchedulingOpportunities;
+  
+  static String LOCALITY_WAIT_FACTOR = "mapreduce.job.locality.wait.factor";
+  static final float DEFAULT_LOCALITY_WAIT_FACTOR = 1.0f;
+  
+  /**
+   * Percentage of the cluster the job is willing to wait to get better locality
+   */
+  private float localityWaitFactor = 1.0f;
+  
+  /**
    * A special value indicating that 
    * {@link #findNewMapTask(TaskTrackerStatus, int, int, int, double)} should
    * schedule any only off-switch and speculative map tasks for this job.
@@ -473,6 +486,7 @@ public class JobInProgress {
     Map<Node, List<TaskInProgress>> cache = 
       new IdentityHashMap<Node, List<TaskInProgress>>(maxLevel);
     
+    Set<String> uniqueHosts = new TreeSet<String>();
     for (int i = 0; i < splits.length; i++) {
       String[] splitLocations = splits[i].getLocations();
       if (splitLocations == null || splitLocations.length == 0) {
@@ -482,6 +496,7 @@ public class JobInProgress {
 
       for(String host: splitLocations) {
         Node node = jobtracker.resolveAndAddToTopology(host);
+        uniqueHosts.add(host);
         LOG.info("tip:" + maps[i].getTIPId() + " has split on node:" + node);
         for (int j = 0; j < maxLevel; j++) {
           List<TaskInProgress> hostMaps = cache.get(node);
@@ -502,6 +517,19 @@ public class JobInProgress {
         }
       }
     }
+    
+    // Calibrate the localityWaitFactor - Do not override user intent!
+    if (localityWaitFactor == DEFAULT_LOCALITY_WAIT_FACTOR) {
+      int jobNodes = uniqueHosts.size();
+      int clusterNodes = jobtracker.getNumberOfUniqueHosts();
+      
+      if (clusterNodes > 0) {
+        localityWaitFactor = 
+          Math.min((float)jobNodes/clusterNodes, localityWaitFactor);
+      }
+      LOG.info(jobId + " LOCALITY_WAIT_FACTOR=" + localityWaitFactor);
+    }
+    
     return cache;
   }
   
@@ -645,6 +673,10 @@ public class JobInProgress {
     }
     LOG.info("Input size for job " + jobId + " = " + inputLength
         + ". Number of splits = " + splits.length);
+
+    // Set localityWaitFactor before creating cache
+    localityWaitFactor = 
+      conf.getFloat(LOCALITY_WAIT_FACTOR, DEFAULT_LOCALITY_WAIT_FACTOR);
     if (numMapTasks > 0) { 
       nonRunningMapCache = createCache(splits, maxLevel);
     }
@@ -767,6 +799,15 @@ public class JobInProgress {
     return numReduceTasks - runningReduceTasks - failedReduceTIPs - 
     finishedReduceTasks + speculativeReduceTasks;
   }
+  
+  /**
+   * Return total number of map and reduce tasks desired by the job.
+   * @return total number of map and reduce tasks desired by the job
+   */
+  public int desiredTasks() {
+    return desiredMaps() + desiredReduces();
+  }
+  
   public int getNumSlotsPerTask(TaskType taskType) {
     if (taskType == TaskType.MAP) {
       return numSlotsPerMap;
@@ -1209,6 +1250,10 @@ public class JobInProgress {
     Task result = maps[target].getTaskToRun(tts.getTrackerName());
     if (result != null) {
       addRunningTaskToTIP(maps[target], result.getTaskID(), tts, true);
+      if (maxCacheLevel < NON_LOCAL_CACHE_LEVEL) {
+        resetSchedulingOpportunities();
+        // TODO(todd) double check this logic
+      }
     }
 
     return result;
@@ -1285,6 +1330,39 @@ public class JobInProgress {
 
     return obtainNewMapTask(tts, clusterSize, numUniqueHosts,
         NON_LOCAL_CACHE_LEVEL);
+  }
+
+  public void schedulingOpportunity() {
+    ++numSchedulingOpportunities;
+  }
+  
+  public void resetSchedulingOpportunities() {
+    numSchedulingOpportunities = 0;
+  }
+  
+  public long getNumSchedulingOpportunities() {
+    return numSchedulingOpportunities;
+  }
+
+  private static final long OVERRIDE = 1000000;
+  public void overrideSchedulingOpportunities() {
+    numSchedulingOpportunities = OVERRIDE;
+  }
+  
+  /**
+   * Check if we can schedule an off-switch task for this job.
+   * 
+   * @return <code>true</code> if we can schedule off-switch, 
+   *         <code>false</code> otherwise
+   * We check the number of missed opportunities for the job. 
+   * If it has 'waited' long enough we go ahead and schedule.
+   */
+  public boolean scheduleOffSwitch(int numTaskTrackers) {
+    long missedTaskTrackers = getNumSchedulingOpportunities();
+    long requiredSlots = 
+      Math.min((desiredMaps() - finishedMaps()), numTaskTrackers);
+    
+    return (requiredSlots  * localityWaitFactor) < missedTaskTrackers;
   }
   
   /**

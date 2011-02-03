@@ -371,6 +371,7 @@ class JSPUtil {
     throws IOException {
 
     StringBuffer sb = new StringBuffer();
+    
     sb.append("<table border=\"1\" cellpadding=\"5\" cellspacing=\"0\">\n");
 
     Iterator<RetireJobInfo> iterator = 
