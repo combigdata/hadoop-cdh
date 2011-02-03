@@ -18,6 +18,11 @@
 
 package org.apache.hadoop.hdfs;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import java.io.IOException;
 import java.net.URI;
 import java.util.Random;
@@ -29,6 +34,8 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileChecksum;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.log4j.Level;
 
 public class TestDistributedFileSystem extends junit.framework.TestCase {
@@ -118,7 +125,7 @@ public class TestDistributedFileSystem extends junit.framework.TestCase {
     }
   }
   
-  public void testFileChecksum() throws IOException {
+  public void testFileChecksum() throws Exception {
     ((Log4JLogger)HftpFileSystem.LOG).getLogger().setLevel(Level.ALL);
 
     final long seed = RAN.nextLong();
@@ -190,6 +197,20 @@ public class TestDistributedFileSystem extends junit.framework.TestCase {
         assertEquals(qfoocs.hashCode(), barhashcode);
         assertEquals(qfoocs, barcs);
       }
+
+      { //test permission error on hftp 
+        hdfs.setPermission(new Path(dir), new FsPermission((short)0));
+        try {
+          final String username = UserGroupInformation.getCurrentUser().getShortUserName() + "1";
+          final HftpFileSystem hftp2 = cluster.getHftpFileSystemAs(username, conf, "somegroup");
+          hftp2.getFileChecksum(qualified);
+          fail();
+        } catch(IOException ioe) {
+          FileSystem.LOG.info("GOOD: getting an exception", ioe);
+        }
+      }
     }
+    cluster.shutdown();
   }
+  
 }
