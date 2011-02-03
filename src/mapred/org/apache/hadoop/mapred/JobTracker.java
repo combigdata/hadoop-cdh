@@ -520,9 +520,11 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
     final JobStatus status;
     final JobProfile profile;
     final long finishTime;
+    final Counters counters;
     private String historyFile;
-    RetireJobInfo(JobStatus status, JobProfile profile, long finishTime, 
-        String historyFile) {
+    RetireJobInfo(Counters counters, JobStatus status, JobProfile profile, 
+        long finishTime, String historyFile) {
+      this.counters = counters;
       this.status = status;
       this.profile = profile;
       this.finishTime = finishTime;
@@ -547,7 +549,7 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
     }
 
     synchronized void addToCache(JobInProgress job) {
-      RetireJobInfo info = new RetireJobInfo(job.getStatus(), 
+      RetireJobInfo info = new RetireJobInfo(job.getCounters(), job.getStatus(),
           job.getProfile(), job.getFinishTime(), job.getHistoryFile());
       jobRetireInfoQ.add(info);
       jobIDStatusMap.put(info.status.getJobID(), info);
@@ -4126,7 +4128,12 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
         aclsManager.checkAccess(job, callerUGI, Operation.VIEW_JOB_COUNTERS);
 
         return isJobInited(job) ? job.getCounters() : EMPTY_COUNTERS;
-      } 
+      } else {
+        RetireJobInfo info = retireJobs.get(jobid);
+        if (info != null) {
+          return info.counters;
+        }
+      }
     }
 
     return completedJobStatusStore.readCounters(jobid);
