@@ -143,6 +143,9 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
 
   static enum State {NORMAL, STALE, INTERRUPTED, DENIED}
 
+  static final FsPermission LOCAL_DIR_PERMISSION =
+    FsPermission.createImmutable((short) 0755);
+
   static{
     Configuration.addDefaultResource("mapred-default.xml");
     Configuration.addDefaultResource("mapred-site.xml");
@@ -202,7 +205,7 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
   
   // The filesystem where job files are stored
   FileSystem systemFS = null;
-  private FileSystem localFs = null;
+  private LocalFileSystem localFs = null;
   private final HttpServer server;
     
   volatile boolean shuttingDown = false;
@@ -626,34 +629,9 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
     }
   }
 
-  public static final String TT_USER_NAME = "mapreduce.tasktracker.kerberos.principal";
-  public static final String TT_KEYTAB_FILE =
-    "mapreduce.tasktracker.keytab.file";  
-  /**
-   * Do the real constructor work here.  It's in a separate method
-   * so we can call it again and "recycle" the object after calling
-   * close().
-   */
-  synchronized void initialize() throws IOException, InterruptedException {
-    this.fConf = new JobConf(originalConf);
-
-    LOG.info("Starting tasktracker with owner as "
-        + getMROwner().getShortUserName());
-
+  void initializeDirectories() throws IOException {
     localFs = FileSystem.getLocal(fConf);
-    if (fConf.get("slave.host.name") != null) {
-      this.localHostname = fConf.get("slave.host.name");
-    }
-    if (localHostname == null) {
-      this.localHostname =
-      DNS.getDefaultHost
-      (fConf.get("mapred.tasktracker.dns.interface","default"),
-       fConf.get("mapred.tasktracker.dns.nameserver","default"));
-    }
- 
-    // Check local disk, start async disk service, and clean up all 
-    // local directories.
-    checkLocalDirs(localdirs = this.fConf.getLocalDirs());
+    checkLocalDirs(localFs, localdirs = this.fConf.getLocalDirs());
     deleteUserDirectories(fConf);
     asyncDiskService = new MRAsyncDiskService(fConf);
     asyncDiskService.cleanupAllVolumes();
@@ -672,6 +650,45 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
     for (String s : localdirs) {
       localFs.mkdirs(new Path(s, TT_LOG_TMP_DIR), pub);
     }
+
+    // Set up the user log directory
+    File taskLog = TaskLog.getUserLogDir();
+    if (!taskLog.isDirectory() && !taskLog.mkdirs()) {
+      LOG.warn("Unable to create taskLog directory : " + taskLog.getPath());
+    } else {
+      localFs.setPermission(new Path(taskLog.getCanonicalPath()),
+                            new FsPermission((short)0755));
+    }
+    DiskChecker.checkDir(TaskLog.getUserLogDir());
+  }
+
+  public static final String TT_USER_NAME = "mapreduce.tasktracker.kerberos.principal";
+  public static final String TT_KEYTAB_FILE =
+    "mapreduce.tasktracker.keytab.file";  
+  /**
+   * Do the real constructor work here.  It's in a separate method
+   * so we can call it again and "recycle" the object after calling
+   * close().
+   */
+  synchronized void initialize() throws IOException, InterruptedException {
+    this.fConf = new JobConf(originalConf);
+
+    LOG.info("Starting tasktracker with owner as "
+        + getMROwner().getShortUserName());
+
+    if (fConf.get("slave.host.name") != null) {
+      this.localHostname = fConf.get("slave.host.name");
+    }
+    if (localHostname == null) {
+      this.localHostname =
+      DNS.getDefaultHost
+      (fConf.get("mapred.tasktracker.dns.interface","default"),
+       fConf.get("mapred.tasktracker.dns.nameserver","default"));
+    }
+ 
+    // Check local disk, start async disk service, and clean up all 
+    // local directories.
+    initializeDirectories();
 
     // Clear out state tables
     this.tasks.clear();
@@ -1643,7 +1660,7 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
       localMinSpaceStart = minSpaceStart;
     }
     if (askForNewTask) {
-      checkLocalDirs(fConf.getLocalDirs());
+      checkLocalDirs(localFs, fConf.getLocalDirs());
       askForNewTask = enoughFreeSpace(localMinSpaceStart);
       long freeDiskSpace = getFreeSpace();
       long totVmem = getTotalVirtualMemoryOnTT();
@@ -3373,16 +3390,19 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
    * @param localDirs where the new TaskTracker should keep its local files.
    * @throws DiskErrorException if all local directories are not writable
    */
-  private static void checkLocalDirs(String[] localDirs) 
+  private static void checkLocalDirs(LocalFileSystem localFs, 
+                                     String[] localDirs) 
     throws DiskErrorException {
     boolean writable = false;
         
     if (localDirs != null) {
       for (int i = 0; i < localDirs.length; i++) {
         try {
-          DiskChecker.checkDir(new File(localDirs[i]));
+          DiskChecker.checkDir(localFs, new Path(localDirs[i]),
+                               LOCAL_DIR_PERMISSION);
+
           writable = true;
-        } catch(DiskErrorException e) {
+        } catch(IOException e) {
           LOG.warn("Task Tracker local " + e.getMessage());
         }
       }
@@ -3698,7 +3718,7 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
 
   // only used by tests
   void setLocalFileSystem(FileSystem fs){
-    localFs = fs;
+    localFs = (LocalFileSystem)fs;
   }
 
   int getMaxCurrentMapTasks() {
