@@ -17,10 +17,6 @@
 #
 
 #
-# Top-level makefile template for native hadoop code
-#
-
-#
 # Notes: 
 # 1. This makefile is designed to do the actual builds in $(HADOOP_HOME)/build/native/${os.name}-${os-arch}.
 # 2. This makefile depends on the following environment variables to function correctly:
