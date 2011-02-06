@@ -209,17 +209,6 @@ NOTE - This POM is used for Cloudera's build and packaging process.
         
         <executions>
           <execution>
-            <id>libraries.properties</id>
-            <configuration>
-              <templateFile>${basedir}/cloudera/maven-packaging/templates/libraries.template</templateFile>
-              <targetFile>${basedir}/ivy/libraries.properties</targetFile>
-            </configuration>
-            <goals>
-              <goal>generate</goal>
-            </goals>
-            <phase>process-resources</phase>
-          </execution>
-          <execution>
             <id>build.properties</id>
             <configuration>
               <templateFile>${basedir}/cloudera/maven-packaging/templates/build.template</templateFile>
