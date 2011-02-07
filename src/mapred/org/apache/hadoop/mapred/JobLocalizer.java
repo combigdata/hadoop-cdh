@@ -272,10 +272,12 @@ public class JobLocalizer {
       //Download job.jar
       userFs.copyToLocalFile(jarFilePath, localJarFile);
       localJobConf.setJar(localJarFile.toString());
-      // Also un-jar the job.jar files. We un-jar it so that classes inside
-      // sub-directories, for e.g., lib/, classes/ are available on class-path
-      RunJar.unJar(new File(localJarFile.toString()),
-          new File(localJarFile.getParent().toString()));
+      // also unjar the parts of the job.jar that need to end up on the
+      // classpath, or explicitly requested by the user.
+      RunJar.unJar(
+        new File(localJarFile.toString()),
+        new File(localJarFile.getParent().toString()),
+        localJobConf.getJarUnpackPattern());
       FileUtil.chmod(localJarFile.getParent().toString(), "ugo+rx", true);
     }
   }
