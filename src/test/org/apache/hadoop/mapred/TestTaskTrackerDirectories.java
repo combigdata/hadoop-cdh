@@ -26,6 +26,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileUtil;
+import org.apache.hadoop.fs.LocalDirAllocator;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RawLocalFileSystem;
 import org.junit.Test;
@@ -125,7 +126,7 @@ public class TestTaskTrackerDirectories {
   private void setupTaskController(Configuration conf) throws IOException {
     TaskController tc = new DefaultTaskController();
     tc.setConf(conf);
-    tc.setup();
+    tc.setup(new LocalDirAllocator("mapred.local.dir"));
   }
 
   private void checkDir(String dir) throws IOException {
