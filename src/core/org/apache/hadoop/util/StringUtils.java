@@ -718,9 +718,10 @@ public class StringUtils {
    *
    * @param separator Separator to join with.
    * @param strings Strings to join.
+   * @return  the joined string
    */
   public static String join(CharSequence separator, Iterable<String> strings) {
-    StringBuffer sb = new StringBuffer();
+    StringBuilder sb = new StringBuilder();
     boolean first = true;
     for (String s : strings) {
       if (first) {
