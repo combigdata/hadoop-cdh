@@ -31,6 +31,7 @@ import java.util.Set;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.http.HttpServer;
 import org.apache.hadoop.mapreduce.TaskType;
 import org.apache.hadoop.mapreduce.server.jobtracker.TaskTracker;
 
@@ -146,7 +147,7 @@ class CapacityTaskScheduler extends TaskScheduler {
    * There may be slight variations later, in which case we can make this
    * an abstract base class and have derived classes for Map and Reduce.  
    */
-  private static abstract class TaskSchedulingMgr {
+  static abstract class TaskSchedulingMgr {
 
     /** our TaskScheduler object */
     protected CapacityTaskScheduler scheduler;
@@ -833,6 +834,14 @@ class CapacityTaskScheduler extends TaskScheduler {
     initializationPoller.setDaemon(true);
     initializationPoller.start();
 
+    if (taskTrackerManager instanceof JobTracker) {
+      JobTracker jobTracker = (JobTracker) taskTrackerManager;
+      HttpServer infoServer = jobTracker.infoServer;
+      infoServer.setAttribute("scheduler", this);
+      infoServer.addServlet("scheduler", "/scheduler",
+          CapacitySchedulerServlet.class);
+    }
+
     started = true;
     LOG.info("Capacity scheduler initialized " + queueNames.size() + " queues");  
   }
@@ -1191,6 +1200,20 @@ class CapacityTaskScheduler extends TaskScheduler {
 
   Map<String, CapacitySchedulerQueue> getQueueInfoMap() {
     return queueInfoMap;
+  }
+
+  /**
+   * @return the mapScheduler
+   */
+  TaskSchedulingMgr getMapScheduler() {
+    return mapScheduler;
+  }
+
+  /**
+   * @return the reduceScheduler
+   */
+  TaskSchedulingMgr getReduceScheduler() {
+    return reduceScheduler;
   }
 
   synchronized String getDisplayInfo(String queueName) {

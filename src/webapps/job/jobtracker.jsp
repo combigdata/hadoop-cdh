@@ -80,6 +80,7 @@
 <link rel="stylesheet" type="text/css" href="/static/hadoop.css">
 <link rel="icon" type="image/vnd.microsoft.icon" href="/static/images/favicon.ico" />
 <script type="text/javascript" src="/static/jobtracker.js"></script>
+<script type='text/javascript' src='/static/sorttable.js'></script>
 </head>
 <body>
 
@@ -112,7 +113,7 @@
 %>
 <hr>
 <h2 id="scheduling_info">Scheduling Information</h2>
-<table border="2" cellpadding="5" cellspacing="2">
+<table border="2" cellpadding="5" cellspacing="2" class="sortable">
 <thead style="font-weight: bold">
 <tr>
 <td> Queue Name </td>

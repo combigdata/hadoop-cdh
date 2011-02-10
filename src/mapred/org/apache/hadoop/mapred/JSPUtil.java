@@ -371,8 +371,7 @@ class JSPUtil {
     throws IOException {
 
     StringBuffer sb = new StringBuffer();
-    
-    sb.append("<table border=\"1\" cellpadding=\"5\" cellspacing=\"0\">\n");
+    sb.append("<table border=\"1\" cellpadding=\"5\" cellspacing=\"0\" class=\"sortable\">\n");
 
     Iterator<RetireJobInfo> iterator = 
       tracker.retireJobs.getAll().descendingIterator();
