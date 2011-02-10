@@ -173,8 +173,10 @@ public class HftpFileSystem extends FileSystem {
   }
   
   @Override
-  public Token<?> getDelegationToken(final String renewer) throws IOException {
+  public synchronized Token<?> getDelegationToken(final String renewer) throws IOException {
     try {
+      //Renew TGT if needed
+      ugi.checkTGTAndReloginFromKeytab();
       return ugi.doAs(new PrivilegedExceptionAction<Token<?>>() {
         public Token<?> run() throws IOException {
           Credentials c;
@@ -630,6 +632,7 @@ public class HftpFileSystem extends FileSystem {
       final HftpFileSystem fs = weakFs.get();
       if (fs != null) {
         synchronized (fs) {
+          fs.ugi.checkTGTAndReloginFromKeytab();
           fs.ugi.doAs(new PrivilegedExceptionAction<Void>() {
 
             @Override
