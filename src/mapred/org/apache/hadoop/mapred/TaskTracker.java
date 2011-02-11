@@ -73,6 +73,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.http.HttpServer;
 import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.nativeio.NativeIO;
 import org.apache.hadoop.io.SecureIOUtils;
 import org.apache.hadoop.ipc.RPC;
 import org.apache.hadoop.ipc.RemoteException;
@@ -662,6 +663,15 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
     DiskChecker.checkDir(TaskLog.getUserLogDir());
   }
 
+  private void checkSecurityRequirements() throws IOException {
+    if (!UserGroupInformation.isSecurityEnabled()) {
+      return;
+    }
+    if (!NativeIO.isAvailable()) {
+      throw new IOException("Secure IO is necessary to run a secure task tracker.");
+    }
+  }
+
   public static final String TT_USER_NAME = "mapreduce.tasktracker.kerberos.principal";
   public static final String TT_KEYTAB_FILE =
     "mapreduce.tasktracker.keytab.file";  
@@ -689,6 +699,9 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
     // Check local disk, start async disk service, and clean up all 
     // local directories.
     initializeDirectories();
+
+    // Check security requirements are met
+    checkSecurityRequirements();
 
     // Clear out state tables
     this.tasks.clear();
