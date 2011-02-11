@@ -94,6 +94,7 @@ import org.apache.hadoop.metrics.MetricsException;
 import org.apache.hadoop.metrics.MetricsRecord;
 import org.apache.hadoop.metrics.MetricsUtil;
 import org.apache.hadoop.metrics.Updater;
+import org.apache.hadoop.metrics.util.MBeanUtil;
 import org.apache.hadoop.net.DNS;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.security.SecurityUtil;
@@ -120,7 +121,7 @@ import org.apache.hadoop.security.Credentials;
  *
  *******************************************************/
 public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
-    Runnable {
+    Runnable, TaskTrackerMXBean {
   /**
    * @deprecated
    */
@@ -133,6 +134,9 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
   @Deprecated
   static final String MAPRED_TASKTRACKER_PMEM_RESERVED_PROPERTY =
      "mapred.tasktracker.pmem.reserved";
+
+  static final String CONF_VERSION_KEY = "mapreduce.tasktracker.conf.version";
+  static final String CONF_VERSION_DEFAULT = "default";
 
   static final long WAIT_FOR_DONE = 3 * 1000;
   private int httpPort;
@@ -1322,8 +1326,8 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
     int httpPort = infoSocAddr.getPort();
     this.server = new HttpServer("task", httpBindAddress, httpPort,
         httpPort == 0, conf, aclsManager.getAdminsAcl());
-    workerThreads = conf.getInt("tasktracker.http.threads", 40);
     this.shuffleServerMetrics = new ShuffleServerMetrics(conf);
+    workerThreads = conf.getInt("tasktracker.http.threads", 40);
     server.setThreads(1, workerThreads);
     // let the jsp pages get to the task tracker, config, and other relevant
     // objects
@@ -3412,6 +3416,7 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
       ReflectionUtils.setContentionTracing
         (conf.getBoolean("tasktracker.contention.tracking", false));
       TaskTracker tt = new TaskTracker(conf);
+      MBeanUtil.registerMBean("TaskTracker", "TaskTrackerInfo", tt);
       tt.run();
     } catch (Throwable e) {
       LOG.error("Can not start task tracker because "+
@@ -3946,6 +3951,72 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
     ACLsManager getACLsManager() {
       return aclsManager;
     }
+
+  // Begin MXBean implementation
+  @Override
+  public String getHostname() {
+    return localHostname;
+  }
+
+  @Override
+  public String getVersion() {
+    return VersionInfo.getVersion() +", r"+ VersionInfo.getRevision();
+  }
+
+  @Override
+  public String getConfigVersion() {
+    return originalConf.get(CONF_VERSION_KEY, CONF_VERSION_DEFAULT);
+  }
+
+  @Override
+  public String getJobTrackerUrl() {
+    return originalConf.get("mapred.job.tracker");
+  }
+
+  @Override
+  public int getRpcPort() {
+    return taskReportAddress.getPort();
+  }
+
+  @Override
+  public int getHttpPort() {
+    return httpPort;
+  }
+
+  @Override
+  public boolean isHealthy() {
+    boolean healthy = true;
+    TaskTrackerHealthStatus hs = new TaskTrackerHealthStatus();
+    if (healthChecker != null) {
+      healthChecker.setHealthStatus(hs);
+      healthy = hs.isNodeHealthy();
+    }    
+    return healthy;
+  }
+
+  @Override
+  public String getTasksInfoJson() {
+    return getTasksInfo().toJson();
+  }
+
+  InfoMap getTasksInfo() {
+    InfoMap map = new InfoMap();
+    int failed = 0;
+    int commitPending = 0;
+    for (TaskStatus st : getNonRunningTasks()) {
+      if (st.getRunState() == TaskStatus.State.FAILED ||
+          st.getRunState() == TaskStatus.State.FAILED_UNCLEAN) {
+        ++failed;
+      } else if (st.getRunState() == TaskStatus.State.COMMIT_PENDING) {
+        ++commitPending;
+      }
+    }
+    map.put("running", runningTasks.size());
+    map.put("failed", failed);
+    map.put("commit_pending", commitPending);
+    return map;
+  }
+  // End MXBean implemenation
 
   @Override
   public void 

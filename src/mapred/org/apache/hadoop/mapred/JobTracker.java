@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.InputStreamReader;
 import java.io.Writer;
+import java.lang.management.ManagementFactory;
 import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
@@ -81,6 +82,7 @@ import org.apache.hadoop.mapred.JobInProgress.KillInterruptedException;
 import org.apache.hadoop.mapred.JobStatusChangeEvent.EventType;
 import org.apache.hadoop.mapred.QueueManager.QueueACL;
 import org.apache.hadoop.mapred.TaskTrackerStatus.TaskTrackerHealthStatus;
+import org.apache.hadoop.metrics.util.MBeanUtil;
 import org.apache.hadoop.net.DNSToSwitchMapping;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.net.NetworkTopology;
@@ -111,6 +113,7 @@ import org.apache.hadoop.mapreduce.security.token.DelegationTokenRenewal;
 import org.apache.hadoop.mapreduce.security.token.JobTokenSecretManager;
 import org.apache.hadoop.mapreduce.server.jobtracker.TaskTracker;
 import org.apache.hadoop.security.Credentials;
+import org.mortbay.util.ajax.JSON;
 
 /*******************************************************
  * JobTracker is the central location for submitting and 
@@ -119,7 +122,8 @@ import org.apache.hadoop.security.Credentials;
  *******************************************************/
 public class JobTracker implements MRConstants, InterTrackerProtocol,
     JobSubmissionProtocol, TaskTrackerManager, RefreshUserMappingsProtocol,
-    RefreshAuthorizationPolicyProtocol, AdminOperationsProtocol {
+    RefreshAuthorizationPolicyProtocol, AdminOperationsProtocol,
+    JobTrackerMXBean {
 
   static{
     Configuration.addDefaultResource("mapred-default.xml");
@@ -257,6 +261,9 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
 
   public static final Log LOG = LogFactory.getLog(JobTracker.class);
   
+  static final String CONF_VERSION_KEY = "mapreduce.jobtracker.conf.version";
+  static final String CONF_VERSION_DEFAULT = "default";
+
   private PluginDispatcher<JobTrackerPlugin> pluginDispatcher;
 
   public Clock getClock() {
@@ -305,6 +312,7 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
     }
     if (result != null) {
       JobEndNotifier.startNotifier();
+      MBeanUtil.registerMBean("JobTracker", "JobTrackerInfo", result);
     }    
     return result;
   }
@@ -5032,4 +5040,110 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
     return aclsManager;
   }
 
+  // Begin MXBean implementation
+  @Override
+  public String getHostname() {
+    return StringUtils.simpleHostname(getJobTrackerMachine());
+  }
+
+  @Override
+  public String getVersion() {
+    return VersionInfo.getVersion() +", r"+ VersionInfo.getRevision();
+  }
+
+  @Override
+  public String getConfigVersion() {
+    return conf.get(CONF_VERSION_KEY, CONF_VERSION_DEFAULT);
+  }
+
+  @Override
+  public int getThreadCount() {
+    return ManagementFactory.getThreadMXBean().getThreadCount();
+  }
+
+  @Override
+  public String getSummaryJson() {
+    return getSummary().toJson();
+  }
+
+  InfoMap getSummary() {
+    final ClusterMetrics metrics = getClusterMetrics();
+    InfoMap map = new InfoMap();
+    map.put("nodes", metrics.getTaskTrackerCount()
+            + getBlacklistedTrackerCount());
+    map.put("alive", metrics.getTaskTrackerCount());
+    map.put("blacklisted", getBlacklistedTrackerCount());
+    map.put("slots", new InfoMap() {{
+      put("map_slots", metrics.getMapSlotCapacity());
+      put("map_slots_used", metrics.getOccupiedMapSlots());
+      put("reduce_slots", metrics.getReduceSlotCapacity());
+      put("reduce_slots_used", metrics.getOccupiedReduceSlots());
+    }});
+    map.put("jobs", metrics.getTotalJobSubmissions());
+    return map;
+  }
+
+  @Override
+  public String getAliveNodesInfoJson() {
+    return JSON.toString(getAliveNodesInfo());
+  }
+
+  List<InfoMap> getAliveNodesInfo() {
+    List<InfoMap> info = new ArrayList<InfoMap>();
+    for (final TaskTrackerStatus  tts : activeTaskTrackers()) {
+      final int mapSlots = tts.getMaxMapSlots();
+      final int redSlots = tts.getMaxReduceSlots();
+      info.add(new InfoMap() {{
+        put("hostname", tts.getHost());
+        put("last_seen", tts.getLastSeen());
+        put("health", tts.getHealthStatus().isNodeHealthy() ? "OK" : "");
+        put("slots", new InfoMap() {{
+          put("map_slots", mapSlots);
+          put("map_slots_used", mapSlots - tts.getAvailableMapSlots());
+          put("reduce_slots", redSlots);
+          put("reduce_slots_used", redSlots - tts.getAvailableReduceSlots());
+        }});
+        put("failures", tts.getFailures());
+      }});
+    }
+    return info;
+  }
+
+  @Override
+  public String getBlacklistedNodesInfoJson() {
+    return JSON.toString(getUnhealthyNodesInfo(blacklistedTaskTrackers()));
+  }
+
+  List<InfoMap> getUnhealthyNodesInfo(Collection<TaskTrackerStatus> list) {
+    List<InfoMap> info = new ArrayList<InfoMap>();
+    for (final TaskTrackerStatus tts : list) {
+      info.add(new InfoMap() {{
+        put("hostname", tts.getHost());
+        put("last_seen", tts.getLastSeen());
+        put("reason", tts.getHealthStatus().getHealthReport());
+      }});
+    }
+    return info;
+  }
+  
+  @Override
+  public String getQueueInfoJson() {
+    return getQueueInfo().toJson();
+  }
+
+  InfoMap getQueueInfo() {
+    InfoMap map = new InfoMap();
+    try {
+      for (final JobQueueInfo q : getQueues()) {
+        map.put(q.getQueueName(), new InfoMap() {{
+          put("info", q.getSchedulingInfo());
+        }});
+      }
+    }
+    catch (Exception e) {
+      throw new RuntimeException("Getting queue info", e);
+    }
+    return map;
+  }
+  // End MXbean implementaiton
 }

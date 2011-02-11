@@ -1199,7 +1199,6 @@ public class NameNode implements ClientProtocol, DatanodeProtocol,
         System.exit(aborted ? 1 : 0);
       default:
     }
-
     NameNode namenode = new NameNode(conf);
     return namenode;
   }

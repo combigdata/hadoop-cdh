@@ -65,6 +65,7 @@ import org.apache.hadoop.fs.permission.*;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.ipc.Server;
+import org.mortbay.util.ajax.JSON;
 
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
@@ -75,6 +76,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.DataOutputStream;
+import java.lang.management.ManagementFactory;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.*;
@@ -97,7 +99,8 @@ import javax.management.StandardMBean;
  * 4)  machine --> blocklist (inverted #2)
  * 5)  LRU cache of updated-heartbeat machines
  ***************************************************/
-public class FSNamesystem implements FSConstants, FSNamesystemMBean {
+public class FSNamesystem implements FSConstants, FSNamesystemMBean,
+    NameNodeMXBean {
   public static final Log LOG = LogFactory.getLog(FSNamesystem.class);
   public static final String AUDIT_FORMAT =
     "ugi=%s\t" +  // ugi
@@ -308,6 +311,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
 
   // precision of access times.
   private long accessTimePrecision = 0;
+  private String nameNodeHostName;
   
   /**
    * FSNamesystem constructor.
@@ -381,6 +385,9 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
     if (dnsToSwitchMapping instanceof CachedDNSToSwitchMapping) {
       dnsToSwitchMapping.resolve(new ArrayList<String>(hostsReader.getHosts()));
     }
+    
+    InetSocketAddress socAddr = NameNode.getAddress(conf);
+    this.nameNodeHostName = socAddr.getHostName();
   }
 
   public static Collection<File> getNamespaceDirs(Configuration conf) {
@@ -4977,9 +4984,13 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
   }
   
   private ObjectName mbeanName;
+  
+  private ObjectName mxBean = null;
   /**
    * Register the FSNamesystem MBean using the name
    *        "hadoop:service=NameNode,name=FSNamesystemState"
+   * Register the FSNamesystem MXBean using the name
+   *        "hadoop:service=NameNode,name=NameNodeInfo"
    */
   void registerMBean(Configuration conf) {
     // We wrap to bypass standard mbean naming convention.
@@ -4993,8 +5004,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
     } catch (NotCompliantMBeanException e) {
       e.printStackTrace();
     }
-
-    LOG.info("Registered FSNamesystemStatusMBean");
+    mxBean = MBeanUtil.registerMBean("NameNode", "NameNodeInfo", this);
   }
 
   /**
@@ -5010,6 +5020,8 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
   public void shutdown() {
     if (mbeanName != null)
       MBeanUtil.unregisterMBean(mbeanName);
+    if (mxBean != null)
+      MBeanUtil.unregisterMBean(mxBean);
   }
   
 
@@ -5360,6 +5372,138 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean {
       authMethod = ugi.getRealUser().getAuthenticationMethod();
     }
     return authMethod;
+  }
+  
+  @Override // NameNodeMXBean
+  public String getHostName() {
+    return this.nameNodeHostName;
+  }
+  
+  @Override // NameNodeMXBean
+  public String getVersion() {
+    return VersionInfo.getVersion();
+  }
+
+  @Override // NameNodeMXBean
+  public long getUsed() {
+    return this.getCapacityUsed();
+  }
+
+  @Override // NameNodeMXBean
+  public long getFree() {
+    return this.getCapacityRemaining();
+  }
+
+  @Override // NameNodeMXBean
+  public long getTotal() {
+    return this.getCapacityTotal();
+  }
+
+  @Override // NameNodeMXBean
+  public String getSafemode() {
+    if (!this.isInSafeMode())
+      return "";
+    return "Safe mode is ON." + this.getSafeModeTip();
+  }
+
+  @Override // NameNodeMXBean
+  public boolean isUpgradeFinalized() {
+    return this.getFSImage().isUpgradeFinalized();
+  }
+
+  @Override // NameNodeMXBean
+  public long getNonDfsUsedSpace() {
+    return getCapacityUsedNonDFS();
+  }
+
+  @Override // NameNodeMXBean
+  public float getPercentUsed() {
+    return getCapacityUsedPercent();
+  }
+
+  @Override // NameNodeMXBean
+  public float getPercentRemaining() {
+    return getCapacityRemainingPercent();
+  }
+
+  @Override // NameNodeMXBean
+  public long getTotalBlocks() {
+    return getBlocksTotal();
+  }
+
+  @Override // NameNodeMXBean
+  public long getTotalFiles() {
+    return getFilesTotal();
+  }
+
+  @Override // NameNodeMXBean
+  public int getThreads() {
+    return ManagementFactory.getThreadMXBean().getThreadCount();
+  }
+
+  /**
+   * Returned information is a JSON representation of map with host name as the
+   * key and value is a map of live node attribute keys to its values
+   */
+  @Override // NameNodeMXBean
+  public String getLiveNodes() {
+    final Map<String, Object> info = new HashMap<String, Object>();
+    final ArrayList<DatanodeDescriptor> aliveNodeList =
+      this.getDatanodeListForReport(DatanodeReportType.LIVE); 
+    for (DatanodeDescriptor node : aliveNodeList) {
+      final Map<String, Object> innerinfo = new HashMap<String, Object>();
+      innerinfo.put("lastContact", getLastContact(node));
+      innerinfo.put("usedSpace", getDfsUsed(node));
+      info.put(node.getHostName(), innerinfo);
+    }
+    return JSON.toString(info);
+  }
+
+  /**
+   * Returned information is a JSON representation of map with host name as the
+   * key and value is a map of dead node attribute keys to its values
+   */
+  @Override // NameNodeMXBean
+  public String getDeadNodes() {
+    final Map<String, Object> info = new HashMap<String, Object>();
+    final ArrayList<DatanodeDescriptor> deadNodeList =
+      this.getDatanodeListForReport(DatanodeReportType.DEAD); 
+    for (DatanodeDescriptor node : deadNodeList) {
+      final Map<String, Object> innerinfo = new HashMap<String, Object>();
+      innerinfo.put("lastContact", getLastContact(node));
+      info.put(node.getHostName(), innerinfo);
+    }
+    return JSON.toString(info);
+  }
+
+  /**
+   * Returned information is a JSON representation of map with host name as the
+   * key and value is a map of decomisioning node attribute keys to its values
+   */
+  @Override // NameNodeMXBean
+  public String getDecomNodes() {
+    final Map<String, Object> info = new HashMap<String, Object>();
+    final ArrayList<DatanodeDescriptor> decomNodeList = 
+      this.getDecommissioningNodes();
+    for (DatanodeDescriptor node : decomNodeList) {
+      final Map<String, Object> innerinfo = new HashMap<String, Object>();
+      innerinfo.put("underReplicatedBlocks", node.decommissioningStatus
+          .getUnderReplicatedBlocks());
+      innerinfo.put("decommissionOnlyReplicas", node.decommissioningStatus
+          .getDecommissionOnlyReplicas());
+      innerinfo.put("underReplicateInOpenFiles", node.decommissioningStatus
+          .getUnderReplicatedInOpenFiles());
+      info.put(node.getHostName(), innerinfo);
+    }
+    return JSON.toString(info);
+  }
+
+  private long getLastContact(DatanodeDescriptor alivenode) {
+    return (System.currentTimeMillis() - alivenode.getLastUpdate())/1000;
+  }
+
+  private long getDfsUsed(DatanodeDescriptor alivenode) {
+    return alivenode.getDfsUsed();
   }
   
   /**
