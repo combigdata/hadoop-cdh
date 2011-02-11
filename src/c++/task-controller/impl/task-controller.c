@@ -756,7 +756,12 @@ int initialize_job(const char *user, const char *jobid,
     fclose(stdout);
   }
   fclose(stderr);
-  chdir(primary_job_dir);
+  if (chdir(primary_job_dir)) {
+    fprintf(LOGFILE, "Failure to chdir to job dir - %s\n",
+      strerror(errno));
+    return -1;
+  }
+
   execvp(args[0], args);
   fprintf(LOGFILE, "Failure to exec job initialization process - %s\n",
 	  strerror(errno));
