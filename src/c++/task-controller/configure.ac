@@ -20,7 +20,6 @@
 AC_PREREQ(2.59)
 AC_INIT(linux-task-controller, 1.0.0, mapreduce-dev@hadoop.apache.org)
 AC_GNU_SOURCE
-AC_SYS_LARGEFILE
 
 AM_INIT_AUTOMAKE([subdir-objects foreign no-dist])
 
