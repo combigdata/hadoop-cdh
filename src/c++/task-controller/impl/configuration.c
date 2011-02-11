@@ -21,7 +21,7 @@
 
 #include "configuration.h"
 #include "task-controller.h"
-
+#include <assert.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -64,48 +64,32 @@ void free_configurations() {
 }
 
 /**
- * Is the file/directory only writable by root.
- * Returns 1 if true
+ * Ensure that the configuration file and all of the containing directories
+ * are only writable by root. Otherwise, an attacker can change the 
+ * configuration and potentially cause damage.
+ * returns 1 if permissions are ok
  */
-static int is_only_root_writable(const char *file) {
+int check_configuration_permissions(FILE *conf_file) {
+  int fd = fileno(conf_file);
+  assert(fd != -1);
+
   struct stat file_stat;
-  if (stat(file, &file_stat) != 0) {
-    fprintf(LOGFILE, "Can't stat file %s - %s\n", file, strerror(errno));
+  if (fstat(fd, &file_stat) != 0) {
+    fprintf(LOGFILE, "Can't stat opened conf file - %s\n", strerror(errno));
     return 0;
   }
   if (file_stat.st_uid != 0) {
-    fprintf(LOGFILE, "File %s must be owned by root, but is owned by %d\n",
-            file, file_stat.st_uid);
+    fprintf(LOGFILE, "File must be owned by root, but is owned by %d\n",
+            file_stat.st_uid);
     return 0;
   }
   if ((file_stat.st_mode & (S_IWGRP | S_IWOTH)) != 0) {
     fprintf(LOGFILE, 
-	    "File %s must not be world or group writable, but is %03o\n",
-	    file, file_stat.st_mode & (~S_IFMT));
+	    "File must not be world or group writable, but is %03o\n",
+	    file_stat.st_mode & (~S_IFMT));
     return 0;
   }
   return 1;
-}
-
-/**
- * Ensure that the configuration file and all of the containing directories
- * are only writable by root. Otherwise, an attacker can change the 
- * configuration and potentially cause damage.
- * returns 0 if permissions are ok
- */
-int check_configuration_permissions(const char* file_name) {
-  // copy the input so that we can modify it with dirname
-  char* dir = strdup(file_name);
-  char* buffer = dir;
-  do {
-    if (!is_only_root_writable(dir)) {
-      free(buffer);
-      return -1;
-    }
-    dir = dirname(dir);
-  } while (strcmp(dir, "/") != 0);
-  free(buffer);
-  return 0;
 }
 
 //function used to load the configurations present in the secure config
@@ -136,6 +120,13 @@ void read_config(const char* file_name) {
     fprintf(LOGFILE, "Invalid conf file provided : %s \n", file_name);
     exit(INVALID_CONFIG_FILE);
   }
+  // verify that the conf file is owned by root and has safe permissions
+  if (!check_configuration_permissions(conf_file)) {
+    fprintf(LOGFILE, "Invalid permissions or ownership on conf file %s\n", file_name);
+    fprintf(LOGFILE, "Must be owned by root and not writable by group or other\n");
+    exit(INVALID_CONFIG_FILE);
+  }
+
   while(!feof(conf_file)) {
     line = (char *) malloc(linesize);
     if(line == NULL) {

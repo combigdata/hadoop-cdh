@@ -84,9 +84,6 @@ int main(int argc, char **argv) {
     fprintf(LOGFILE, "Configuration file %s not found.\n", orig_conf_file);
     return INVALID_CONFIG_FILE;
   }
-  if (check_configuration_permissions(conf_file) != 0) {
-    return INVALID_CONFIG_FILE;
-  }
   read_config(conf_file);
   free(conf_file);
 

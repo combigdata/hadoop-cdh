@@ -16,14 +16,6 @@
  * limitations under the License.
  */
 
-/**
- * Ensure that the configuration file and all of the containing directories
- * are only writable by root. Otherwise, an attacker can change the 
- * configuration and potentially cause damage.
- * returns 0 if permissions are ok
- */
-int check_configuration_permissions(const char* file_name);
-
 // read the given configuration file
 void read_config(const char* config_file);
 
