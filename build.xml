@@ -175,10 +175,9 @@
     stored for compilation -->
   <property name="build.c++.task-controller" 
     value="${build.c++}/task-controller" />
-  <property name="task-controller.prefix.dir" value="${dist.dir}" />
-  <!-- the configuration directory for the linux task controller -->
-  <property name="hadoop.conf.dir" value="/etc/hadoop"/>
-
+  <!-- the default install dir is build directory override it using
+   -Dtask-controller.install.dir=$HADOOP_HOME/bin -->
+  <property name="task-controller.install.dir" value="${dist.dir}/sbin/${build.platform}/" />
   <!-- end of task-controller properties -->
 
   <!-- jsvc properties set here -->
@@ -2196,13 +2195,8 @@
     <chmod file="${c++.task-controller.src}/configure" perm="ugo+x"/> 
     <exec executable="${c++.task-controller.src}/configure"
           dir="${build.c++.task-controller}">
-      <arg value="--prefix=${task-controller.prefix.dir}"/>
-      <env key="CFLAGS" 
-           value="-DHADOOP_CONF_DIR=${hadoop.conf.dir}"/>
+      <arg value="--bindir=${task-controller.install.dir}"/>
     </exec>
-    <!-- delete main in case HADOOP_CONF_DIR is different -->
-    <delete file="${build.c++.task-controller}/impl/main.o"
-            quiet="true" failonerror="false"/>
     <exec executable="make"
           dir="${build.c++.task-controller}"
           searchpath="yes" failonerror="yes">
