@@ -21,6 +21,7 @@
 
 #include <errno.h>
 #include <grp.h>
+#include <libgen.h>
 #include <limits.h>
 #include <unistd.h>
 #include <signal.h>
@@ -51,6 +52,29 @@ void display_usage(FILE *stream) {
 	  RUN_COMMAND_AS_USER);
 }
 
+/**
+ * Return the conf dir based on the path of the executable
+ */
+char *infer_conf_dir(char *executable_file) {
+  char *result;
+  char *exec_dup = strdup(executable_file);
+  char *dir = dirname(exec_dup);
+
+  int relative_len = strlen(dir) + 1 + strlen(CONF_DIR_RELATIVE_TO_EXEC) + 1;
+  char *relative_unresolved = malloc(relative_len);
+  snprintf(relative_unresolved, relative_len, "%s/%s",
+           dir, CONF_DIR_RELATIVE_TO_EXEC);
+  result = realpath(relative_unresolved, NULL);
+  // realpath will return NULL if the directory doesn't exist
+  if (result == NULL) {
+    fprintf(LOGFILE, "No conf directory at expected location %s\n",
+            relative_unresolved);
+  }
+  free(exec_dup);
+  free(relative_unresolved);
+  return result;
+}
+
 int main(int argc, char **argv) {
   LOGFILE = stdout;
   int command;
@@ -67,17 +91,29 @@ int main(int argc, char **argv) {
 
   char *executable_file = get_executable();
 
+  char *conf_dir;
+
 #ifndef HADOOP_CONF_DIR
-  #error HADOOP_CONF_DIR must be defined
+  conf_dir = infer_conf_dir(argv[0]);
+  if (conf_dir == NULL) {
+    fprintf(LOGFILE, "Couldn't infer HADOOP_CONF_DIR. Please set in environment\n");
+    return INVALID_CONFIG_FILE;
+  }
+#else
+  conf_dir = strdup(HADOOP_CONF_DIR);
 #endif
 
-  char *orig_conf_file = STRINGIFY(HADOOP_CONF_DIR) "/" CONF_FILENAME;
+  size_t len = strlen(conf_dir) + strlen(CONF_FILENAME) + 2;
+  char *orig_conf_file = malloc(len);
+  snprintf(orig_conf_file, len, "%s/%s", conf_dir, CONF_FILENAME);
   char *conf_file = realpath(orig_conf_file, NULL);
 
   if (conf_file == NULL) {
     fprintf(LOGFILE, "Configuration file %s not found.\n", orig_conf_file);
     return INVALID_CONFIG_FILE;
   }
+  free(orig_conf_file);
+  free(conf_dir);
   read_config(conf_file);
   free(conf_file);
 

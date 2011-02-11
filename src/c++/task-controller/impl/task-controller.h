@@ -57,6 +57,7 @@ enum errorcodes {
 };
 
 #define TT_GROUP_KEY "mapreduce.tasktracker.group"
+#define CONF_DIR_RELATIVE_TO_EXEC "../../conf"
 
 extern struct passwd *user_detail;
 
