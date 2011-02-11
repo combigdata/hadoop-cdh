@@ -52,12 +52,6 @@ void display_usage(FILE *stream) {
 }
 
 int main(int argc, char **argv) {
-  //Minimum number of arguments required to run the task-controller
-  if (argc < 4) {
-    display_usage(stdout);
-    return INVALID_ARGUMENT_NUMBER;
-  }
-
   LOGFILE = stdout;
   int command;
   const char * job_id = NULL;
@@ -108,6 +102,12 @@ int main(int argc, char **argv) {
   if (check_taskcontroller_permissions(executable_file) != 0) {
     fprintf(LOGFILE, "Invalid permissions on task-controller binary.\n");
     return INVALID_TASKCONTROLLER_PERMISSIONS;
+  }
+
+  //Minimum number of arguments required to run the task-controller
+  if (argc < 4) {
+    display_usage(stdout);
+    return INVALID_ARGUMENT_NUMBER;
   }
 
   //checks done for user name
