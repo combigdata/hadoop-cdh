@@ -39,7 +39,6 @@ HADOOP_UTILS_SETUP
 # Checks for programs.
 AC_PROG_CC
 AM_PROG_CC_C_O
-AC_PROG_LIBTOOL
 
 # Checks for libraries.
 
