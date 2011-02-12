@@ -23,6 +23,11 @@ AC_GNU_SOURCE
 
 AM_INIT_AUTOMAKE([subdir-objects foreign no-dist])
 
+# Dont generate rules to re-automake if timestamps are off
+# since we check in the generated files and revision control
+# doesn't track timestamps
+AM_MAINTAINER_MODE
+
 AC_CONFIG_SRCDIR([impl/task-controller.c])
 AC_CONFIG_FILES([Makefile])
 

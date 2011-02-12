@@ -41,6 +41,11 @@ AC_CONFIG_HEADER([config.h])
 
 AM_INIT_AUTOMAKE(hadoop,1.0.0)
 
+# Dont generate rules to re-automake if timestamps are off
+# since we check in the generated files and revision control
+# doesn't track timestamps
+AM_MAINTAINER_MODE
+
 # Checks for programs.
 AC_PROG_CC
 AC_PROG_LIBTOOL
