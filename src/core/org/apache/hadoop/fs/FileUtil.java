@@ -706,7 +706,7 @@ public class FileUtil {
    * @throws InterruptedException
    */
   public static int chmod(String filename, String perm
-                          ) throws IOException {
+                          ) throws IOException, InterruptedException {
     return chmod(filename, perm, false);
   }
 
@@ -721,7 +721,7 @@ public class FileUtil {
    * @throws InterruptedException
    */
   public static int chmod(String filename, String perm, boolean recursive)
-                            throws IOException {
+                            throws IOException, InterruptedException {
     StringBuffer cmdBuf = new StringBuffer();
     cmdBuf.append("chmod ");
     if (recursive) {

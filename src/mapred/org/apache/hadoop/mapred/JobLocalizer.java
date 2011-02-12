@@ -278,7 +278,13 @@ public class JobLocalizer {
         new File(localJarFile.toString()),
         new File(localJarFile.getParent().toString()),
         localJobConf.getJarUnpackPattern());
-      FileUtil.chmod(localJarFile.getParent().toString(), "ugo+rx", true);
+      try {
+        FileUtil.chmod(localJarFile.getParent().toString(), "ugo+rx", true);
+      } catch (InterruptedException ie) {
+        // This exception is never actually thrown, but the signature says
+        // it is, and we can't make the incompatible change within CDH
+        throw new IOException("Interrupted while chmodding", ie);
+      }
     }
   }
 
