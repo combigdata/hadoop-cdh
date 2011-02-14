@@ -112,7 +112,7 @@
   <property name="test.build.extraconf" value="${test.build.dir}/extraconf"/>
   <property name="test.build.javadoc" value="${test.build.dir}/docs/api"/>
   <property name="test.build.javadoc.dev" value="${test.build.dir}/docs/dev-api"/>
-  <property name="test.build.webapps" value="${build.dir}/test/webapps"/>
+  <property name="test.build.webapps" value="${build.dir}/test/test-webapps"/>
   <property name="test.include" value="Test*"/>
   <property name="test.classpath.id" value="test.classpath"/>
   <property name="test.output" value="no"/>
