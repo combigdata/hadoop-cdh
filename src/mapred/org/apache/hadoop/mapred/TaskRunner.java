@@ -216,15 +216,7 @@ abstract class TaskRunner extends Thread {
       
       // flatten the env as a set of export commands
       List <String> setupCmds = new ArrayList<String>();
-      for(Entry<String, String> entry : env.entrySet()) {
-        StringBuffer sb = new StringBuffer();
-        sb.append("export ");
-        sb.append(entry.getKey());
-        sb.append("=\"");
-        sb.append(entry.getValue());
-        sb.append("\"");
-        setupCmds.add(sb.toString());
-      }
+      appendEnvExports(setupCmds, env);
       setupCmds.add(setup);
       
       launchJvmAndWait(setupCmds, vargs, stdout, stderr, logSize, workDir);
@@ -346,6 +338,27 @@ abstract class TaskRunner extends Thread {
     }
     command.append("\n");
     return command.toString();
+  }
+
+  /**
+   * Append lines of the form 'export FOO="bar"' to the list of setup commands
+   * to export the given environment map.
+   *
+   * This should not be relied upon for security as the variable names are not
+   * sanitized in any way.
+   * @param commands list of commands to add to
+   * @param env Environment to export
+   */
+  static void appendEnvExports(List<String> commands, Map<String, String> env) {
+    for(Entry<String, String> entry : env.entrySet()) {
+      StringBuilder sb = new StringBuilder();
+      sb.append("export ");
+      sb.append(entry.getKey());
+      sb.append("=\"");
+      sb.append(StringUtils.escapeString(entry.getValue(), '\\', '"'));
+      sb.append("\"");
+      commands.add(sb.toString());
+    }
   }
 
   /**

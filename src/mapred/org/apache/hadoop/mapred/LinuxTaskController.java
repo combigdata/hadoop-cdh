@@ -253,27 +253,6 @@ class LinuxTaskController extends TaskController {
     return 0;
   }
 
-
-  /**
-   * Append lines of the form 'export FOO="bar"' to sb to export the given
-   * environment map.
-   * 
-   * This should not be relied upon for security as the variable names are not
-   * sanitized in any way.
-   * @param sb StringBuilder to append to
-   * @param env Environment to export
-   */
-  static void appendEnvExports(StringBuilder sb, Map<String, String> env) {
-    for(Entry<String, String> entry : env.entrySet()) {
-      sb.append("export ");
-      sb.append(entry.getKey());
-      sb.append("=\"");
-      sb.append(StringUtils.escapeString(entry.getValue(), '\\', '"'));
-      sb.append("\"\n");
-    }
-  }
-  
-
   @Override
   public void deleteAsUser(String user, String subDir) throws IOException {
     String[] command = 

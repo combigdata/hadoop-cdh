@@ -19,8 +19,6 @@ package org.apache.hadoop.mapred;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Map;
-import java.util.TreeMap;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileUtil;
@@ -98,24 +96,5 @@ public class TestLinuxTaskController extends TestCase {
     ClusterWithLinuxTaskController.createTaskControllerConf(taskControllerPath,
         conf);
     validateTaskControllerSetup(controller, false);
-  }
-
-  /**
-   * Test that environment variables are properly escaped when exported from
-   * taskjvm.sh
-   */
-  public void testEnvironmentEscaping() {
-    Map<String,String> env = new TreeMap<String, String>();
-    env.put("BAZ", "blah blah multiple words");
-    env.put("FOO", "bar");
-    env.put("QUOTED", "bad chars like \\ and \"");
-    
-    StringBuilder sb = new StringBuilder();
-    LinuxTaskController.appendEnvExports(sb, env);
-    assertEquals(
-        "export BAZ=\"blah blah multiple words\"\n" +
-        "export FOO=\"bar\"\n" +
-        "export QUOTED=\"bad chars like \\\\ and \\\"\"\n",
-        sb.toString());
   }
 }
