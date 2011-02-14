@@ -739,7 +739,8 @@ public class UtilsForTests {
       try {
         Thread.sleep(1000000);
       } catch (InterruptedException e) {
-        // Do nothing
+        // Respond to interrupts
+        Thread.currentThread().interrupt();
       }
     }
   }
