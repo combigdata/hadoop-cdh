@@ -21,6 +21,9 @@ package org.apache.hadoop.ipc;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.InetSocketAddress;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
 import java.lang.reflect.Method;
 
 import junit.framework.TestCase;
@@ -432,6 +435,8 @@ public class TestRPC extends TestCase {
 
     server.start();
 
+    try {
+
     int numConcurrentRPC = 200;
     InetSocketAddress addr = NetUtils.getConnectAddress(server);
     final CyclicBarrier barrier = new CyclicBarrier(numConcurrentRPC);
@@ -485,6 +490,10 @@ public class TestRPC extends TestCase {
     
     // should not cause any other thread to get an error
     assertNull("rpc got ClosedChannelException", error.get());
+
+    } finally {
+      server.stop();
+    }
   }
 
   public void testNoPings() throws Exception {
@@ -495,6 +504,49 @@ public class TestRPC extends TestCase {
    
     conf.setInt(CommonConfigurationKeys.IPC_SERVER_RPC_READ_THREADS_KEY, 2);
     new TestRPC("testnoPings").testCalls(conf);
+  }
+
+  /**
+   * Count the number of threads that have a stack frame containing
+   * the given string
+   */
+  private static int countThreads(String search) {
+    ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
+
+    int count = 0;
+    ThreadInfo[] infos = threadBean.getThreadInfo(threadBean.getAllThreadIds(), 20);
+    for (ThreadInfo info : infos) {
+      if (info == null) continue;
+      for (StackTraceElement elem : info.getStackTrace()) {
+        if (elem.getClassName().contains(search)) {
+          count++;
+          break;
+        }
+      }
+    }
+    return count;
+  }
+
+
+  /**
+   * Test that server.stop() properly stops all threads
+   */
+  public void testStopsAllThreads() throws Exception {
+    int threadsBefore = countThreads("Server$Listener$Reader");
+    assertEquals("Expect no Reader threads running before test",
+      0, threadsBefore);
+
+    final Server server = RPC.getServer(new TestImpl(), ADDRESS, 0, 2, false, conf);
+    server.start();
+    try {
+      int threadsRunning = countThreads("Server$Listener$Reader");
+      assertTrue(threadsRunning > 0);
+    } finally {
+      server.stop();
+    }
+    int threadsAfter = countThreads("Server$Listener$Reader");
+    assertEquals("Expect no Reader threads left running after test",
+      0, threadsAfter);
   }
   
   public void testErrorMsgForInsecureClient() throws Exception {
