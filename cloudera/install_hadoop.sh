@@ -123,7 +123,7 @@ mkdir -p $LIB_DIR
 # packages can depend on
 (cd $LIB_DIR &&
 for j in hadoop-*.jar; do
-  if [[ $j =~ hadoop-([a-zA-Z]+)-([0-9+\.-]+).jar ]]; then
+  if [[ $j =~ hadoop-([a-zA-Z]+)-(.*).jar ]]; then
     name=${BASH_REMATCH[1]}
     ver=${BASH_REMATCH[2]}
     ln -s hadoop-$name-$ver.jar hadoop-$ver-$name.jar
