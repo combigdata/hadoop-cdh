@@ -88,7 +88,7 @@ public class DefaultTaskController extends TaskController {
       
       //create the attempt dirs
       new Localizer(localFs, 
-          getConf().getStrings(JobConf.MAPRED_LOCAL_DIR_PROPERTY)).
+          getConf().getTrimmedStrings(JobConf.MAPRED_LOCAL_DIR_PROPERTY)).
           initializeAttemptDirs(user, jobId, attemptId);
       
       // create the working-directory of the task 

@@ -82,7 +82,7 @@ public class TestUserLogCleanup {
     tt = new TaskTracker();
     tt.setConf(new JobConf(conf));
     localizer = new Localizer(FileSystem.get(conf), conf
-        .getStrings(JobConf.MAPRED_LOCAL_DIR_PROPERTY));
+        .getTrimmedStrings(JobConf.MAPRED_LOCAL_DIR_PROPERTY));
     tt.setLocalizer(localizer);
     userLogManager = new UtilsForTests.InLineUserLogManager(conf);
     userLogCleaner = userLogManager.getUserLogCleaner();

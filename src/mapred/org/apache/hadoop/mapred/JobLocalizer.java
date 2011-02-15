@@ -95,7 +95,7 @@ public class JobLocalizer {
   public JobLocalizer(JobConf ttConf, String user, String jobid)
       throws IOException {
     this(ttConf, user, jobid,
-        ttConf.getStrings(JobConf.MAPRED_LOCAL_DIR_PROPERTY));
+        ttConf.getTrimmedStrings(JobConf.MAPRED_LOCAL_DIR_PROPERTY));
   }
 
   public JobLocalizer(JobConf ttConf, String user, String jobid,
