@@ -126,6 +126,7 @@ public class DefaultTaskController extends TaskController {
       shExec.execute();
     } catch (Exception e) {
       if (shExec == null) {
+        LOG.error("Unable to launch task JVM", e);
         return -1;
       }
       int exitCode = shExec.getExitCode();
