@@ -657,8 +657,17 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
     if (!taskLog.isDirectory() && !taskLog.mkdirs()) {
       LOG.warn("Unable to create taskLog directory : " + taskLog.getPath());
     } else {
-      localFs.setPermission(new Path(taskLog.getCanonicalPath()),
-                            new FsPermission((short)0755));
+      Path taskLogDir = new Path(taskLog.getCanonicalPath());
+      try {
+        localFs.setPermission(taskLogDir,
+                              new FsPermission((short)0755));
+      } catch (IOException ioe) {
+        throw new IOException(
+          "Unable to set permissions on task log directory. " +
+          taskLogDir + " should be owned by " +
+          "and accessible by user '" + System.getProperty("user.name") +
+          "'.", ioe);
+      }
     }
     DiskChecker.checkDir(TaskLog.getUserLogDir());
   }
