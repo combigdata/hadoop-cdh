@@ -241,6 +241,12 @@ public class UserGroupInformation {
         new HadoopConfiguration(existingConfig));
     }
 
+    // We're done initializing at this point. Important not to classload
+    // KerberosName before this point, or else its static initializer
+    // may call back into this same method!
+    isInitialized = true;
+    UserGroupInformation.conf = conf;
+
     // give the configuration on how to translate Kerberos names
     try {
       KerberosName.setConfiguration(conf);
@@ -248,8 +254,6 @@ public class UserGroupInformation {
       throw new RuntimeException("Problem with Kerberos auth_to_local name " +
                                  "configuration", ioe);
     }
-    isInitialized = true;
-    UserGroupInformation.conf = conf;
   }
 
   /**
