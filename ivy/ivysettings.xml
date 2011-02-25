@@ -59,7 +59,6 @@
       m2compatible="true"
       />
     <chain name="default" dual="true">
-      <resolver ref="reactor-repo" />
       <resolver ref="local"/>
       <resolver ref="maven2"/>
     </chain>
