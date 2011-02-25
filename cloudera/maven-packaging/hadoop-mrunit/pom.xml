@@ -20,7 +20,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
   <modelVersion>4.0.0</modelVersion>
-  
+
   <parent>
     <groupId>com.cloudera.cdh</groupId>
     <artifactId>hadoop-root</artifactId>
@@ -28,11 +28,11 @@
   </parent>
   
   <groupId>org.apache.hadoop</groupId>
-  <artifactId>hadoop-tools</artifactId>
-  <packaging>jar</packaging>
+  <artifactId>hadoop-mrunit</artifactId>
   <version>0.20.2-cdh3u0-SNAPSHOT</version>
+  <packaging>jar</packaging>
   
-  <name>hadoop-tools</name>
+  <name>hadoop-streaming</name>
   
   <dependencies>
     <dependency>
@@ -44,13 +44,12 @@
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-core</artifactId>
-      <version>0.20.2-cdh3u0-SNAPSHOT</version>
     </dependency>
   </dependencies>
   
   <build>
     <plugins>
-      <plugin>
+       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>build-helper-maven-plugin</artifactId>
         <executions>
@@ -62,7 +61,7 @@
             </goals>
             <configuration>
               <sources>
-                <source>${basedir}/../../../src</source>
+                <source>${basedir}/../../../src/contrib</source>
               </sources>
             </configuration>
           </execution>
@@ -73,7 +72,7 @@
         <artifactId>maven-source-plugin</artifactId>
         <configuration>
           <includes>
-            <include>tools/**/*</include>
+            <include>mrunit/**/*</include>
           </includes>
         </configuration>
       </plugin>
@@ -97,10 +96,10 @@
             <configuration>
               <target>
                 <copy todir="${basedir}/target">
-                  <fileset dir="${basedir}/../../../build" includes="hadoop-tools-${project.version}.jar" />
+                  <fileset dir="${basedir}/../../../build/contrib/mrunit" includes="hadoop-mrunit-${project.version}.jar" />
                 </copy>
                 <unzip dest="${basedir}/target/classes">
-                  <fileset dir="${basedir}/target" includes="hadoop-tools-${project.version}.jar" />
+                  <fileset dir="${basedir}/target" includes="hadoop-mrunit-${project.version}.jar" />
                 </unzip>
               </target>
             </configuration>
@@ -115,3 +114,4 @@
   </build>
   
 </project>
+

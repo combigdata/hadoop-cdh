@@ -110,5 +110,5 @@ if [ -z "$SKIP_MVN_EXPLICIT" ]; then
 # Change to cloudera/maven directory, and install
 # (and if called from CDH nightly build, deploy) artifacts into Maven repository
 cd $BIN_DIR/maven-packaging
-mvn -Dnot.cdh.release.build=false install $DO_MAVEN_DEPLOY
+mvn -Dnot.cdh.release.build=false source:jar install $DO_MAVEN_DEPLOY
 fi

@@ -58,6 +58,7 @@
         <module>../../cloudera-pom.xml</module>
         <module>hadoop-core</module>
         <module>hadoop-streaming</module>
+        <module>hadoop-mrunit</module>
         <module>hadoop-examples</module>
         <module>hadoop-test</module>
         <module>hadoop-tools</module>
@@ -76,6 +77,7 @@
         <module>../../cloudera-pom.xml</module>
         <module>hadoop-core</module>
         <module>hadoop-streaming</module>
+        <module>hadoop-mrunit</module>
         <module>hadoop-examples</module>
         <module>hadoop-test</module>
         <module>hadoop-tools</module>
