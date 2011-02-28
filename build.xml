@@ -21,6 +21,32 @@
    xmlns:artifact="urn:maven-artifact-ant"
    xmlns:ivy="antlib:org.apache.ivy.ant"> 
 
+    <!-- load ant-contrib tasks to get the "if" task. -->
+  <taskdef resource="net/sf/antcontrib/antcontrib.properties">
+    <classpath>
+      <pathelement location="${basedir}/lib/ant-contrib-1.0b3.jar"/>
+    </classpath>
+  </taskdef>
+  
+  <!-- Initializes ivy/libraries.properties and build.properties with CDH versions -->
+  <if>
+    <and>
+      <not>
+        <isset property="cdh.maven" />
+      </not>
+      <not>
+        <available file="${basedir}/build.properties" />
+      </not>
+    </and>
+    <then>
+      <exec  executable="mvn" dir="${basedir}" failonerror="true">
+        <arg value="-f" />
+        <arg value="cloudera-pom.xml" />
+        <arg value="process-resources"/>
+      </exec>
+    </then>
+  </if>
+
   <!-- Load all the default properties, and any the user wants    -->
   <!-- to contribute (without having to type -D or edit this file -->
   <property file="${user.home}/build.properties" />
@@ -325,14 +351,6 @@
     </sequential>
   </macrodef>
 
-  <!-- Initializes ivy/libraries.properties and build.properties with CDH versions -->
-  <target  name="init-cdh" unless="cdh.maven">
-    <exec  executable="mvn" dir="${basedir}" failonerror="true">
-      <arg value="-f" />
-      <arg value="cloudera-pom.xml" />
-      <arg value="process-resources"/>
-    </exec>
-  </target>
 
   <!-- ====================================================== -->
   <!-- Stuff needed by all targets                            -->
@@ -1543,6 +1561,7 @@
     <delete dir="${build.dir}"/>
     <delete dir="${docs.src}/build"/>
     <delete dir="${src.docs.cn}/build"/>
+    <delete file="${basedir}/build.properties" />
   </target>
 
   <target name="clean-sign" description="Clean.  Delete .asc files">
@@ -1907,7 +1926,7 @@
     </condition>
   </target>
 
-  <target name="ivy-download" depends="init-cdh" description="To download ivy" unless="offline">
+  <target name="ivy-download" description="To download ivy" unless="offline">
     <get src="${ivy_repo_url}" dest="${ivy.jar}" usetimestamp="true"/>
   </target>
 
