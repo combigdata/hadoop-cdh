@@ -114,7 +114,7 @@ int main(int argc, char **argv) {
   }
   free(orig_conf_file);
   free(conf_dir);
-  read_config(conf_file);
+  read_config(conf_file, 1);
   free(conf_file);
 
   // look up the task tracker group in the config file

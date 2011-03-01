@@ -31,6 +31,8 @@
 #define TEST_ROOT "/tmp/test-task-controller"
 #define DONT_TOUCH_FILE "dont-touch-me"
 
+extern int check_configuration_permissions(FILE *f);
+
 static char* username = NULL;
 
 /**
@@ -207,13 +209,26 @@ void test_check_user() {
   }
 }
 
+static int do_test_configuration_permissions(const char *path) {
+  FILE *f = fopen(path, "r");
+  if (f == NULL) {
+    printf("FAIL: couldn't open path: %s\n", path);
+    return 0;
+  }
+
+  int ret = check_configuration_permissions(f);
+  fclose(f);
+
+  return ret;
+}
+
 void test_check_configuration_permissions() {
   printf("\nTesting check_configuration_permissions\n");
-  if (check_configuration_permissions("/etc/passwd") != 0) {
+  if (! do_test_configuration_permissions("/etc/passwd")) {
     printf("FAIL: failed permission check on /etc/passwd\n");
     exit(1);
   }
-  if (check_configuration_permissions(TEST_ROOT) == 0) {
+  if (do_test_configuration_permissions(TEST_ROOT)) {
     printf("FAIL: failed permission check on %s\n", TEST_ROOT);
     exit(1);
   }
@@ -688,7 +703,7 @@ int main(int argc, char **argv) {
   if (write_config_file(TEST_ROOT "/test.cfg") != 0) {
     exit(1);
   }
-  read_config(TEST_ROOT "/test.cfg");
+  read_config(TEST_ROOT "/test.cfg", 0);
 
   create_tt_roots();
 

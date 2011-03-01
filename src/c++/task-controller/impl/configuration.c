@@ -93,7 +93,7 @@ int check_configuration_permissions(FILE *conf_file) {
 }
 
 //function used to load the configurations present in the secure config
-void read_config(const char* file_name) {
+void read_config(const char* file_name, int do_permissions_check) {
   fprintf(LOGFILE, "Reading task controller config from %s\n" , file_name);
   FILE *conf_file;
   char *line;
@@ -121,7 +121,7 @@ void read_config(const char* file_name) {
     exit(INVALID_CONFIG_FILE);
   }
   // verify that the conf file is owned by root and has safe permissions
-  if (!check_configuration_permissions(conf_file)) {
+  if (do_permissions_check && !check_configuration_permissions(conf_file)) {
     fprintf(LOGFILE, "Invalid permissions or ownership on conf file %s\n", file_name);
     fprintf(LOGFILE, "Must be owned by root and not writable by group or other\n");
     exit(INVALID_CONFIG_FILE);

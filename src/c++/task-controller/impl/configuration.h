@@ -17,7 +17,7 @@
  */
 
 // read the given configuration file
-void read_config(const char* config_file);
+void read_config(const char* config_file, int do_permissions_check);
 
 //method exposed to get the configurations
 char *get_value(const char* key);
