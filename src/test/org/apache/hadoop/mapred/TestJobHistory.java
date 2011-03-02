@@ -819,7 +819,16 @@ public class TestJobHistory extends TestCase {
   }
 
   public void testDoneFolderOnHDFS() throws IOException {
+    runDoneFolderTest("history_done");
+  }
+    
+  public void testDoneFolderNotOnDefaultFileSystem() throws IOException {
+    runDoneFolderTest("file://" + System.getProperty("test.build.data", "tmp") + "/history_done");
+  }
+    
+  private void runDoneFolderTest(String doneFolder) throws IOException {
     MiniMRCluster mr = null;
+    MiniDFSCluster dfsCluster = null;
     try {
       JobConf conf = new JobConf();
       // keep for less time
@@ -827,10 +836,9 @@ public class TestJobHistory extends TestCase {
       conf.setLong("mapred.jobtracker.retirejob.interval", 100000);
 
       //set the done folder location
-      String doneFolder = "history_done";
       conf.set("mapred.job.tracker.history.completed.location", doneFolder);
 
-      MiniDFSCluster dfsCluster = new MiniDFSCluster(conf, 2, true, null);
+      dfsCluster = new MiniDFSCluster(conf, 2, true, null);
       mr = new MiniMRCluster(2, dfsCluster.getFileSystem().getUri().toString(),
           3, null, null, conf);
 
@@ -856,7 +864,7 @@ public class TestJobHistory extends TestCase {
       
       Path doneDir = JobHistory.getCompletedJobHistoryLocation();
       assertEquals("History DONE folder not correct", 
-          doneFolder, doneDir.getName());
+          new Path(doneFolder).getName(), doneDir.getName());
       JobID id = job.getID();
       String logFileName = getDoneFile(conf, id, doneDir);
       assertNotNull(logFileName);
@@ -900,6 +908,9 @@ public class TestJobHistory extends TestCase {
       if (mr != null) {
         cleanupLocalFiles(mr);
         mr.shutdown();
+      }
+      if (dfsCluster != null) {
+        dfsCluster.shutdown();
       }
     }
   }

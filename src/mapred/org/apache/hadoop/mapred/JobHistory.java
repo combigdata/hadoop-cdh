@@ -355,8 +355,9 @@ public class JobHistory {
     String doneLocation = conf.
                      get("mapred.job.tracker.history.completed.location");
     if (doneLocation != null) {
-      DONE = fs.makeQualified(new Path(doneLocation));
-      DONEDIR_FS = fs;
+      Path donePath = new Path(doneLocation);
+      DONEDIR_FS = donePath.getFileSystem(conf);
+      DONE = DONEDIR_FS.makeQualified(donePath);
     } else {
       DONE = new Path(LOG_DIR, "done");
       DONEDIR_FS = LOGDIR_FS;
