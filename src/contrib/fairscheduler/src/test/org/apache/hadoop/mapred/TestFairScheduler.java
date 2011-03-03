@@ -2770,8 +2770,19 @@ public class TestFairScheduler extends TestCase {
   private void verifyPoolMetrics() {
     MetricsContext ctx = MetricsUtil.getContext("fairscheduler");
     Collection<OutputRecord> records = ctx.getAllRecords().get("pools");
-    assertEquals(scheduler.getPoolSchedulables(TaskType.MAP).size() * 2,
-        records.size());
+
+    try {
+      assertEquals(scheduler.getPoolSchedulables(TaskType.MAP).size() * 2,
+          records.size());
+    } catch (Error e) {
+      for (OutputRecord rec : records) {
+        System.err.println("record:");
+        System.err.println(" name: " + rec.getTag("name"));
+        System.err.println(" type: " + rec.getTag("type"));
+      }
+
+      throw e;
+    }
     
     Map<String, OutputRecord> byPoolAndType =
       new HashMap<String, OutputRecord>();

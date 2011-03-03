@@ -96,6 +96,8 @@ public class FairScheduler extends TaskScheduler {
   protected long lastHeartbeatTime;  // Time we last ran assignTasks 
   private long lastPreemptCheckTime; // Time we last ran preemptTasksIfNecessary
 
+  private MetricsUpdater metricsUpdater; // responsible for pushing hadoop metrics
+
   /**
    * A class for holding per-job scheduler variables. These always contain the
    * values of the variables at the last update(), and are used along with a
@@ -231,7 +233,8 @@ public class FairScheduler extends TaskScheduler {
    */
   private void initMetrics() {
     MetricsContext context = MetricsUtil.getContext("fairscheduler");
-    context.registerUpdater(new MetricsUpdater());
+    metricsUpdater = new MetricsUpdater();
+    context.registerUpdater(metricsUpdater);
   }
 
   @Override
@@ -245,6 +248,11 @@ public class FairScheduler extends TaskScheduler {
       taskTrackerManager.removeJobInProgressListener(eagerInitListener);
     if (eventLog != null)
       eventLog.shutdown();
+    if (metricsUpdater != null) {
+      MetricsContext context = MetricsUtil.getContext("fairscheduler");
+      context.unregisterUpdater(metricsUpdater);
+      metricsUpdater = null;
+    }
   }
 
   /**
