@@ -24,7 +24,9 @@ import java.util.List;
  * An interface for the implementation of a user-to-groups mapping service
  * used by {@link Groups}.
  */
-interface GroupMappingServiceProvider {
+// @InterfaceAudience.Public
+// @InterfaceStability.Evolving
+public interface GroupMappingServiceProvider {
   
   /**
    * Get all various group memberships of a given user.
