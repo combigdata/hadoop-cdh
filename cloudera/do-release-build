@@ -47,9 +47,6 @@ fi
 BIN_DIR=$(readlink -f $(dirname $0))
 RELEASE_DIR=$BIN_DIR/..
 
-cd $BIN_DIR/maven-packaging
-mvn dependency:tree
-
 cd $RELEASE_DIR
 
 if which aclocal-1.9 && which autoconf ; then
