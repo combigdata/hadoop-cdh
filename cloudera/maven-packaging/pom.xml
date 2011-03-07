@@ -45,6 +45,25 @@
     <url>http://www.cloudera.com</url>
   </organization>
 
+  <repositories>
+    <repository>
+      <id>cdh.releases.repo</id>
+      <url>https://repository.cloudera.com/content/repositories/releases</url>
+      <name>CDH Releases Repository</name>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
+    <repository>
+      <id>cdh.snapshots.repo</id>
+      <url>https://repository.cloudera.com/content/repositories/snapshots</url>
+      <name>CDH Snapshots Repository</name>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
+  </repositories>
+  
   <profiles>
     <profile>
       <id>non.release.build</id>
