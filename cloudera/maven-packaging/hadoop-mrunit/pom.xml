@@ -63,7 +63,7 @@
             <configuration>
               <artifacts>
                 <artifact>
-                  <file>${basedir}/../../../build/contrib/hadoop-mrunit-${project.version}.jar</file>
+                  <file>${basedir}/../../../build/contrib/mrunit/hadoop-mrunit-${project.version}.jar</file>
                   <type>jar</type>
                 </artifact>
                 <artifact>

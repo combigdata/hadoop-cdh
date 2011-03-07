@@ -63,7 +63,7 @@
             <configuration>
               <artifacts>
                 <artifact>
-                  <file>${basedir}/../../../build/contrib/hadoop-streaming-${project.version}.jar</file>
+                  <file>${basedir}/../../../build/contrib/streaming/hadoop-streaming-${project.version}.jar</file>
                   <type>jar</type>
                 </artifact>
                 <artifact>
