@@ -155,18 +155,6 @@
         <artifactId>build-helper-maven-plugin</artifactId>
         <executions>
           <execution>
-            <id>add-source</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>add-source</goal>
-            </goals>
-            <configuration>
-              <sources>
-                <source>${basedir}/../../../src</source>
-              </sources>
-            </configuration>
-          </execution>
-          <execution>
             <id>add-jar</id>
             <phase>package</phase>
             <goals>
@@ -178,6 +166,11 @@
                   <file>${basedir}/../../../build/hadoop-core-${project.version}.jar</file>
                   <type>jar</type>
                 </artifact>
+                <artifact>
+                  <file>${basedir}/target/hadoop-core-${project.version}-sources.jar</file>
+                  <type>jar</type>
+                  <classifier>sources</classifier>
+                </artifact>
               </artifacts>
             </configuration>
           </execution>
@@ -185,23 +178,28 @@
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-source-plugin</artifactId>
-        <configuration>
-          <includes>
-            <include>core/**/*</include>
-            <include>mapred/**/*</include>
-            <include>hdfs/**/*</include>
-          </includes>
-        </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <configuration>
-          <excludes>
-            <exclude>**/*.java</exclude>
-          </excludes>
-        </configuration>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>add-source-jar</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <mkdir dir="${basedir}/target" />
+                <jar destfile="${basedir}/target/hadoop-core-${project.version}-sources.jar">
+                  <fileset dir="${basedir}/../../../src">
+                    <include name="core/**/*" />
+                    <include name="mapred/**/*" />
+                    <include name="hdfs/**/*" />
+                  </fileset>
+                </jar>
+              </target>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>

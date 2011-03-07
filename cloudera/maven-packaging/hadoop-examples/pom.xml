@@ -55,18 +55,6 @@
         <artifactId>build-helper-maven-plugin</artifactId>
         <executions>
           <execution>
-            <id>add-source</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>add-source</goal>
-            </goals>
-            <configuration>
-              <sources>
-                <source>${basedir}/../../../src</source>
-              </sources>
-            </configuration>
-          </execution>
-          <execution>
             <id>add-jar</id>
             <phase>package</phase>
             <goals>
@@ -78,6 +66,11 @@
                   <file>${basedir}/../../../build/hadoop-examples-${project.version}.jar</file>
                   <type>jar</type>
                 </artifact>
+                <artifact>
+                  <file>${basedir}/target/hadoop-examples-${project.version}-sources.jar</file>
+                  <type>jar</type>
+                  <classifier>sources</classifier>
+                </artifact>
               </artifacts>
             </configuration>
           </execution>
@@ -85,23 +78,27 @@
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-source-plugin</artifactId>
-        <configuration>
-          <includes>
-            <include>examples/**/*</include>
-          </includes>
-        </configuration>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>add-source-jar</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <mkdir dir="${basedir}/target" />
+                <jar destfile="${basedir}/target/hadoop-examples-${project.version}-sources.jar">
+                  <fileset dir="${basedir}/../../../src">
+                    <include name="examples/**/*" />
+                  </fileset>
+                </jar>
+              </target>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <configuration>
-          <excludes>
-            <exclude>**/*.java</exclude>
-          </excludes>
-        </configuration>
-      </plugin>
-
     </plugins>
   </build>
   

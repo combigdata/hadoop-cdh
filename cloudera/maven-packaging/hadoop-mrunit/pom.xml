@@ -47,25 +47,13 @@
       <artifactId>hadoop-core</artifactId>
     </dependency>
   </dependencies>
-  
+
   <build>
     <plugins>
-       <plugin>
+      <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>build-helper-maven-plugin</artifactId>
         <executions>
-          <execution>
-            <id>add-source</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>add-source</goal>
-            </goals>
-            <configuration>
-              <sources>
-                <source>${basedir}/../../../src/contrib</source>
-              </sources>
-            </configuration>
-          </execution>
           <execution>
             <id>add-jar</id>
             <phase>package</phase>
@@ -75,8 +63,13 @@
             <configuration>
               <artifacts>
                 <artifact>
-                  <file>${basedir}/../../../build/contrib/mrunit/hadoop-mrunit-${project.version}.jar</file>
+                  <file>${basedir}/../../../build/contrib/hadoop-mrunit-${project.version}.jar</file>
                   <type>jar</type>
+                </artifact>
+                <artifact>
+                  <file>${basedir}/target/hadoop-mrunit-${project.version}-sources.jar</file>
+                  <type>jar</type>
+                  <classifier>sources</classifier>
                 </artifact>
               </artifacts>
             </configuration>
@@ -85,23 +78,27 @@
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-source-plugin</artifactId>
-        <configuration>
-          <includes>
-            <include>mrunit/**/*</include>
-          </includes>
-        </configuration>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>add-source-jar</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <mkdir dir="${basedir}/target" />
+                <jar destfile="${basedir}/target/hadoop-mrunit-${project.version}-sources.jar">
+                  <fileset dir="${basedir}/../../../src/contrib">
+                    <include name="mrunit/**/*" />
+                  </fileset>
+                </jar>
+              </target>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <configuration>
-          <excludes>
-            <exclude>**/*.java</exclude>
-          </excludes>
-        </configuration>
-      </plugin>
-
     </plugins>
   </build>
   
