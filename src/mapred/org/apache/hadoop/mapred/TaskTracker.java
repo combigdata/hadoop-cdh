@@ -632,7 +632,7 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
 
   void initializeDirectories() throws IOException {
     localFs = FileSystem.getLocal(fConf);
-    checkLocalDirs(localFs, localdirs = this.fConf.getLocalDirs());
+    checkLocalDirs(localFs, localdirs = this.fConf.getLocalDirs(), true);
     deleteUserDirectories(fConf);
     asyncDiskService = new MRAsyncDiskService(fConf);
     asyncDiskService.cleanupAllVolumes();
@@ -1682,7 +1682,7 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
       localMinSpaceStart = minSpaceStart;
     }
     if (askForNewTask) {
-      checkLocalDirs(localFs, fConf.getLocalDirs());
+      checkLocalDirs(localFs, fConf.getLocalDirs(), false);
       askForNewTask = enoughFreeSpace(localMinSpaceStart);
       long freeDiskSpace = getFreeSpace();
       long totVmem = getTotalVirtualMemoryOnTT();
@@ -3410,18 +3410,26 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
    * Check if the given local directories
    * (and parent directories, if necessary) can be created.
    * @param localDirs where the new TaskTracker should keep its local files.
+   * @param checkAndFixPermissions should check the permissions of the directory
+   *        and try to fix them if incorrect. This is expensive so should only be
+   *        done at startup.
    * @throws DiskErrorException if all local directories are not writable
    */
   private static void checkLocalDirs(LocalFileSystem localFs, 
-                                     String[] localDirs) 
+                                     String[] localDirs,
+                                     boolean checkAndFixPermissions) 
     throws DiskErrorException {
     boolean writable = false;
         
     if (localDirs != null) {
       for (int i = 0; i < localDirs.length; i++) {
         try {
-          DiskChecker.checkDir(localFs, new Path(localDirs[i]),
-                               LOCAL_DIR_PERMISSION);
+          if (checkAndFixPermissions) {
+            DiskChecker.checkDir(localFs, new Path(localDirs[i]),
+                                 LOCAL_DIR_PERMISSION);
+          } else {
+            DiskChecker.checkDir(new File(localDirs[i]));
+          }
 
           writable = true;
         } catch(IOException e) {
