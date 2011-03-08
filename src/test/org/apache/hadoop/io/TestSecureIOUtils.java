@@ -63,11 +63,20 @@ public class TestSecureIOUtils {
       .openForRead(testFilePath, realOwner).close();
   }
 
-  @Test(expected=IOException.class)
+  @Test
   public void testReadIncorrectlyRestrictedWithSecurity() throws IOException {
-    SecureIOUtils
-      .openForRead(testFilePath, "invalidUser").close();
-    fail("Didn't throw expection for wrong ownership!");
+    // this will only run if libs are available
+    assumeTrue(NativeIO.isAvailable());
+
+    System.out.println("Running test with native libs...");
+
+    try {
+      SecureIOUtils
+        .forceSecureOpenForRead(testFilePath, "invalidUser").close();
+      fail("Didn't throw expection for wrong ownership!");
+    } catch (IOException ioe) {
+      // expected
+    }
   }
 
   @Test

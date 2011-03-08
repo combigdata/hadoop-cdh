@@ -91,26 +91,35 @@ public class SecureIOUtils {
 
   /**
    * Open the given File for read access, verifying the expected user
-   * constraints.
+   * constraints if security is enabled.
+   *
+   * Note that this function provides no additional checks if Hadoop
+   * security is disabled, since doing the checks would be too expensive
+   * when native libraries are not available.
+   *
    * @param f the file that we are trying to open
    * @param expectedOwner the expected user owner for the file
-   * @throws IOException if an IO Error occurred, or the user does not 
-   * match
+   * @throws IOException if an IO Error occurred, or security is enabled and
+   * the user/group does not match
    */
   public static FileInputStream openForRead(File f, String expectedOwner) 
   throws IOException {
+    if (!UserGroupInformation.isSecurityEnabled()) {
+      return new FileInputStream(f);
+    }
+    return forceSecureOpenForRead(f, expectedOwner);
+  }
+
+  /**
+   * Same as openForRead() except that it will run even if security is off.
+   * This is used by unit tests.
+   */
+  static FileInputStream forceSecureOpenForRead(File f, String expectedOwner)
+      throws IOException {
     FileInputStream fis = new FileInputStream(f);
     if (expectedOwner == null) { //no security checks
       return fis;
     }
-    if (skipSecurity) {
-      // Subject to race conditions but this is the best we can do
-      FileStatus status =
-        rawFilesystem.getFileStatus(new Path(f.getAbsolutePath()));
-      checkStat(f, status.getOwner(), expectedOwner);
-      return fis;
-    }
-
     boolean success = false;
     try {
       String owner = NativeIO.getOwner(fis.getFD());
