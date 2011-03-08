@@ -34,10 +34,6 @@
 #include "file_descriptor.h"
 #include "errno_enum.h"
 
-// the NativeIO$Stat inner class and its constructor
-static jclass stat_clazz;
-static jmethodID stat_ctor;
-
 // the NativeIOException class and its constructor
 static jclass nioe_clazz;
 static jmethodID nioe_ctor;
@@ -45,23 +41,6 @@ static jmethodID nioe_ctor;
 // Internal functions
 static void throw_ioe(JNIEnv* env, int errnum);
 static ssize_t get_pw_buflen();
-
-
-static void stat_init(JNIEnv *env) {
-  // Init Stat
-  jclass clazz = (*env)->FindClass(env, "org/apache/hadoop/io/nativeio/NativeIO$Stat");
-  PASS_EXCEPTIONS(env);
-  stat_clazz = (*env)->NewGlobalRef(env, clazz);
-  stat_ctor = (*env)->GetMethodID(env, stat_clazz, "<init>",
-    "(Ljava/lang/String;I)V");
-}
-
-static void stat_deinit(JNIEnv *env) {
-  if (stat_clazz != NULL) {  
-    (*env)->DeleteGlobalRef(env, stat_clazz);
-    stat_clazz = NULL;
-  }
-}
 
 static void nioe_init(JNIEnv *env) {
   // Init NativeIOException
@@ -93,8 +72,6 @@ JNIEXPORT void JNICALL
 Java_org_apache_hadoop_io_nativeio_NativeIO_initNative(
 	JNIEnv *env, jclass clazz) {
 
-  stat_init(env);
-  PASS_EXCEPTIONS_GOTO(env, error);
   nioe_init(env);
   PASS_EXCEPTIONS_GOTO(env, error);
   fd_init(env);
@@ -105,67 +82,9 @@ Java_org_apache_hadoop_io_nativeio_NativeIO_initNative(
 error:
   // these are all idempodent and safe to call even if the
   // class wasn't initted yet
-  stat_deinit(env);
   nioe_deinit(env);
   fd_deinit(env);
   errno_enum_deinit(env);
-}
-
-/*
- * public static native Stat fstat(FileDescriptor fd);
- */
-JNIEXPORT jobject JNICALL
-Java_org_apache_hadoop_io_nativeio_NativeIO_fstat(
-  JNIEnv *env, jclass clazz, jobject fd_object)
-{
-  jobject ret = NULL;
-  char *pw_buf = NULL;
-
-  int fd = fd_get(env, fd_object);
-  PASS_EXCEPTIONS_GOTO(env, cleanup);
-
-  struct stat s;
-  int rc = fstat(fd, &s);
-  if (rc != 0) {
-    throw_ioe(env, errno);
-    goto cleanup;
-  }
-
-  size_t pw_buflen = get_pw_buflen();
-  if ((pw_buf = malloc(pw_buflen)) == NULL) {
-    THROW(env, "java/lang/OutOfMemoryError", "Couldn't allocate memory for pw buffer");
-    goto cleanup;
-  }
-
-  // Grab username
-  struct passwd pwd, *pwdp;
-  while ((rc = getpwuid_r(s.st_uid, &pwd, pw_buf, pw_buflen, &pwdp)) != 0) {
-    if (rc != ERANGE) {
-      throw_ioe(env, rc);
-      goto cleanup;
-    }
-    free(pw_buf);
-    pw_buflen *= 2;
-    if ((pw_buf = malloc(pw_buflen)) == NULL) {
-      THROW(env, "java/lang/OutOfMemoryError", "Couldn't allocate memory for pw buffer");
-      goto cleanup;
-    }
-  }
-  if (rc == 0 && pwdp == NULL) {
-    throw_ioe(env, ENOENT);
-    goto cleanup;
-  }
-
-  jstring jstr_username = (*env)->NewStringUTF(env, pwd.pw_name);
-  if (jstr_username == NULL) goto cleanup;
-
-  // Construct result
-  ret = (*env)->NewObject(env, stat_clazz, stat_ctor,
-    jstr_username, s.st_mode);
-
-cleanup:
-  if (pw_buf != NULL) free(pw_buf);
-  return ret;
 }
 
 

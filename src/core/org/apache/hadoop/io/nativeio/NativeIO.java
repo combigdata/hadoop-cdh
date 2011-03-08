@@ -76,10 +76,6 @@ public class NativeIO {
   /** Wrapper around open(2) */
   public static native FileDescriptor open(String path, int flags, int mode) throws IOException;
 
-  /** Wrapper around fstat(2) */
-  //TODO: fstat is an old implementation. Doesn't use the cache. This should be 
-  //changed to use the cache.
-  public static native Stat fstat(FileDescriptor fd) throws IOException;
   /** Wrapper around chmod(2) */
   public static native void chmod(String path, int mode) throws IOException;
 
@@ -126,49 +122,6 @@ public class NativeIO {
       LOG.debug("Initialized cache for UID to User mapping with a cache" +
       		" timeout of " + cacheTimeout/1000 + " seconds.");
       initialized = true;
-    }
-  }
-
-
-  /**
-   * Result type of the fstat call
-   */
-  public static class Stat {
-    private String owner;
-    private int mode;
-
-    // Mode constants
-    public static final int S_IFMT = 0170000;      /* type of file */
-    public static final int   S_IFIFO  = 0010000;  /* named pipe (fifo) */
-    public static final int   S_IFCHR  = 0020000;  /* character special */
-    public static final int   S_IFDIR  = 0040000;  /* directory */
-    public static final int   S_IFBLK  = 0060000;  /* block special */
-    public static final int   S_IFREG  = 0100000;  /* regular */
-    public static final int   S_IFLNK  = 0120000;  /* symbolic link */
-    public static final int   S_IFSOCK = 0140000;  /* socket */
-    public static final int   S_IFWHT  = 0160000;  /* whiteout */
-    public static final int S_ISUID = 0004000;  /* set user id on execution */
-    public static final int S_ISGID = 0002000;  /* set group id on execution */
-    public static final int S_ISVTX = 0001000;  /* save swapped text even after use */
-    public static final int S_IRUSR = 0000400;  /* read permission, owner */
-    public static final int S_IWUSR = 0000200;  /* write permission, owner */
-    public static final int S_IXUSR = 0000100;  /* execute/search permission, owner */
-
-    Stat(String owner, int mode) {
-      this.owner = owner;
-      this.mode = mode;
-    }
-
-    public String toString() {
-      return "Stat(owner='" + owner + "'" +
-        ", mode=" + mode + ")";
-    }
-
-    public String getOwner() {
-      return owner;
-    }
-    public int getMode() {
-      return mode;
     }
   }
 }

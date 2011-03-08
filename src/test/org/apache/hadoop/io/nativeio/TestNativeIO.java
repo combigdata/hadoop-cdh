@@ -53,22 +53,9 @@ public class TestNativeIO {
   }
 
   @Test
-  public void testFstat() throws Exception {
-    FileOutputStream fos = new FileOutputStream(
-      new File(TEST_DIR, "testfstat"));
-    NativeIO.Stat stat = NativeIO.fstat(fos.getFD());
-    fos.close();
-    LOG.info("Stat: " + String.valueOf(stat));
-
-    assertEquals(System.getProperty("user.name"), stat.getOwner());
-    assertEquals("Stat mode field should indicate a regular file",
-      NativeIO.Stat.S_IFREG, stat.getMode() & NativeIO.Stat.S_IFMT);
-  }
-
-  @Test
   public void testGetOwner() throws Exception {
     FileOutputStream fos = new FileOutputStream(
-      new File(TEST_DIR, "testfstat"));
+      new File(TEST_DIR, "testgetowner"));
     String owner = NativeIO.getOwner(fos.getFD());
     fos.close();
     LOG.info("Owner: " + owner);
@@ -77,12 +64,13 @@ public class TestNativeIO {
   }
 
   @Test
-  public void testFstatClosedFd() throws Exception {
+  public void testGetOwnerClosedFd() throws Exception {
     FileOutputStream fos = new FileOutputStream(
-      new File(TEST_DIR, "testfstat2"));
+      new File(TEST_DIR, "testgetowner2"));
     fos.close();
     try {
-      NativeIO.Stat stat = NativeIO.fstat(fos.getFD());
+      String owner = NativeIO.getOwner(fos.getFD());
+      fail("Didn't throw IOE on closed fd");
     } catch (NativeIOException nioe) {
       LOG.info("Got expected exception", nioe);
       assertEquals(Errno.EBADF, nioe.getErrno());
