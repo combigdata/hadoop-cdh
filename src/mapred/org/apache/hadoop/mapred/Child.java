@@ -65,8 +65,19 @@ class Child {
   static volatile boolean isCleanup;
   static String cwd;
 
+  private static boolean isChildJvm = false;
+
+  /**
+   * Return true if running in a task/child JVM. This should
+   * only be used for asserts/safety checks.
+   */
+  public static boolean isChildJvm() {
+    return isChildJvm;
+  }
+
   public static void main(String[] args) throws Throwable {
     LOG.debug("Child starting");
+    isChildJvm = true;
 
     final JobConf defaultConf = new JobConf();
     String host = args[0];

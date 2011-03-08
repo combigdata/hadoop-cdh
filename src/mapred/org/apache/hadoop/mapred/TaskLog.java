@@ -25,7 +25,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
@@ -107,8 +107,7 @@ public class TaskLog {
         new HashMap<LogName, LogFileDetail>();
 
     File indexFile = getIndexFile(taskid, isCleanup);
-    BufferedReader fis = new BufferedReader(new InputStreamReader(
-      SecureIOUtils.openForRead(indexFile, obtainLogDirOwner(taskid))));
+    BufferedReader fis = new BufferedReader(new FileReader(indexFile));
     //the format of the index file is
     //LOG_DIR: <the dir where the task logs are really stored>
     //stdout:<start-offset in the stdout file> <length>
