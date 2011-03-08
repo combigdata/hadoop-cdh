@@ -51,10 +51,20 @@ public class NativeIO {
   private static final Log LOG = LogFactory.getLog(NativeIO.class);
 
   private static boolean nativeLoaded = false;
+  private static boolean workaroundNonThreadSafePasswdCalls = false;
+
+  static final String WORKAROUND_NON_THREADSAFE_CALLS_KEY =
+    "hadoop.workaround.non.threadsafe.getpwuid";
+  static final boolean WORKAROUND_NON_THREADSAFE_CALLS_DEFAULT = false;
 
   static {
     if (NativeCodeLoader.isNativeCodeLoaded()) {
       try {
+        Configuration conf = new Configuration();
+        workaroundNonThreadSafePasswdCalls = conf.getBoolean(
+          WORKAROUND_NON_THREADSAFE_CALLS_KEY,
+          WORKAROUND_NON_THREADSAFE_CALLS_DEFAULT);
+
         initNative();
         nativeLoaded = true;
       } catch (Throwable t) {
