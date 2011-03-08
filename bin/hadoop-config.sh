@@ -97,6 +97,12 @@ EOF
   fi
 fi
 
+# Newer versions of glibc use an arena memory allocator that causes virtual
+# memory usage to explode. This interacts badly with the many threads that
+# we use in Hadoop. Tune the variable down to prevent vmem explosion.
+export MALLOC_ARENA_MAX=${MALLOC_ARENA_MAX:-4}
+
+
 if [ -d $HADOOP_HOME/pids ]; then
 HADOOP_PID_DIR="${HADOOP_PID_DIR:-$HADOOP_HOME/pids}"
 fi
