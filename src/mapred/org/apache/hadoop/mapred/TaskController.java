@@ -19,7 +19,7 @@ package org.apache.hadoop.mapred;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.FileWriter;
 import java.net.InetSocketAddress;
 import java.util.List;
 
@@ -201,21 +201,28 @@ public abstract class TaskController implements Configurable {
   // a file and execute it.
   protected static String writeCommand(String cmdLine, FileSystem fs,
       Path commandFile) throws IOException {
-    PrintWriter pw = null;
-    LOG.info("Writing commands to " + commandFile);
+    String path = commandFile.makeQualified(fs).toUri().getPath();
+    FileWriter w = null;
+    LOG.info("Writing commands to " + path);
     try {
-      pw = new PrintWriter(FileSystem.create(
-            fs, commandFile, TASK_LAUNCH_SCRIPT_PERMISSION));
-      pw.write(cmdLine);
+      File parent = new File(path).getParentFile();
+      if (!parent.isDirectory() && !parent.mkdirs()) {
+        throw new IOException(
+          "Couldn't ensure directory for task script: " + parent);
+      }
+      w = new FileWriter(path);
+      w.write(cmdLine);
     } catch (IOException ioe) {
       LOG.error("Caught IOException while writing JVM command line to file. ",
           ioe);
+      throw ioe;
     } finally {
-      if (pw != null) {
-        pw.close();
+      if (w != null) {
+        w.close();
       }
     }
-    return commandFile.makeQualified(fs).toUri().getPath();
+    fs.setPermission(commandFile, TASK_LAUNCH_SCRIPT_PERMISSION);
+    return path;
   }
   
   protected void logOutput(String output) {
