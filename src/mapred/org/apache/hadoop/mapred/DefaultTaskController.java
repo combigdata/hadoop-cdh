@@ -35,6 +35,7 @@ import org.apache.hadoop.mapreduce.server.tasktracker.Localizer;
 import org.apache.hadoop.util.ProcessTree.Signal;
 import org.apache.hadoop.util.ProcessTree;
 import org.apache.hadoop.util.StringUtils;
+import org.apache.hadoop.util.Shell.ExitCodeException;
 import org.apache.hadoop.util.Shell.ShellCommandExecutor;
 
 import org.apache.commons.logging.Log;
@@ -124,18 +125,29 @@ public class DefaultTaskController extends TaskController {
           "bash", "-c", commandFile},
           currentWorkDirectory);
       shExec.execute();
-    } catch (Exception e) {
-      if (shExec == null) {
-        LOG.error("Unable to launch task JVM", e);
-        return -1;
+    } catch (ExitCodeException ece) {
+      logShExecStatus(shExec);
+      if (ece.getMessage() != null && !ece.getMessage().isEmpty()) {
+        LOG.warn("Task wrapper stderr: " + ece.getMessage());
       }
-      int exitCode = shExec.getExitCode();
-      LOG.warn("Exit code from task is : " + exitCode);
-      LOG.info("Output from DefaultTaskController's launchTask follows:");
-      logOutput(shExec.getOutput());
-      return exitCode;
+      return shExec.getExitCode();
+    } catch (Exception e) {
+      LOG.warn("Unexpected error launching task JVM", e);
+      if (shExec != null) {
+        logShExecStatus(shExec);
+      }
+      return -1;
     }
     return 0;
+  }
+
+  private void logShExecStatus(ShellCommandExecutor shExec) {
+    LOG.warn("Exit code from task is : " + shExec.getExitCode());
+    String stdout = shExec.getOutput().trim();
+    if (!stdout.isEmpty()) {
+      LOG.info("Output from DefaultTaskController's launchTask follows:");
+      logOutput(shExec.getOutput());
+    }
   }
     
   /**
