@@ -694,7 +694,10 @@ int main(int argc, char **argv) {
   int my_username = 0;
 
   // clean up any junk from previous run
-  system("chmod -R u=rwx " TEST_ROOT "; rm -fr " TEST_ROOT);
+  if (system("chmod -R u=rwx " TEST_ROOT "; rm -fr " TEST_ROOT)) {
+    perror("Warning, couldn't clean " TEST_ROOT);
+    // but maybe it just didn't exist, so keep going.
+  }
   
   if (mkdirs(TEST_ROOT "/logs/userlogs", 0755) != 0) {
     exit(1);
