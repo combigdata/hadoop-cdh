@@ -1297,7 +1297,7 @@ public class TestFileAppend4 extends TestCase {
    * recovery from the first one, since it has a lower gen stamp.
    */
   public void testSimultaneousRecoveries() throws Exception {
-        LOG.info("START");
+    LOG.info("START");
     cluster = new MiniDFSCluster(conf, 3, true, null);
     FileSystem fs1 = cluster.getFileSystem();;
     final FileSystem fs2 = AppendTestUtil.createHdfsWithDifferentUsername(fs1.getConf());
@@ -1313,7 +1313,7 @@ public class TestFileAppend4 extends TestCase {
       nn.namesystem = spy(nn.namesystem);
       NameNodeAdapter.callNextGenerationStampForBlock(
         doAnswer(delayer).when(nn.namesystem),
-        (Block)anyObject());
+        (Block)anyObject(), anyBoolean());
 
       final AtomicReference<Throwable> err = new AtomicReference<Throwable>();
       Thread recoverThread = new Thread("Recovery thread") {

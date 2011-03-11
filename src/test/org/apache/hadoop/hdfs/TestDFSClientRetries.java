@@ -37,7 +37,6 @@ import org.apache.hadoop.hdfs.server.namenode.NameNode;
 import org.apache.hadoop.io.*;
 import org.apache.hadoop.ipc.RemoteException;
 import org.apache.hadoop.security.AccessControlException;
-import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.SecretManager.InvalidToken;
 import org.apache.hadoop.hdfs.security.token.delegation.DelegationTokenIdentifier;
@@ -230,6 +229,10 @@ public class TestDFSClientRetries extends TestCase {
     public void fsync(String src, String client) throws IOException {}
 
     public void setTimes(String src, long mtime, long atime) throws IOException {}
+
+    public boolean recoverLease(String src, String clientName) throws IOException {
+      return true;
+    }
 
     public Token<DelegationTokenIdentifier> getDelegationToken(Text renewer)
         throws IOException {

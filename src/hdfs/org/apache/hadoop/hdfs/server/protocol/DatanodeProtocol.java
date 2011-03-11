@@ -41,10 +41,11 @@ import org.apache.hadoop.security.KerberosInfo;
     clientPrincipal = DFSConfigKeys.DFS_DATANODE_USER_NAME_KEY)
 public interface DatanodeProtocol extends VersionedProtocol {
   /**
-   * 26: Remove getBlockLocations optimization
+   * 27: nextGenerationStamp has a new parameter indicating if it is for
+   * NameNode initiated lease recovery or not
    */
-  public static final long versionID = 26L;
-  
+  public static final long versionID = 27L;
+
   // error code
   final static int NOTIFY = 0;
   final static int DISK_ERROR = 1; // there are still valid volumes on DN
@@ -146,12 +147,17 @@ public interface DatanodeProtocol extends VersionedProtocol {
    * }
    */
   public void reportBadBlocks(LocatedBlock[] blocks) throws IOException;
-  
+
   /**
    * @return the next GenerationStamp to be associated with the specified
-   * block. 
+   * Get the next GenerationStamp to be associated with the specified
+   * block.
+   *
+   * @param block block
+   * @param fromNN if it is for lease recovery initiated by NameNode
+   * @return a new generation stamp
    */
-  public long nextGenerationStamp(Block block) throws IOException;
+  public long nextGenerationStamp(Block block, boolean fromNN) throws IOException;
 
   /**
    * Commit block synchronization in lease recovery
