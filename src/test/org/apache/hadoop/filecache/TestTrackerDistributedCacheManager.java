@@ -594,7 +594,7 @@ public class TestTrackerDistributedCacheManager extends TestCase {
        localfs.listStatus(cachesBase).length > 1);
     
     conf2.setLong("local.cache.size", LOCAL_CACHE_LIMIT * 10);
-    conf2.setLong("mapreduce.tasktracker.local.cache.numberdirectories",
+    conf2.setLong("mapreduce.tasktracker.cache.local.numberdirectories",
         LOCAL_CACHE_SUBDIR_LIMIT);
     manager = 
       new TrackerDistributedCacheManager(conf2, taskController);

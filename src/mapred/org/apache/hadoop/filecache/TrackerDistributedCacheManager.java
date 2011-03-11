@@ -115,7 +115,7 @@ public class TrackerDistributedCacheManager {
       ("local.cache.size", DEFAULT_CACHE_SIZE);
     // setting the cache number of subdirectories limit to a default of 10000
     this.allowedCacheSubdirs = conf.getLong
-      ("mapreduce.tasktracker.local.cache.numberdirectories",
+      ("mapreduce.tasktracker.cache.local.numberdirectories",
        DEFAULT_CACHE_SUBDIR_LIMIT);
     this.taskController = controller;
   }
