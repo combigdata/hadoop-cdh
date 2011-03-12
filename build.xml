@@ -152,7 +152,7 @@
   
   <property name="test.commit.tests.file" value="${test.src.dir}/commit-tests" />
   <property name="test.all.tests.file" value="${test.src.dir}/all-tests" />
-  <property name="test.exclude.file" value="/dev/null" />
+  <property name="test.exclude.file" value="${test.src.dir}/empty-file" />
 
   <property name="test.libhdfs.conf.dir" value="${c++.libhdfs.src}/tests/conf"/>
   <property name="test.libhdfs.dir" value="${test.build.dir}/libhdfs"/>
