@@ -32,7 +32,7 @@ public class TestWriteConfigurationToDFS {
   @Test(timeout=60000)
   public void testWriteConf() throws Exception {
     Configuration conf = new Configuration();
-    conf.setInt(DFSConfigKeys.DFS_BLOCK_SIZE_KEY, 4096);
+    conf.setInt("dfs.block.size", 4096);
     System.out.println("Setting conf in: " + System.identityHashCode(conf));
     MiniDFSCluster cluster = new MiniDFSCluster(conf, 1, true, null);
     FileSystem fs = cluster.getFileSystem();
