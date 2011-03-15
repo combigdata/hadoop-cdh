@@ -21,6 +21,7 @@
 build/
 build.properties
 build-fi/
+target/
 conf/masters
 conf/slaves
 conf/hadoop-env.sh
