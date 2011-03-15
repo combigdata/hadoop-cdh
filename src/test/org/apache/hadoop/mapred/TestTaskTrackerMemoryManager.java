@@ -351,7 +351,7 @@ public class TestTaskTrackerMemoryManager extends TestCase {
       Pattern
           .compile("Killing one of the least progress tasks - .*, as "
               + "the cumulative memory usage of all the tasks on the TaskTracker"
-              + " exceeds virtual memory limit " + TASK_TRACKER_LIMIT + ".");
+              + " .* exceeds virtual memory limit " + TASK_TRACKER_LIMIT + ".");
     Matcher mat = null;
 
     // Set up job.
