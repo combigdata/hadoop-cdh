@@ -62,6 +62,8 @@ class Child {
     LogFactory.getLog(Child.class);
 
   static volatile TaskAttemptID taskid = null;
+  static volatile boolean currentJobSegmented = true;
+
   static volatile boolean isCleanup;
   static String cwd;
 
@@ -73,6 +75,10 @@ class Child {
    */
   public static boolean isChildJvm() {
     return isChildJvm;
+  }
+
+  static boolean logIsSegmented(JobConf job) {
+    return (job.getNumTasksToExecutePerJvm() != 1);
   }
 
   public static void main(String[] args) throws Throwable {
@@ -133,7 +139,8 @@ class Child {
       public void run() {
         try {
           if (taskid != null) {
-            TaskLog.syncLogs(logLocation, taskid, isCleanup);
+            TaskLog.syncLogs
+              (logLocation, taskid, isCleanup, currentJobSegmented);
           }
         } catch (Throwable throwable) {
         }
@@ -147,7 +154,8 @@ class Child {
           try {
             Thread.sleep(5000);
             if (taskid != null) {
-              TaskLog.syncLogs(logLocation, taskid, isCleanup);
+              TaskLog.syncLogs
+                (logLocation, taskid, isCleanup, currentJobSegmented);
             }
           } catch (InterruptedException ie) {
           } catch (IOException iee) {
@@ -174,12 +182,16 @@ class Child {
     try {
       while (true) {
         taskid = null;
+        currentJobSegmented = true;
+
         JvmTask myTask = umbilical.getTask(context);
         if (myTask.shouldDie()) {
           break;
         } else {
           if (myTask.getTask() == null) {
             taskid = null;
+            currentJobSegmented = true;
+
             if (++idleLoopCount >= SLEEP_LONGER_COUNT) {
               //we sleep for a bigger interval when we don't receive
               //tasks for a while
@@ -193,12 +205,16 @@ class Child {
         idleLoopCount = 0;
         task = myTask.getTask();
         taskid = task.getTaskID();
+
+        // Create the JobConf and determine if this job gets segmented task logs
+        final JobConf job = new JobConf(task.getJobFile());
+        currentJobSegmented = logIsSegmented(job);
+
         isCleanup = task.isTaskCleanupTask();
         // reset the statistics for the task
         FileSystem.clearStatistics();
         
-        // Create the job-conf and set credentials
-        final JobConf job = new JobConf(task.getJobFile());
+        // Set credentials
         job.setCredentials(defaultConf.getCredentials());
         //forcefully turn off caching for localfs. All cached FileSystems
         //are closed during the JVM shutdown. We do certain
@@ -224,7 +240,8 @@ class Child {
         
         //create the index file so that the log files 
         //are viewable immediately
-        TaskLog.syncLogs(logLocation, taskid, isCleanup);
+        TaskLog.syncLogs
+          (logLocation, taskid, isCleanup, logIsSegmented(job));
         
         numTasksToExecute = job.getNumTasksToExecutePerJvm();
         assert(numTasksToExecute != 0);
@@ -250,7 +267,8 @@ class Child {
               FileSystem.get(job).setWorkingDirectory(job.getWorkingDirectory());
               taskFinal.run(job, umbilical);             // run the task
             } finally {
-              TaskLog.syncLogs(logLocation, taskid, isCleanup);
+              TaskLog.syncLogs
+                (logLocation, taskid, isCleanup, logIsSegmented(job));
               TaskLogsTruncater trunc = new TaskLogsTruncater(defaultConf);
               trunc.truncateLogs(new JVMInfo(
                   TaskLog.getAttemptDir(taskFinal.getTaskID(),

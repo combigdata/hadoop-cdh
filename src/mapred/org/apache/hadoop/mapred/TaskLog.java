@@ -138,7 +138,12 @@ public class TaskLog {
       str = str.substring(idx + 1);
       String[] startAndLen = str.split(" ");
       l.start = Long.parseLong(startAndLen[0]);
+
       l.length = Long.parseLong(startAndLen[1]);
+      if (l.length == -1L) {
+        l.length = new File(l.location, filter.toString()).length();
+      }
+
       allLogsFileDetails.put(filter, l);
       str = fis.readLine();
     }
@@ -240,7 +245,8 @@ public class TaskLog {
   @SuppressWarnings("unchecked")
   public synchronized static void syncLogs(String logLocation, 
                                            TaskAttemptID taskid,
-                                           boolean isCleanup) 
+                                           boolean isCleanup,
+                                           boolean segmented) 
   throws IOException {
     System.out.flush();
     System.err.flush();
@@ -266,8 +272,11 @@ public class TaskLog {
             logLocation, logName.toString()).length());
       }
       // Set current end
-      logLengths.get(logName)[1] = Long.valueOf(new File(
-          logLocation, logName.toString()).length());
+      logLengths.get(logName)[1]
+        = (segmented
+           ? (Long.valueOf
+              (new File(logLocation, logName.toString()).length()))
+           : -1);
     }
     if (currentTaskid != taskid) {
       if (currentTaskid != null) {

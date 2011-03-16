@@ -66,11 +66,11 @@ public class TestTaskLogServlet {
     assertTrue(logDir.exists());
 
     // Now make the logs with some HTML in the output
-    TaskLog.syncLogs(logDir.getAbsolutePath(), attemptId, false);
+    TaskLog.syncLogs(logDir.getAbsolutePath(), attemptId, false, false);
     makeLog(new File(logDir, "stderr"), "<b>this is stderr");
     makeLog(new File(logDir, "stdout"), "<b>this is stdout");
     makeLog(new File(logDir, "syslog"), "<b>this is syslog");
-    TaskLog.syncLogs(logDir.getAbsolutePath(), attemptId, false);
+    TaskLog.syncLogs(logDir.getAbsolutePath(), attemptId, false, false);
   }
   
   @Test
