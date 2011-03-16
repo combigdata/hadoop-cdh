@@ -303,8 +303,14 @@ public class DataNode extends Configured
                      ) throws IOException {
     if(UserGroupInformation.isSecurityEnabled() && resources == null &&
        conf.getBoolean("dfs.datanode.require.secure.ports", true))
-      throw new RuntimeException("Cannot start secure cluster without " +
-      		"privileged resources.");
+      throw new RuntimeException(
+        "Cannot start secure cluster without privileged resources. " +
+        "In a secure cluster, the DataNode must be started from within " +
+        "jsvc. If using Cloudera packages, please install the " +
+        "hadoop-0.20-sbin package.\n\n" +
+        "For development purposes ONLY you may override this check by setting" +
+        " dfs.datanode.require.secure.ports to false. *** THIS WILL OPEN A " +
+        "SECURITY HOLE AND MUST NOT BE USED FOR A REAL CLUSTER ***.");
     
     this.secureResources = resources;
     // use configured nameserver & interface to get local hostname
