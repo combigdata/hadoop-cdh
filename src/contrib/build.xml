@@ -50,6 +50,7 @@
      <delete file="${build.contrib.dir}/testsfailed"/>
     <subant target="test">
       <property name="continueOnFailure" value="true"/>
+      <fileset dir="." includes="fuse-dfs/build.xml"/>
       <fileset dir="." includes="hdfsproxy/build.xml"/>
       <fileset dir="." includes="streaming/build.xml"/>
       <fileset dir="." includes="fairscheduler/build.xml"/>
