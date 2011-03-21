@@ -35,7 +35,9 @@ import org.apache.hadoop.cli.util.ComparatorData;
 import org.apache.hadoop.cli.util.CLITestData.TestCmd;
 import org.apache.hadoop.cli.util.CLITestData.TestCmd.CommandType;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.CommonConfigurationKeys;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.mapred.JobConf;
@@ -65,6 +67,7 @@ public class TestCLI extends TestCase {
   public static final String TESTMODE_NOCOMPARE = "nocompare";
   public static final String TEST_CACHE_DATA_DIR =
     System.getProperty("test.cache.data", "build/test/cache");
+  public static final String TEST_DIR_ABSOLUTE = "/tmp/testcli";
   
   //By default, run the tests. The other mode is to run the commands and not
   // compare the output
@@ -85,6 +88,7 @@ public class TestCLI extends TestCase {
   private static String jobtracker = null;
   private static String clitestDataDir = null;
   private static String username = null;
+  private static String testDirAbsolute = TEST_DIR_ABSOLUTE;
   
   /**
    * Read the test config file - testConfig.xml
@@ -93,10 +97,12 @@ public class TestCLI extends TestCase {
     
     if (testsFromConfigFile == null) {
       boolean success = false;
-      testConfigFile = TEST_CACHE_DATA_DIR + File.separator + testConfigFile;
+      testConfigFile = System.getProperty("test.cli.config",
+          TEST_CACHE_DATA_DIR + File.separator + testConfigFile);
       try {
         SAXParser p = (SAXParserFactory.newInstance()).newSAXParser();
         p.parse(testConfigFile, new TestConfigFileParser());
+        LOG.info("Using test config file " + testConfigFile);
         success = true;
       } catch (Exception e) {
         LOG.info("File: " + testConfigFile + " not found");
@@ -113,50 +119,62 @@ public class TestCLI extends TestCase {
     // Read the testConfig.xml file
     readTestConfigFile();
     
-    // Start up the mini dfs cluster
-    boolean success = false;
     conf = new Configuration();
     conf.setClass(PolicyProvider.POLICY_PROVIDER_CONFIG,
                   HadoopPolicyProvider.class, PolicyProvider.class);
     conf.setBoolean(ServiceAuthorizationManager.SERVICE_AUTHORIZATION_CONFIG, 
                     true);
+    // Many of the tests expect a replication value of 1 in the output
+    conf.setInt("dfs.replication", 1);
 
-    dfsCluster = new MiniDFSCluster(conf, 1, true, null);
-    namenode = conf.get("fs.default.name", "file:///");
+    FileSystem fs;
+    namenode = System.getProperty(CommonConfigurationKeys.FS_DEFAULT_NAME_KEY);
+    if (namenode == null) {
+      // Start up the mini dfs cluster
+      dfsCluster = new MiniDFSCluster(conf, 1, true, null);
+      namenode = conf.get("fs.default.name", "file:///");
+      fs = dfsCluster.getFileSystem();
+    } else {
+      conf.set("fs.default.name", namenode);
+      fs = FileSystem.get(conf);
+    }
+    
     clitestDataDir = new File(TEST_CACHE_DATA_DIR).
       toURI().toString().replace(' ', '+');
     username = System.getProperty("user.name");
 
-    FileSystem fs = dfsCluster.getFileSystem();
     assertTrue("Not a HDFS: "+fs.getUri(),
                fs instanceof DistributedFileSystem);
     dfs = (DistributedFileSystem) fs;
     
-     // Start up mini mr cluster
-    JobConf mrConf = new JobConf(conf);
-    mrCluster = new MiniMRCluster(1, dfsCluster.getFileSystem().getUri().toString(), 1, 
+    jobtracker = System.getProperty("mapred.job.tracker");
+    if (jobtracker == null) {
+      // Start up mini mr cluster
+      JobConf mrConf = new JobConf(conf);
+      mrCluster = new MiniMRCluster(1, dfsCluster.getFileSystem().getUri().toString(), 1, 
                            null, null, mrConf);
-    jobtracker = mrCluster.createJobConf().get("mapred.job.tracker", "local");
+      jobtracker = mrCluster.createJobConf().get("mapred.job.tracker", "local");
+    } else {
+      conf.set("mapred.job.tracker", jobtracker);
+    }
 
-    success = true;
-
-    assertTrue("Error setting up Mini DFS & MR clusters", success);
+    LOG.info("Namenode: " + namenode);
+    LOG.info("Jobtracker: " + jobtracker);
   }
   
   /**
    * Tear down
    */
   public void tearDown() throws Exception {
-    boolean success = false;
-    mrCluster.shutdown();
-    
-    dfs.close();
-    dfsCluster.shutdown();
-    success = true;
-    Thread.sleep(2000);
-
-    assertTrue("Error tearing down Mini DFS & MR clusters", success);
-    
+    dfs.delete(new Path(testDirAbsolute), true);
+    if (mrCluster != null) {
+      mrCluster.shutdown();
+    }
+    if (dfsCluster != null) {
+      dfs.close();
+      dfsCluster.shutdown();
+      Thread.sleep(2000);
+    }
     displayResults();
   }
   
@@ -171,6 +189,7 @@ public class TestCLI extends TestCase {
     expCmd = expCmd.replaceAll("JOBTRACKER", jobtracker);
     expCmd = expCmd.replaceAll("CLITEST_DATA", clitestDataDir);
     expCmd = expCmd.replaceAll("USERNAME", username);
+    expCmd = expCmd.replaceAll("TEST_DIR_ABSOLUTE", testDirAbsolute);
     
     return expCmd;
   }

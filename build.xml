@@ -1016,6 +1016,11 @@
         <syspropertyset id="FaultProbabilityProperties">
           <propertyref regex="fi.*" />
         </syspropertyset>
+        <syspropertyset id="TestCLIProperties">
+          <propertyref regex="test.cli.*" />
+          <propertyref name="fs.default.name" />
+          <propertyref name="mapred.job.tracker" />
+        </syspropertyset>
         <formatter type="${test.junit.output.format}" />
         <batchtest todir="@{test.dir}" if="tests.notestcase">
           <fileset dir="@{fileset.dir}"
