@@ -120,7 +120,7 @@
       <sysproperty key="user.dir" value="${build.test}/data"/>
       <sysproperty key="hadoop.log.dir" value="${hadoop.log.dir}"/>
       <sysproperty key="test.src.dir" value="${test.src.dir}"/>
-      <formatter type="plain" />
+      <formatter type="${test.junit.output.format}" />
       <batchtest todir="${build.test}" unless="testcase">
         <fileset dir="${src.test}">
           <include name="**/Test*.java"/>
