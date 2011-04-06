@@ -752,8 +752,8 @@ public class Client {
           public void run() {
             DataOutputBuffer d = null;
 
-            synchronized (Connection.this.out) {
-              try {
+            try {
+              synchronized (Connection.this.out) {
                 if (shouldCloseConnection.get()) {
                   return;
                 }
@@ -771,14 +771,13 @@ public class Client {
                 out.writeInt(dataLength);      //first put the data length
                 out.write(data, 0, dataLength);//write the data
                 out.flush();
-
-              } catch (IOException e) {
-                markClosed(e);
-              } finally {
-                //the buffer is just an in-memory buffer, but it is still polite to
-                // close early
-                IOUtils.closeStream(d);
               }
+            } catch (IOException e) {
+              markClosed(e);
+            } finally {
+              //the buffer is just an in-memory buffer, but it is still polite to
+              // close early
+              IOUtils.closeStream(d);
             }
           }
         });
