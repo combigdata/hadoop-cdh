@@ -20,6 +20,8 @@ package org.apache.hadoop.mapred;
 import org.apache.hadoop.fs.*;
 import org.apache.hadoop.io.*;
 import org.apache.hadoop.mapred.lib.*;
+import org.apache.hadoop.mapreduce.MapReduceTestUtil;
+
 import junit.framework.TestCase;
 import java.text.NumberFormat;
 
@@ -113,7 +115,7 @@ private static NumberFormat idFormat = NumberFormat.getInstance();
     //
     boolean success = true;
     Path outPath = new Path(OUTPUT_DIR, "part-00000");
-    String outdata = TestMiniMRWithDFS.readOutput(outPath,job);
+    String outdata = MapReduceTestUtil.readOutput(outPath,job);
 
     assertEquals(expectedOutput.toString(),outdata);
     fs.delete(OUTPUT_DIR, true);
