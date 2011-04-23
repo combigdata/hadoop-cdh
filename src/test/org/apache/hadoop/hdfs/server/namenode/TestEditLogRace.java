@@ -262,7 +262,7 @@ public class TestEditLogRace extends TestCase {
         } catch (InterruptedException e) {}
 
         LOG.info("Save " + i + ": entering safe mode");
-        namesystem.enterSafeMode();
+        namesystem.enterSafeMode(false);
 
         // Verify edit logs before the save
         verifyEditLogs(fsimage);
