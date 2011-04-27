@@ -30,16 +30,14 @@ import org.apache.hadoop.hdfs.server.common.HdfsConstants.StartupOption;
 import org.apache.hadoop.hdfs.server.namenode.FSNamesystem.NameNodeResourceMonitor;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class TestNameNodeResourceChecker {
-  private static final int BIG_TMP_FILE_SIZE = 1024 * 1024 * 20; // 20MB
-
   private Configuration conf;
-  private byte[] bigBuffer = new byte[BIG_TMP_FILE_SIZE];
   private File baseDir;
   private File nameDir;
 
@@ -51,11 +49,6 @@ public class TestNameNodeResourceChecker {
     nameDir.mkdirs();
     conf.set("dfs.name.dir", nameDir.getAbsolutePath());
     conf.set("dfs.name.edits.dir", nameDir.getAbsolutePath());
-
-    // Initialize bigBuffer to non-zero values so we don't make a sparse file.
-    for(int i = 0; i < bigBuffer.length; i++) {
-      bigBuffer[i] = 0x01;
-    }
   }
 
   /**
@@ -102,15 +95,16 @@ public class TestNameNodeResourceChecker {
   public void testCheckThatNameNodeResourceMonitorIsRunning()
       throws IOException, InterruptedException {
     MiniDFSCluster cluster = null;
-    File bigTmpFile = File.createTempFile("nnrm-big-tmp-file", null, baseDir);
     try {
       conf.set("dfs.name.dir", nameDir.getAbsolutePath());
-      conf.setLong(DFSConfigKeys.DFS_NAMENODE_RESOURCE_CHECK_INTERVAL_KEY, 0);
-      DF df = new DF(nameDir, conf);
-      conf.setLong(DFSConfigKeys.DFS_NAMENODE_DU_RESERVED_KEY,
-          df.getAvailable() - (BIG_TMP_FILE_SIZE / 2));
+      conf.setLong(DFSConfigKeys.DFS_NAMENODE_RESOURCE_CHECK_INTERVAL_KEY, 1);
       
       cluster = new MiniDFSCluster(conf, 1, true, null);
+
+      NameNodeResourceChecker mockResourceChecker = Mockito.mock(NameNodeResourceChecker.class);
+      Mockito.when(mockResourceChecker.hasAvailableDiskSpace()).thenReturn(true);
+      cluster.getNameNode().getNamesystem().nnResourceChecker = mockResourceChecker;
+
       cluster.waitActive();
 
       String name = NameNodeResourceMonitor.class.getName();
@@ -120,6 +114,7 @@ public class TestNameNodeResourceChecker {
       for (Thread runningThread : runningThreads) {
         if (runningThread.toString().startsWith("Thread[" + name)) {
           isNameNodeMonitorRunning = true;
+          break;
         }
       }
       assertTrue("NN resource monitor should be running",
@@ -127,7 +122,7 @@ public class TestNameNodeResourceChecker {
       assertFalse("NN should not presently be in safe mode",
           cluster.getNameNode().isInSafeMode());
       
-      new FileOutputStream(bigTmpFile).write(bigBuffer);
+      Mockito.when(mockResourceChecker.hasAvailableDiskSpace()).thenReturn(false);
 
       // Make sure the NNRM thread has a chance to run.
       long startMillis = System.currentTimeMillis();
@@ -141,8 +136,6 @@ public class TestNameNodeResourceChecker {
     } finally {
       if (cluster != null)
         cluster.shutdown();
-      if (bigTmpFile != null)
-        bigTmpFile.delete();
     }
   }
 

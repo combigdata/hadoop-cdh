@@ -280,7 +280,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean,
   //resourceRecheckInterval is how often namenode checks for the disk space availability
   private long resourceRecheckInterval;
   // The actual resource checker instance.
-  private NameNodeResourceChecker nnResourceChecker;
+  NameNodeResourceChecker nnResourceChecker;
 
   /**
    * Last block index used for replication work.
