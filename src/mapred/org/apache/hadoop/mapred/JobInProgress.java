@@ -422,6 +422,13 @@ public class JobInProgress {
             jobId.toString(), desc);
         throw new IOException(desc);
       }
+
+      String userGroups[] = userUGI.getGroupNames();
+      String primaryGroup = (userGroups.length > 0) ? userGroups[0] : null;
+      if (primaryGroup != null) {
+        conf.set("group.name", primaryGroup);
+      }
+
       this.priority = conf.getJobPriority();
       this.status.setJobPriority(this.priority);
       this.profile = new JobProfile(user, jobId, 
