@@ -127,7 +127,14 @@ public class FSEditLog {
     private FileChannel fc;         // channel of the file stream for sync
     private DataOutputBuffer bufCurrent;  // current buffer for writing
     private DataOutputBuffer bufReady;    // buffer ready for flushing
-    static ByteBuffer fill = ByteBuffer.allocateDirect(512); // preallocation
+    static ByteBuffer fill = ByteBuffer.allocateDirect(1024 * 1024); // preallocation, 1MB
+
+    static {
+      fill.position(0);
+      for (int i = 0; i < fill.capacity(); i++) {
+        fill.put(OP_INVALID);
+      }
+    }
 
     EditLogFileOutputStream(File name) throws IOException {
       super();
@@ -234,12 +241,11 @@ public class FSEditLog {
       if (position + 4096 >= fc.size()) {
         FSNamesystem.LOG.debug("Preallocating Edit log, current size " +
                                 fc.size());
-        long newsize = position + 1024*1024; // 1MB
         fill.position(0);
-        int written = fc.write(fill, newsize);
+        int written = fc.write(fill, position);
         FSNamesystem.LOG.debug("Edit log size is now " + fc.size() +
                               " written " + written + " bytes " +
-                              " at offset " +  newsize);
+                              " at offset " + position);
       }
     }
     
