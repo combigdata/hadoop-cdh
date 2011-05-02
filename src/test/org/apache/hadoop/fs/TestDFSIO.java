@@ -137,7 +137,10 @@ public class TestDFSIO extends Configured implements Tool {
   }
 
   public TestDFSIO() {
-    this.config = new Configuration();
+    Configuration conf = new Configuration();
+    conf.set("test.build.data",
+        System.getProperty("test.build.data", "/benchmarks/TestDFSIO"));
+    this.config = conf;
   }
 
   private static String getBaseDir(Configuration conf) {
