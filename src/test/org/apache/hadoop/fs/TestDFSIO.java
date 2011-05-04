@@ -137,10 +137,7 @@ public class TestDFSIO extends Configured implements Tool {
   }
 
   public TestDFSIO() {
-    Configuration conf = new Configuration();
-    conf.set("test.build.data",
-        System.getProperty("test.build.data", "/benchmarks/TestDFSIO"));
-    this.config = conf;
+    this.config = new Configuration();
   }
 
   private static String getBaseDir(Configuration conf) {
@@ -628,5 +625,15 @@ public class TestDFSIO extends Configured implements Tool {
 
   static float toMB(long bytes) {
     return ((float)bytes)/MEGA;
+  }
+
+  @Override // Configurable
+  public Configuration getConf() {
+    return this.config;
+  }
+
+  @Override // Configurable
+  public void setConf(Configuration conf) {
+    this.config = conf;
   }
 }
