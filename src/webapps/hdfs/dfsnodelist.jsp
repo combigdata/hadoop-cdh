@@ -155,7 +155,8 @@ to interact with datanodes.
 					ServletUtil.percentageGraph( (int)Double.parseDouble(percentUsed) , 100) +
 					"<td align=\"right\" class=\"pcremaining`\">" + percentRemaining +
 					"<td title=" + "\"blocks scheduled : " + d.getBlocksScheduled() + 
-					"\" class=\"blocks\">" + d.numBlocks() + "\n");
+					"\" class=\"blocks\">" + d.numBlocks() +
+					"<td class=\"volfails\">" + d.getVolumeFailures() + "\n");
 }
 
 
@@ -246,7 +247,8 @@ throws IOException {
 						NodeHeaderStr("pcused") + "> Used <br>(%) <th " + 
 						NodeHeaderStr("pcused") + "> Used <br>(%) <th " +
 						NodeHeaderStr("pcremaining") + "> Remaining <br>(%) <th " +
-						NodeHeaderStr("blocks") + "> Blocks\n" );
+						NodeHeaderStr("blocks") + "> Blocks <th " +
+						NodeHeaderStr("volfails") + "> Failed Volumes\n" );
 
 				jspHelper.sortNodeList(live, sorterField, sorterOrder);
 				for ( int i=0; i < live.size(); i++ ) {
