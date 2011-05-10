@@ -35,10 +35,40 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.util.DiskChecker;
 import org.apache.hadoop.hdfs.security.token.block.BlockTokenSecretManager;
 
-import junit.framework.TestCase;
+import org.junit.Test;
+import org.junit.Before;
+import org.junit.After;
+import static org.junit.Assert.*;
 
-/** Test if a datanode can correctly handle errors during block read/write*/
-public class TestDiskError extends TestCase {
+/**
+ * Test that datanodes can correctly handle errors during block read/write.
+ */
+public class TestDiskError {
+
+  private FileSystem fs;
+  private MiniDFSCluster cluster;
+  private Configuration conf;
+  private String dataDir;
+
+  @Before
+  public void setUp() throws Exception {
+    conf = new Configuration();
+    conf.setLong("dfs.block.size", 512L);
+    cluster = new MiniDFSCluster(conf, 1, true, null);
+    cluster.waitActive();
+    fs = cluster.getFileSystem();
+    dataDir = cluster.getDataDirectory();
+  }
+
+  @After
+  public void tearDown() throws Exception {
+    cluster.shutdown();
+  }
+
+  /**
+   * Test to check that a DN goes down when all its volumes have failed.
+   */
+  @Test
   public void testShutdown() throws Exception {
     if (System.getProperty("os.name").startsWith("Windows")) {
       /**
@@ -49,20 +79,17 @@ public class TestDiskError extends TestCase {
        */
       return;
     }
-    // bring up a cluster of 3
-    Configuration conf = new Configuration();
-    conf.setLong("dfs.block.size", 512L);
-    MiniDFSCluster cluster = new MiniDFSCluster(conf, 3, true, null);
+    // Bring up two more datanodes
+    cluster.startDataNodes(conf, 2, true, null, null);
     cluster.waitActive();
-    FileSystem fs = cluster.getFileSystem();
     final int dnIndex = 0;
     String dataDir = cluster.getDataDirectory();
     File dir1 = new File(new File(dataDir, "data"+(2*dnIndex+1)), "blocksBeingWritten");
     File dir2 = new File(new File(dataDir, "data"+(2*dnIndex+2)), "blocksBeingWritten");
     try {
       // make the data directory of the first datanode to be readonly
-      assertTrue(dir1.setReadOnly());
-      assertTrue(dir2.setReadOnly());
+      assertTrue("Couldn't chmod local vol", dir1.setReadOnly());
+      assertTrue("Couldn't chmod local vol", dir2.setReadOnly());
 
       // create files and make sure that first datanode will be down
       DataNode dn = cluster.getDataNodes().get(dnIndex);
@@ -76,109 +103,98 @@ public class TestDiskError extends TestCase {
       // restore its old permission
       dir1.setWritable(true);
       dir2.setWritable(true);
-      cluster.shutdown();
     }
   }
-  
-  public void testReplicationError() throws Exception {
-    // bring up a cluster of 1
-    Configuration conf = new Configuration();
-    MiniDFSCluster cluster = new MiniDFSCluster(conf, 1, true, null);
-    cluster.waitActive();
-    FileSystem fs = cluster.getFileSystem();
-    
-    try {
-      // create a file of replication factor of 1
-      final Path fileName = new Path("/test.txt");
-      final int fileLen = 1;
-      DFSTestUtil.createFile(fs, fileName, 1, (short)1, 1L);
-      DFSTestUtil.waitReplication(fs, fileName, (short)1);
 
-      // get the block belonged to the created file
-      LocatedBlocks blocks = cluster.getNameNode().namesystem.getBlockLocations(
-          fileName.toString(), 0, (long)fileLen);
-      assertEquals(blocks.locatedBlockCount(), 1);
-      LocatedBlock block = blocks.get(0);
+  /**
+   * Test that when there is a failure replicating a block the temporary
+   * and meta files are cleaned up and subsequent replication succeeds.
+   */
+  @Test
+  public void testReplicationError() throws Exception {
+    // Bring up two more datanodes
+    cluster.startDataNodes(conf, 2, true, null, null);
+    cluster.waitActive();
+    
+    // create a file of replication factor of 1
+    final Path fileName = new Path("/test.txt");
+    final int fileLen = 1;
+    DFSTestUtil.createFile(fs, fileName, 1, (short)1, 1L);
+    DFSTestUtil.waitReplication(fs, fileName, (short)1);
+
+    // get the block belonged to the created file
+    LocatedBlocks blocks = cluster.getNameNode().namesystem.getBlockLocations(
+      fileName.toString(), 0, (long)fileLen);
+    assertEquals(blocks.locatedBlockCount(), 1);
+    LocatedBlock block = blocks.get(0);
       
-      // bring up a second datanode
-      cluster.startDataNodes(conf, 1, true, null, null);
-      cluster.waitActive();
-      final int sndNode = 1;
-      DataNode datanode = cluster.getDataNodes().get(sndNode);
+    // bring up a second datanode
+    cluster.startDataNodes(conf, 1, true, null, null);
+    cluster.waitActive();
+    final int sndNode = 1;
+    DataNode datanode = cluster.getDataNodes().get(sndNode);
       
-      // replicate the block to the second datanode
-      InetSocketAddress target = datanode.getSelfAddr();
-      Socket s = new Socket(target.getAddress(), target.getPort());
-        //write the header.
-      DataOutputStream out = new DataOutputStream(
+    // replicate the block to the second datanode
+    InetSocketAddress target = datanode.getSelfAddr();
+    Socket s = new Socket(target.getAddress(), target.getPort());
+    //write the header.
+    DataOutputStream out = new DataOutputStream(
           s.getOutputStream());
 
-      out.writeShort( DataTransferProtocol.DATA_TRANSFER_VERSION );
-      out.write( DataTransferProtocol.OP_WRITE_BLOCK );
-      out.writeLong( block.getBlock().getBlockId());
-      out.writeLong( block.getBlock().getGenerationStamp() );
-      out.writeInt(1);
-      out.writeBoolean( false );       // recovery flag
-      Text.writeString( out, "" );
-      out.writeBoolean(false); // Not sending src node information
-      out.writeInt(0);
-      BlockTokenSecretManager.DUMMY_TOKEN.write(out);
+    out.writeShort( DataTransferProtocol.DATA_TRANSFER_VERSION );
+    out.write( DataTransferProtocol.OP_WRITE_BLOCK );
+    out.writeLong( block.getBlock().getBlockId());
+    out.writeLong( block.getBlock().getGenerationStamp() );
+    out.writeInt(1);
+    out.writeBoolean( false );       // recovery flag
+    Text.writeString( out, "" );
+    out.writeBoolean(false); // Not sending src node information
+    out.writeInt(0);
+    BlockTokenSecretManager.DUMMY_TOKEN.write(out);
       
-      // write check header
-      out.writeByte( 1 );
-      out.writeInt( 512 );
+    // write check header
+    out.writeByte( 1 );
+    out.writeInt( 512 );
+    out.flush();
 
-      out.flush();
-
-      // close the connection before sending the content of the block
-      out.close();
+    // close the connection before sending the content of the block
+    out.close();
       
-      // the temporary block & meta files should be deleted
-      String dataDir = cluster.getDataDirectory();
-      File dir1 = new File(new File(dataDir, "data"+(2*sndNode+1)), "tmp");
-      File dir2 = new File(new File(dataDir, "data"+(2*sndNode+2)), "tmp");
-      while (dir1.listFiles().length != 0 || dir2.listFiles().length != 0) {
-        Thread.sleep(100);
-      }
-      
-      // then increase the file's replication factor
-      fs.setReplication(fileName, (short)2);
-      // replication should succeed
-      DFSTestUtil.waitReplication(fs, fileName, (short)1);
-      
-      // clean up the file
-      fs.delete(fileName, false);
-    } finally {
-      cluster.shutdown();
+    // the temporary block & meta files should be deleted
+    String dataDir = cluster.getDataDirectory();
+    File dir1 = new File(new File(dataDir, "data"+(2*sndNode+1)), "tmp");
+    File dir2 = new File(new File(dataDir, "data"+(2*sndNode+2)), "tmp");
+    while (dir1.listFiles().length != 0 || dir2.listFiles().length != 0) {
+      Thread.sleep(100);
     }
+      
+    // then increase the file's replication factor
+    fs.setReplication(fileName, (short)2);
+    // replication should succeed
+    DFSTestUtil.waitReplication(fs, fileName, (short)1);
+      
+    // clean up the file
+    fs.delete(fileName, false);
   }
-  
+
+  /**
+   * Check that the permissions of the local DN directories are as expected.
+   */
+  @Test
   public void testLocalDirs() throws Exception {
-    Configuration conf = new Configuration();
     final String permStr = conf.get(
       DataNode.DATA_DIR_PERMISSION_KEY);
     FsPermission expected = new FsPermission(permStr);
-    MiniDFSCluster cluster = null; 
     
-    try {
-      // Start the cluster
-      cluster = new MiniDFSCluster(conf, 1, true, null);
-      cluster.waitActive();
-      
-      // Check permissions on directories in 'dfs.data.dir'
-      FileSystem localFS = FileSystem.getLocal(conf);
-      for (DataNode dn : cluster.getDataNodes()) {
-        String[] dataDirs = dn.getConf().getStrings(DataNode.DATA_DIR_KEY);
-        for (String dir : dataDirs) {
-          Path dataDir = new Path(dir);
-          FsPermission actual = localFS.getFileStatus(dataDir).getPermission();
-          assertEquals("Permission for dir: " + dataDir, expected, actual);
-        }
+    // Check permissions on directories in 'dfs.data.dir'
+    FileSystem localFS = FileSystem.getLocal(conf);
+    for (DataNode dn : cluster.getDataNodes()) {
+      String[] dataDirs = dn.getConf().getStrings(DataNode.DATA_DIR_KEY);
+      for (String dir : dataDirs) {
+        Path dataDir = new Path(dir);
+        FsPermission actual = localFS.getFileStatus(dataDir).getPermission();
+        assertEquals("Permission for dir: " + dataDir, expected, actual);
       }
-    } finally {
-      if (cluster != null)
-        cluster.shutdown();
     }
-    
   }
 }

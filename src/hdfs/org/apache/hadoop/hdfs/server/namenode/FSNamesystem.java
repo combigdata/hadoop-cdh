@@ -2715,6 +2715,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean,
    * The datanode will be informed of this work at the next heartbeat.
    * 
    * @return number of blocks scheduled for replication or removal.
+   * @throws IOException
    */
   public int computeDatanodeWork() throws IOException {
     int workFound = 0;
@@ -3118,8 +3119,25 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean,
   }
 
   /**
-   * remove a datanode descriptor
-   * @param nodeID datanode ID
+   * Update the descriptor for the datanode to reflect a volume failure.
+   * @param nodeID DatanodeID to update count for.
+   * @throws IOException
+   */
+  synchronized public void incVolumeFailure(DatanodeID nodeID)
+    throws IOException {
+    DatanodeDescriptor nodeInfo = getDatanode(nodeID);
+    if (nodeInfo != null) {
+      nodeInfo.incVolumeFailure();
+    } else {
+      NameNode.stateChangeLog.warn("BLOCK* NameSystem.incVolumeFailure: "
+                                   + nodeID.getName() + " does not exist");
+    }
+  }
+
+  /**
+   * Remove a datanode descriptor.
+   * @param nodeID datanode ID.
+   * @throws IOException
    */
   synchronized public void removeDatanode(DatanodeID nodeID) 
     throws IOException {
@@ -3133,8 +3151,8 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean,
   }
   
   /**
-   * remove a datanode descriptor
-   * @param nodeInfo datanode descriptor
+   * Remove a datanode descriptor.
+   * @param nodeInfo datanode descriptor.
    */
   private void removeDatanode(DatanodeDescriptor nodeInfo) {
     synchronized (heartbeats) {
@@ -3180,8 +3198,9 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean,
 
   /**
    * Physically remove node from datanodeMap.
-   * 
+   *
    * @param nodeID node
+   * @throws IOException
    */
   void wipeDatanode(DatanodeID nodeID) throws IOException {
     String key = nodeID.getStorageID();

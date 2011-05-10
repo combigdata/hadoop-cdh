@@ -828,6 +828,7 @@ public class DataNode extends Configured
     // shutdown the DN completely.
     int dpError = hasEnoughResources ? DatanodeProtocol.DISK_ERROR  
                                      : DatanodeProtocol.FATAL_DISK_ERROR; 
+    myMetrics.volumesFailed.inc(1);
     try {
       namenode.errorReport(dnRegistration, dpError, errMsgr);
     } catch(IOException ignored) {
