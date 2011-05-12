@@ -516,6 +516,7 @@ public class FSEditLog {
     PositionTrackingInputStream tracker = 
       new PositionTrackingInputStream(new BufferedInputStream(edits));
     long recentOpcodeOffsets[] = new long[4];
+    Arrays.fill(recentOpcodeOffsets, -1);
 
     DataInputStream in = new DataInputStream(tracker);
     try {
@@ -862,21 +863,23 @@ public class FSEditLog {
         }
         }
       }
-    } catch (IOException ioe) {
-      FSImage.LOG.error("Error replaying edit log at offset " +
-        tracker.getPos());
-      Arrays.sort(recentOpcodeOffsets);
+    } catch (Throwable t) {
+      // Catch Throwable because in the case of a truly corrupt edits log, any
+      // sort of error might be thrown (NumberFormat, NullPointer, EOF, etc.)
       StringBuilder sb = new StringBuilder();
-      for (long offset : recentOpcodeOffsets) {
-        if (offset != 0) {
-          sb.append(' ').append(offset);
+      sb.append("Error replaying edit log at offset " + tracker.getPos());
+      if (recentOpcodeOffsets[0] != -1) {
+        Arrays.sort(recentOpcodeOffsets);
+        sb.append("\nRecent opcode offsets:");
+        for (long offset : recentOpcodeOffsets) {
+          if (offset != -1) {
+            sb.append(' ').append(offset);
+          }
         }
       }
-      if (!sb.toString().isEmpty()) {
-        FSImage.LOG.error("Last 4 opcodes at offsets:" +
-          sb);
-      }
-      throw ioe;
+      String errorMessage = sb.toString();
+      FSImage.LOG.error(errorMessage);
+      throw new IOException(errorMessage, t);
     } finally {
       in.close();
     }
