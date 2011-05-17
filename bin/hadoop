@@ -83,6 +83,8 @@ if [ $# = 0 ]; then
   echo "  archive -archiveName NAME -p <parent path> <src>* <dest> create a hadoop archive"
   echo "  oiv                  apply the offline fsimage viewer to an fsimage"
   echo "  classpath            prints the class path needed to get the"
+  echo "  dfsgroups            get the groups which users belong to on the Name Node"
+  echo "  mrgroups             get the groups which users belong to on the Job Tracker"
   echo "                       Hadoop jar and the required libraries"
   echo "  daemonlog            get/set the log level for each daemon"
   echo " or"
@@ -269,6 +271,12 @@ elif [ "$COMMAND" = "oiv" ] ; then
   HADOOP_OPTS="$HADOOP_OPTS $HADOOP_CLIENT_OPTS"
 elif [ "$COMMAND" = "sampler" ] ; then
   CLASS=org.apache.hadoop.mapred.lib.InputSampler
+  HADOOP_OPTS="$HADOOP_OPTS $HADOOP_CLIENT_OPTS"
+elif [ "$COMMAND" = "dfsgroups" ] ; then
+  CLASS=org.apache.hadoop.hdfs.tools.GetGroups
+  HADOOP_OPTS="$HADOOP_OPTS $HADOOP_CLIENT_OPTS"
+elif [ "$COMMAND" = "mrgroups" ] ; then
+  CLASS=org.apache.hadoop.mapred.tools.GetGroups
   HADOOP_OPTS="$HADOOP_OPTS $HADOOP_CLIENT_OPTS"
 else
   CLASS=$COMMAND
