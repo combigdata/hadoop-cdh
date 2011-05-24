@@ -2036,9 +2036,13 @@ public class JobClient extends Configured implements MRConstants, Tool  {
   private void readTokensFromFiles(Configuration conf, Credentials credentials
                                    ) throws IOException {
     // add tokens and secrets coming from a token storage file
-    String tokenPath = conf.get("mapreduce.job.credentials.binary");
-    if (tokenPath != null) {
-      credentials.addAll(Credentials.readTokenStorageFiles(tokenPath, conf));
+    String binaryTokenFilename =
+      conf.get("mapreduce.job.credentials.binary");
+    if (binaryTokenFilename != null) {
+      Credentials binary = 
+        Credentials.readTokenStorageFile(new Path("file:///" +  
+                                                  binaryTokenFilename), conf);
+      credentials.addAll(binary);
     }
     // add secret keys coming from a json file
     String tokensFileName = conf.get("mapreduce.job.credentials.json");
