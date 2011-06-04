@@ -576,7 +576,41 @@
     </antcall> 
   </target>
 
-  <target name="compile-core-native" depends="compile-core-classes"
+  <target name="check-native-configure" if="compile.native">
+    <condition property="need.native.configure">
+       <not> <available file="${native.src.dir}/configure"/> </not>
+    </condition>
+  </target>
+
+  <target name="create-native-configure" depends="check-native-configure" if="need.native.configure">
+    <mkdir dir="${native.src.dir}/config"/>
+    <mkdir dir="${native.src.dir}/m4"/>
+    <exec executable="autoreconf" dir="${native.src.dir}"
+          searchpath="yes" failonerror="yes">
+       <arg value="-i"/>
+       <arg value="-f"/>
+    </exec>
+  </target>
+
+  <target name="check-native-makefile" if="compile.native">
+    <condition property="need.native.makefile">
+       <not> <available file="${native.src.dir}/Makefile"/> </not>
+    </condition>
+  </target>
+
+  <target name="create-native-makefile" depends="check-native-makefile" if="need.native.makefile">
+    <antcall target="create-native-configure"/>
+    <mkdir dir="${build.native}"/>
+    <exec dir="${build.native}" executable="sh" failonerror="true">
+          <env key="OS_NAME" value="${os.name}"/>
+          <env key="OS_ARCH" value="${os.arch}"/>
+          <env key="JVM_DATA_MODEL" value="${sun.arch.data.model}"/>
+          <env key="HADOOP_NATIVE_SRCDIR" value="${native.src.dir}"/>
+          <arg line="${native.src.dir}/configure"/>
+    </exec>
+  </target>
+
+  <target name="compile-core-native" depends="compile-core-classes,create-native-makefile"
           if="compile.native">
   	
     <mkdir dir="${build.native}/lib"/>
@@ -610,14 +644,6 @@
           <class name="org.apache.hadoop.security.JniBasedUnixGroupsMapping" />
           <class name="org.apache.hadoop.security.JniBasedUnixGroupsNetgroupMapping" />
   	</javah>
-
-	<exec dir="${build.native}" executable="sh" failonerror="true">
-	  <env key="OS_NAME" value="${os.name}"/>
-	  <env key="OS_ARCH" value="${os.arch}"/>
-	  <env key="JVM_DATA_MODEL" value="${sun.arch.data.model}"/>
-	  <env key="HADOOP_NATIVE_SRCDIR" value="${native.src.dir}"/>
-	  <arg line="${native.src.dir}/configure"/>
-    </exec>
 
     <exec dir="${build.native}" executable="${make.cmd}" failonerror="true">
       <env key="OS_NAME" value="${os.name}"/>
@@ -1382,6 +1408,17 @@
     </copy>
 
     <chmod perm="ugo+x" type="file" parallel="false">
+        <fileset file="${dist.dir}/src/examples/pipes/configure"/>
+        <fileset file="${dist.dir}/src/c++/utils/configure"/>
+        <fileset file="${dist.dir}/src/c++/pipes/configure"/>
+        <fileset file="${dist.dir}/src/c++/task-controller/configure"/>
+        <fileset file="${dist.dir}/src/c++/task-controller/configure"/>
+        <fileset file="${dist.dir}/src/c++/task-controller/configure"/>
+        <fileset file="${dist.dir}/src/c++/libhdfs/configure"/>        
+        <fileset file="${dist.dir}/src/c++/libhdfs/configure"/>
+    </chmod>
+
+    <chmod perm="ugo+x" type="file" parallel="false">
         <fileset dir="${dist.dir}/src/contrib/">
           <include name="*/bin/*" />
         </fileset>
@@ -1401,20 +1438,30 @@
       <param.listofitems>
         <tarfileset dir="${build.dir}" mode="664">
           <exclude name="${final.name}/bin/*" />
-          <exclude name="${final.name}/sbin/**" />
           <exclude name="${final.name}/contrib/*/bin/*" />
           <exclude name="${final.name}/src/contrib/ec2/bin/*" />
           <exclude name="${final.name}/src/contrib/ec2/bin/image/*" />
           <exclude name="${final.name}/src/contrib/cloud/src/py/hadoop-*" />
+          <exclude name="${final.name}/src/c++/libhdfs/configure" />
+          <exclude name="${final.name}/src/c++/libhdfs/configure" />
+          <exclude name="${final.name}/src/examples/pipes/configure"/>
+          <exclude name="${final.name}/src/c++/utils/configure"/>
+          <exclude name="${final.name}/src/c++/pipes/configure"/>
+          <exclude name="${final.name}/src/c++/task-controller/configure"/>
           <include name="${final.name}/**" />
         </tarfileset>
         <tarfileset dir="${build.dir}" mode="755">
           <include name="${final.name}/bin/*" />
-          <include name="${final.name}/sbin/**" />
           <include name="${final.name}/contrib/*/bin/*" />
           <include name="${final.name}/src/contrib/ec2/bin/*" />
           <include name="${final.name}/src/contrib/ec2/bin/image/*" />
           <include name="${final.name}/src/contrib/cloud/src/py/hadoop-*" />
+          <include name="${final.name}/src/c++/libhdfs/configure" />
+          <include name="${final.name}/src/c++/libhdfs/configure" />
+          <include name="${final.name}/src/examples/pipes/configure"/>
+          <include name="${final.name}/src/c++/utils/configure"/>
+          <include name="${final.name}/src/c++/pipes/configure"/>
+          <include name="${final.name}/src/c++/task-controller/configure"/>
         </tarfileset>
       </param.listofitems>
     </macro_tar>
@@ -1425,7 +1472,7 @@
     <copy-native-package />
   </target>
 
-  <target name="bin-package" depends="compile, jar, examples, tools-jar, jar-test, ant-tasks, package-librecordio" 
+  <target name="bin-package" depends="create-native-configure, create-libhdfs-configure, create-c++-configure, compile, jar, examples, tools-jar, jar-test, ant-tasks, package-librecordio" 
 		description="assembles artifacts for binary target">
 
     <mkdir dir="${dist.dir}"/>
@@ -1524,14 +1571,12 @@
         <param.listofitems>
           <tarfileset dir="${system-test-build-dir}" mode="664">
             <exclude name="${final.name}/bin/*" />
-            <exclude name="${final.name}/sbin/**" />
             <exclude name="${final.name}/src/**" />
             <exclude name="${final.name}/docs/**" />
             <include name="${final.name}/**" />
           </tarfileset>
           <tarfileset dir="${build.dir}" mode="755">
             <include name="${final.name}/bin/*" />
-            <include name="${final.name}/sbin/**" />
           </tarfileset>
         </param.listofitems>
       </macro_tar>
@@ -1542,14 +1587,12 @@
       <param.listofitems>
         <tarfileset dir="${build.dir}" mode="664">
           <exclude name="${final.name}/bin/*" />
-          <exclude name="${final.name}/sbin/*" />
           <exclude name="${final.name}/src/**" />
           <exclude name="${final.name}/docs/**" />
           <include name="${final.name}/**" />
         </tarfileset>
         <tarfileset dir="${build.dir}" mode="755">
           <include name="${final.name}/bin/*" />
-          <include name="${final.name}/sbin/**" />
         </tarfileset>
       </param.listofitems>
     </macro_tar>
@@ -1657,28 +1700,77 @@
        <fileset dir="${dist.dir}/librecordio"/>
     </chmod>
   </target>
+
+  <target name="check-libhdfs-configure" depends="init,check-c++-libhdfs" if="islibhdfs">
+    <condition property="need.libhdfs.configure">
+       <not> <available file="${c++.libhdfs.src}/configure"/> </not>
+    </condition>
+  </target>
+
+
+  <target name="check-c++-configure" depends="init" if="compile.c++">
+    <condition property="need.c++.utils.configure">
+       <not> <available file="${c++.utils.src}/configure"/> </not>
+    </condition>
+    <condition property="need.c++.pipes.configure">
+       <not> <available file="${c++.pipes.src}/configure"/> </not>
+    </condition>
+    <condition property="need.c++.examples.pipes.configure">
+       <not> <available file="${c++.examples.pipes.src}/configure"/> </not>
+    </condition>
+    <condition property="need.c++.task-controller.configure">
+       <not> <available file="${c++.task-controller.src}/configure"/> </not>
+    </condition>
+  </target>
+
+
+  <target name="create-libhdfs-configure" depends="check-libhdfs-configure" if="need.libhdfs.configure">
+    <mkdir dir="${c++.libhdfs.src}/config"/>
+    <exec executable="autoreconf" dir="${c++.libhdfs.src}"
+          searchpath="yes" failonerror="yes">
+       <arg value="-if"/>
+    </exec>
+  </target>
+
  
-  <target name="create-c++-configure" depends="init" if="compile.c++">
+  <target name="create-c++-utils-configure" depends="check-c++-configure"
+                                            if="need.c++.utils.configure">
     <exec executable="autoreconf" dir="${c++.utils.src}" searchpath="yes" 
           failonerror="yes">
        <arg value="-if"/>
     </exec>
+  </target>
+  
+  <target name="create-c++-pipes-configure" depends="check-c++-configure"
+                                            if="need.c++.pipes.configure">
     <exec executable="autoreconf" dir="${c++.pipes.src}" searchpath="yes" 
           failonerror="yes">
        <arg value="-if"/>
     </exec>
-    <exec executable="autoreconf" dir="${c++.examples.pipes.src}" 
-          searchpath="yes" failonerror="yes">
-       <arg value="-if"/>
-    </exec>
-    <antcall target="create-c++-configure-libhdfs"/>
   </target>
-   
-  <target name="create-c++-configure-libhdfs" depends="check-c++-libhdfs" if="islibhdfs">
-    <exec executable="autoreconf" dir="${c++.libhdfs.src}" 
+
+
+  <target name="create-c++-examples-pipes-configure" depends="check-c++-configure"
+                                            if="need.c++.examples.pipes.configure">
+    <exec executable="autoreconf" dir="${c++.examples.pipes.src}" searchpath="yes" 
+          failonerror="yes">
+       <arg value="-if"/>
+    </exec>
+  </target>
+
+  <target name="create-c++-task-controller-configure" depends="check-c++-configure"
+                                                      if="need.c++.task-controller.configure">
+    <exec executable="autoreconf" dir="${c++.task-controller.src}" 
           searchpath="yes" failonerror="yes">
        <arg value="-if"/>
     </exec>
+  </target>
+
+  <target name="create-c++-configure" depends="create-c++-utils-configure,
+                                               create-c++-pipes-configure,
+                                               create-c++-examples-pipes-configure,
+                                               create-c++-task-controller-configure"
+                                      if="compile.c++">
   </target>
 
   <target name="check-c++-makefiles" depends="init" if="compile.c++">
@@ -1702,26 +1794,28 @@
     </condition>
   </target>
 
-  <target name="check-c++-makefile-libhdfs" depends="init,check-c++-libhdfs" if="islibhdfs">
-    <condition property="need.c++.libhdfs.makefile">
+  <target name="check-libhdfs-makefile" depends="init,check-c++-libhdfs" if="islibhdfs">
+    <condition property="need.libhdfs.makefile">
        <not> <available file="${build.c++.libhdfs}/Makefile"/> </not>
     </condition>
   </target>
 
-  <target name="create-c++-libhdfs-makefile" depends="check-c++-makefile-libhdfs" 
-                                           if="need.c++.libhdfs.makefile">
+  <target name="create-libhdfs-makefile" depends="check-libhdfs-makefile" 
+                                           if="need.libhdfs.makefile">
+    <antcall target="create-libhdfs-configure"/>
     <mkdir dir="${build.c++.libhdfs}"/>
-    <chmod file="${c++.libhdfs.src}/configure" perm="ugo+x"/>
     <exec executable="${c++.libhdfs.src}/configure" dir="${build.c++.libhdfs}"
           failonerror="yes">
       <env key="ac_cv_func_malloc_0_nonnull" value="yes"/>
       <env key="JVM_ARCH" value="${jvm.arch}"/>
       <arg value="--prefix=${install.c++}"/>
+      <env key="base_dir" value="${basedir}"/>
     </exec>
   </target>
 
   <target name="create-c++-utils-makefile" depends="check-c++-makefiles" 
                                            if="need.c++.utils.makefile">
+    <antcall target="create-c++-utils-configure"/>
     <mkdir dir="${build.c++.utils}"/>
     <chmod file="${c++.utils.src}/configure" perm="ugo+x"/>
     <exec executable="${c++.utils.src}/configure" dir="${build.c++.utils}"
@@ -1740,6 +1834,7 @@
 
   <target name="create-c++-pipes-makefile" depends="check-c++-makefiles" 
                                            if="need.c++.pipes.makefile">
+    <antcall target="create-c++-pipes-configure"/>
     <mkdir dir="${build.c++.pipes}"/>
     <chmod file="${c++.pipes.src}/configure" perm="ugo+x"/>
     <exec executable="${c++.pipes.src}/configure" dir="${build.c++.pipes}"
@@ -1763,6 +1858,7 @@
   <target name="create-c++-examples-pipes-makefile" 
           depends="check-c++-makefiles" 
           if="need.c++.examples.pipes.makefile">
+    <antcall target="create-c++-examples-pipes-configure"/>
     <mkdir dir="${build.c++.examples.pipes}"/>
     <chmod file="${c++.examples.pipes.src}/configure" perm="ugo+x"/>
     <exec executable="${c++.examples.pipes.src}/configure" 
@@ -1786,7 +1882,7 @@
   <target name="compile-c++-examples" 
           depends="compile-c++-examples-pipes"/>
 
-  <target name="compile-c++-libhdfs" depends="create-c++-libhdfs-makefile" if="islibhdfs">
+  <target name="compile-c++-libhdfs" depends="create-libhdfs-makefile" if="islibhdfs">
     <exec executable="${make.cmd}" dir="${build.c++.libhdfs}" searchpath="yes"
           failonerror="yes">
       <env key="ac_cv_func_malloc_0_nonnull" value="yes"/>
@@ -2220,7 +2316,7 @@
     <exec executable="autoreconf" 
           dir="${c++.task-controller.src}"
           searchpath="yes" failonerror="yes">
-      <arg value="-i"/>
+      <arg value="-if"/>
     </exec>
     <mkdir dir="${build.c++.task-controller}" />
     <chmod file="${c++.task-controller.src}/configure" perm="ugo+x"/> 

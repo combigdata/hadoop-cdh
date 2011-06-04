@@ -49,22 +49,6 @@ RELEASE_DIR=$BIN_DIR/..
 
 cd $RELEASE_DIR
 
-if which aclocal-1.9 && which autoconf ; then
-  ant -Dreactor.repo=file://$HOME/.m2/repository -Dcompile.c++=true \
-    -Dcompile.native=true create-c++-configure
-fi
-
-if which libtoolize && libtoolize --version | grep --silent 2.2 ; then
-  for dir in src/native src/examples/pipes src/c++/libhdfs/ src/c++/pipes src/c++/utils ; do
-    (cd $dir && libtoolize --force)
-  done
-fi
-  
-for dir in src/native src/examples/pipes src/c++/libhdfs/ src/c++/pipes src/c++/utils ; do
-    (cd $dir && rm -rf autom4te.cache) 
-done
-
-
 JAVA_HOME=$JAVA32_HOME \
   CFLAGS=-m32 \
   CXXFLAGS=-m32 \

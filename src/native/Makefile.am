@@ -40,6 +40,8 @@ SUBDIRS = src/org/apache/hadoop/io/compress/zlib \
 # The following export is needed to build libhadoop.so in the 'lib' directory
 export SUBDIRS
 
+ACLOCAL_AMFLAGS = -I m4
+
 #
 #vim: sw=4: ts=4: noet
 #
