@@ -103,6 +103,7 @@ public class SecondaryNameNode implements Runnable {
       + "\nCheckpoint Dirs      : " + checkpointDirs
       + "\nCheckpoint Edits Dirs: " + checkpointEditsDirs;
   }
+  
   /**
    * Utility class to facilitate junit test error simulation.
    */
@@ -225,7 +226,7 @@ public class SecondaryNameNode implements Runnable {
             infoServer.addSslListener(secInfoSocAddr, conf, false, true);
           }
           
-          infoServer.setAttribute("secondary.name.node", this);
+          infoServer.setAttribute("secondary.name.node", SecondaryNameNode.this);
           infoServer.setAttribute("name.system.image", checkpointImage);
           infoServer.setAttribute(JspHelper.CURRENT_CONF, conf);
           infoServer.addInternalServlet("getimage", "/getimage",
