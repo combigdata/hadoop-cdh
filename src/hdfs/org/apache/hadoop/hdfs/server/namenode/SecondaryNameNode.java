@@ -26,6 +26,7 @@ import java.security.PrivilegedAction;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.Iterator;
 
 import org.apache.commons.logging.Log;
@@ -71,6 +72,9 @@ public class SecondaryNameNode implements Runnable {
   public static final Log LOG = 
     LogFactory.getLog(SecondaryNameNode.class.getName());
 
+  private final long starttime = System.currentTimeMillis();
+  private volatile long lastCheckpointTime = 0;
+
   private String fsName;
   private CheckpointStorage checkpointImage;
 
@@ -88,6 +92,17 @@ public class SecondaryNameNode implements Runnable {
   private long checkpointPeriod;	// in seconds
   private long checkpointSize;    // size (in MB) of current Edit Log
 
+  /** {@inheritDoc} */
+  public String toString() {
+    return getClass().getSimpleName() + " Status" 
+      + "\nName Node Address    : " + nameNodeAddr   
+      + "\nStart Time           : " + new Date(starttime)
+      + "\nLast Checkpoint Time : " + (lastCheckpointTime == 0? "--": new Date(lastCheckpointTime))
+      + "\nCheckpoint Period    : " + checkpointPeriod + " seconds"
+      + "\nCheckpoint Size      : " + checkpointSize + " MB"
+      + "\nCheckpoint Dirs      : " + checkpointDirs
+      + "\nCheckpoint Edits Dirs: " + checkpointEditsDirs;
+  }
   /**
    * Utility class to facilitate junit test error simulation.
    */
@@ -210,6 +225,7 @@ public class SecondaryNameNode implements Runnable {
             infoServer.addSslListener(secInfoSocAddr, conf, false, true);
           }
           
+          infoServer.setAttribute("secondary.name.node", this);
           infoServer.setAttribute("name.system.image", checkpointImage);
           infoServer.setAttribute(JspHelper.CURRENT_CONF, conf);
           infoServer.addInternalServlet("getimage", "/getimage",
@@ -286,7 +302,6 @@ public class SecondaryNameNode implements Runnable {
     // pending edit log.
     //
     long period = 5 * 60;              // 5 minutes
-    long lastCheckpointTime = 0;
     if (checkpointPeriod < period) {
       period = checkpointPeriod;
     }

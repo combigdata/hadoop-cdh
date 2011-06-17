@@ -517,6 +517,13 @@
      package="org.apache.hadoop.hdfs.server.datanode"
      webxml="${build.webapps}/datanode/WEB-INF/web.xml">
     </jsp-compile>
+
+    <jsp-compile
+     uriroot="${src.webapps}/secondary"
+     outputdir="${build.src}"
+     package="org.apache.hadoop.hdfs.server.namenode"
+     webxml="${build.webapps}/secondary/WEB-INF/web.xml">
+    </jsp-compile>
     
     <!-- generate package-info annotation file. This has to be done here
       so that the timestamp of package-info.java is newer than the timestamp
