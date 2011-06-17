@@ -15,7 +15,6 @@
 #
 #!/bin/sh
 
-aclocal
-automake -a
-autoconf
+rm -f configure
+autoreconf -if -v
 ./configure
