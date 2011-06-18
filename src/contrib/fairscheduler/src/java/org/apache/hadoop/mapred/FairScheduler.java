@@ -289,8 +289,7 @@ public class FairScheduler extends TaskScheduler {
     public void jobRemoved(JobInProgress job) {
       synchronized (FairScheduler.this) {
         eventLog.log("JOB_REMOVED", job.getJobID());
-        poolMgr.removeJob(job);
-        infos.remove(job);
+        jobNoLongerRunning(job);
       }
     }
   
@@ -603,8 +602,7 @@ public class FairScheduler extends TaskScheduler {
           }
         }
         for (JobInProgress job: toRemove) {
-          infos.remove(job);
-          poolMgr.removeJob(job);
+          jobNoLongerRunning(job);
         }
 
         updateRunnability(); // Set job runnability based on user/pool limits 
@@ -633,6 +631,16 @@ public class FairScheduler extends TaskScheduler {
           updatePreemptionVariables();
       }
     }
+  }
+
+  private void jobNoLongerRunning(JobInProgress job) {
+    assert Thread.holdsLock(this);
+    JobInfo info = infos.remove(job);
+    if (info != null) {
+      info.mapSchedulable.cleanupMetrics();
+      info.reduceSchedulable.cleanupMetrics();
+    }
+    poolMgr.removeJob(job);
   }
   
   public List<PoolSchedulable> getPoolSchedulables(TaskType type) {

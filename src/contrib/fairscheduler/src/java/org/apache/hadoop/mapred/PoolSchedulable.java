@@ -69,7 +69,6 @@ public class PoolSchedulable extends Schedulable {
       JobSchedulable jobSched = it.next();
       if (jobSched.getJob() == job) {
         it.remove();
-        jobSched.cleanupMetrics();
         break;
       }
     }

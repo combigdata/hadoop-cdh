@@ -2731,6 +2731,65 @@ public class TestFairScheduler extends TestCase {
     assertEquals(33,   poolA.getMapSchedulable().getDemand());
     assertEquals(39,   poolA.getReduceSchedulable().getDemand());
   }
+
+
+  /**
+   * Test switching a job from one pool to another, then back to the original
+   * one. This is a regression test for a bug seen during development of
+   * MAPREDUCE-2323 (fair scheduler metrics).
+   */
+  public void testSetPoolTwice() throws Exception {
+    // Set up pools file
+    PrintWriter out = new PrintWriter(new FileWriter(ALLOC_FILE));
+    out.println("<?xml version=\"1.0\"?>");
+    out.println("<allocations>");
+    out.println("<pool name=\"default\">");
+    out.println("<schedulingMode>fair</schedulingMode>");
+    out.println("</pool>");
+    out.println("<pool name=\"poolA\">");
+    out.println("<schedulingMode>fair</schedulingMode>");
+    out.println("</pool>");
+    out.println("</allocations>");
+    out.close();
+    scheduler.getPoolManager().reloadAllocs();
+    Pool defaultPool = scheduler.getPoolManager().getPool("default");
+    Pool poolA = scheduler.getPoolManager().getPool("poolA");
+
+    // Submit a job to the default pool.  All specifications take default values.
+    JobInProgress job1 = submitJob(JobStatus.RUNNING, 1, 3);
+    assertEquals(1,    defaultPool.getMapSchedulable().getDemand());
+    assertEquals(3,    defaultPool.getReduceSchedulable().getDemand());
+    assertEquals(0,    poolA.getMapSchedulable().getDemand());
+    assertEquals(0,    poolA.getReduceSchedulable().getDemand());
+
+    // Move job to poolA and make sure demand moves with it
+    scheduler.getPoolManager().setPool(job1, "poolA");
+    assertEquals("poolA", scheduler.getPoolManager().getPoolName(job1));
+
+    defaultPool.getMapSchedulable().updateDemand();
+    defaultPool.getReduceSchedulable().updateDemand();
+    poolA.getMapSchedulable().updateDemand();
+    poolA.getReduceSchedulable().updateDemand();
+
+    assertEquals(0,    defaultPool.getMapSchedulable().getDemand());
+    assertEquals(0,    defaultPool.getReduceSchedulable().getDemand());
+    assertEquals(1,    poolA.getMapSchedulable().getDemand());
+    assertEquals(3,    poolA.getReduceSchedulable().getDemand());
+
+    // Move back to default pool and make sure demand goes back
+    scheduler.getPoolManager().setPool(job1, "default");
+    assertEquals("default", scheduler.getPoolManager().getPoolName(job1));
+
+    defaultPool.getMapSchedulable().updateDemand();
+    defaultPool.getReduceSchedulable().updateDemand();
+    poolA.getMapSchedulable().updateDemand();
+    poolA.getReduceSchedulable().updateDemand();
+
+    assertEquals(1,    defaultPool.getMapSchedulable().getDemand());
+    assertEquals(3,    defaultPool.getReduceSchedulable().getDemand());
+    assertEquals(0,    poolA.getMapSchedulable().getDemand());
+    assertEquals(0,    poolA.getReduceSchedulable().getDemand());
+  }
   
   private void advanceTime(long time) {
     clock.advance(time);
