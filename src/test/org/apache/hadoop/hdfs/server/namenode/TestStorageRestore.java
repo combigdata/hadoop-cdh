@@ -18,13 +18,12 @@
 package org.apache.hadoop.hdfs.server.namenode;
 
 
+import static org.junit.Assert.assertTrue;
+
 import java.io.File;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.Random;
-
-import junit.framework.TestCase;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -38,13 +37,16 @@ import org.apache.hadoop.hdfs.server.common.Storage;
 import org.apache.hadoop.hdfs.server.common.Storage.StorageDirectory;
 import org.apache.hadoop.hdfs.server.namenode.FSImage.NameNodeDirType;
 import org.apache.hadoop.hdfs.server.namenode.FSImage.NameNodeFile;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 
 /**
  * Startup and checkpoint tests
  * 
  */
-public class TestStorageRestore extends TestCase {
+public class TestStorageRestore {
   public static final String NAME_NODE_HOST = "localhost:";
   public static final String NAME_NODE_HTTP_HOST = "0.0.0.0:";
   private static final Log LOG =
@@ -69,8 +71,8 @@ public class TestStorageRestore extends TestCase {
     stm.close();
   }
   
- 
-  protected void setUp() throws Exception {
+  @Before
+  public void setUpNameDirs() throws Exception {
     config = new Configuration();
     String baseDir = System.getProperty("test.build.data", "/tmp");
     
@@ -109,7 +111,8 @@ public class TestStorageRestore extends TestCase {
   /**
    * clean up
    */
-  public void tearDown() throws Exception {
+  @After
+  public void cleanUpNameDirs() throws Exception {
     if (hdfsDir.exists() && !FileUtil.fullyDelete(hdfsDir) ) {
       throw new IOException("Could not delete hdfs directory in tearDown '" + hdfsDir + "'");
     } 
@@ -127,7 +130,7 @@ public class TestStorageRestore extends TestCase {
    * test
    */
   public void printStorages(FSImage fs) {
-    LOG.info("current storages and corresoponding sizes:");
+    LOG.info("current storages and corresponding sizes:");
     for(Iterator<StorageDirectory> it = fs.dirIterator(); it.hasNext(); ) {
       StorageDirectory sd = it.next();
       
@@ -189,6 +192,7 @@ public class TestStorageRestore extends TestCase {
    * 7. run doCheckpoint
    * 8. verify that all the image and edits files are the same.
    */
+  @Test
   public void testStorageRestore() throws Exception {
     int numDatanodes = 2;
     //Collection<String> dirs = config.getStringCollection("dfs.name.dir");
@@ -224,5 +228,66 @@ public class TestStorageRestore extends TestCase {
     System.out.println("****testStorageRestore: second Checkpoint done and checkFiles(true) run");
     secondary.shutdown();
     cluster.shutdown();
+  }
+  
+  /**
+   * Test to simulate interleaved checkpointing by 2 2NNs after a storage
+   * directory has been taken offline. The first will cause the directory to
+   * come back online, but it won't have any valid contents. The second 2NN will
+   * then try to perform a checkpoint. The NN should not serve up the image or
+   * edits from the restored (empty) dir.
+   */
+  @Test
+  public void testCheckpointWithRestoredDirectory() throws IOException {
+    SecondaryNameNode secondary = null;
+    try {
+      cluster = new MiniDFSCluster(0, config, 1, true, false, true,  null, null,
+          null, null);
+      cluster.waitActive();
+      
+      secondary = new SecondaryNameNode(config);
+      FSImage fsImage = cluster.getNameNode().getFSImage();
+      printStorages(fsImage);
+      
+      FileSystem fs = cluster.getFileSystem();
+      Path path1 = new Path("/", "test");
+      writeFile(fs, path1, 2);
+      
+      printStorages(fsImage);
+  
+      // Take name3 offline
+      System.out.println("causing IO error on " + fsImage.getStorageDir(2).getRoot());
+      fsImage.getEditLog().processIOError(2);
+      
+      // Simulate a 2NN beginning a checkpoint, but not finishing. This will
+      // cause name3 to be restored.
+      cluster.getNameNode().rollEditLog();
+      
+      printStorages(fsImage);
+      
+      // Now another 2NN comes along to do a full checkpoint.
+      secondary.doCheckpoint();
+      
+      printStorages(fsImage);
+      
+      // The created file should still exist in the in-memory FS state after the
+      // checkpoint.
+      assertTrue("path exists before restart", fs.exists(path1));
+      
+      secondary.shutdown();
+      
+      // Restart the NN so it reloads the edits from on-disk.
+      cluster.restartNameNode();
+  
+      // The created file should still exist after the restart.
+      assertTrue("path should still exist after restart", fs.exists(path1));
+    } finally {
+      if (cluster != null) {
+        cluster.shutdown();
+      }
+      if (secondary != null) {
+        secondary.shutdown();
+      }
+    }
   }
 }
