@@ -1577,11 +1577,15 @@ public class FSImage extends Storage {
    * Return the name of the image file.
    */
   File getFsImageName() {
-  StorageDirectory sd = null;
-  for (Iterator<StorageDirectory> it = 
-              dirIterator(NameNodeDirType.IMAGE); it.hasNext();)
-    sd = it.next();
-  return getImageFile(sd, NameNodeFile.IMAGE); 
+    StorageDirectory sd = null;
+    for (Iterator<StorageDirectory> it = 
+        dirIterator(NameNodeDirType.IMAGE); it.hasNext();) {
+      sd = it.next();
+      File fsImage = getImageFile(sd, NameNodeFile.IMAGE);
+      if (sd.getRoot().canRead() && fsImage.exists())
+        return fsImage;
+    }
+    return null;
   }
 
   /**
@@ -1603,7 +1607,9 @@ public class FSImage extends Storage {
       try {
         
         if(root.exists() && root.canWrite()) { 
-          format(sd);
+          // when we try to restore we just need to remove all the data
+          // without saving current in-memory state (which could've changed).
+          sd.clearDirectory();
           LOG.info("restoring dir " + sd.getRoot().getAbsolutePath());
           this.addStorageDir(sd); // restore
           it.remove();
@@ -1615,7 +1621,15 @@ public class FSImage extends Storage {
   }
   
   public File getFsEditName() throws IOException {
-    return getEditLog().getFsEditName();
+    StorageDirectory sd = null;
+    for (Iterator<StorageDirectory> it = 
+        dirIterator(NameNodeDirType.EDITS); it.hasNext();) {
+      sd = it.next();
+      File fsEdits = getImageFile(sd, NameNodeFile.EDITS);
+      if (sd.getRoot().canRead())
+        return fsEdits;
+    }
+    return null;
   }
 
   File getFsTimeName() {
