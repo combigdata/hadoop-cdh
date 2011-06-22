@@ -60,7 +60,18 @@
       <env key="HADOOP_HOME" value="${hadoop.root}"/>
       <env key="PACKAGE_VERSION" value="0.1.0"/>
       <env key="BUILD_PLATFORM" value="${build.platform}" />
-      <env key="PERMS" value="${perms}"/>
+    </exec>
+
+    <mkdir dir="${build.dir}"/>
+    <mkdir dir="${build.dir}/test"/>
+
+    <!-- Use exec since the copy task doesn't preserve attrs -->
+    <exec executable="cp" failonerror="true">
+      <arg line="${hadoop.root}/src/contrib/fuse-dfs/src/fuse_dfs ${build.dir}"/>
+    </exec>
+
+    <exec executable="cp" failonerror="true">
+      <arg line="${hadoop.root}/src/contrib/fuse-dfs/src/fuse_dfs_wrapper.sh ${build.dir}"/>
     </exec>
     <mkdir dir="${build.dir}"/>
     <mkdir dir="${build.dir}/test"/>

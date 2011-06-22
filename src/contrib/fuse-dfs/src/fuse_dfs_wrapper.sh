@@ -28,7 +28,7 @@ export  JAVA_HOME=/usr/local/java
 fi
 
 if [ "$LD_LIBRARY_PATH" = "" ]; then
-export LD_LIBRARY_PATH=$JAVA_HOME/jre/lib/$OS_ARCH/server:/usr/local/share/hdfs/libhdfs/:/usr/local/lib
+export LD_LIBRARY_PATH=$JAVA_HOME/jre/lib/$OS_ARCH/server:/usr/local/lib
 fi
 
 # If dev build set paths accordingly
