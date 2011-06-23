@@ -49,6 +49,14 @@ public class LineRecordReader extends RecordReader<LongWritable, Text> {
   private int maxLineLength;
   private LongWritable key = null;
   private Text value = null;
+  private byte[] recordDelimiterBytes;
+
+  public LineRecordReader() {
+  }
+
+  public LineRecordReader(byte[] recordDelimiter) {
+    this.recordDelimiterBytes = recordDelimiter;
+  }
 
   public void initialize(InputSplit genericSplit,
                          TaskAttemptContext context) throws IOException {
@@ -67,7 +75,12 @@ public class LineRecordReader extends RecordReader<LongWritable, Text> {
     FSDataInputStream fileIn = fs.open(split.getPath());
     boolean skipFirstLine = false;
     if (codec != null) {
-      in = new LineReader(codec.createInputStream(fileIn), job);
+      if (null == this.recordDelimiterBytes) {
+        in = new LineReader(codec.createInputStream(fileIn), job);
+      } else {
+        in = new LineReader(codec.createInputStream(fileIn), job,
+            this.recordDelimiterBytes);
+      }
       end = Long.MAX_VALUE;
     } else {
       if (start != 0) {
@@ -75,7 +88,11 @@ public class LineRecordReader extends RecordReader<LongWritable, Text> {
         --start;
         fileIn.seek(start);
       }
-      in = new LineReader(fileIn, job);
+      if (null == this.recordDelimiterBytes) {
+        in = new LineReader(fileIn, job);
+      } else {
+        in = new LineReader(fileIn, job, this.recordDelimiterBytes);
+      }
     }
     if (skipFirstLine) {  // skip first line and re-establish "start".
       start += in.readLine(new Text(), 0,
