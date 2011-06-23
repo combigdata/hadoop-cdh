@@ -45,7 +45,7 @@ public class TestHeartbeatHandling extends TestCase {
             new Block(i, 0, GenerationStamp.FIRST_VALID_STAMP), ONE_TARGET);
       }
       DatanodeCommand[] cmds = namesystem.handleHeartbeat(
-          nodeReg, dd.getCapacity(), dd.getDfsUsed(), dd.getRemaining(), 0, 0);
+          nodeReg, dd.getCapacity(), dd.getDfsUsed(), dd.getRemaining(), 0, 0, 0);
       assertEquals(1, cmds.length);
       assertEquals(DatanodeProtocol.DNA_TRANSFER, cmds[0].getAction());
       assertEquals(MAX_REPLICATE_LIMIT, ((BlockCommand)cmds[0]).getBlocks().length);
@@ -57,7 +57,7 @@ public class TestHeartbeatHandling extends TestCase {
       dd.addBlocksToBeInvalidated(blockList);
            
       cmds = namesystem.handleHeartbeat(
-          nodeReg, dd.getCapacity(), dd.getDfsUsed(), dd.getRemaining(), 0, 0);
+          nodeReg, dd.getCapacity(), dd.getDfsUsed(), dd.getRemaining(), 0, 0, 0);
       assertEquals(2, cmds.length);
       assertEquals(DatanodeProtocol.DNA_TRANSFER, cmds[0].getAction());
       assertEquals(MAX_REPLICATE_LIMIT, ((BlockCommand)cmds[0]).getBlocks().length);
@@ -65,7 +65,7 @@ public class TestHeartbeatHandling extends TestCase {
       assertEquals(MAX_INVALIDATE_LIMIT, ((BlockCommand)cmds[1]).getBlocks().length);
       
       cmds = namesystem.handleHeartbeat(
-          nodeReg, dd.getCapacity(), dd.getDfsUsed(), dd.getRemaining(), 0, 0);
+          nodeReg, dd.getCapacity(), dd.getDfsUsed(), dd.getRemaining(), 0, 0, 0);
       assertEquals(2, cmds.length);
       assertEquals(DatanodeProtocol.DNA_TRANSFER, cmds[0].getAction());
       assertEquals(REMAINING_BLOCKS, ((BlockCommand)cmds[0]).getBlocks().length);
@@ -73,13 +73,13 @@ public class TestHeartbeatHandling extends TestCase {
       assertEquals(MAX_INVALIDATE_LIMIT, ((BlockCommand)cmds[1]).getBlocks().length);
       
       cmds = namesystem.handleHeartbeat(
-          nodeReg, dd.getCapacity(), dd.getDfsUsed(), dd.getRemaining(), 0, 0);
+          nodeReg, dd.getCapacity(), dd.getDfsUsed(), dd.getRemaining(), 0, 0, 0);
       assertEquals(1, cmds.length);
       assertEquals(DatanodeProtocol.DNA_INVALIDATE, cmds[0].getAction());
       assertEquals(REMAINING_BLOCKS, ((BlockCommand)cmds[0]).getBlocks().length);
 
       cmds = namesystem.handleHeartbeat(
-          nodeReg, dd.getCapacity(), dd.getDfsUsed(), dd.getRemaining(), 0, 0);
+          nodeReg, dd.getCapacity(), dd.getDfsUsed(), dd.getRemaining(), 0, 0, 0);
       assertEquals(null, cmds);
       }
     } finally {

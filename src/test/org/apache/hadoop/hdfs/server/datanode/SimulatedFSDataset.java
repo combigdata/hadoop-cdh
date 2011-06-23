@@ -199,6 +199,10 @@ public class SimulatedFSDataset  implements FSConstants, FSDatasetInterface, Con
       return used;
     }
     
+    int getNumFailedVolumes() {
+      return 0;
+    }
+
     synchronized boolean alloc(long amount) {
       if (getFree() >= amount) {
         used += amount;
@@ -318,6 +322,11 @@ public class SimulatedFSDataset  implements FSConstants, FSDatasetInterface, Con
 
   public long getRemaining() throws IOException {
     return storage.getFree();
+  }
+
+  @Override // FSDatasetMBean
+  public int getNumFailedVolumes() {
+    return storage.getNumFailedVolumes();
   }
 
   public synchronized long getLength(Block b) throws IOException {

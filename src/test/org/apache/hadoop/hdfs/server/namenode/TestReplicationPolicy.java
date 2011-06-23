@@ -71,7 +71,7 @@ public class TestReplicationPolicy extends TestCase {
     for(int i=0; i<NUM_OF_DATANODES; i++) {
       dataNodes[i].updateHeartbeat(
           2*FSConstants.MIN_BLOCKS_FOR_WRITE*BLOCK_SIZE, 0L,
-          2*FSConstants.MIN_BLOCKS_FOR_WRITE*BLOCK_SIZE, 0);
+          2*FSConstants.MIN_BLOCKS_FOR_WRITE*BLOCK_SIZE, 0, 0);
     }
   }
   
@@ -87,7 +87,7 @@ public class TestReplicationPolicy extends TestCase {
   public void testChooseTarget1() throws Exception {
     dataNodes[0].updateHeartbeat(
         2*FSConstants.MIN_BLOCKS_FOR_WRITE*BLOCK_SIZE, 0L, 
-        FSConstants.MIN_BLOCKS_FOR_WRITE*BLOCK_SIZE, 4); // overloaded
+        FSConstants.MIN_BLOCKS_FOR_WRITE*BLOCK_SIZE, 4, 0); // overloaded
 
     DatanodeDescriptor[] targets;
     targets = replicator.chooseTarget(
@@ -122,7 +122,7 @@ public class TestReplicationPolicy extends TestCase {
     
     dataNodes[0].updateHeartbeat(
         2*FSConstants.MIN_BLOCKS_FOR_WRITE*BLOCK_SIZE, 0L,
-        FSConstants.MIN_BLOCKS_FOR_WRITE*BLOCK_SIZE, 0); 
+        FSConstants.MIN_BLOCKS_FOR_WRITE*BLOCK_SIZE, 0, 0); 
   }
 
   /**
@@ -193,7 +193,7 @@ public class TestReplicationPolicy extends TestCase {
     // make data node 0 to be not qualified to choose
     dataNodes[0].updateHeartbeat(
         2*FSConstants.MIN_BLOCKS_FOR_WRITE*BLOCK_SIZE, 0L,
-        (FSConstants.MIN_BLOCKS_FOR_WRITE-1)*BLOCK_SIZE, 0); // no space
+        (FSConstants.MIN_BLOCKS_FOR_WRITE-1)*BLOCK_SIZE, 0, 0); // no space
         
     DatanodeDescriptor[] targets;
     targets = replicator.chooseTarget(
@@ -231,7 +231,7 @@ public class TestReplicationPolicy extends TestCase {
 
     dataNodes[0].updateHeartbeat(
         2*FSConstants.MIN_BLOCKS_FOR_WRITE*BLOCK_SIZE, 0L,
-        FSConstants.MIN_BLOCKS_FOR_WRITE*BLOCK_SIZE, 0); 
+        FSConstants.MIN_BLOCKS_FOR_WRITE*BLOCK_SIZE, 0, 0); 
   }
   
   /**
@@ -247,7 +247,7 @@ public class TestReplicationPolicy extends TestCase {
     for(int i=0; i<2; i++) {
       dataNodes[i].updateHeartbeat(
           2*FSConstants.MIN_BLOCKS_FOR_WRITE*BLOCK_SIZE, 0L,
-          (FSConstants.MIN_BLOCKS_FOR_WRITE-1)*BLOCK_SIZE, 0);
+          (FSConstants.MIN_BLOCKS_FOR_WRITE-1)*BLOCK_SIZE, 0, 0);
     }
       
     DatanodeDescriptor[] targets;
@@ -279,7 +279,7 @@ public class TestReplicationPolicy extends TestCase {
     for(int i=0; i<2; i++) {
       dataNodes[i].updateHeartbeat(
           2*FSConstants.MIN_BLOCKS_FOR_WRITE*BLOCK_SIZE, 0L,
-          FSConstants.MIN_BLOCKS_FOR_WRITE*BLOCK_SIZE, 0);
+          FSConstants.MIN_BLOCKS_FOR_WRITE*BLOCK_SIZE, 0, 0);
     }
   }
   /**

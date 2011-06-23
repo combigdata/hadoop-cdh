@@ -2387,7 +2387,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean,
         if( !heartbeats.contains(nodeS)) {
           heartbeats.add(nodeS);
           //update its timestamp
-          nodeS.updateHeartbeat(0L, 0L, 0L, 0);
+          nodeS.updateHeartbeat(0L, 0L, 0L, 0, 0);
           nodeS.isAlive = true;
         }
       }
@@ -2502,7 +2502,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean,
    */
   DatanodeCommand[] handleHeartbeat(DatanodeRegistration nodeReg,
       long capacity, long dfsUsed, long remaining,
-      int xceiverCount, int xmitsInProgress) throws IOException {
+      int xceiverCount, int xmitsInProgress, int failedVolumes) throws IOException {
     DatanodeCommand cmd = null;
     synchronized (heartbeats) {
       synchronized (datanodeMap) {
@@ -2524,7 +2524,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean,
         }
 
         updateStats(nodeinfo, false);
-        nodeinfo.updateHeartbeat(capacity, dfsUsed, remaining, xceiverCount);
+        nodeinfo.updateHeartbeat(capacity, dfsUsed, remaining, xceiverCount, failedVolumes);
         updateStats(nodeinfo, true);
         
         //check lease recovery
@@ -3115,22 +3115,6 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean,
       /* If we know the target datanodes where the replication timedout,
        * we could invoke decBlocksScheduled() on it. Its ok for now.
        */
-    }
-  }
-
-  /**
-   * Update the descriptor for the datanode to reflect a volume failure.
-   * @param nodeID DatanodeID to update count for.
-   * @throws IOException
-   */
-  synchronized public void incVolumeFailure(DatanodeID nodeID)
-    throws IOException {
-    DatanodeDescriptor nodeInfo = getDatanode(nodeID);
-    if (nodeInfo != null) {
-      nodeInfo.incVolumeFailure();
-    } else {
-      NameNode.stateChangeLog.warn("BLOCK* NameSystem.incVolumeFailure: "
-                                   + nodeID.getName() + " does not exist");
     }
   }
 

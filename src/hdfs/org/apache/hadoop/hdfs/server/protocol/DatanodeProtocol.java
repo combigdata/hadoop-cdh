@@ -89,7 +89,8 @@ public interface DatanodeProtocol extends VersionedProtocol {
                                        long capacity,
                                        long dfsUsed, long remaining,
                                        int xmitsInProgress,
-                                       int xceiverCount) throws IOException;
+                                       int xceiverCount,
+                                       int failedVolumes) throws IOException;
 
   /**
    * blockReport() tells the NameNode about all the locally-stored blocks.

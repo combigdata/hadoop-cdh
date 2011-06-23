@@ -815,7 +815,7 @@ public class DataNode extends Configured
   protected void checkDiskError( ) {
     try {
       data.checkDataDir();
-    } catch(DiskErrorException de) {
+    } catch (DiskErrorException de) {
       handleDiskError(de.getMessage());
     }
   }
@@ -828,7 +828,7 @@ public class DataNode extends Configured
     // shutdown the DN completely.
     int dpError = hasEnoughResources ? DatanodeProtocol.DISK_ERROR  
                                      : DatanodeProtocol.FATAL_DISK_ERROR; 
-    myMetrics.volumesFailed.inc(1);
+    myMetrics.volumeFailures.inc(1);
     try {
       namenode.errorReport(dnRegistration, dpError, errMsgr);
     } catch(IOException ignored) {
@@ -883,7 +883,8 @@ public class DataNode extends Configured
                                                        data.getDfsUsed(),
                                                        data.getRemaining(),
                                                        xmitsInProgress.get(),
-                                                       getXceiverCount());
+                                                       getXceiverCount(),
+                                                       data.getNumFailedVolumes());
           myMetrics.heartbeats.inc(now() - startTime);
           //LOG.info("Just sent heartbeat, with name " + localName);
           if (!processCommand(cmds))
@@ -1439,7 +1440,11 @@ public class DataNode extends Configured
   }
   
   static boolean isDatanodeUp(DataNode dn) {
-    return dn.dataNodeThread != null && dn.dataNodeThread.isAlive();
+    return dn.isDatanodeUp();
+  }
+
+  public boolean isDatanodeUp() {
+    return dataNodeThread != null && dataNodeThread.isAlive();
   }
 
   /** Instantiate a single datanode object. This must be run by invoking
@@ -1525,7 +1530,7 @@ public class DataNode extends Configured
       try {
         DiskChecker.checkDir(localFS, new Path(dir), dataDirPermission);
         dirs.add(new File(dir));
-      } catch(DiskErrorException e) {
+      } catch (DiskErrorException e) {
         LOG.warn("Invalid directory in " + DATA_DIR_KEY +  ": " + 
                  e.getMessage());
       }

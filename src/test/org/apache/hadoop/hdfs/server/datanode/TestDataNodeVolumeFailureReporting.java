@@ -39,9 +39,10 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeTrue;
 
 /**
- * Test successive volume failures, failure metrics and capacity reporting.
+ * Test reporting of DN volume failure counts and metrics.
  */
 public class TestDataNodeVolumeFailureReporting {
 
@@ -54,6 +55,14 @@ public class TestDataNodeVolumeFailureReporting {
   private MiniDFSCluster cluster;
   private Configuration conf;
   private String dataDir;
+
+  // Sleep at least 3 seconds (a 1s heartbeat plus padding) to allow
+  // for heartbeats to propagate from the datanodes to the namenode.
+  final int WAIT_FOR_HEARTBEATS = 3000;
+
+  // Wait at least (2 * re-check + 10 * heartbeat) seconds for
+  // a datanode to be considered dead by the namenode.  
+  final int WAIT_FOR_DEATH = 15000;
 
   @Before
   public void setUp() throws Exception {
@@ -76,6 +85,10 @@ public class TestDataNodeVolumeFailureReporting {
 
   @After
   public void tearDown() throws Exception {
+    for (int i = 0; i < 3; i++) {
+      new File(dataDir, "data"+(2*i+1)).setExecutable(true);
+      new File(dataDir, "data"+(2*i+2)).setExecutable(true);
+    }
     cluster.shutdown();
   }
 
@@ -86,23 +99,11 @@ public class TestDataNodeVolumeFailureReporting {
    */
   @Test
   public void testSuccessiveVolumeFailures() throws Exception {
-    if (System.getProperty("os.name").startsWith("Windows")) {
-      // See above
-      return;
-    }
+    assumeTrue(!System.getProperty("os.name").startsWith("Windows"));
+
     // Bring up two more datanodes
     cluster.startDataNodes(conf, 2, true, null, null);
     cluster.waitActive();
-
-    /*
-     * Sleep at least 3 seconds (a 1s heartbeat plus padding) to allow
-     * for heartbeats to propagate from the datanodes to the namenode.
-     * Sleep  at least (2 * re-check + 10 * heartbeat) 12 seconds for
-     * a datanode  to be called dead by the namenode.
-     */
-    final int WAIT_FOR_HEARTBEATS = 3000;
-    final int WAIT_FOR_DEATH = 15000;
-    final int ATTEMPTS = 5;
 
     /*
      * Calculate the total capacity of all the datanodes. Sleep for
@@ -110,18 +111,10 @@ public class TestDataNodeVolumeFailureReporting {
      * heartbeat their capacities.
      */
     Thread.sleep(WAIT_FOR_HEARTBEATS);
-    FSNamesystem namesystem = cluster.getNameNode().getNamesystem();
-    ArrayList<DatanodeDescriptor> live = new ArrayList<DatanodeDescriptor>();
-    ArrayList<DatanodeDescriptor> dead = new ArrayList<DatanodeDescriptor>();
-    namesystem.DFSNodesStatus(live, dead);
-    assertEquals("All DNs should be live", 3, live.size());
-    assertEquals("All DNs should be live", 0, dead.size());
-    long origCapacity = 0;
-    for (final DatanodeDescriptor dn : live) {
-      origCapacity += dn.getCapacity();
-      assertEquals("DN "+dn+" vols should be healthy",
-          0, dn.getVolumeFailures());
-    }
+    FSNamesystem ns = cluster.getNameNode().getNamesystem();
+
+    long origCapacity = DFSTestUtil.getLiveDatanodeCapacity(ns);
+    long dnCapacity = DFSTestUtil.getDatanodeCapacity(ns, 0);
 
     File dn1Vol1 = new File(dataDir, "data"+(2*0+1));
     File dn2Vol1 = new File(dataDir, "data"+(2*1+1));
@@ -147,9 +140,9 @@ public class TestDataNodeVolumeFailureReporting {
     DFSTestUtil.createFile(fs, file1, 1024, (short)3, 1L);
     DFSTestUtil.waitReplication(fs, file1, (short)3);
     ArrayList<DataNode> dns = cluster.getDataNodes();
-    assertTrue("DN1 should be up", DataNode.isDatanodeUp(dns.get(0)));
-    assertTrue("DN2 should be up", DataNode.isDatanodeUp(dns.get(1)));
-    assertTrue("DN3 should be up", DataNode.isDatanodeUp(dns.get(2)));
+    assertTrue("DN1 should be up", dns.get(0).isDatanodeUp());
+    assertTrue("DN2 should be up", dns.get(1).isDatanodeUp());
+    assertTrue("DN3 should be up", dns.get(2).isDatanodeUp());
 
     /*
      * The metrics should confirm the volume failures.
@@ -158,31 +151,18 @@ public class TestDataNodeVolumeFailureReporting {
     DataNodeMetrics metrics2 = dns.get(1).getMetrics();
     DataNodeMetrics metrics3 = dns.get(2).getMetrics();
     assertEquals("Vol1 should report 1 failure",
-        1, metrics1.volumesFailed.getCurrentIntervalValue());
+        1, metrics1.volumeFailures.getCurrentIntervalValue());
     assertEquals("Vol2 should report 1 failure",
-        1, metrics2.volumesFailed.getCurrentIntervalValue());
+        1, metrics2.volumeFailures.getCurrentIntervalValue());
     assertEquals("Vol3 should have no failures",
-        0, metrics3.volumesFailed.getCurrentIntervalValue());
+        0, metrics3.volumeFailures.getCurrentIntervalValue());
 
-    // Eventually the NN should report two volume failures as well
-    int count = 0;
-    int volumeFailures = 0;
-    while (count < ATTEMPTS) {
-      Thread.sleep(WAIT_FOR_HEARTBEATS);
-      live.clear();
-      dead.clear();
-      namesystem.DFSNodesStatus(live, dead);
-      volumeFailures = 0;
-      for (final DatanodeDescriptor dn : live) {
-        volumeFailures += dn.getVolumeFailures();
-      }
-      if (2 == volumeFailures) {
-        break;
-      }
-      count++;
-      LOG.warn("Waiting for vol failures. Attempt "+count);
-    }
-    assertEquals("Incorrect failure count", 2, volumeFailures);
+    // Ensure we wait a sufficient amount of time
+    assert (WAIT_FOR_HEARTBEATS * 10) > WAIT_FOR_DEATH;
+
+    // Eventually the NN should report two volume failures
+    DFSTestUtil.waitForDatanodeStatus(ns, 3, 0, 2, 
+        origCapacity - (1*dnCapacity), WAIT_FOR_HEARTBEATS);
 
     /*
      * Now fail a volume on the third datanode. We should be able to get
@@ -192,12 +172,16 @@ public class TestDataNodeVolumeFailureReporting {
     Path file2 = new Path("/test2");
     DFSTestUtil.createFile(fs, file2, 1024, (short)3, 1L);
     DFSTestUtil.waitReplication(fs, file2, (short)3);
-    assertTrue("DN3 should still be up", DataNode.isDatanodeUp(dns.get(2)));
+    assertTrue("DN3 should still be up", dns.get(2).isDatanodeUp());
     assertEquals("Vol3 should report 1 failure",
-        1, metrics3.volumesFailed.getCurrentIntervalValue());
+        1, metrics3.volumeFailures.getCurrentIntervalValue());
+
+    ArrayList<DatanodeDescriptor> live = new ArrayList<DatanodeDescriptor>();
+    ArrayList<DatanodeDescriptor> dead = new ArrayList<DatanodeDescriptor>();
+    ns.DFSNodesStatus(live, dead);
     live.clear();
     dead.clear();
-    namesystem.DFSNodesStatus(live, dead);
+    ns.DFSNodesStatus(live, dead);
     assertEquals("DN3 should have 1 failed volume",
         1, live.get(2).getVolumeFailures());
 
@@ -206,36 +190,9 @@ public class TestDataNodeVolumeFailureReporting {
      * total capacity should be down by three volumes (assuming the host
      * did not grow or shrink the data volume while the test was running).
      */
-    count = 0;
-    int liveSize = 0;
-    int deadSize = 0;
-    long currCapacity = 0;
-    long singleVolCapacity = 0;
-    while (count < ATTEMPTS) {
-      Thread.sleep(WAIT_FOR_HEARTBEATS);
-      live.clear();
-      dead.clear();
-      namesystem.DFSNodesStatus(live, dead);
-      currCapacity = 0;
-      singleVolCapacity = live.get(0).getCapacity();
-      for (final DatanodeDescriptor dn : live) {
-        currCapacity += dn.getCapacity();
-      }
-      liveSize = live.size();
-      deadSize = dead.size();
-      LOG.info("Original capacity: "+origCapacity);
-      LOG.info("Current capacity: "+currCapacity);
-      LOG.info("Volume capacity: "+singleVolCapacity);
-      count++;
-      if (3 == live.size() && 0 == dead.size() &&
-          origCapacity == (currCapacity + (3 * singleVolCapacity))) {
-        break;
-      }
-    }
-    assertEquals("Invalid live node count", 3, liveSize);
-    assertEquals("Invalid dead node count", 0, deadSize);
-    assertEquals("Invalid capacity", origCapacity, 
-                 (currCapacity + (3 * singleVolCapacity)));
+    dnCapacity = DFSTestUtil.getDatanodeCapacity(ns, 0);
+    DFSTestUtil.waitForDatanodeStatus(ns, 3, 0, 3, 
+        origCapacity - (3*dnCapacity), WAIT_FOR_HEARTBEATS);
 
     /*
      * Now fail the 2nd volume on the 3rd datanode. All its volumes
@@ -247,33 +204,18 @@ public class TestDataNodeVolumeFailureReporting {
     Path file3 = new Path("/test3");
     DFSTestUtil.createFile(fs, file3, 1024, (short)3, 1L);
     DFSTestUtil.waitReplication(fs, file3, (short)2);
-    // Eventually the DN should go down
-    while (DataNode.isDatanodeUp(dns.get(2))) {
-      Thread.sleep(1000);
-    }
-    // and report two failed volumes
+
+    // The DN should consider itself dead
+    DFSTestUtil.waitForDatanodeDeath(dns.get(2));
+
+    // And report two failed volumes
     metrics3 = dns.get(2).getMetrics();
     assertEquals("DN3 should report 2 vol failures",
-        2, metrics3.volumesFailed.getCurrentIntervalValue());
-    // and eventually be seen as dead by the NN.
-    count = 0;
-    deadSize = 0;
-    liveSize = 0;
-    while (count < ATTEMPTS) {
-      Thread.sleep(WAIT_FOR_DEATH);
-      live.clear();
-      dead.clear();
-      namesystem.DFSNodesStatus(live, dead);
-      deadSize = dead.size();
-      liveSize = live.size();
-      if (1 == deadSize && 2 == liveSize) {
-        break;
-      }
-      count++;
-      LOG.warn("Waiting for DN to die. Attempt "+count);
-    }
-    assertEquals("Invalid dead node count", 1, deadSize);
-    assertEquals("Invalid live node count", 2, liveSize);
+        2, metrics3.volumeFailures.getCurrentIntervalValue());
+
+    // The NN considers the DN dead
+    DFSTestUtil.waitForDatanodeStatus(ns, 2, 1, 2, 
+        origCapacity - (4*dnCapacity), WAIT_FOR_HEARTBEATS);
 
     /*
      * The datanode never tries to restore the failed volume, even if
@@ -296,122 +238,44 @@ public class TestDataNodeVolumeFailureReporting {
      * and that the volume failure count should be reported as zero by
      * both the metrics and the NN.
      */
-    count = 0;
-    deadSize = 0;
-    liveSize = 0;
-    int volFailures = 0;
-    while (count < ATTEMPTS) {
-      Thread.sleep(WAIT_FOR_DEATH);
-      live.clear();
-      dead.clear();
-      namesystem.DFSNodesStatus(live, dead);
-      assertEquals("All DNs should be live", 3, live.size());
-      assertEquals("All DNs should be live", 0, dead.size());
-      currCapacity = 0;
-      volFailures = 0;
-      for (final DatanodeDescriptor dn : live) {
-        currCapacity += dn.getCapacity();
-        volFailures += dn.getVolumeFailures();
-      }
-      deadSize = dead.size();
-      liveSize = live.size();
-      if (3 == liveSize && 0 == deadSize && 0 == volFailures &&
-          origCapacity == currCapacity) {
-        break;
-      }
-      count++;
-      LOG.warn("Waiting for capacity: original="+origCapacity+" current="+
-          currCapacity+" live="+liveSize+" dead="+deadSize+
-          " vols="+volFailures+". Attempt "+count);
-    }
-    assertEquals("Invalid dead node count", 0, deadSize);
-    assertEquals("Invalid live node count", 3, liveSize);
-    assertEquals("Invalid vol failures", 0, volFailures);
-    assertEquals("Invalid capacity", origCapacity, currCapacity);
+    DFSTestUtil.waitForDatanodeStatus(ns, 3, 0, 0, origCapacity, 
+        WAIT_FOR_HEARTBEATS);
   }
 
   /**
-   * Test the DFS_DATANODE_FAILED_VOLUMES_TOLERATED_KEY configuration
-   * option, ie the DN shuts itself down when the number of failures
-   * experienced drops below the tolerated amount.
+   * Test that the NN re-learns of volume failures after restart.
    */
   @Test
-  public void testConfigureMinValidVolumes() throws Exception {
-    if (System.getProperty("os.name").startsWith("Windows")) {
-      // See above
-      return;
-    }
+  public void testVolFailureStatsPreservedOnNNRestart() throws Exception {
+    assumeTrue(!System.getProperty("os.name").startsWith("Windows"));
 
-    // Bring up two additional datanodes that need both of their volumes
-    // functioning in order to stay up.
-    conf.setInt("dfs.datanode.failed.volumes.tolerated", 0);
+    // Bring up two more datanodes that can tolerate 1 failure
     cluster.startDataNodes(conf, 2, true, null, null);
     cluster.waitActive();
 
-    // Fail a volume on the 2nd DN
+    FSNamesystem ns = cluster.getNameNode().getNamesystem();
+    long origCapacity = DFSTestUtil.getLiveDatanodeCapacity(ns);
+    long dnCapacity = DFSTestUtil.getDatanodeCapacity(ns, 0);
+
+    // Fail the first volume on both datanodes (we have to keep the 
+    // third healthy so one node in the pipeline will not fail). 
+    File dn1Vol1 = new File(dataDir, "data"+(2*0+1));
     File dn2Vol1 = new File(dataDir, "data"+(2*1+1));
+    assertTrue("Couldn't chmod local vol", dn1Vol1.setExecutable(false));
     assertTrue("Couldn't chmod local vol", dn2Vol1.setExecutable(false));
 
-    // Should only get two replicas (the first DN and the 3rd)
-    Path file1 = new Path("/test1");
-    DFSTestUtil.createFile(fs, file1, 1024, (short)3, 1L);
-    DFSTestUtil.waitReplication(fs, file1, (short)2);
-
-    // Check that this single failure caused a DN to die.
-    int count = 0;
-    int deadSize = 0;
-    final int ATTEMPTS = 5;
-    while (count < ATTEMPTS) {
-      final int WAIT_FOR_DEATH = 15000;
-      Thread.sleep(WAIT_FOR_DEATH);
-      FSNamesystem namesystem = cluster.getNameNode().getNamesystem();
-      ArrayList<DatanodeDescriptor> live = new ArrayList<DatanodeDescriptor>();
-      ArrayList<DatanodeDescriptor> dead = new ArrayList<DatanodeDescriptor>();
-      namesystem.DFSNodesStatus(live, dead);
-      deadSize = dead.size();
-      if (1 == deadSize) {
-        break;
-      }
-      count++;
-      LOG.warn("Waiting for DN to die. Attempt "+count);
-    }
-    assertEquals("Invalid dead node count", 1, deadSize);
-
-    // If we restore the volume we should still only be able to get
-    // two replicas since the DN is still considered dead.
-    assertTrue("Couldn't chmod local vol", dn2Vol1.setExecutable(true));
-    Path file2 = new Path("/test2");
-    DFSTestUtil.createFile(fs, file2, 1024, (short)3, 1L);
-    DFSTestUtil.waitReplication(fs, file2, (short)2);
-  }
-
-  /**
-   * Test invalid DFS_DATANODE_FAILED_VOLUMES_TOLERATED_KEY values.
-   */
-  @Test
-  public void testInvalidFailedVolumesConfig() throws Exception {
-    if (System.getProperty("os.name").startsWith("Windows")) {
-      // See above
-      return;
-    }
-    /*
-     * Bring up another datanode that has an invalid value set.
-     * We should still be able to create a file with two replicas
-     * since the minimum valid volume parameter is only checked
-     * when we experience a disk error.
-     */
-    conf.setInt("dfs.datanode.failed.volumes.tolerated", -1);
-    cluster.startDataNodes(conf, 1, true, null, null);
-    cluster.waitActive();
     Path file1 = new Path("/test1");
     DFSTestUtil.createFile(fs, file1, 1024, (short)2, 1L);
     DFSTestUtil.waitReplication(fs, file1, (short)2);
-    // Ditto if the value is too big.
-    conf.setInt("dfs.datanode.failed.volumes.tolerated", 100);
-    cluster.startDataNodes(conf, 1, true, null, null);
+
+    // The NN reports two volumes failures
+    DFSTestUtil.waitForDatanodeStatus(ns, 3, 0, 2, 
+        origCapacity - (1*dnCapacity), WAIT_FOR_HEARTBEATS);
+
+    // After restarting the NN it still see the two failures
+    cluster.restartNameNode();
     cluster.waitActive();
-    Path file2 = new Path("/test1");
-    DFSTestUtil.createFile(fs, file2, 1024, (short)2, 1L);
-    DFSTestUtil.waitReplication(fs, file2, (short)2);
+    DFSTestUtil.waitForDatanodeStatus(ns, 3, 0, 2,
+        origCapacity - (1*dnCapacity), WAIT_FOR_HEARTBEATS);
   }
 }

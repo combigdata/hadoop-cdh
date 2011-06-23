@@ -759,7 +759,7 @@ public class NNThroughputBenchmark {
     void sendHeartbeat() throws IOException {
       // register datanode
       DatanodeCommand[] cmds = nameNode.sendHeartbeat(
-          dnRegistration, DF_CAPACITY, DF_USED, DF_CAPACITY - DF_USED, 0, 0);
+          dnRegistration, DF_CAPACITY, DF_USED, DF_CAPACITY - DF_USED, 0, 0, 0);
       if(cmds != null) {
         for (DatanodeCommand cmd : cmds ) {
           LOG.debug("sendHeartbeat Name-node reply: " + cmd.getAction());
@@ -793,7 +793,7 @@ public class NNThroughputBenchmark {
     int replicateBlocks() throws IOException {
       // register datanode
       DatanodeCommand[] cmds = nameNode.sendHeartbeat(
-          dnRegistration, DF_CAPACITY, DF_USED, DF_CAPACITY - DF_USED, 0, 0);
+          dnRegistration, DF_CAPACITY, DF_USED, DF_CAPACITY - DF_USED, 0, 0, 0);
       if (cmds != null) {
         for (DatanodeCommand cmd : cmds) {
           if (cmd.getAction() == DatanodeProtocol.DNA_TRANSFER) {
