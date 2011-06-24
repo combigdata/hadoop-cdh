@@ -283,6 +283,9 @@
   <property name="clover.jar" location="${clover.home}/lib/clover.jar"/>
   <available property="clover.present" file="${clover.jar}" />
 
+  <!-- Use environment -->
+  <property environment="env" />
+
   <!-- check if clover reports should be generated -->
   <condition property="clover.enabled">
     <and>
@@ -294,6 +297,14 @@
   <condition property="staging">
      <equals arg1="${repo}" arg2="staging"/>
   </condition>
+
+  <!-- Indicate is Snappy native library should be bundled with Hadoop or not -->
+  <property name="bundle.snappy" value="false"/>
+
+  <!-- Snappy native library location -->
+  <property name="snappy.prefix" value="/usr/local"/>
+  <property name="snappy.lib" value="${snappy.prefix}/lib"/>
+  <property name="snappy.include" value="${snappy.prefix}/include"/>
 
   <!-- the normal classpath -->
   <path id="classpath">
@@ -351,6 +362,8 @@
 	  <env key="BASE_NATIVE_LIB_DIR" value="${lib.dir}/native"/>
 	  <env key="BUILD_NATIVE_DIR" value="${build.dir}/native"/>
 	  <env key="DIST_LIB_DIR" value="${dist.dir}/lib/native"/>
+          <env key="BUNDLE_SNAPPY_LIB" value="${bundle.snappy}"/>
+          <env key="SNAPPY_LIB_DIR" value="${snappy.lib}"/>
 	  <arg line="${native.src.dir}/packageNativeHadoop.sh"/>
       </exec>
     </sequential>
@@ -608,12 +621,13 @@
   <target name="create-native-makefile" depends="check-native-makefile" if="need.native.makefile">
     <antcall target="create-native-configure"/>
     <mkdir dir="${build.native}"/>
+
     <exec dir="${build.native}" executable="sh" failonerror="true">
           <env key="OS_NAME" value="${os.name}"/>
           <env key="OS_ARCH" value="${os.arch}"/>
           <env key="JVM_DATA_MODEL" value="${sun.arch.data.model}"/>
           <env key="HADOOP_NATIVE_SRCDIR" value="${native.src.dir}"/>
-          <arg line="${native.src.dir}/configure"/>
+          <arg line="${native.src.dir}/configure CPPFLAGS=-I${snappy.include} LDFLAGS=-L${snappy.lib}"/>
     </exec>
   </target>
 
@@ -622,10 +636,21 @@
   	
     <mkdir dir="${build.native}/lib"/>
     <mkdir dir="${build.native}/src/org/apache/hadoop/io/compress/zlib"/>
+    <mkdir dir="${build.native}/src/org/apache/hadoop/io/compress/snappy"/>
     <mkdir dir="${build.native}/src/org/apache/hadoop/io/nativeio"/>
     <mkdir dir="${build.native}/src/org/apache/hadoop/security"/>
 
-  	<javah
+    <javah
+      classpath="${build.classes}"
+      destdir="${build.native}/src/org/apache/hadoop/io/compress/snappy"
+      force="yes"
+      verbose="yes"
+      >
+      <class name="org.apache.hadoop.io.compress.snappy.SnappyCompressor"/>
+      <class name="org.apache.hadoop.io.compress.snappy.SnappyDecompressor"/>
+    </javah>
+
+    <javah
   	  classpath="${build.classes}"
   	  destdir="${build.native}/src/org/apache/hadoop/io/compress/zlib"
       force="yes"
@@ -1029,7 +1054,7 @@
                      value="@{test.krb5.conf.filename}"/>
         <sysproperty key="hadoop.policy.file" value="hadoop-policy.xml" />
         <sysproperty key="java.library.path"
-                     value="${build.native}/lib:${lib.dir}/native/${build.platform}" />
+                     value="${build.native}/lib:${lib.dir}/native/${build.platform}:${snappy.prefix}/lib"/>
         <sysproperty key="install.c++.examples"
                      value="${install.c++.examples}" />
         <sysproperty key="testjar"
