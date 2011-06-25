@@ -1625,7 +1625,14 @@ public class DataNode extends Configured
     } catch (Throwable e) {
       LOG.error(StringUtils.stringifyException(e));
       System.exit(-1);
-    }   
+    } finally {
+      // We need to add System.exit here because either shutdown was called or
+      // some disk related conditions like volumes tolerated or volumes required
+      // condition was not met. Also, In secure mode, control will go to Jsvc an
+      // the process hangs without System.exit.
+      LOG.info("Exiting Datanode");
+      System.exit(0);
+    }
   }
   
   public static void main(String args[]) {
