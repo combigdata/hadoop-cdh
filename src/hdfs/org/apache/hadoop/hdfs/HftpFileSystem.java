@@ -40,7 +40,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.ContentSummary;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.FSInputStream;
 import org.apache.hadoop.fs.FileChecksum;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -50,7 +49,6 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.security.token.delegation.DelegationTokenIdentifier;
 import org.apache.hadoop.hdfs.server.namenode.JspHelper;
 import org.apache.hadoop.hdfs.server.namenode.NameNode;
-import org.apache.hadoop.hdfs.server.namenode.StreamFile;
 import org.apache.hadoop.hdfs.tools.DelegationTokenFetcher;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.ipc.RemoteException;
@@ -67,6 +65,7 @@ import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.DefaultHandler;
 import org.xml.sax.helpers.XMLReaderFactory;
+import org.apache.hadoop.hdfs.ByteRangeInputStream;
 
 /** An implementation of a protocol for accessing filesystems over HTTP.
  * The following implementation provides a limited, read-only interface
@@ -228,12 +227,26 @@ public class HftpFileSystem extends FileSystem {
   }
 
   /**
-   * Open an HTTP connection to the namenode to read file data and metadata.
-   * @param path The path component of the URL
-   * @param query The query component of the URL
+   * Return a URL pointing to given path on the namenode.
+   *
+   * @param p path to obtain the URL for
+   * @return namenode URL referring to the given path
+   * @throws IOException on error constructing the URL
    */
-  protected HttpURLConnection openConnection(String path, String query)
-      throws IOException {
+  URL getNamenodeFileURL(Path p) throws IOException {
+    return getNamenodeURL("/data" + p.toUri().getPath(),
+                          "ugi=" + getUgiParameter());
+  }
+
+  /**
+   * Return a URL pointing to given path on the namenode.
+   *
+   * @param path to obtain the URL for
+   * @param query string to append to the path
+   * @return namenode URL referring to the given path
+   * @throws IOException on error constructing the URL
+   */
+  URL getNamenodeURL(String path, String query) throws IOException {
     try {
       query = updateQuery(query);
       final URL url = new URI("http", null, nnAddr.getHostName(),
@@ -241,12 +254,26 @@ public class HftpFileSystem extends FileSystem {
       if (LOG.isTraceEnabled()) {
         LOG.trace("url=" + url);
       }
-      return (HttpURLConnection)url.openConnection();
+      return url;
     } catch (URISyntaxException e) {
-      throw (IOException)new IOException().initCause(e);
+      throw new IOException(e);
     }
   }
-  
+
+  /**
+   * Open an HTTP connection to the namenode to read file data and metadata.
+   * @param path The path component of the URL
+   * @param query The query component of the URL
+   */
+  protected HttpURLConnection openConnection(String path, String query)
+      throws IOException {
+    final URL url = getNamenodeURL(path, query);
+    HttpURLConnection connection = (HttpURLConnection)url.openConnection();
+    connection.setRequestMethod("GET");
+    connection.connect();
+    return connection;
+  }
+
   protected String updateQuery(String query) throws IOException {
     String tokenString = null;
     if (UserGroupInformation.isSecurityEnabled()) {
@@ -261,64 +288,9 @@ public class HftpFileSystem extends FileSystem {
   }
 
   @Override
-  public FSDataInputStream open(Path f, int buffersize) throws IOException {
-    final HttpURLConnection connection = openConnection(
-        "/data" + f.toUri().getPath(), "ugi=" + getUgiParameter());
-    final InputStream in;
-    try {
-      connection.setRequestMethod("GET");
-      connection.connect();
-      in = connection.getInputStream();
-    } catch(IOException ioe) {
-      final int code = connection.getResponseCode();
-      final String s = connection.getResponseMessage();
-      throw s == null? ioe:
-          new IOException(s + " (error code=" + code + ")", ioe);
-    }
-
-    final String cl = connection.getHeaderField(StreamFile.CONTENT_LENGTH);
-    final long filelength = cl == null? -1: Long.parseLong(cl);
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("filelength = " + filelength);
-    }
-
-    return new FSDataInputStream(new FSInputStream() {
-        long currentPos = 0;
-
-        private void update(final boolean isEOF, final int n
-            ) throws IOException {
-          if (!isEOF) {
-            currentPos += n;
-          } else if (currentPos < filelength) {
-            throw new IOException("Got EOF but byteread = " + currentPos
-                + " < filelength = " + filelength);
-          }
-        }
-        public int read() throws IOException {
-          final int b = in.read();
-          update(b == -1, 1);
-          return b;
-        }
-        public int read(byte[] b, int off, int len) throws IOException {
-          final int n = in.read(b, off, len);
-          update(n == -1, n);
-          return n;
-        }
-
-        public void close() throws IOException {
-          in.close();
-        }
-
-        public void seek(long pos) throws IOException {
-          throw new IOException("Can't seek!");
-        }
-        public long getPos() throws IOException {
-          throw new IOException("Position unknown!");
-        }
-        public boolean seekToNewSource(long targetPos) throws IOException {
-          return false;
-        }
-      });
+  public FSDataInputStream open(Path p, int buffersize) throws IOException {
+    URL u = getNamenodeFileURL(p);
+    return new FSDataInputStream(new ByteRangeInputStream(u));
   }
 
   /** Class to parse and store a listing reply from the server. */
@@ -368,8 +340,6 @@ public class HftpFileSystem extends FileSystem {
         xr.setContentHandler(this);
         HttpURLConnection connection = openConnection("/listPaths" + path,
             "ugi=" + getUgiParameter() + (recur? "&recursive=yes" : ""));
-        connection.setRequestMethod("GET");
-        connection.connect();
 
         InputStream resp = connection.getInputStream();
         xr.parse(new InputSource(resp));
@@ -437,10 +407,6 @@ public class HftpFileSystem extends FileSystem {
       try {
         final XMLReader xr = XMLReaderFactory.createXMLReader();
         xr.setContentHandler(this);
-
-        connection.setRequestMethod("GET");
-        connection.connect();
-
         xr.parse(new InputSource(connection.getInputStream()));
       } catch(SAXException e) {
         final Exception embedded = e.getException();

@@ -21,16 +21,22 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.InetSocketAddress;
+import java.util.Enumeration;
+import java.util.List;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.hadoop.fs.FSInputStream;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.DFSClient;
+import org.apache.hadoop.hdfs.DFSClient.DFSInputStream;
 import org.apache.hadoop.hdfs.server.datanode.DataNode;
+import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.conf.*;
+
+import org.mortbay.jetty.InclusiveByteRange;
 
 public class StreamFile extends DfsServlet {
   /** for java.io.Serializable */
@@ -46,7 +52,7 @@ public class StreamFile extends DfsServlet {
     }
   }
 
-  /** getting a client for connecting to dfs */
+  /* Return a DFS client to use to make the given HTTP request */
   protected DFSClient getDFSClient(HttpServletRequest request)
       throws IOException, InterruptedException {
 
@@ -57,6 +63,7 @@ public class StreamFile extends DfsServlet {
     return JspHelper.getDFSClient(ugi, nameNodeAddr, conf);
   }
   
+  @SuppressWarnings("unchecked")
   public void doGet(HttpServletRequest request, HttpServletResponse response)
     throws ServletException, IOException {
     String filename = request.getParameter("filename");
@@ -74,31 +81,81 @@ public class StreamFile extends DfsServlet {
       response.sendError(400, e.getMessage());
       return;
     }
-    
-    final DFSClient.DFSInputStream in = dfs.open(filename);
+
+    Enumeration<String> reqRanges = request.getHeaders("Range");
+    if (reqRanges != null && !reqRanges.hasMoreElements()) {
+      reqRanges = null;
+    }
+
+    final DFSInputStream in = dfs.open(filename);
+    final long fileLen = in.getFileLength();
+
     OutputStream os = response.getOutputStream();
-    response.setHeader("Content-Disposition", "attachment; filename=\"" + 
-                       filename + "\"");
-    response.setContentType("application/octet-stream");
-    response.setHeader(CONTENT_LENGTH, "" + in.getFileLength());
-    byte buf[] = new byte[4096];
+
     try {
-      int bytesRead;
-      while ((bytesRead = in.read(buf)) != -1) {
-        os.write(buf, 0, bytesRead);
+      if (reqRanges != null) {
+        List<InclusiveByteRange> ranges =
+          InclusiveByteRange.satisfiableRanges(reqRanges, fileLen);
+        StreamFile.sendPartialData(in, os, response, fileLen, ranges, true);
+      } else {
+        // No ranges, so send entire file
+        response.setHeader("Content-Disposition", "attachment; filename=\"" + 
+                           filename + "\"");
+        response.setContentType("application/octet-stream");
+        response.setHeader(CONTENT_LENGTH, "" + in.getFileLength());
+        StreamFile.copyFromOffset(in, os, 0L, fileLen, true);
       }
-    } catch(IOException e) {
+    } catch (IOException e) {
       if (LOG.isDebugEnabled()) {
         LOG.debug("response.isCommitted()=" + response.isCommitted(), e);
       }
       throw e;
     } finally {
-      try {
-        in.close();
-        os.close();
-      } finally {
-        dfs.close();
-      }
+      dfs.close();
     }
+  }
+
+  /**
+   * Send a partial content response with the given range. If there are
+   * no satisfiable ranges, or if multiple ranges are requested, which
+   * is unsupported, respond with range not satisfiable.
+   *
+   * @param in stream to read from
+   * @param out stream to write to
+   * @param response http response to use
+   * @param contentLength for the response header
+   * @param ranges to write to respond with
+   * @param close whether to close the streams
+   * @throws IOException on error sending the response
+   */
+  static void sendPartialData(FSInputStream in,
+                              OutputStream out,
+                              HttpServletResponse response,
+                              long contentLength,
+                              List<InclusiveByteRange> ranges,
+                              boolean close)
+      throws IOException {
+    if (ranges == null || ranges.size() != 1) {
+      response.setContentLength(0);
+      response.setStatus(HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE);
+      response.setHeader("Content-Range",
+                InclusiveByteRange.to416HeaderRangeString(contentLength));
+    } else {
+      InclusiveByteRange singleSatisfiableRange = ranges.get(0);
+      long singleLength = singleSatisfiableRange.getSize(contentLength);
+      response.setStatus(HttpServletResponse.SC_PARTIAL_CONTENT);
+      response.setHeader("Content-Range", 
+        singleSatisfiableRange.toHeaderRangeString(contentLength));
+      copyFromOffset(in, out,
+                     singleSatisfiableRange.getFirst(contentLength),
+                     singleLength, close);
+    }
+  }
+
+  /* Copy count bytes at the given offset from one stream to another */
+  static void copyFromOffset(FSInputStream in, OutputStream out, long offset,
+      long count, boolean close) throws IOException {
+    in.seek(offset);
+    IOUtils.copyBytes(in, out, count, close);
   }
 }
