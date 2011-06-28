@@ -129,6 +129,8 @@ public class DiskChecker {
       if (created) {
         localFS.setPermission(dir, expected);
         return true;
+      } else {
+        return false;
       }
     }
 
