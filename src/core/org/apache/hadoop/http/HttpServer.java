@@ -45,6 +45,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.ConfServlet;
+import org.apache.hadoop.jmx.JMXJsonServlet;
 import org.apache.hadoop.log.LogLevel;
 import org.apache.hadoop.metrics.MetricsServlet;
 import org.apache.hadoop.security.Krb5AndCertsSslSocketConnector;
@@ -266,6 +267,7 @@ public class HttpServer implements FilterContainer {
     addServlet("logLevel", "/logLevel", LogLevel.Servlet.class);
     addServlet("metrics", "/metrics", MetricsServlet.class);
     addServlet("conf", "/conf", ConfServlet.class);
+    addServlet("jmx", "/jmx", JMXJsonServlet.class);
   }
 
   public void addContext(Context ctxt, boolean isFiltered)
