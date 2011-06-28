@@ -83,5 +83,18 @@ public class TestJMXJsonServlet {
     result = readOutput(new URL(baseUrl, "/jmx"));
     LOG.info("/jmx RESULT: "+result);
     assertReFind("\"name\"\\s*:\\s*\"java.lang:type=Memory\"", result);
+    
+    // test to get an attribute of a mbean
+    result = readOutput(new URL(baseUrl, 
+        "/jmx?get=java.lang:type=Memory::HeapMemoryUsage"));
+    LOG.info("/jmx RESULT: "+result);
+    assertReFind("\"name\"\\s*:\\s*\"java.lang:type=Memory\"", result);
+    assertReFind("\"committed\"\\s*:", result);
+    
+    // negative test to get an attribute of a mbean
+    result = readOutput(new URL(baseUrl, 
+        "/jmx?get=java.lang:type=Memory::"));
+    LOG.info("/jmx RESULT: "+result);
+    assertReFind("\"ERROR\"", result);
   }
 }
