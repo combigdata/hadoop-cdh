@@ -362,8 +362,10 @@
 	  <env key="BASE_NATIVE_LIB_DIR" value="${lib.dir}/native"/>
 	  <env key="BUILD_NATIVE_DIR" value="${build.dir}/native"/>
 	  <env key="DIST_LIB_DIR" value="${dist.dir}/lib/native"/>
-          <env key="BUNDLE_SNAPPY_LIB" value="${bundle.snappy}"/>
-          <env key="SNAPPY_LIB_DIR" value="${snappy.lib}"/>
+    <env key="BUNDLE_SNAPPY_LIB" value="${bundle.snappy}"/>
+    <env key="SNAPPY_LIB_DIR" value="${snappy.lib}"/>
+    <env key="BUILD_PLATFORM" value="${build.platform}"/>
+
 	  <arg line="${native.src.dir}/packageNativeHadoop.sh"/>
       </exec>
     </sequential>

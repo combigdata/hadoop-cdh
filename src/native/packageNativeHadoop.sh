@@ -24,6 +24,9 @@
 #  * BASE_NATIVE_LIB_DIR
 #  * BUILD_NATIVE_DIR
 #  * DIST_LIB_DIR
+#  * BUNDLE_SNAPPY_LIB
+#  * SNAPPY_LIB_DIR
+#  * BUILD_PLATFORM
 # All these are setup by build.xml.
 #
 
@@ -64,15 +67,15 @@ fi
 
 if [ "${BUNDLE_SNAPPY_LIB}" = "true" ]
 then
- if [ -d ${SNAPPY_LIB_DIR} ]
- then
-    echo "Copying Snappy library in ${SNAPPY_LIB_DIR} to $DIST_LIB_DIR/"
-   cd ${SNAPPY_LIB_DIR}
-   $TAR . | (cd $DIST_LIB_DIR/; $UNTAR)
- else
-   echo "Snappy lib directory ${SNAPPY_LIB_DIR} does not exist"
-   exit 1
- fi
+  if [ -d ${SNAPPY_LIB_DIR} ]
+  then
+    echo "Copying Snappy library in ${SNAPPY_LIB_DIR} to $DIST_LIB_DIR/$BUILD_PLATFORM/"
+    cd ${SNAPPY_LIB_DIR}
+    $TAR . | (cd $DIST_LIB_DIR/$BUILD_PLATFORM/; $UNTAR)
+  else
+    echo "Snappy lib directory ${SNAPPY_LIB_DIR} does not exist"
+    exit 1
+  fi
 fi
 
 #vim: ts=2: sw=2: et
