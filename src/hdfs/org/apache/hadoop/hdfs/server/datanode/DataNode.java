@@ -545,14 +545,9 @@ public class DataNode extends Configured
       errorMsg = "Incompatible build versions: namenode BV = " 
         + nsInfo.getBuildVersion() + "; datanode BV = "
         + Storage.getBuildVersion();
-      LOG.fatal( errorMsg );
-      try {
-        namenode.errorReport( dnRegistration,
-                              DatanodeProtocol.NOTIFY, errorMsg );
-      } catch( SocketTimeoutException e ) {  // namenode is busy
-        LOG.info("Problem connecting to server: " + getNameNodeAddr());
-      }
-      throw new IOException( errorMsg );
+      LOG.fatal(errorMsg);
+      notifyNamenode(DatanodeProtocol.NOTIFY, errorMsg);
+      throw new IOException(errorMsg);
     }
     assert FSConstants.LAYOUT_VERSION == nsInfo.getLayoutVersion() :
       "Data-node and name-node layout versions must be the same."
@@ -829,10 +824,7 @@ public class DataNode extends Configured
     int dpError = hasEnoughResources ? DatanodeProtocol.DISK_ERROR  
                                      : DatanodeProtocol.FATAL_DISK_ERROR; 
     myMetrics.volumeFailures.inc(1);
-    try {
-      namenode.errorReport(dnRegistration, dpError, errMsgr);
-    } catch(IOException ignored) {
-    }
+    notifyNamenode(dpError, errMsgr);
     
     if (hasEnoughResources) {
       scheduleBlockReport(0);
@@ -1135,6 +1127,15 @@ public class DataNode extends Configured
     return;
   }
 
+  private void notifyNamenode(int dpCode, String msg) {
+    try {
+      namenode.errorReport(dnRegistration, dpCode, msg);
+    } catch (SocketTimeoutException e) {
+      LOG.warn("Problem connecting to " + getNameNodeAddr());
+    } catch (IOException ignored) {
+    }
+  }
+
   private void transferBlock( Block block, 
                               DatanodeInfo xferTargets[] 
                               ) throws IOException {
@@ -1142,9 +1143,7 @@ public class DataNode extends Configured
       // block does not exist or is under-construction
       String errStr = "Can't send invalid block " + block;
       LOG.info(errStr);
-      namenode.errorReport(dnRegistration, 
-                           DatanodeProtocol.INVALID_BLOCK, 
-                           errStr);
+      notifyNamenode(DatanodeProtocol.INVALID_BLOCK, errStr);
       return;
     }
 
@@ -1530,13 +1529,14 @@ public class DataNode extends Configured
       try {
         DiskChecker.checkDir(localFS, new Path(dir), dataDirPermission);
         dirs.add(new File(dir));
-      } catch (IOException e) {
-        LOG.warn("Invalid directory in " + DATA_DIR_KEY +  ": " + 
-                 e.getMessage());
+      } catch (IOException ioe) {
+        LOG.warn("Invalid "+ DATA_DIR_KEY +" directory " + dir +  ": "
+            + ioe.getMessage());
       }
     }
-    if (dirs.size() > 0) 
+    if (dirs.size() > 0) {
       return new DataNode(conf, dirs, resources);
+    }
     LOG.error("All directories in " + DATA_DIR_KEY + " are invalid.");
     return null;
   }

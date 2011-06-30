@@ -86,7 +86,7 @@ class DataXceiver extends Thread implements Runnable, FSConstants {
   }
 
   /**
-   * Read/write data from/to the DataXceiveServer.
+   * Read/write data from/to the DataXceiverServer.
    */
   public void run() {
     DataInputStream in=null; 

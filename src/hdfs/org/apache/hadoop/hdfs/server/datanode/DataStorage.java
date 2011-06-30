@@ -41,6 +41,7 @@ import org.apache.hadoop.hdfs.server.common.Storage;
 import org.apache.hadoop.hdfs.server.common.StorageInfo;
 import org.apache.hadoop.hdfs.server.protocol.NamespaceInfo;
 import org.apache.hadoop.util.Daemon;
+import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.fs.FileUtil.HardLink;
 import org.apache.hadoop.io.IOUtils;
 
@@ -129,16 +130,20 @@ public class DataStorage extends Storage {
         }
       } catch (IOException ioe) {
         sd.unlock();
-        throw ioe;
+        LOG.warn("Ignoring storage directory " + dataDir +
+            " due to exception: " + StringUtils.stringifyException(ioe));
+        // Continue with other good dirs
+        continue;
       }
       // add to the storage list
       addStorageDir(sd);
       dataDirStates.add(curState);
     }
 
-    if (dataDirs.size() == 0)  // none of the data dirs exist
-      throw new IOException(
-                            "All specified directories are not accessible or do not exist.");
+    if (dataDirs.size() == 0 || dataDirStates.size() == 0) {
+      throw new IOException("All specified directories are not "
+        +"accessible or do not exist.");
+    }
 
     // 2. Do transitions
     // Each storage directory is treated individually.

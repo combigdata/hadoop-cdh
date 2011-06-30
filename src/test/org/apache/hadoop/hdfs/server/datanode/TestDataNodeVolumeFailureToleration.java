@@ -18,9 +18,11 @@
 package org.apache.hadoop.hdfs.server.datanode;
 
 import java.io.File;
+import java.io.IOException;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DFSTestUtil;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
@@ -129,31 +131,86 @@ public class TestDataNodeVolumeFailureToleration {
   }
 
   /**
-   * Test invalid DFS_DATANODE_FAILED_VOLUMES_TOLERATED_KEY values.
+   * Restart the datanodes in the cluster with a new volume tolerated value.
+   * @param volTolerated
+   * @param manageDfsDirs
+   * @throws IOException
+   */
+  private void restartDatanodes(int volTolerated, boolean manageDfsDirs)
+      throws IOException {
+    cluster.shutdownDataNodes();
+    conf.setInt("dfs.datanode.failed.volumes.tolerated", volTolerated);
+    cluster.startDataNodes(conf, 1, manageDfsDirs, null, null);
+    cluster.waitActive();
+  }
+
+  /**
+   * Test for different combination of volume configs and volumes
+   * tolerated values.
    */
   @Test
   public void testInvalidFailedVolumesConfig() throws Exception {
     assumeTrue(!System.getProperty("os.name").startsWith("Windows"));
 
-    /*
-     * Bring up another datanode that has an invalid value set.
-     * We should still be able to create a file with two replicas
-     * since the minimum valid volume parameter is only checked
-     * when we experience a disk error.
-     */
-    conf.setInt("dfs.datanode.failed.volumes.tolerated", -1);
-    cluster.startDataNodes(conf, 1, true, null, null);
-    cluster.waitActive();
-    Path file1 = new Path("/test1");
-    DFSTestUtil.createFile(fs, file1, 1024, (short)2, 1L);
-    DFSTestUtil.waitReplication(fs, file1, (short)2);
+    // Check if DN exits for an invalid conf value.
+    testVolumeConfig(-1, 0, false, true);
 
-    // Ditto if the value is too big.
-    conf.setInt("dfs.datanode.failed.volumes.tolerated", 100);
-    cluster.startDataNodes(conf, 1, true, null, null);
-    cluster.waitActive();
-    Path file2 = new Path("/test1");
-    DFSTestUtil.createFile(fs, file2, 1024, (short)2, 1L);
-    DFSTestUtil.waitReplication(fs, file2, (short)2);
+    testVolumeConfig(100, 0, false, true);
+
+    // Test for one failed volume
+    testVolumeConfig(0, 1, false, false);
+
+    // Test for one failed volume with 1 tolerable volume
+    testVolumeConfig(1, 1, true, false);
+
+    // Test all good volumes
+    testVolumeConfig(0, 0, true, false);
+
+    // Test all failed volumes
+    testVolumeConfig(0, 2, false, false);
+  }
+
+  /**
+   * Tests for a given volumes to be tolerated and volumes failed.
+   */
+  private void testVolumeConfig(int volumesTolerated, int volumesFailed,
+      boolean expectDnUp, boolean manageDfsDirs)
+      throws IOException, InterruptedException {
+    File dir0 = new File(dataDir, "data1");
+    File dir1 = new File(dataDir, "data2");
+
+    // Fail the current directory since invalid storage directory perms
+    // get fixed up automatically on datanode startup.
+    File[] currDirs = { new File(dir0, "/current"),
+                        new File(dir1, "/current") };
+    
+    try {
+      for (int i = 0; i < volumesFailed; i++) {
+        prepareDirToFail(currDirs[i]);
+      }
+      try {
+        restartDatanodes(volumesTolerated, manageDfsDirs);
+        assertEquals(expectDnUp, cluster.getDataNodes().get(0).isDatanodeUp());
+      } catch (IOException ioe) {
+        assertFalse("Expected successful restart but got " + ioe, expectDnUp);
+      }
+    } finally {
+      for (File dir : currDirs) {
+        FileUtil.chmod(dir.toString(), "755");
+      }
+    }
+  }
+
+  /**
+   * Prepare directories for a failure, set dir permission to 000
+   * @param dir
+   * @throws IOException
+   * @throws InterruptedException
+   */
+  private void prepareDirToFail(File dir) throws IOException,
+      InterruptedException {
+    dir.mkdirs();
+    assertEquals("Couldn't chmod local vol", 0,
+        FileUtil.chmod(dir.toString(), "000"));
   }
 }

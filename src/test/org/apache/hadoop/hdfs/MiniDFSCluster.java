@@ -393,6 +393,7 @@ public class MiniDFSCluster {
                                 + i + ": " + dir1 + " or " + dir2);
         }
         dnConf.set(DataNode.DATA_DIR_KEY, dir1.getPath() + "," + dir2.getPath());
+        conf.set(DataNode.DATA_DIR_KEY, dnConf.get(DataNode.DATA_DIR_KEY));
       }
       if (simulatedCapacities != null) {
         dnConf.setBoolean("dfs.datanode.simulateddatastorage", true);
