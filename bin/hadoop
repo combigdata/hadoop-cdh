@@ -278,6 +278,10 @@ elif [ "$COMMAND" = "dfsgroups" ] ; then
 elif [ "$COMMAND" = "mrgroups" ] ; then
   CLASS=org.apache.hadoop.mapred.tools.GetGroups
   HADOOP_OPTS="$HADOOP_OPTS $HADOOP_CLIENT_OPTS"
+elif [[ "$COMMAND" = -*  ]] ; then
+  # class and package names cannot begin with a -
+  echo "Error: No command named \`$COMMAND' was found. Perhaps you meant \`hadoop ${COMMAND#-}'"
+  exit 1
 else
   CLASS=$COMMAND
 fi
