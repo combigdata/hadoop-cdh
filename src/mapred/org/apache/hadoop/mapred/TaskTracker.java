@@ -3076,6 +3076,12 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
     }
   }
  
+  private void validateJVM(TaskInProgress tip, JvmContext jvmContext, TaskAttemptID taskid) throws IOException {
+    if (!jvmManager.validateTipToJvm(tip, jvmContext.jvmId)) {
+      throw new IOException("JvmValidate Failed. Ignoring request from task: " + taskid + ", with JvmId: " + jvmContext.jvmId);
+    }
+  }
+
   /**
    * Check that the current UGI is the JVM authorized to report
    * for this particular job.
@@ -3141,11 +3147,13 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
    * Called periodically to report Task progress, from 0.0 to 1.0.
    */
   public synchronized boolean statusUpdate(TaskAttemptID taskid, 
-                                              TaskStatus taskStatus) 
+                                              TaskStatus taskStatus,
+                                              JvmContext jvmContext)
   throws IOException {
     ensureAuthorizedJVM(taskid.getJobID());
     TaskInProgress tip = tasks.get(taskid);
     if (tip != null) {
+      validateJVM(tip, jvmContext, taskid);
       tip.reportProgress(taskStatus);
       return true;
     } else {
@@ -3158,9 +3166,16 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
    * Called when the task dies before completion, and we want to report back
    * diagnostic info
    */
-  public synchronized void reportDiagnosticInfo(TaskAttemptID taskid, String info) throws IOException {
+  public synchronized void reportDiagnosticInfo(TaskAttemptID taskid,
+      String info, JvmContext jvmContext) throws IOException {
     ensureAuthorizedJVM(taskid.getJobID());
-    internalReportDiagnosticInfo(taskid, info);
+    TaskInProgress tip = tasks.get(taskid);
+    if (tip != null) {
+      validateJVM(tip, jvmContext, taskid);
+      tip.reportDiagnosticInfo(info);
+    } else {
+      LOG.warn("Error from unknown child task: "+taskid+". Ignored.");
+    }
   }
 
   /**
@@ -3178,10 +3193,11 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
   }
   
   public synchronized void reportNextRecordRange(TaskAttemptID taskid, 
-      SortedRanges.Range range) throws IOException {
+      SortedRanges.Range range, JvmContext jvmContext) throws IOException {
     ensureAuthorizedJVM(taskid.getJobID());
     TaskInProgress tip = tasks.get(taskid);
     if (tip != null) {
+      validateJVM(tip, jvmContext, taskid);
       tip.reportNextRecordRange(range);
     } else {
       LOG.warn("reportNextRecordRange from unknown child task: "+taskid+". " +
@@ -3190,9 +3206,16 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
   }
 
   /** Child checking to see if we're alive.  Normally does nothing.*/
-  public synchronized boolean ping(TaskAttemptID taskid) throws IOException {
+  public synchronized boolean ping(TaskAttemptID taskid, JvmContext jvmContext)
+      throws IOException {
     ensureAuthorizedJVM(taskid.getJobID());
-    return tasks.get(taskid) != null;
+    TaskInProgress tip = tasks.get(taskid);
+    if (tip != null) {
+      validateJVM(tip, jvmContext, taskid);
+      return true;
+    } else {
+      return false;
+    }
   }
 
   /**
@@ -3200,33 +3223,38 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
    * and it is waiting for the commit Response
    */
   public synchronized void commitPending(TaskAttemptID taskid,
-                                         TaskStatus taskStatus) 
+                                         TaskStatus taskStatus,
+                                         JvmContext jvmContext) 
   throws IOException {
     ensureAuthorizedJVM(taskid.getJobID());
     LOG.info("Task " + taskid + " is in commit-pending," +"" +
              " task state:" +taskStatus.getRunState());
-    statusUpdate(taskid, taskStatus);
+    // validateJVM is done in statusUpdate
+    statusUpdate(taskid, taskStatus, jvmContext);
     reportTaskFinished(taskid, true);
   }
   
   /**
    * Child checking whether it can commit 
    */
-  public synchronized boolean canCommit(TaskAttemptID taskid) 
-  throws IOException {
+  public synchronized boolean canCommit(TaskAttemptID taskid,
+      JvmContext jvmContext) throws IOException {
     ensureAuthorizedJVM(taskid.getJobID());
-    return commitResponses.contains(taskid); //don't remove it now
+    TaskInProgress tip = tasks.get(taskid);
+    validateJVM(tip, jvmContext, taskid);
+    return commitResponses.contains(taskid); // don't remove it now
   }
   
   /**
    * The task is done.
    */
-  public synchronized void done(TaskAttemptID taskid) 
+  public synchronized void done(TaskAttemptID taskid, JvmContext jvmContext) 
   throws IOException {
     ensureAuthorizedJVM(taskid.getJobID());
     TaskInProgress tip = tasks.get(taskid);
-    commitResponses.remove(taskid);
     if (tip != null) {
+      validateJVM(tip, jvmContext, taskid);
+      commitResponses.remove(taskid);
       tip.reportDone();
     } else {
       LOG.warn("Unknown child task done: "+taskid+". Ignored.");
@@ -3237,22 +3265,36 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
   /** 
    * A reduce-task failed to shuffle the map-outputs. Kill the task.
    */  
-  public synchronized void shuffleError(TaskAttemptID taskId, String message) 
+  public synchronized void shuffleError(TaskAttemptID taskId, String message, JvmContext jvmContext) 
   throws IOException { 
     ensureAuthorizedJVM(taskId.getJobID());
-    LOG.fatal("Task: " + taskId + " - Killed due to Shuffle Failure: " + message);
     TaskInProgress tip = runningTasks.get(taskId);
-    tip.reportDiagnosticInfo("Shuffle Error: " + message);
-    purgeTask(tip, true);
+    if (tip != null) {
+      validateJVM(tip, jvmContext, taskId);
+      LOG.fatal("Task: " + taskId + " - Killed due to Shuffle Failure: "
+          + message);
+      tip.reportDiagnosticInfo("Shuffle Error: " + message);
+      purgeTask(tip, true);
+    } else {
+      LOG.warn("Unknown child task shuffleError: " + taskId + ". Ignored.");
+    }
   }
 
   /** 
    * A child task had a local filesystem error. Kill the task.
    */  
-  public synchronized void fsError(TaskAttemptID taskId, String message) 
-  throws IOException {
+  public synchronized void fsError(TaskAttemptID taskId, String message,
+      JvmContext jvmContext) throws IOException {
     ensureAuthorizedJVM(taskId.getJobID());
-    internalFsError(taskId, message);
+    TaskInProgress tip = runningTasks.get(taskId);
+    if (tip != null) {
+      validateJVM(tip, jvmContext, taskId);
+      LOG.fatal("Task: " + taskId + " - Killed due to FSError: " + message);
+      tip.reportDiagnosticInfo("FSError: " + message);
+      purgeTask(tip, true);
+    } else {
+      LOG.warn("Unknown child task fsError: "+taskId+". Ignored.");
+    }
   }
 
   /**
@@ -3270,18 +3312,29 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
   /** 
    * A child task had a fatal error. Kill the task.
    */  
-  public synchronized void fatalError(TaskAttemptID taskId, String msg) 
-  throws IOException {
+  public synchronized void fatalError(TaskAttemptID taskId, String msg,
+      JvmContext jvmContext) throws IOException {
     ensureAuthorizedJVM(taskId.getJobID());
-    LOG.fatal("Task: " + taskId + " - Killed : " + msg);
     TaskInProgress tip = runningTasks.get(taskId);
-    tip.reportDiagnosticInfo("Error: " + msg);
-    purgeTask(tip, true);
+    if (tip != null) {
+      validateJVM(tip, jvmContext, taskId);
+      LOG.fatal("Task: " + taskId + " - Killed : " + msg);
+      tip.reportDiagnosticInfo("Error: " + msg);
+      purgeTask(tip, true);
+    } else {
+      LOG.warn("Unknown child task fatalError: "+taskId+". Ignored.");
+    }
   }
 
   public synchronized MapTaskCompletionEventsUpdate getMapCompletionEvents(
-      JobID jobId, int fromEventId, int maxLocs, TaskAttemptID id) 
-  throws IOException {
+      JobID jobId, int fromEventId, int maxLocs, TaskAttemptID id,
+      JvmContext jvmContext) throws IOException {
+    TaskInProgress tip = runningTasks.get(id);
+    if (tip == null) {
+      throw new IOException("Unknown task; " + id
+          + ". Ignoring getMapCompletionEvents Request");
+    }
+    validateJVM(tip, jvmContext, id);
     ensureAuthorizedJVM(jobId);
     TaskCompletionEvent[]mapEvents = TaskCompletionEvent.EMPTY_ARRAY;
     synchronized (shouldReset) {

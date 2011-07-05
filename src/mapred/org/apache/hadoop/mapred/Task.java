@@ -152,6 +152,7 @@ abstract public class Task implements Writable, Configurable {
   protected TaskUmbilicalProtocol umbilical;
   private int numSlotsRequired;
   protected SecretKey tokenSecret;
+  protected JvmContext jvmContext;
 
   ////////////////////////////////////////////
   // Constructors
@@ -218,6 +219,21 @@ abstract public class Task implements Writable, Configurable {
     return this.tokenSecret;
   }
 
+  /**
+   * Set the task JvmContext
+   * @param jvmContext
+   */
+  public void setJvmContext(JvmContext jvmContext) {
+    this.jvmContext = jvmContext;
+  }
+  
+  /**
+   * Gets the task JvmContext
+   * @return the jvm context
+   */
+  public JvmContext getJvmContext() {
+    return this.jvmContext;
+  }
   
   /**
    * Get the index of this task within the job.
@@ -267,7 +283,7 @@ abstract public class Task implements Writable, Configurable {
                    ? StringUtils.stringifyException(throwable)
                    : StringUtils.stringifyException(tCause);
     try {
-      umbilical.fatalError(id, cause);
+      umbilical.fatalError(id, cause, jvmContext);
     } catch (IOException ioe) {
       LOG.fatal("Failed to contact the tasktracker", ioe);
       System.exit(-1);
@@ -444,8 +460,7 @@ abstract public class Task implements Writable, Configurable {
    * @param umbilical for progress reports
    */
   public abstract void run(JobConf job, TaskUmbilicalProtocol umbilical)
-    throws IOException, ClassNotFoundException, InterruptedException;
-
+      throws IOException, ClassNotFoundException, InterruptedException;
 
   /** Return an approprate thread runner for this task. 
    * @param tip TODO*/
@@ -507,6 +522,7 @@ abstract public class Task implements Writable, Configurable {
     private TaskUmbilicalProtocol umbilical;
     private InputSplit split = null;
     private Progress taskProgress;
+    private JvmContext jvmContext;
     private Thread pingThread = null;
     /**
      * flag that indicates whether progress update needs to be sent to parent.
@@ -516,9 +532,10 @@ abstract public class Task implements Writable, Configurable {
     private AtomicBoolean progressFlag = new AtomicBoolean(false);
     
     TaskReporter(Progress taskProgress,
-                 TaskUmbilicalProtocol umbilical) {
+                 TaskUmbilicalProtocol umbilical, JvmContext jvmContext) {
       this.umbilical = umbilical;
       this.taskProgress = taskProgress;
+      this.jvmContext = jvmContext;
     }
     // getters and setters for flag
     void setProgressFlag() {
@@ -615,12 +632,12 @@ abstract public class Task implements Writable, Configurable {
             taskStatus.statusUpdate(taskProgress.get(),
                                     taskProgress.toString(), 
                                     counters);
-            taskFound = umbilical.statusUpdate(taskId, taskStatus);
+            taskFound = umbilical.statusUpdate(taskId, taskStatus, jvmContext);
             taskStatus.clearStatus();
           }
           else {
             // send ping 
-            taskFound = umbilical.ping(taskId);
+            taskFound = umbilical.ping(taskId, jvmContext);
           }
 
           // if Task Tracker is not aware of our task ID (probably because it died and 
@@ -677,7 +694,7 @@ abstract public class Task implements Writable, Configurable {
     if (LOG.isDebugEnabled()) {
       LOG.debug("sending reportNextRecordRange " + range);
     }
-    umbilical.reportNextRecordRange(taskId, range);
+    umbilical.reportNextRecordRange(taskId, range, jvmContext);
   }
 
   /**
@@ -751,7 +768,7 @@ abstract public class Task implements Writable, Configurable {
       // say the task tracker that task is commit pending
       while (true) {
         try {
-          umbilical.commitPending(taskId, taskStatus);
+          umbilical.commitPending(taskId, taskStatus, jvmContext);
           break;
         } catch (InterruptedException ie) {
           // ignore
@@ -794,7 +811,7 @@ abstract public class Task implements Writable, Configurable {
     int retries = MAX_RETRIES;
     while (true) {
       try {
-        if (!umbilical.statusUpdate(getTaskID(), taskStatus)) {
+        if (!umbilical.statusUpdate(getTaskID(), taskStatus, jvmContext)) {
           LOG.warn("Parent died.  Exiting "+taskId);
           System.exit(66);
         }
@@ -851,7 +868,7 @@ abstract public class Task implements Writable, Configurable {
     int retries = MAX_RETRIES;
     while (true) {
       try {
-        umbilical.done(getTaskID());
+        umbilical.done(getTaskID(), jvmContext);
         LOG.info("Task '" + taskId + "' done.");
         return;
       } catch (IOException ie) {
@@ -871,7 +888,7 @@ abstract public class Task implements Writable, Configurable {
     int retries = MAX_RETRIES;
     while (true) {
       try {
-        while (!umbilical.canCommit(taskId)) {
+        while (!umbilical.canCommit(taskId, jvmContext)) {
           try {
             Thread.sleep(1000);
           } catch(InterruptedException ie) {

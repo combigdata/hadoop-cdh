@@ -178,7 +178,8 @@ class Child {
     Task task = null;
     
     UserGroupInformation childUGI = null;
-    
+   
+    final JvmContext jvmContext = context;
     try {
       while (true) {
         taskid = null;
@@ -259,13 +260,14 @@ class Child {
         
         // Create a final reference to the task for the doAs block
         final Task taskFinal = task;
+        taskFinal.setJvmContext(jvmContext);
         childUGI.doAs(new PrivilegedExceptionAction<Object>() {
           @Override
           public Object run() throws Exception {
             try {
               // use job-specified working directory
               FileSystem.get(job).setWorkingDirectory(job.getWorkingDirectory());
-              taskFinal.run(job, umbilical);             // run the task
+              taskFinal.run(job, umbilical);        // run the task
             } finally {
               TaskLog.syncLogs
                 (logLocation, taskid, isCleanup, logIsSegmented(job));
@@ -284,7 +286,7 @@ class Child {
       }
     } catch (FSError e) {
       LOG.fatal("FSError from child", e);
-      umbilical.fsError(taskid, e.getMessage());
+      umbilical.fsError(taskid, e.getMessage(), jvmContext);
     } catch (Exception exception) {
       LOG.warn("Error running child", exception);
       try {
@@ -310,7 +312,7 @@ class Child {
       ByteArrayOutputStream baos = new ByteArrayOutputStream();
       exception.printStackTrace(new PrintStream(baos));
       if (taskid != null) {
-        umbilical.reportDiagnosticInfo(taskid, baos.toString());
+        umbilical.reportDiagnosticInfo(taskid, baos.toString(), jvmContext);
       }
     } catch (Throwable throwable) {
       LOG.fatal("Error running child : "
@@ -320,7 +322,7 @@ class Child {
         String cause = tCause == null 
                        ? throwable.getMessage() 
                        : StringUtils.stringifyException(tCause);
-        umbilical.fatalError(taskid, cause);
+        umbilical.fatalError(taskid, cause, jvmContext);
       }
     } finally {
       RPC.stopProxy(umbilical);
