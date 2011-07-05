@@ -2575,11 +2575,7 @@ public class DFSClient implements FSConstants, java.io.Closeable {
             }
 
             synchronized (dataQueue) {
-              try {
-                blockStream.close();
-                blockReplyStream.close();
-              } catch (IOException e) {
-              }
+              IOUtils.cleanup(LOG, blockStream, blockReplyStream);
               nodes = null;
               response = null;
               blockStream = null;
@@ -2727,11 +2723,7 @@ public class DFSClient implements FSConstants, java.io.Closeable {
       }
 
       if (blockStream != null) {
-        try {
-          blockStream.close();
-          blockReplyStream.close();
-        } catch (IOException e) {
-        }
+        IOUtils.cleanup(LOG, blockStream, blockReplyStream);
       }
       blockStream = null;
       blockReplyStream = null;
@@ -3556,8 +3548,7 @@ public class DFSClient implements FSConstants, java.io.Closeable {
         synchronized (dataQueue) {
           if (blockStream != null) {
             blockStream.writeInt(0); // indicate end-of-block to datanode
-            blockStream.close();
-            blockReplyStream.close();
+            IOUtils.cleanup(LOG, blockStream, blockReplyStream);
           }
           if (s != null) {
             s.close();
