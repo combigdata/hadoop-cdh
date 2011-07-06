@@ -120,17 +120,25 @@ public class DefaultTaskController extends TaskController {
           getConf()), COMMAND_FILE);
 
       String commandFile = writeCommand(cmdLine, rawFs, p);
-      rawFs.setPermission(p, TaskController.TASK_LAUNCH_SCRIPT_PERMISSION);
+      try {
+        rawFs.setPermission(p, TaskController.TASK_LAUNCH_SCRIPT_PERMISSION);
+      } catch (ExitCodeException ece) {
+        // we don't want to confuse this exception with an ExitCodeException
+        // from the shExec below.
+        throw new IOException("Could not set permissions on " + p, ece);
+      }
       shExec = new ShellCommandExecutor(new String[]{
           "bash", "-c", commandFile},
           currentWorkDirectory);
       shExec.execute();
     } catch (ExitCodeException ece) {
-      logShExecStatus(shExec);
+      if (shExec != null) {
+        logShExecStatus(shExec);
+      }
       if (ece.getMessage() != null && !ece.getMessage().isEmpty()) {
         LOG.warn("Task wrapper stderr: " + ece.getMessage());
       }
-      return shExec.getExitCode();
+      return (shExec != null) ? shExec.getExitCode() : -1;
     } catch (Exception e) {
       LOG.warn("Unexpected error launching task JVM", e);
       if (shExec != null) {
