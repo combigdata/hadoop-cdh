@@ -246,9 +246,21 @@ abstract class INode implements Comparable<byte[]> {
     this.name = name;
   }
 
+  public String getFullPathName() {
+    // Get the full path name of this inode.
+    return FSDirectory.getFullPathName(this);
+  }
+
   /** {@inheritDoc} */
   public String toString() {
-    return "\"" + getLocalName() + "\":" + getPermissionStatus();
+    String fullPath = getFullPathName();
+
+    if (fullPath.length() == 0) {
+      fullPath = "/";
+    }
+    return "\"" + fullPath + "\":"
+      + getUserName() + ":" + getGroupName() + ":"
+      + (isDirectory() ? "d": "-") + getFsPermission();
   }
 
   /**
