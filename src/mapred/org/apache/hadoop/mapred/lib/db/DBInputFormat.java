@@ -34,11 +34,6 @@ import org.apache.hadoop.mapred.RecordReader;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapreduce.Job;
 
-/**
- * @deprecated 
- * Use {@link org.apache.hadoop.mapreduce.lib.db.DBInputFormat} instead.
- */
-@Deprecated
 public class DBInputFormat<T  extends DBWritable>
     extends org.apache.hadoop.mapreduce.lib.db.DBInputFormat<T> 
     implements InputFormat<LongWritable, T>, JobConfigurable {
