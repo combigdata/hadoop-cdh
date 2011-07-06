@@ -121,7 +121,7 @@ public class FSEditLog {
    * An implementation of the abstract class {@link EditLogOutputStream},
    * which stores edits in a local file.
    */
-  static private class EditLogFileOutputStream extends EditLogOutputStream {
+  static class EditLogFileOutputStream extends EditLogOutputStream {
     private File file;
     private FileOutputStream fp;    // file stream for storing edit logs 
     private FileChannel fc;         // channel of the file stream for sync
@@ -183,20 +183,30 @@ public class FSEditLog {
     public void close() throws IOException {
       // close should have been called after all pending transactions 
       // have been flushed & synced.
-      int bufSize = bufCurrent.size();
-      if (bufSize != 0) {
-        throw new IOException("FSEditStream has " + bufSize +
-                              " bytes still to be flushed and cannot " +
-                              "be closed.");
-      } 
-      bufCurrent.close();
-      bufReady.close();
+      if (bufCurrent != null) {
+        int bufSize = bufCurrent.size();
+        if (bufSize != 0) {
+          throw new IOException("FSEditStream has " + bufSize +
+                                " bytes still to be flushed and cannot " +
+                                "be closed.");
+        } 
+        bufCurrent.close();
+        bufCurrent = null;
+      }
+      
+      if (bufReady != null) {
+        bufReady.close();
+        bufReady = null;
+      }
 
       // remove the last INVALID marker from transaction log.
-      fc.truncate(fc.position());
-      fp.close();
-      
-      bufCurrent = bufReady = null;
+      if (fc != null && fc.isOpen()) {
+        fc.truncate(fc.position());
+        fc.close();
+      }
+      if (fp != null) {
+        fp.close();
+      }
     }
 
     /**
