@@ -313,10 +313,15 @@
       <sysproperty key="user.dir" value="${build.test}/data"/>
       
       <sysproperty key="fs.default.name" value="${fs.default.name}"/>
+      <sysproperty key="fs.defaultFS" value="${fs.defaultFS}"/>
+      <sysproperty key="mapred.job.tracker" value="${mapred.job.tracker}"/>
       <sysproperty key="hadoop.test.localoutputfile" value="${hadoop.test.localoutputfile}"/>
       <sysproperty key="hadoop.log.dir" value="${hadoop.log.dir}"/> 
       <sysproperty key="taskcontroller-path" value="${taskcontroller-path}"/>
       <sysproperty key="taskcontroller-ugi" value="${taskcontroller-ugi}"/>
+      <syspropertyset id="fairscheduler.properties">
+        <propertyref prefix="test.fairscheduler."/>
+      </syspropertyset>
       <classpath refid="test.classpath"/>
       <formatter type="${test.junit.output.format}" />
       <batchtest todir="${build.test}" unless="testcase">
