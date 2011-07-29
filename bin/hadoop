@@ -284,6 +284,7 @@ elif [[ "$COMMAND" = -*  ]] ; then
   exit 1
 else
   CLASS=$COMMAND
+  HADOOP_OPTS="$HADOOP_OPTS $HADOOP_CLIENT_OPTS"
 fi
 
 # cygwin path translation
