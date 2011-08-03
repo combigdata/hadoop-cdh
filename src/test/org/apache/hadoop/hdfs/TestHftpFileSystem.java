@@ -37,7 +37,7 @@ import org.apache.hadoop.fs.Path;
  */
 public class TestHftpFileSystem {
   private static final Random RAN = new Random();
-  private static final Path TEST_FILE = new Path("/testfile1");
+  private static final Path TEST_FILE = new Path("/testfile1+1");
   
   private static Configuration config = null;
   private static MiniDFSCluster cluster = null;

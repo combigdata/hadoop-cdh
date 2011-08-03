@@ -66,7 +66,8 @@ public class StreamFile extends DfsServlet {
   @SuppressWarnings("unchecked")
   public void doGet(HttpServletRequest request, HttpServletResponse response)
     throws ServletException, IOException {
-    String filename = request.getParameter("filename");
+    final String filename = request.getPathInfo() != null ?
+        request.getPathInfo() : "/";
     if (filename == null || filename.length() == 0) {
       response.setContentType("text/plain");
       PrintWriter out = response.getWriter();
