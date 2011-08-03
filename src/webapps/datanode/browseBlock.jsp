@@ -115,7 +115,7 @@
                  "&referrer=" + 
           URLEncoder.encode(req.getRequestURL() + "?" + req.getQueryString(),
                             "UTF-8") +
-                 JspHelper.SET_DELEGATION + tokenString;
+                 JspHelper.getDelegationTokenUrlParam(tokenString);
     out.print("<a href=\"" + tailUrl + "\">Tail this file</a><br>");
 
     out.print("<form action=\"/browseBlock.jsp\" method=GET>");
@@ -329,7 +329,7 @@
                 "&chunkSizeToView=" + chunkSizeToView + 
                 "&datanodePort=" + nextDatanodePort +
                 "&namenodeInfoPort=" + namenodeInfoPort +
-                JspHelper.SET_DELEGATION + tokenString;
+                JspHelper.getDelegationTokenUrlParam(tokenString);
       out.print("<a href=\"" + nextUrl + "\">View Next chunk</a>&nbsp;&nbsp;");        
     }
     //determine data for the prev link
@@ -386,7 +386,7 @@
                 "&genstamp=" + prevGenStamp +
                 "&datanodePort=" + prevDatanodePort +
                 "&namenodeInfoPort=" + namenodeInfoPort +
-                JspHelper.SET_DELEGATION + tokenString;
+                JspHelper.getDelegationTokenUrlParam(tokenString);
       out.print("<a href=\"" + prevUrl + "\">View Prev chunk</a>&nbsp;&nbsp;");
     }
     out.print("<hr>");
