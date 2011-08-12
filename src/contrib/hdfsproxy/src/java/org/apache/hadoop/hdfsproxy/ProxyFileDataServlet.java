@@ -18,8 +18,7 @@
 package org.apache.hadoop.hdfsproxy;
 
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
+import java.net.URL;
 
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
@@ -31,6 +30,7 @@ import org.apache.hadoop.hdfs.protocol.HdfsFileStatus;
 import org.apache.hadoop.hdfs.server.namenode.FileDataServlet;
 import org.apache.hadoop.hdfs.server.namenode.JspHelper;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.util.ServletUtil;
 
 /** {@inheritDoc} */
 public class ProxyFileDataServlet extends FileDataServlet {
@@ -39,18 +39,16 @@ public class ProxyFileDataServlet extends FileDataServlet {
 
   /** {@inheritDoc} */
   @Override
-  protected URI createUri(String parent, HdfsFileStatus i, UserGroupInformation ugi,
-      ClientProtocol nnproxy, HttpServletRequest request, String dt) throws IOException,
-      URISyntaxException {
-    
+  protected URL createRedirectURL(String path, String encodedPath, HdfsFileStatus status, 
+      UserGroupInformation ugi, ClientProtocol nnproxy, HttpServletRequest request, String dt)
+      throws IOException {
     String dtParam="";
     if (dt != null) {
-      dtParam=JspHelper.getDelegationTokenUrlParam(dt);
+      dtParam = JspHelper.getDelegationTokenUrlParam(dt);
     }
-    
-    return new URI(request.getScheme(), null, request.getServerName(), request
-        .getServerPort(), "/streamFile" + i.getFullName(parent),
-         "&ugi=" + ugi.getShortUserName() + dtParam, null);
+    return new URL(request.getScheme(), request.getServerName(), request.getServerPort(),
+        "/streamFile" + encodedPath + '?' +
+        "ugi=" + ServletUtil.encodeQueryValue(ugi.getShortUserName()) + dtParam);
   }
 
   /** {@inheritDoc} */

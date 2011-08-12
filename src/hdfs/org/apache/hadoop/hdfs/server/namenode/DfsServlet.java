@@ -19,21 +19,16 @@ package org.apache.hadoop.hdfs.server.namenode;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.URI;
-import java.net.URISyntaxException;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.DFSClient;
 import org.apache.hadoop.hdfs.protocol.ClientProtocol;
-import org.apache.hadoop.hdfs.protocol.DatanodeID;
-import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
 import org.apache.hadoop.ipc.RemoteException;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.znerd.xmlenc.XMLOutputter;
@@ -89,35 +84,5 @@ abstract class DfsServlet extends HttpServlet {
     Configuration conf = new Configuration(
         (Configuration)context.getAttribute(JspHelper.CURRENT_CONF));
     return DFSClient.createNamenode(nnAddr, conf);
-  }
-
-  /** Create a URI for redirecting request */
-  protected URI createRedirectUri(
-      String servletpath, UserGroupInformation ugi,
-      DatanodeID host, HttpServletRequest request, 
-      String tokenString)  throws URISyntaxException {
-    final String hostname = host instanceof DatanodeInfo?
-        ((DatanodeInfo)host).getHostName(): host.getHost();
-    final String scheme = request.getScheme();
-    final int port = "https".equals(scheme)?
-        (Integer)getServletContext().getAttribute("datanode.https.port")
-        : host.getInfoPort();
-    final String filename = request.getPathInfo();
-    String dt="";
-    if(tokenString!=null) {
-      dt = JspHelper.getDelegationTokenUrlParam(tokenString);
-    }
-    return new URI(scheme, null, hostname, port, servletpath,
-        "filename=" + filename + "&ugi=" + ugi.getShortUserName() + dt, null);
-  }
-
-  /** Get filename from the request */
-  protected String getFilename(HttpServletRequest request,
-      HttpServletResponse response) throws IOException {
-    final String filename = request.getParameter("filename");
-    if (filename == null || filename.length() == 0) {
-      throw new IOException("Invalid filename");
-    }
-    return filename;
   }
 }

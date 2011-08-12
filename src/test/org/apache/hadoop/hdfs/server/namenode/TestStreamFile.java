@@ -20,7 +20,6 @@ package org.apache.hadoop.hdfs.server.namenode;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.List;
@@ -46,8 +45,8 @@ import org.mockito.Mockito;
 import org.mortbay.jetty.InclusiveByteRange;
 
 /*
-  Mock input stream class that always outputs the current position of the stream
-*/
+ * Mock input stream class that always outputs the current position of the stream. 
+ */
 class MockFSInputStream extends FSInputStream {
   long currentPos = 0;
   public int read() throws IOException {
@@ -314,7 +313,7 @@ public class TestStreamFile {
   }
   
   
-    // Test for positive scenario
+  // Test for positive scenario
   @Test
   public void testDoGetShouldWriteTheFileContentIntoServletOutputStream()
       throws Exception {
@@ -380,7 +379,9 @@ public class TestStreamFile {
     Mockito.doReturn(CONF).when(mockServletContext).getAttribute(
         JspHelper.CURRENT_CONF);
     Mockito.doReturn(testFile.toString()).when(mockHttpServletRequest)
-        .getParameter("filename");
+      .getParameter("filename");
+    Mockito.doReturn("/streamFile"+testFile.toString()).when(mockHttpServletRequest)
+      .getRequestURI();
   }
 
   static Path writeFile(FileSystem fs, Path f) throws IOException {

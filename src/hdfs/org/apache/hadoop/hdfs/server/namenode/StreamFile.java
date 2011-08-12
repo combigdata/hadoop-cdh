@@ -35,6 +35,7 @@ import org.apache.hadoop.hdfs.DFSClient.DFSInputStream;
 import org.apache.hadoop.hdfs.server.datanode.DataNode;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.util.ServletUtil;
 
 import org.mortbay.jetty.InclusiveByteRange;
 
@@ -66,8 +67,9 @@ public class StreamFile extends DfsServlet {
   @SuppressWarnings("unchecked")
   public void doGet(HttpServletRequest request, HttpServletResponse response)
     throws ServletException, IOException {
-    final String filename = request.getPathInfo() != null ?
-        request.getPathInfo() : "/";
+    final String filename = ServletUtil.getDecodedPath(request, "/streamFile");
+    final String rawFilename = ServletUtil.getRawPath(request, "/streamFile");
+
     if (filename == null || filename.length() == 0) {
       response.setContentType("text/plain");
       PrintWriter out = response.getWriter();
@@ -103,7 +105,7 @@ public class StreamFile extends DfsServlet {
       } else {
         // No ranges, so send entire file
         response.setHeader("Content-Disposition", "attachment; filename=\"" + 
-                           filename + "\"");
+                           rawFilename + "\"");
         response.setContentType("application/octet-stream");
         response.setHeader(CONTENT_LENGTH, "" + in.getFileLength());
         StreamFile.copyFromOffset(in, out, 0L, fileLen);

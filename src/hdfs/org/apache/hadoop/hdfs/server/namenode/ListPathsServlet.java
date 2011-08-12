@@ -23,6 +23,7 @@ import org.apache.hadoop.hdfs.HftpFileSystem;
 import org.apache.hadoop.hdfs.protocol.ClientProtocol;
 import org.apache.hadoop.hdfs.protocol.HdfsFileStatus;
 import org.apache.hadoop.hdfs.protocol.DirectoryListing;
+import org.apache.hadoop.util.ServletUtil;
 import org.apache.hadoop.util.VersionInfo;
 
 import org.znerd.xmlenc.*;
@@ -82,8 +83,7 @@ public class ListPathsServlet extends DfsServlet {
    */
   protected Map<String,String> buildRoot(HttpServletRequest request,
       XMLOutputter doc) {
-    final String path = request.getPathInfo() != null
-      ? request.getPathInfo() : "/";
+    final String path = ServletUtil.getDecodedPath(request, "/listPaths");
     final String exclude = request.getParameter("exclude") != null
       ? request.getParameter("exclude") : "\\..*\\.crc";
     final String filter = request.getParameter("filter") != null
@@ -131,6 +131,7 @@ public class ListPathsServlet extends DfsServlet {
 
     final Map<String, String> root = buildRoot(request, doc);
     final String path = root.get("path");
+    final String filePath = ServletUtil.getDecodedPath(request, "/listPaths");
 
     try {
       final boolean recur = "yes".equals(root.get("recursive"));
@@ -150,7 +151,7 @@ public class ListPathsServlet extends DfsServlet {
             doc.attribute(m.getKey(), m.getValue());
           }
 
-          HdfsFileStatus base = nn.getFileInfo(path);
+          HdfsFileStatus base = nn.getFileInfo(filePath);
           if ((base != null) && base.isDir()) {
             writeInfo(path, base, doc);
           }
