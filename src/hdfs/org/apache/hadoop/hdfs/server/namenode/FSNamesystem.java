@@ -237,8 +237,8 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean,
   // We also store pending replication-orders.
   // Set of: Block
   //
-  private UnderReplicatedBlocks neededReplications = new UnderReplicatedBlocks();
-  private PendingReplicationBlocks pendingReplications;
+  UnderReplicatedBlocks neededReplications = new UnderReplicatedBlocks();
+  PendingReplicationBlocks pendingReplications;
 
   public LeaseManager leaseManager = new LeaseManager(this); 
 
@@ -606,9 +606,13 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean,
       for (Block block : neededReplications) {
         List<DatanodeDescriptor> containingNodes =
                                           new ArrayList<DatanodeDescriptor>();
+        List<DatanodeDescriptor> containingLiveReplicaNodes =
+          new ArrayList<DatanodeDescriptor>();
         NumberReplicas numReplicas = new NumberReplicas();
         // source node returned is not used
-        chooseSourceDatanode(block, containingNodes, numReplicas);
+        chooseSourceDatanode(block, containingNodes,
+            containingLiveReplicaNodes, numReplicas);
+        assert containingLiveReplicaNodes.size() == numReplicas.liveReplicas();
         int usableReplicas = numReplicas.liveReplicas() + 
                              numReplicas.decommissionedReplicas(); 
 
@@ -2415,7 +2419,11 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean,
     if (safeMode != null) {
       safeMode.checkMode();
     }
-      
+    
+    unprotectedRegisterInHeartbeatMap(nodeDescr);
+  }
+    
+  void unprotectedRegisterInHeartbeatMap(DatanodeDescriptor nodeDescr) {
     // also treat the registration message as a heartbeat
     synchronized(heartbeats) {
       heartbeats.add(nodeDescr);
@@ -2423,9 +2431,8 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean,
       // no need to update its timestamp
       // because its is done when the descriptor is created
     }
-    return;
   }
-    
+
   /* Resolve a node's network location */
   private void resolveNetworkLocation (DatanodeDescriptor node) {
     List<String> names = new ArrayList<String>(1);
@@ -2856,7 +2863,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean,
    */
   boolean computeReplicationWorkForBlock(Block block, int priority) {
     int requiredReplication, numEffectiveReplicas; 
-    List<DatanodeDescriptor> containingNodes;
+    List<DatanodeDescriptor> containingNodes, containingLiveReplicasNodes;
     DatanodeDescriptor srcNode;
     
     synchronized (this) {
@@ -2873,8 +2880,12 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean,
 
         // get a source data-node
         containingNodes = new ArrayList<DatanodeDescriptor>();
+        containingLiveReplicasNodes = new ArrayList<DatanodeDescriptor>();
         NumberReplicas numReplicas = new NumberReplicas();
-        srcNode = chooseSourceDatanode(block, containingNodes, numReplicas);
+        srcNode = chooseSourceDatanode(block, containingNodes,
+            containingLiveReplicasNodes, numReplicas);
+        assert containingLiveReplicasNodes.size() == numReplicas.liveReplicas();
+
         if ((numReplicas.liveReplicas() + numReplicas.decommissionedReplicas())
             <= 0) {          
           missingBlocksInCurIter++;
@@ -2895,11 +2906,21 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean,
         }
       }
     }
+    
+    // Exclude any nodes that have non-live replicas from the placement.
+    // (eg decommissioning or corrupt replicas)
+    List<Node> excludedNodes = new ArrayList<Node>();
+    for (Node n : containingNodes) {
+      if (!containingLiveReplicasNodes.contains(n)) {
+        excludedNodes.add(n);
+      }
+    }
 
     // choose replication targets: NOT HOLDING THE GLOBAL LOCK
     DatanodeDescriptor targets[] = replicator.chooseTarget(
         requiredReplication - numEffectiveReplicas,
-        srcNode, containingNodes, null, block.getNumBytes());
+        srcNode, containingLiveReplicasNodes, excludedNodes,
+        block.getNumBytes());
     if(targets.length == 0)
       return false;
 
@@ -2985,8 +3006,10 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean,
   private DatanodeDescriptor chooseSourceDatanode(
                                     Block block,
                                     List<DatanodeDescriptor> containingNodes,
+                                    List<DatanodeDescriptor> containingLiveReplicasNodes,
                                     NumberReplicas numReplicas) {
     containingNodes.clear();
+    containingLiveReplicasNodes.clear();
     DatanodeDescriptor srcNode = null;
     int live = 0;
     int decommissioned = 0;
@@ -3005,6 +3028,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean,
       else if (excessBlocks != null && excessBlocks.contains(block)) {
         excess++;
       } else {
+        containingLiveReplicasNodes.add(node);
         live++;
       }
       containingNodes.add(node);
@@ -3836,7 +3860,7 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean,
       NameNode.stateChangeLog.warn("BLOCK* NameSystem.blockReceived: " + block
           + " is received from dead or unregistered node " + nodeID.getName());
       throw new IOException(
-          "Got blockReceived message from unregistered or dead node " + block);
+          "Got blockReceived message from unregistered or dead node " + nodeID.getName());
     }
         
     if (NameNode.stateChangeLog.isDebugEnabled()) {
@@ -5693,5 +5717,29 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean,
                     remoteAddress,
                     "fsck", src, null, null);
     }
+  }
+
+  /**
+   * Return the number of racks over which the given block is replicated.
+   * Nodes that are decommissioning (or are decommissioned) and corrupt
+   * replicas are not counted.
+   * 
+   * This is only used from the unit tests in 0.20.
+   */
+  int getNumberOfRacks(Block b) {
+    HashSet<String> rackSet = new HashSet<String>(0);
+    Collection<DatanodeDescriptor> corruptNodes = corruptReplicas.getNodes(b);
+    Iterator<DatanodeDescriptor> i = blocksMap.nodeIterator(b);
+    while (i.hasNext()) {
+      DatanodeDescriptor dn = i.next();
+      if (!dn.isDecommissionInProgress() && !dn.isDecommissioned() &&
+          (corruptNodes == null || !corruptNodes.contains(dn))) {
+        String name = dn.getNetworkLocation();
+        if (!rackSet.contains(name)) {
+          rackSet.add(name);
+        }
+      }
+    }
+    return rackSet.size();
   }
 }
