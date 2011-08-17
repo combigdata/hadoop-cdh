@@ -1049,6 +1049,7 @@
         <sysproperty key="hadoop.log.dir" value="${test.log.dir}" />
         <sysproperty key="test.src.dir" value="${test.src.dir}" />
         <sysproperty key="taskcontroller-path" value="${taskcontroller-path}" />
+        <sysproperty key="taskcontroller-invalid-group" value="${taskcontroller-invalid-group}" />
         <sysproperty key="taskcontroller-ugi" value="${taskcontroller-ugi}" />
         <sysproperty key="test.build.extraconf"
                      value="@{test.dir}/extraconf" />

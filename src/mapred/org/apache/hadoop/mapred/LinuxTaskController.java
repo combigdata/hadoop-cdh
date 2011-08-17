@@ -66,7 +66,7 @@ class LinuxTaskController extends TaskController {
             LogFactory.getLog(LinuxTaskController.class);
 
   // Path to the setuid executable.
-  private String taskControllerExe;
+  protected String taskControllerExe;
   private static final String TASK_CONTROLLER_EXEC_KEY =
     "mapreduce.tasktracker.task-controller.exe";
   

@@ -23,11 +23,16 @@ import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.LocalDirAllocator;
+import org.apache.hadoop.util.Shell;
 
 import junit.framework.TestCase;
 
 public class TestLinuxTaskController extends TestCase {
   private static int INVALID_TASKCONTROLLER_PERMISSIONS = 22;
+  private static int INVALID_CONFIG_FILE = 24;
+  private static String TASKCONTROLLER_INVALID_GROUP =
+     "taskcontroller-invalid-group";
+
   private static File testDir = new File(System.getProperty("test.build.data",
       "/tmp"), TestLinuxTaskController.class.getName());
   private static String taskControllerPath = System
@@ -42,11 +47,19 @@ public class TestLinuxTaskController extends TestCase {
   }
 
   public static class MyLinuxTaskController extends LinuxTaskController {
-    String taskControllerExePath = taskControllerPath + "/task-controller";
+    @Override
+    public void setConf(Configuration conf) {
+      super.setConf(conf);
+      taskControllerExe = taskControllerPath + "/task-controller";
+    }
   }
 
-  private void validateTaskControllerSetup(TaskController controller,
-      boolean shouldFail) throws IOException {
+  private void validateTaskControllerSetup(Configuration conf,
+      TaskController controller, boolean shouldFail, int exitCode)
+  throws IOException {
+    File confFile = ClusterWithLinuxTaskController
+         .createTaskControllerConf(taskControllerPath, conf);
+    execCommand(confFile, "sudo", Shell.SET_OWNER_COMMAND, "root");
     if (shouldFail) {
       // task controller setup should fail validating permissions.
       Throwable th = null;
@@ -56,13 +69,14 @@ public class TestLinuxTaskController extends TestCase {
         th = ie;
       }
       assertNotNull("No exception during setup", th);
-      assertTrue("Exception message does not contain exit code"
-          + INVALID_TASKCONTROLLER_PERMISSIONS, th.getMessage().contains(
-          "with exit code " + INVALID_TASKCONTROLLER_PERMISSIONS));
+      assertTrue("Exception message does not contain exit code "
+          + exitCode, th.getMessage().contains(
+          "with exit code " + exitCode));
     } else {
       controller.setup(new LocalDirAllocator("mapred.local.dir"));
     }
 
+    execCommand(confFile, "sudo", "rm");
   }
 
   public void testTaskControllerGroup() throws Exception {
@@ -81,20 +95,26 @@ public class TestLinuxTaskController extends TestCase {
     // setup task-controller without setting any group name
     TaskController controller = new MyLinuxTaskController();
     controller.setConf(conf);
-    validateTaskControllerSetup(controller, true);
+    validateTaskControllerSetup(conf, controller, true, INVALID_CONFIG_FILE);
 
     // set an invalid group name for the task controller group
-    conf.set(ClusterWithLinuxTaskController.TT_GROUP, "invalid");
-    // write the task-controller's conf file
-    ClusterWithLinuxTaskController.createTaskControllerConf(taskControllerPath,
-        conf);
-    validateTaskControllerSetup(controller, true);
+    conf.set(ClusterWithLinuxTaskController.TT_GROUP, System
+            .getProperty(TASKCONTROLLER_INVALID_GROUP));
+    validateTaskControllerSetup(conf, controller, true,
+            INVALID_TASKCONTROLLER_PERMISSIONS);
 
+    // set the valid group name for the task controller group
     conf.set(ClusterWithLinuxTaskController.TT_GROUP,
         ClusterWithLinuxTaskController.taskTrackerSpecialGroup);
-    // write the task-controller's conf file
-    ClusterWithLinuxTaskController.createTaskControllerConf(taskControllerPath,
-        conf);
-    validateTaskControllerSetup(controller, false);
+    validateTaskControllerSetup(conf, controller, false, 0);
+
+  }
+
+  private static String execCommand(File f, String... cmd) throws IOException {
+    String[] args = new String[cmd.length + 1];
+    System.arraycopy(cmd, 0, args, 0, cmd.length);
+    args[cmd.length] = f.getCanonicalPath();
+    String output = Shell.execCommand(args);
+    return output;
   }
 }

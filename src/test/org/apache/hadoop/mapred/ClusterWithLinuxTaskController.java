@@ -56,9 +56,11 @@ import junit.framework.TestCase;
  * <li>Make the built binary to setuid and setgid executable</li>
  * <li>Execute following targets:
  * <code>ant test -Dcompile.c++=true -Dtaskcontroller-path=<em>path to built binary</em> 
- * -Dtaskcontroller-ugi=<em>user,group</em></code></li>
+ * -Dtaskcontroller-ugi=<em>user,group</em>
+ * -Dtaskcontroller-invalid-group=<em>group2</em></code></li>
+ * , where group2 is any existing group (other than group1).
  * </ol>
- * 
+ * The user running the tests need to have password-less sudo access.
  */
 public class ClusterWithLinuxTaskController extends TestCase {
   private static final Log LOG =
@@ -187,7 +189,7 @@ public class ClusterWithLinuxTaskController extends TestCase {
   }
 
   static File getTaskControllerConfFile(String path) {
-    File confDirectory = new File(path, "../conf");
+    File confDirectory = new File(path, "../../conf");
     return new File(confDirectory, "taskcontroller.cfg");
   }
 
@@ -201,7 +203,7 @@ public class ClusterWithLinuxTaskController extends TestCase {
    */
   static File createTaskControllerConf(String path,
       Configuration conf) throws IOException {
-    File confDirectory = new File(path, "../conf");
+    File confDirectory = new File(path, "../../conf");
     if (!confDirectory.exists()) {
       confDirectory.mkdirs();
     }
