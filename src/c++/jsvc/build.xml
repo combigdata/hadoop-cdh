@@ -35,8 +35,8 @@
 
     <exec executable="sh" dir="${build.c++.jsvc}/${jsvc.src.code.dir}"
         failonerror="yes">
-        <env key="LDFLAGS" value="-m${jsvc.arch}"/>
-        <arg value="configure" />
+        <env key="JSVC_ARCH" value="${jsvc.arch}"/>
+        <arg value="${c++.jsvc.src}/xconf.sh" />
     </exec>
 
     <exec executable="make" dir="${build.c++.jsvc}/${jsvc.src.code.dir}"
