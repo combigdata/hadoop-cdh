@@ -557,7 +557,9 @@ public class FSNamesystem implements FSConstants, FSNamesystemMBean,
           lmthread.interrupt();
           lmthread.join(3000);
         }
-        dir.close();
+        if (dir != null) {
+          dir.close();
+        }
         blocksMap.close();
       } catch (InterruptedException ie) {
       } catch (IOException ie) {
