@@ -1053,9 +1053,9 @@ public class FSImage extends Storage {
     //
     // Write out data
     //
+    FileOutputStream fos = new FileOutputStream(newFile);
     DataOutputStream out = new DataOutputStream(
-                                                new BufferedOutputStream(
-                                                                         new FileOutputStream(newFile)));
+      new BufferedOutputStream(fos));
     try {
       out.writeInt(FSConstants.LAYOUT_VERSION);
       out.writeInt(namespaceID);
@@ -1070,6 +1070,9 @@ public class FSImage extends Storage {
       fsNamesys.saveFilesUnderConstruction(out);
       fsNamesys.saveSecretManagerState(out);
       strbuf = null;
+
+      out.flush();
+      fos.getChannel().force(true);
     } finally {
       out.close();
     }
