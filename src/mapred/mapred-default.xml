@@ -279,7 +279,7 @@
 </property>
 
 <property>
-  <name>mapreduce.job.split.metainfo.maxsize</name>
+  <name>mapreduce.jobtracker.split.metainfo.maxsize</name>
   <value>10000000</value>
   <description>The maximum permissible size of the split metainfo file.
   The JobTracker won't attempt to read split metainfo files bigger than
