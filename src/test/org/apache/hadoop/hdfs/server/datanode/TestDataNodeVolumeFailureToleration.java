@@ -213,4 +213,30 @@ public class TestDataNodeVolumeFailureToleration {
     assertEquals("Couldn't chmod local vol", 0,
         FileUtil.chmod(dir.toString(), "000"));
   }
+
+  /**
+   * Test that a volume that is considered failed on startup is seen as
+   *  a failed volume by the NN.
+   */
+  @Test
+  public void testFailedVolumeOnStartupIsCounted() throws Exception {
+    assumeTrue(!System.getProperty("os.name").startsWith("Windows"));
+
+    FSNamesystem ns = cluster.getNameNode().getNamesystem();
+    long origCapacity = DFSTestUtil.getLiveDatanodeCapacity(ns);
+    File dir = new File(dataDir, "data1/current");
+
+    try {
+      prepareDirToFail(dir);
+      restartDatanodes(1, false);
+      // The cluster is up..
+      assertTrue(cluster.getDataNodes().get(0).isDatanodeUp());
+      // but there has been a single volume failure
+      DFSTestUtil.waitForDatanodeStatus(ns, 1, 0, 1,
+          origCapacity / 2, WAIT_FOR_HEARTBEATS);
+    } finally {
+      FileUtil.chmod(dir.toString(), "755");
+    }
+  }
+
 }

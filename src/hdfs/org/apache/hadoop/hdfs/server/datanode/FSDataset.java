@@ -599,10 +599,11 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
   static class FSVolumeSet {
     FSVolume[] volumes = null;
     int curVolume = 0;
-    int numFailedVolumes = 0;
+    int numFailedVolumes;
 
-    FSVolumeSet(FSVolume[] volumes) {
+    FSVolumeSet(FSVolume[] volumes, int failedVols) {
       this.volumes = volumes;
+      this.numFailedVolumes = failedVols;
     }
     
     private int numberOfVolumes() {
@@ -902,13 +903,18 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
       conf.getInt("dfs.datanode.failed.volumes.tolerated", 0);
     String[] dataDirs = conf.getTrimmedStrings(DataNode.DATA_DIR_KEY);
     int volsConfigured = (dataDirs == null) ? 0 : dataDirs.length;
+    int volsFailed = volsConfigured - storage.getNumStorageDirs();
     validVolsRequired = volsConfigured - volFailuresTolerated;
 
-    if (validVolsRequired < 1
-        || validVolsRequired > storage.getNumStorageDirs()) {
+    if (volFailuresTolerated < 0 || volFailuresTolerated >= volsConfigured) {
+      throw new DiskErrorException("Invalid volume failure "
+          + " config value: " + volFailuresTolerated);
+    }
+    if (volsFailed > volFailuresTolerated) {
       throw new DiskErrorException("Too many failed volumes - "
         + "current valid volumes: " + storage.getNumStorageDirs()
         + ", volumes configured: " + volsConfigured
+        + ", volumes failed: " + volsFailed
         + ", volume failures tolerated: " + volFailuresTolerated);
     }
 
@@ -916,7 +922,7 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
     for (int idx = 0; idx < storage.getNumStorageDirs(); idx++) {
       volArray[idx] = new FSVolume(storage.getStorageDir(idx).getCurrentDir(), conf);
     }
-    volumes = new FSVolumeSet(volArray);
+    volumes = new FSVolumeSet(volArray, volsFailed);
     volumes.getVolumeMap(volumeMap);
     File[] roots = new File[storage.getNumStorageDirs()];
     for (int idx = 0; idx < storage.getNumStorageDirs(); idx++) {
