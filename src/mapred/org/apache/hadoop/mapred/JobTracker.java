@@ -3786,6 +3786,14 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
         throw ioe;
       }
 
+      try {
+        this.taskScheduler.checkJobSubmission(job);
+      } catch (IOException ioe){
+        LOG.error("Problem in submitting job " + jobId, ioe);
+        job.fail();
+        throw ioe;
+      }
+
       // Check the job if it cannot run in the cluster because of invalid memory
       // requirements.
       try {
