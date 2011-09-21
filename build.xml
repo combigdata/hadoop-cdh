@@ -1547,6 +1547,10 @@
       <fileset dir="bin"/>
     </copy>
 
+    <copy todir="${dist.dir}/.eclipse.templates">
+      <fileset dir="${basedir}/.eclipse.templates"/>
+    </copy>
+
     <copy todir="${dist.dir}/conf">
       <fileset dir="${conf.dir}" excludes="**/*.template"/>
     </copy>
@@ -1584,6 +1588,10 @@
       <fileset dir="cloudera" />
     </copy>
     <!-- END CLOUDERA HOOKS -->
+
+    <copy todir="${dist.dir}/.eclipse.templates">
+      <fileset dir="${basedir}/.eclipse.templates"/>
+    </copy>
 
     <chmod perm="ugo+x" type="file" parallel="false">
         <fileset dir="${dist.dir}/bin"/>
@@ -1625,6 +1633,7 @@
           <exclude name="${final.name}/src/**" />
           <exclude name="${final.name}/docs/**" />
           <include name="${final.name}/**" />
+          <include name="${final.name}/eclipse.templates/**" />
         </tarfileset>
         <tarfileset dir="${build.dir}" mode="755">
           <include name="${final.name}/bin/*" />
