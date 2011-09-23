@@ -757,15 +757,17 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
     //tweak the probe sample size (make it a function of numCopiers)
     probe_sample_size = this.fConf.getInt("mapred.tasktracker.events.batchsize", 500);
     
-    Class<? extends TaskTrackerInstrumentation> metricsInst = getInstrumentationClass(fConf);
     try {
+      Class<? extends TaskTrackerInstrumentation> metricsInst = getInstrumentationClass(fConf);
       java.lang.reflect.Constructor<? extends TaskTrackerInstrumentation> c =
         metricsInst.getConstructor(new Class[] {TaskTracker.class} );
       this.myInstrumentation = c.newInstance(this);
     } catch(Exception e) {
       //Reflection can throw lots of exceptions -- handle them all by 
       //falling back on the default.
-      LOG.error("failed to initialize taskTracker metrics", e);
+      LOG.error(
+        "Failed to initialize taskTracker metrics. Falling back to default.",
+        e);
       this.myInstrumentation = new TaskTrackerMetricsInst(this);
     }
     
