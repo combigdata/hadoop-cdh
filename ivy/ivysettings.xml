@@ -39,7 +39,10 @@
     value="[organisation]/[module]/[revision]/[module]-[revision]"/>
   <property name="maven2.pattern.ext"
     value="${maven2.pattern}.[ext]"/>
-
+  <property name="cdh.releases"
+            value="https://repository.cloudera.com/artifactory/cdh-releases-rcs/"
+            override="false" />
+  
   <!-- pull in the local repository -->
   <include url="${ivy.default.conf.dir}/ivyconf-local.xml"/>
   <settings defaultResolver="default"/>
@@ -58,18 +61,26 @@
       pattern="${maven2.pattern.ext}"
       m2compatible="true"
       />
+    <ibiblio name="cdh-releases"
+      root="${cdh.releases}"
+      pattern="${maven2.pattern.ext}"
+      m2compatible="true"
+      />
     <chain name="default" dual="true">
       <resolver ref="local"/>
       <resolver ref="maven2"/>
+      <resolver ref="cdh-releases"/>
     </chain>
     <chain name="internal">
       <resolver ref="local"/>
     </chain>
     <chain name="external">
       <resolver ref="maven2"/>
+      <resolver ref="cdh-releases"/>
     </chain>
     <chain name="external-and-snapshots">
       <resolver ref="maven2"/>
+      <resolver ref="cdh-releases"/>
       <resolver ref="apache-snapshot"/>
     </chain>
   </resolvers>
