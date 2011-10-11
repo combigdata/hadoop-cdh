@@ -30,6 +30,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.DF;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 
+//import com.google.common.annotations.VisibleForTesting;
+
 /**
  * 
  * NameNodeResourceChecker provides a method -
@@ -93,15 +95,16 @@ public class NameNodeResourceChecker {
   }
 
   /**
-   * Return true if disk space is available on all all the configured volumes.
+   * Return true if disk space is available on at least one of the configured
+   * volumes.
    * 
-   * @return True if the configured amount of disk space is available on all
-   *         volumes, false otherwise.
+   * @return True if the configured amount of disk space is available on at
+   *         least one volume, false otherwise.
    * @throws IOException
    */
   boolean hasAvailableDiskSpace()
       throws IOException {
-    return getVolumesLowOnSpace().size() == 0;
+    return getVolumesLowOnSpace().size() < volumes.size();
   }
 
   /**
@@ -128,5 +131,10 @@ public class NameNodeResourceChecker {
       }
     }
     return lowVolumes;
+  }
+
+  //@VisibleForTesting
+  void setVolumes(Map<String, DF> volumes) {
+    this.volumes = volumes;
   }
 }
