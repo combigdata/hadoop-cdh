@@ -177,6 +177,7 @@ rm -rf ${HADOOP_SRC_DIR}/contrib/hod/
 
 
 cp -a ${HADOOP_SRC_DIR}/* $SRC_DIR/
+mv -f $LIB_DIR/cloudera-pom.xml $LIB_DIR/cloudera $SRC_DIR
 
 # Make the empty config
 install -d -m 0755 $ETC_DIR/conf.empty
