@@ -104,6 +104,12 @@
       rev="${xmlenc.version}"
       conf="server->default"/>
 
+    <dependency org="com.google.guava"
+      name="guava"
+      rev="r09"
+      conf="client->default" />
+
+
     <!--Configuration: httpclient-->
 
     <!--

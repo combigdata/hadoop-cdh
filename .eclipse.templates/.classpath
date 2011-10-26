@@ -27,6 +27,7 @@
 	<classpathentry kind="lib" path="build/ivy/lib/Hadoop/common/commons-logging-1.0.4.jar"/>
 	<classpathentry kind="lib" path="build/ivy/lib/Hadoop/common/commons-logging-api-1.0.4.jar"/>
 	<classpathentry kind="lib" path="build/ivy/lib/Hadoop/common/commons-net-1.4.1.jar"/>
+	<classpathentry kind="lib" path="build/ivy/lib/Hadoop/common/guava-r09.jar"/>
 	<classpathentry kind="lib" path="build/ivy/lib/Hadoop/common/jets3t-0.6.1.jar"/>
 	<classpathentry kind="lib" path="build/ivy/lib/Hadoop/common/junit-4.5.jar"/>
 	<classpathentry kind="lib" path="build/ivy/lib/Hadoop/common/log4j-1.2.15.jar"/>

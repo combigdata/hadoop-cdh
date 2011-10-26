@@ -81,12 +81,14 @@ public class DFSClient implements FSConstants, java.io.Closeable {
   private Configuration conf;
   private long defaultBlockSize;
   private short defaultReplication;
-  private SocketFactory socketFactory;
+  SocketFactory socketFactory;
   private int socketTimeout;
   private int datanodeWriteTimeout;
   final int writePacketSize;
   private final FileSystem.Statistics stats;
   private int maxBlockAcquireFailures;
+  
+  final SocketCache socketCache;
 
   /**
    * We assume we're talking to another CDH server, which supports
@@ -208,6 +210,11 @@ public class DFSClient implements FSConstants, java.io.Closeable {
     }
     defaultBlockSize = conf.getLong("dfs.block.size", DEFAULT_BLOCK_SIZE);
     defaultReplication = (short) conf.getInt("dfs.replication", 3);
+    
+    this.socketCache = new SocketCache(
+        conf.getInt(DFSConfigKeys.DFS_CLIENT_SOCKET_CACHE_CAPACITY_KEY,
+            DFSConfigKeys.DFS_CLIENT_SOCKET_CACHE_CAPACITY_DEFAULT));
+
 
     if (nameNodeAddr != null && rpcNamenode == null) {
       this.rpcNamenode = createRPCNamenode(nameNodeAddr, conf, ugi);
@@ -1199,8 +1206,7 @@ public class DFSClient implements FSConstants, java.io.Closeable {
    * and understands checksum, offset etc
    */
   public static class BlockReader extends FSInputChecker {
-
-    Socket dnSock; //for now just sending checksumOk.
+    Socket dnSock; //for now just sending the status code (e.g. checksumOk) after the read.
     private DataInputStream in;
     private DataChecksum checksum;
     private long lastChunkOffset = -1;
@@ -1211,10 +1217,12 @@ public class DFSClient implements FSConstants, java.io.Closeable {
     private long firstChunkOffset;
     private int bytesPerChecksum;
     private int checksumSize;
-    private boolean gotEOS = false;
+    private boolean eos = false;
+    private boolean sentStatusCode = false;
     
     byte[] skipBuf = null;
     ByteBuffer checksumBytes = null;
+    /** Amount of unread data in the current received packet */
     int dataLeft = 0;
     boolean isLastPacket = false;
     
@@ -1231,7 +1239,7 @@ public class DFSClient implements FSConstants, java.io.Closeable {
     public synchronized int read(byte[] buf, int off, int len) 
                                  throws IOException {
       
-      boolean eosBefore = gotEOS;
+      boolean eosBefore = eos;
 
       //for the first read, skip the extra bytes at the front.
       if (lastChunkLen < 0 && startOffset > firstChunkOffset && len > 0) {
@@ -1248,10 +1256,13 @@ public class DFSClient implements FSConstants, java.io.Closeable {
       
       int nRead = super.read(buf, off, len);
       
-      // if gotEOS was set in the previous read and checksum is enabled :
-      if (gotEOS && !eosBefore && nRead >= 0 && needChecksum()) {
-        //checksum is verified and there are no errors.
-        checksumOk(dnSock);
+      // if eos was set in the previous read, send a status code to the DN
+      if (eos && !eosBefore && nRead >= 0) {
+        if (needChecksum()) {
+          sendReadResult(dnSock, DataTransferProtocol.OP_STATUS_CHECKSUM_OK);
+        } else {
+          sendReadResult(dnSock, DataTransferProtocol.OP_STATUS_SUCCESS);
+        }
       }
       return nRead;
     }
@@ -1324,7 +1335,7 @@ public class DFSClient implements FSConstants, java.io.Closeable {
                                          throws IOException {
       // Read one chunk.
       
-      if ( gotEOS ) {
+      if (eos) {
         if ( startOffset < 0 ) {
           //This is mainly for debugging. can be removed.
           throw new IOException( "BlockRead: already got EOS or an error" );
@@ -1395,10 +1406,12 @@ public class DFSClient implements FSConstants, java.io.Closeable {
       lastChunkLen = chunkLen;
       
       if ((dataLeft == 0 && isLastPacket) || chunkLen == 0) {
-        gotEOS = true;
-      }
-      if ( chunkLen == 0 ) {
-        return -1;
+        int markerLen = in.readInt();
+        if (markerLen != 0) {
+          throw new IOException("Expected EOS marker packet, but got: " +
+              markerLen);
+        }
+        eos = true;
       }
       
       return chunkLen;
@@ -1443,7 +1456,22 @@ public class DFSClient implements FSConstants, java.io.Closeable {
       return newBlockReader(sock, file, blockId, accessToken, genStamp, startOffset,
                             len, bufferSize, verifyChecksum, "");
     }
-
+      
+    /**
+     * Create a new BlockReader specifically to satisfy a read.
+     * This method also sends the OP_READ_BLOCK request.
+     *
+     * @param sock  An established Socket to the DN. The BlockReader will not close it normally
+     * @param file  File location
+     * @param block  The block object
+     * @param blockToken  The block token for security
+     * @param startOffset  The read offset, relative to block head
+     * @param len  The number of bytes to read
+     * @param bufferSize  The IO buffer size (not the client buffer size)
+     * @param verifyChecksum  Whether to verify checksum
+     * @param clientName  Client name
+     * @return New BlockReader instance, or null on error.
+     */
     public static BlockReader newBlockReader( Socket sock, String file,
                                        long blockId, 
                                        Token<BlockTokenIdentifier> accessToken,
@@ -1512,31 +1540,60 @@ public class DFSClient implements FSConstants, java.io.Closeable {
     public synchronized void close() throws IOException {
       startOffset = -1;
       checksum = null;
+      if (dnSock != null) {
+        dnSock.close();
+      }
       // in will be closed when its Socket is closed.
     }
-    
+
     /** kind of like readFully(). Only reads as much as possible.
      * And allows use of protected readFully().
      */
     public int readAll(byte[] buf, int offset, int len) throws IOException {
       return readFully(this, buf, offset, len);
     }
+
+    /**
+     * Take the socket used to talk to the DN.
+     */
+    public Socket takeSocket() {
+      assert hasSentStatusCode() :
+        "BlockReader shouldn't give back sockets mid-read";
+      Socket res = dnSock;
+      dnSock = null;
+      return res;
+    }
     
-    /* When the reader reaches end of the read and there are no checksum
-     * errors, we send OP_STATUS_CHECKSUM_OK to datanode to inform that 
-     * checksum was verified and there was no error.
-     */ 
-    void checksumOk(Socket sock) {
+    /**
+     * Whether the BlockReader has reached the end of its input stream
+     * and successfully sent a status code back to the datanode.
+     */
+    public boolean hasSentStatusCode() {
+      return sentStatusCode;
+    }
+    
+    /**
+     * When the reader reaches end of the read, it sends a status response
+     * (e.g. CHECKSUM_OK) to the DN. Failure to do so could lead to the DN
+     * closing our connection (which we will re-open), but won't affect
+     * data correctness.
+     */
+    void sendReadResult(Socket sock, int statusCode) {
+      if (sentStatusCode) {
+        throw new IllegalStateException("already sent status code to " + sock);
+      }
       try {
         OutputStream out = NetUtils.getOutputStream(sock, HdfsConstants.WRITE_TIMEOUT);
-        byte buf[] = { (DataTransferProtocol.OP_STATUS_CHECKSUM_OK >>> 8) & 0xff,
-                       (DataTransferProtocol.OP_STATUS_CHECKSUM_OK) & 0xff };
+        byte buf[] = { (byte)((statusCode >>> 8) & 0xff),
+                       (byte)((statusCode) & 0xff) };
         out.write(buf);
         out.flush();
+        
+        sentStatusCode = true;
       } catch (IOException e) {
-        // its ok not to be able to send this.
-        LOG.debug("Could not write to datanode " + sock.getInetAddress() +
-                  ": " + e.getMessage());
+        // It's ok not to be able to send this. But something is probably wrong.
+        LOG.info("Could not send read status (" + statusCode + ") to datanode " +
+                 sock.getInetAddress() + ": " + e.getMessage());
       }
     }
   }
@@ -1546,7 +1603,6 @@ public class DFSClient implements FSConstants, java.io.Closeable {
    * negotiation of the namenode and various datanodes as necessary.
    ****************************************************************/
   public class DFSInputStream extends FSInputStream {
-    private Socket s = null;
     private boolean closed = false;
 
     private String src;
@@ -1580,6 +1636,8 @@ public class DFSClient implements FSConstants, java.io.Closeable {
     
     private byte[] oneByteBuf = new byte[1]; // used for 'int read()'
     
+    private int nCachedConnRetry;
+    
     void addToDeadNodes(DatanodeInfo dnInfo) {
       deadNodes.put(dnInfo, dnInfo);
     }
@@ -1590,6 +1648,10 @@ public class DFSClient implements FSConstants, java.io.Closeable {
       this.buffersize = buffersize;
       this.src = src;
       prefetchSize = conf.getLong("dfs.read.prefetch.size", prefetchSize);
+      nCachedConnRetry = conf.getInt(
+          DFSConfigKeys.DFS_CLIENT_CACHED_CONN_RETRY_KEY,
+          DFSConfigKeys.DFS_CLIENT_CACHED_CONN_RETRY_DEFAULT);
+
       openInfo();
     }
 
@@ -1774,14 +1836,10 @@ public class DFSClient implements FSConstants, java.io.Closeable {
         throw new IOException("Attempted to read past end of file");
       }
 
-      if ( blockReader != null ) {
-        blockReader.close(); 
+      // Will be getting a new BlockReader.
+      if (blockReader != null) {
+        closeBlockReader(blockReader);
         blockReader = null;
-      }
-      
-      if (s != null) {
-        s.close();
-        s = null;
       }
 
       //
@@ -1802,13 +1860,11 @@ public class DFSClient implements FSConstants, java.io.Closeable {
         InetSocketAddress targetAddr = retval.addr;
 
         try {
-          s = socketFactory.createSocket();
-          NetUtils.connect(s, targetAddr, socketTimeout);
-          s.setSoTimeout(socketTimeout);
           Block blk = targetBlock.getBlock();
           Token<BlockTokenIdentifier> accessToken = targetBlock.getBlockToken();
           
-          blockReader = BlockReader.newBlockReader(s, src, blk.getBlockId(), 
+          blockReader = getBlockReader(
+              targetAddr, src, blk.getBlockId(),
               accessToken, 
               blk.getGenerationStamp(),
               offsetIntoBlock, blk.getNumBytes() - offsetIntoBlock,
@@ -1837,13 +1893,6 @@ public class DFSClient implements FSConstants, java.io.Closeable {
             // Put chosen node into dead list, continue
             addToDeadNodes(chosenNode);
           }
-          if (s != null) {
-            try {
-              s.close();
-            } catch (IOException iex) {
-            }                        
-          }
-          s = null;
         }
       }
     }
@@ -1858,15 +1907,11 @@ public class DFSClient implements FSConstants, java.io.Closeable {
       }
       checkOpen();
       
-      if ( blockReader != null ) {
-        blockReader.close();
+      if (blockReader != null ) {
+        closeBlockReader(blockReader);
         blockReader = null;
       }
-      
-      if (s != null) {
-        s.close();
-        s = null;
-      }
+
       super.close();
       closed = true;
     }
@@ -1879,7 +1924,7 @@ public class DFSClient implements FSConstants, java.io.Closeable {
 
     /* This is a used by regular read() and handles ChecksumExceptions.
      * name readBuffer() is chosen to imply similarity to readBuffer() in
-     * ChecksuFileSystem
+     * ChecksumFileSystem
      */ 
     private synchronized int readBuffer(byte buf[], int off, int len) 
                                                     throws IOException {
@@ -2017,7 +2062,6 @@ public class DFSClient implements FSConstants, java.io.Closeable {
       //
       // Connect to best DataNode for desired Block, with potential offset
       //
-      Socket dn = null;
       int refetchToken = 1; // only need to get a new access token once
       
       while (true) {
@@ -2031,24 +2075,17 @@ public class DFSClient implements FSConstants, java.io.Closeable {
         BlockReader reader = null;
             
         try {
-          dn = socketFactory.createSocket();
-          NetUtils.connect(dn, targetAddr, socketTimeout);
-          dn.setSoTimeout(socketTimeout);
           Token<BlockTokenIdentifier> accessToken = block.getBlockToken();
               
           int len = (int) (end - start + 1);
               
-          reader = BlockReader.newBlockReader(dn, src, 
+          reader = getBlockReader(targetAddr, src, 
                                               block.getBlock().getBlockId(),
                                               accessToken,
                                               block.getBlock().getGenerationStamp(),
                                               start, len, buffersize, 
                                               verifyChecksum, clientName);
-          int nread = reader.readAll(buf, offset, len);
-          if (nread != len) {
-            throw new IOException("truncated return from reader.read(): " +
-                                  "excpected " + len + ", got " + nread);
-          }
+          IOUtils.readFully(reader, buf, offset, len);
           return;
         } catch (ChecksumException e) {
           LOG.warn("fetchBlockByteRange(). Got a checksum exception for " +
@@ -2070,13 +2107,107 @@ public class DFSClient implements FSConstants, java.io.Closeable {
                      StringUtils.stringifyException(e));
           }
         } finally {
-          IOUtils.closeStream(reader);
-          IOUtils.closeSocket(dn);
+          if (reader != null) {
+            closeBlockReader(reader);
+          }
         }
         // Put chosen node into dead list, continue
         addToDeadNodes(chosenNode);
       }
     }
+
+    /**
+     * Close the given BlockReader and cache its socket.
+     */
+    private void closeBlockReader(BlockReader reader) throws IOException {
+      if (reader.hasSentStatusCode()) {
+        Socket oldSock = reader.takeSocket();
+        socketCache.put(oldSock);
+      } else if (LOG.isDebugEnabled()) {
+        LOG.debug("Client couldn't reuse - didnt send code");
+      }
+      reader.close();
+    }
+  
+    /**
+     * Retrieve a BlockReader suitable for reading.
+     * This method will reuse the cached connection to the DN if appropriate.
+     * Otherwise, it will create a new connection.
+     *
+     * @param dnAddr  Address of the datanode
+     * @param file  File location
+     * @param block  The Block object
+     * @param blockToken  The access token for security
+     * @param startOffset  The read offset, relative to block head
+     * @param len  The number of bytes to read
+     * @param bufferSize  The IO buffer size (not the client buffer size)
+     * @param verifyChecksum  Whether to verify checksum
+     * @param clientName  Client name
+     * @return New BlockReader instance
+     */
+    protected BlockReader getBlockReader(InetSocketAddress dnAddr,
+                                         String file,
+                                         long blockId,
+                                         Token<BlockTokenIdentifier> blockToken,
+                                         long genStamp,
+                                         long startOffset,
+                                         long len,
+                                         int bufferSize,
+                                         boolean verifyChecksum,
+                                         String clientName)
+        throws IOException {
+      IOException err = null;
+      boolean fromCache = true;
+  
+      // Allow retry since there is no way of knowing whether the cached socket
+      // is good until we actually use it.
+      for (int retries = 0; retries <= nCachedConnRetry && fromCache; ++retries) {
+        Socket sock = socketCache.get(dnAddr);
+        if (sock == null) {
+          fromCache = false;
+  
+          sock = socketFactory.createSocket();
+          
+          // TCP_NODELAY is crucial here because of bad interactions between
+          // Nagle's Algorithm and Delayed ACKs. With connection keepalive
+          // between the client and DN, the conversation looks like:
+          //   1. Client -> DN: Read block X
+          //   2. DN -> Client: data for block X
+          //   3. Client -> DN: Status OK (successful read)
+          //   4. Client -> DN: Read block Y
+          // The fact that step #3 and #4 are both in the client->DN direction
+          // triggers Nagling. If the DN is using delayed ACKs, this results
+          // in a delay of 40ms or more.
+          //
+          // TCP_NODELAY disables nagling and thus avoids this performance
+          // disaster.
+          sock.setTcpNoDelay(true);
+  
+          NetUtils.connect(sock, dnAddr, socketTimeout);
+          sock.setSoTimeout(socketTimeout);
+        }
+  
+        try {
+          // The OP_READ_BLOCK request is sent as we make the BlockReader
+          BlockReader reader =
+              BlockReader.newBlockReader(sock, file, blockId,
+                                         blockToken, genStamp,
+                                         startOffset, len,
+                                         bufferSize, verifyChecksum,
+                                         clientName);
+          return reader;
+        } catch (IOException ex) {
+          // Our socket is no good.
+          DFSClient.LOG.debug("Error making BlockReader. Closing stale " + sock, ex);
+          sock.close();
+          err = ex;
+        }
+      }
+  
+      throw err;
+    }
+
+
 
     /**
      * Read bytes starting from the specified position.

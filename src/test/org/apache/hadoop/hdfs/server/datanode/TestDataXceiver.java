@@ -44,7 +44,8 @@ public class TestDataXceiver {
   public static void setupCluster() throws Exception {
     final int REPLICATION_FACTOR = 1;
     util = new BlockReaderTestUtil(REPLICATION_FACTOR);
-    List<LocatedBlock> blkList = util.writeFile(TEST_FILE, FILE_SIZE_K);
+    util.writeFile(TEST_FILE, FILE_SIZE_K);
+    List<LocatedBlock> blkList = util.getFileBlocks(TEST_FILE, FILE_SIZE_K);
     testBlock = blkList.get(0);     // Use the first block to test
   }
 

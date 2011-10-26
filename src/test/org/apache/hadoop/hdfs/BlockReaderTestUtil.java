@@ -75,29 +75,43 @@ public class BlockReaderTestUtil {
 
   /**
    * Create a file of the given size filled with random data.
-   * @return  List of Blocks of the new file.
+   * @return  File data.
    */
-  public List<LocatedBlock> writeFile(Path filepath, int sizeKB)
+  public byte[] writeFile(Path filepath, int sizeKB)
       throws IOException {
     FileSystem fs = cluster.getFileSystem();
 
     // Write a file with 256K of data
     DataOutputStream os = fs.create(filepath);
-    byte data[] = new byte[1024];
-    new Random().nextBytes(data);
-    for (int i = 0; i < sizeKB; i++) {
-      os.write(data);
+    byte data[] = new byte[1024 * sizeKB];
+    for (int i = 0; i < data.length; i++) {
+      data[i] = (byte)(i&0xff);
     }
+    // new Random().nextBytes(data);
+    os.write(data);
     os.close();
+    return data;
+  }
 
+  /**
+   * Get the list of Blocks for a file.
+   */
+  public List<LocatedBlock> getFileBlocks(Path filepath, int sizeKB)
+      throws IOException {
     // Return the blocks we just wrote
-    DFSClient dfsclient = new DFSClient(
-      new InetSocketAddress("localhost", cluster.getNameNodePort()), conf);
+    DFSClient dfsclient = getDFSClient();
     return dfsclient.namenode.getBlockLocations(
       filepath.toString(), 0, sizeKB * 1024).getLocatedBlocks();
   }
 
-
+  /**
+   * Get the DFSClient.
+   */
+  public DFSClient getDFSClient() throws IOException {
+    InetSocketAddress nnAddr = new InetSocketAddress("localhost", cluster.getNameNodePort());
+    return new DFSClient(nnAddr, conf);
+  }
+    
   /**
    * Exercise the BlockReader and read length bytes.
    *
@@ -137,6 +151,7 @@ public class BlockReaderTestUtil {
 
     return BlockReader.newBlockReader(
       sock, targetAddr.toString()+ ":" + block.getBlockId(), block.getBlockId(),
+      testBlock.getBlockToken(),
       block.getGenerationStamp(),
       offset, lenToRead,
       conf.getInt("io.file.buffer.size", 4096));

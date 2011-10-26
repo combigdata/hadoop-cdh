@@ -66,7 +66,9 @@ class BlockSender implements java.io.Closeable, FSConstants {
   private long seqno; // sequence number of packet
 
   private boolean transferToAllowed = true;
-  private boolean blockReadFully; //set when the whole block is read
+  // set once entire requested byte range has been sent to the client
+  private boolean sentEntireByteRange;
+  private boolean blockReadFully; // set if the entire block was read
   private boolean verifyChecksum; //if true, check is verified while reading
   private BlockTransferThrottler throttler;
   private final String clientTraceFmt; // format of client trace log message
@@ -491,16 +493,19 @@ class BlockSender implements java.io.Closeable, FSConstants {
         long len = sendChunks(pktBuf, maxChunksPerPacket, 
                               streamForSendChunks);
         offset += len;
-        totalRead += len + ((len + bytesPerChecksum - 1)/bytesPerChecksum*
-                            checksumSize);
+        long numChunksSent = (len + bytesPerChecksum - 1)/bytesPerChecksum;
+        totalRead += len + (numChunksSent * checksumSize);
         seqno++;
       }
+      
       try {
         out.writeInt(0); // mark the end of block        
         out.flush();
       } catch (IOException e) { //socket error
         throw ioeToSocketException(e);
       }
+      
+      sentEntireByteRange = true;
     }
     catch (RuntimeException e) {
       LOG.error("unexpected exception sending block", e);
@@ -514,7 +519,7 @@ class BlockSender implements java.io.Closeable, FSConstants {
       }
       close();
     }
-
+    
     blockReadFully = (initialOffset == 0 && offset >= blockLength);
 
     return totalRead;
@@ -558,6 +563,10 @@ class BlockSender implements java.io.Closeable, FSConstants {
     return (endOffset - offset) > LONG_READ_THRESHOLD_BYTES;
   }
 
+  boolean didSendEntireByteRange() {
+    return sentEntireByteRange;
+  }
+  
   boolean isBlockReadFully() {
     return blockReadFully;
   }

@@ -28,6 +28,7 @@ import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.DFSClient.BlockReader;
 import org.apache.hadoop.hdfs.protocol.Block;
+import org.apache.hadoop.hdfs.protocol.DataTransferProtocol;
 import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
 import org.apache.hadoop.hdfs.protocol.LocatedBlock;
 import org.apache.hadoop.hdfs.server.common.HdfsConstants;
@@ -107,7 +108,9 @@ public class TestClientBlockVerification {
   public void testBlockVerification() throws Exception {
     BlockReader reader = spy(getBlockReader(0, FILE_SIZE_K * 1024));
     slurpReader(reader, FILE_SIZE_K * 1024, true);
-    verify(reader).checksumOk(reader.dnSock);
+    verify(reader).sendReadResult(
+      reader.dnSock,
+      (short)DataTransferProtocol.OP_STATUS_CHECKSUM_OK);
     reader.close();
   }
 
@@ -120,14 +123,16 @@ public class TestClientBlockVerification {
     slurpReader(reader, FILE_SIZE_K / 2 * 1024, false);
 
     // We asked the blockreader for the whole file, and only read
-    // half of it, so no checksumOk
-    verify(reader, never()).checksumOk(reader.dnSock);
+    // half of it, so no CHECKSUM_OK
+    verify(reader, never()).sendReadResult(
+      reader.dnSock,
+      (short)DataTransferProtocol.OP_STATUS_CHECKSUM_OK);
     reader.close();
   }
 
   /**
    * Test that if we ask for a half block, and read it all, we *do*
-   * call checksumOk. The DN takes care of knowing whether it was
+   * send CHECKSUM_OK. The DN takes care of knowing whether it was
    * the whole block or not.
    */
   @Test
@@ -136,7 +141,9 @@ public class TestClientBlockVerification {
     BlockReader reader = spy(getBlockReader(0, FILE_SIZE_K * 1024 / 2));
     // And read half the file
     slurpReader(reader, FILE_SIZE_K * 1024 / 2, true);
-    verify(reader).checksumOk(reader.dnSock);
+    verify(reader).sendReadResult(reader.dnSock,
+      (short)DataTransferProtocol.OP_STATUS_CHECKSUM_OK);
+
     reader.close();
   }
 
@@ -154,7 +161,9 @@ public class TestClientBlockVerification {
                            " len=" + length);
         BlockReader reader = spy(getBlockReader(startOffset, length));
         slurpReader(reader, length, true);
-        verify(reader).checksumOk(reader.dnSock);
+        verify(reader).sendReadResult(
+          reader.dnSock,
+          (short)DataTransferProtocol.OP_STATUS_CHECKSUM_OK);
         reader.close();
       }
     }
