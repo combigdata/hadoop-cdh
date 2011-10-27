@@ -107,13 +107,14 @@ class DataXceiver extends Thread implements Runnable, FSConstants {
           new BufferedInputStream(NetUtils.getInputStream(s), 
                                   SMALL_BUFFER_SIZE));
       boolean local = s.getInetAddress().equals(s.getLocalAddress());
-      updateThreadName("waiting for operation");
       int stdTimeout = s.getSoTimeout();
 
       // We process requests in a loop, and stay around for a short timeout.
       // This optimistic behaviour allows the other end to reuse connections.
       // Setting keepalive timeout to 0 disable this behavior.
       do {
+        updateThreadName("Waiting for operation #" + (opsProcessed + 1));
+
         byte op;
         try {
           if (opsProcessed != 0) {
