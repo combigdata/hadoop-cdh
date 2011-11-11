@@ -22,6 +22,9 @@ import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryMXBean;
+import java.lang.management.MemoryUsage;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.security.PrivilegedExceptionAction;
@@ -217,8 +220,11 @@ public class JspHelper {
     long inodes = fsn.dir.totalInodes();
     long blocks = fsn.getBlocksTotal();
     long maxobjects = fsn.getMaxObjects();
-    long totalMemory = Runtime.getRuntime().totalMemory();   
-    long maxMemory = Runtime.getRuntime().maxMemory();   
+
+    MemoryMXBean mem = ManagementFactory.getMemoryMXBean();
+    MemoryUsage heap = mem.getHeapMemoryUsage();
+    long totalMemory = heap.getUsed();
+    long maxMemory = heap.getMax();
 
     long used = (totalMemory * 100)/maxMemory;
  
