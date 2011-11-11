@@ -278,7 +278,8 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
   static final String TT_OUTOFBAND_HEARBEAT =
     "mapreduce.tasktracker.outofband.heartbeat";
   private volatile boolean oobHeartbeatOnTaskCompletion;
-  
+  private boolean manageOsCacheInShuffle = false;
+
   // Track number of completed tasks to send an out-of-band heartbeat
   private IntWritable finishedCount = new IntWritable(0);
   
@@ -869,6 +870,10 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
     
     oobHeartbeatOnTaskCompletion = 
       fConf.getBoolean(TT_OUTOFBAND_HEARBEAT, false);
+    
+    manageOsCacheInShuffle = fConf.getBoolean(
+        "mapred.tasktracker.shuffle.fadvise",
+        true);
   }
 
   private void startJettyBugMonitor() {
@@ -3797,6 +3802,12 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
         mapOutputIn = SecureIOUtils.openForRead(
             new File(mapOutputFileName.toUri().getPath()), runAsUserName);
 
+        // readahead if possible
+        if (tracker.manageOsCacheInShuffle && info.partLength > 0) {
+          NativeIO.posixFadviseIfPossible(mapOutputIn.getFD(),
+              info.startOffset, info.partLength, NativeIO.POSIX_FADV_WILLNEED);
+        }
+
         //seek to the correct offset for the reduce
         mapOutputIn.skip(info.startOffset);
         long rem = info.partLength;
@@ -3817,6 +3828,12 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
             mapOutputIn.read(buffer, 0, (int)Math.min(rem, MAX_BYTES_TO_READ));
         }
         
+        // drop cache if possible
+        if (tracker.manageOsCacheInShuffle && info.partLength > 0) {
+          NativeIO.posixFadviseIfPossible(mapOutputIn.getFD(),
+              info.startOffset, info.partLength, NativeIO.POSIX_FADV_DONTNEED);
+        }
+
         if (LOG.isDebugEnabled()) {
           LOG.info("Sent out " + totalRead + " bytes for reduce: " + reduce + 
                  " from map: " + mapId + " given " + info.partLength + "/" + 
