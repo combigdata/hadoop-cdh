@@ -322,6 +322,13 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
    * Handle to the specific instance of the {@link NodeHealthCheckerService}
    */
   private NodeHealthCheckerService healthChecker;
+
+  /**
+   * Thread which checks CPU usage of Jetty and shuts down the TT if it
+   * exceeds a configurable threshold.
+   */
+  private JettyBugMonitor jettyBugMonitor;
+
   
   /*
    * A list of commitTaskActions for whom commit response has been received 
@@ -857,8 +864,18 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
       startHealthMonitor(this.fConf);
     }
     
+    // Start thread to monitor jetty bugs
+    startJettyBugMonitor();
+    
     oobHeartbeatOnTaskCompletion = 
       fConf.getBoolean(TT_OUTOFBAND_HEARBEAT, false);
+  }
+
+  private void startJettyBugMonitor() {
+    jettyBugMonitor = JettyBugMonitor.create(fConf);
+    if (jettyBugMonitor != null) {
+      jettyBugMonitor.start();
+    }
   }
 
   UserGroupInformation getMROwner() {
@@ -1380,6 +1397,10 @@ public class TaskTracker implements MRConstants, TaskUmbilicalProtocol,
       //stop node health checker service
       healthChecker.stop();
       healthChecker = null;
+    }
+    if (jettyBugMonitor != null) {
+      jettyBugMonitor.shutdown();
+      jettyBugMonitor = null;
     }
   }
 
