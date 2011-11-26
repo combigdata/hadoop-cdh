@@ -1177,6 +1177,16 @@
   </description>
 </property>
 
+ <property>
+  <name>mapred.disk.healthChecker.interval</name>
+  <value>60000</value>
+  <description>How often the TaskTracker checks the health of its
+  local directories. Configuring this to a value smaller than the
+  heartbeat interval is equivalent to setting this to heartbeat
+  interval value.
+  </description>
+</property>
+
 <!--  Node health script variables -->
 
 <property>

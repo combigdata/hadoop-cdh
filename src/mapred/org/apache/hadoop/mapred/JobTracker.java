@@ -1442,7 +1442,7 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
       // III. Create the dummy tasktracker status
       TaskTrackerStatus ttStatus = 
         new TaskTrackerStatus(trackerName, trackerHostName, port, ttStatusList, 
-                              0 , 0, 0);
+                              0 , 0, 0, 0);
       ttStatus.setLastSeen(clock.getTime());
 
       synchronized (JobTracker.this) {
@@ -5144,7 +5144,8 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
           put("reduce_slots", redSlots);
           put("reduce_slots_used", redSlots - tts.getAvailableReduceSlots());
         }});
-        put("failures", tts.getFailures());
+        put("failures", tts.getTaskFailures());
+        put("dir_failures", tts.getDirFailures());
       }});
     }
     return info;
