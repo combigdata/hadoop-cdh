@@ -5144,7 +5144,7 @@ public class JobTracker implements MRConstants, InterTrackerProtocol,
           put("reduce_slots", redSlots);
           put("reduce_slots_used", redSlots - tts.getAvailableReduceSlots());
         }});
-        put("failures", tts.getTaskFailures());
+        put("failures", tts.getFailures());
         put("dir_failures", tts.getDirFailures());
       }});
     }

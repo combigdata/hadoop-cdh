@@ -391,12 +391,12 @@ public class TaskTrackerStatus implements Writable {
   public int getHttpPort() {
     return httpPort;
   }
-    
+
   /**
    * Get the number of tasks that have failed on this tracker.
    * @return The number of failed tasks
    */
-  public int getTaskFailures() {
+  public int getFailures() {
     return taskFailures;
   }
 

@@ -85,7 +85,7 @@
           it2.next();
           numCurTasks++;
         }
-        int numTaskFailures = tt.getTaskFailures();
+        int numTaskFailures = tt.getFailures();
         if (numTaskFailures > maxFailures) {
           maxFailures = numTaskFailures;
           failureKing = tt.getTrackerName();
