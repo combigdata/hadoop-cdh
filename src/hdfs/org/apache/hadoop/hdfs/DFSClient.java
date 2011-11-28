@@ -24,6 +24,7 @@ import org.apache.hadoop.io.retry.RetryProxy;
 import org.apache.hadoop.fs.*;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.ipc.*;
+import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.net.NodeBase;
 import org.apache.hadoop.conf.*;
@@ -96,6 +97,14 @@ public class DFSClient implements FSConstants, java.io.Closeable {
    * it doesn't, we'll set this false and stop trying.
    */
   private volatile boolean serverSupportsExcludedBlockApi = true;
+  
+  /**
+   * We assume we're talking to another CDH3u3+ server, which
+   * supports HDFS-617's non-recursive-create method.  If we get a
+   * RemoteException indicating it doesn't, we warn and set this flag falling 
+   * back to using a client-side checking version.
+   */
+  private volatile boolean serverSupportsNonRecursiveCreateApi = true;
  
   public static ClientProtocol createNamenode(Configuration conf) throws IOException {
     return createNamenode(NameNode.getAddress(conf), conf);
@@ -521,6 +530,23 @@ public class DFSClient implements FSConstants, java.io.Closeable {
         overwrite, replication, blockSize, progress, buffersize);
   }
   /**
+   * Call
+   * {@link #create(String,FsPermission,boolean,boolean,short,long,Progressable,int)}
+   * with createParent set to true.
+   */
+  public OutputStream create(String src, 
+      FsPermission permission,
+      boolean overwrite,
+      short replication,
+      long blockSize,
+      Progressable progress,
+      int buffersize
+      ) throws IOException {
+    return create(src, permission, overwrite, true,
+        replication, blockSize, progress, buffersize);
+  }
+
+  /**
    * Create a new dfs file with the specified block replication 
    * with write-progress reporting and return an output stream for writing
    * into the file.  
@@ -529,6 +555,7 @@ public class DFSClient implements FSConstants, java.io.Closeable {
    * @param permission The permission of the directory being created.
    * If permission == null, use {@link FsPermission#getDefault()}.
    * @param overwrite do not check for file existence if true
+   * @param createParent create missing parent directory if true
    * @param replication block replication
    * @return output stream
    * @throws IOException
@@ -537,6 +564,7 @@ public class DFSClient implements FSConstants, java.io.Closeable {
   public OutputStream create(String src, 
                              FsPermission permission,
                              boolean overwrite, 
+                             boolean createParent,
                              short replication,
                              long blockSize,
                              Progressable progress,
@@ -549,7 +577,7 @@ public class DFSClient implements FSConstants, java.io.Closeable {
     FsPermission masked = permission.applyUMask(FsPermission.getUMask(conf));
     LOG.debug(src + ": masked=" + masked);
     OutputStream result = new DFSOutputStream(src, masked,
-        overwrite, replication, blockSize, progress, buffersize,
+        overwrite, createParent, replication, blockSize, progress, buffersize,
         conf.getInt("io.bytes.per.checksum", 512));
     leasechecker.put(src, result);
     return result;
@@ -3048,23 +3076,72 @@ public class DFSClient implements FSConstants, java.io.Closeable {
      * @see ClientProtocol#create(String, FsPermission, String, boolean, short, long)
      */
     DFSOutputStream(String src, FsPermission masked, boolean overwrite,
-        short replication, long blockSize, Progressable progress,
+        boolean createParent, short replication, long blockSize, Progressable progress,
         int buffersize, int bytesPerChecksum) throws IOException {
       this(src, blockSize, progress, bytesPerChecksum, replication);
 
       computePacketChunkSize(writePacketSize, bytesPerChecksum);
 
       try {
-        namenode.create(
-            src, masked, clientName, overwrite, replication, blockSize);
+        if (!createParent && serverSupportsNonRecursiveCreateApi) {
+          // Compatibility case: createParent is false and we think we support 
+          // the call
+          namenode.create(src, masked, clientName, overwrite, createParent,
+              replication, blockSize);
+        } else {
+          // if createParent=true it doesn't matter if we support the alternate
+          // create method
+          namenode.create(src, masked, clientName, overwrite, replication,
+              blockSize);
+        }
       } catch(RemoteException re) {
-        throw re.unwrapRemoteException(AccessControlException.class,
-                                       NSQuotaExceededException.class,
-                                       DSQuotaExceededException.class);
+        IOException ioe = 
+          re.unwrapRemoteException(AccessControlException.class,
+                                   FileAlreadyExistsException.class,
+                                   FileNotFoundException.class,
+                                   NSQuotaExceededException.class,
+                                   DSQuotaExceededException.class);
+        if (!serverSupportsNonRecursiveCreateApi || 
+            !re.getMessage().startsWith(
+                "java.io.IOException: " +
+                "java.lang.NoSuchMethodException: org.apache.hadoop.hdfs." +
+                "protocol.ClientProtocol.create(java.lang.String, " +
+                "org.apache.hadoop.fs.permission.FsPermission, " +
+                "java.lang.String, boolean, boolean, short, long)")) {
+          throw ioe;
+        }
+        retryCreate(src, masked, overwrite, (short)replication, blockSize, 
+            progress, buffersize, bytesPerChecksum);
       }
       streamer.start();
     }
-  
+
+    /**
+     * This should only get executed once if the createParent version is called.  
+     */
+    private void retryCreate(String src, FsPermission masked, boolean overwrite,
+        short replication, long blockSize, Progressable progress,
+        int buffersize, int bytesPerChecksum) throws IOException {
+      // The call was invalid, warn and then try the version that will work 
+      // an older name node.
+      serverSupportsNonRecursiveCreateApi = false;
+      LOG.warn("Asked to create a file without automatically creating parent" +
+          "dirs, but the hdfs namenode you are connecting to does not " +
+          "support this.  From now on, calling the version that " +
+          "automatically creates dirs.");
+      try { 
+        namenode.create(src, masked, clientName, overwrite, replication,
+            blockSize);
+      } catch (RemoteException re) {
+        throw
+          re.unwrapRemoteException(AccessControlException.class,
+                                   FileAlreadyExistsException.class,
+                                   FileNotFoundException.class,
+                                   NSQuotaExceededException.class,
+                                   DSQuotaExceededException.class);
+      }
+    }
+
     /**
      * Create a new output stream to the given DataNode.
      * @see ClientProtocol#create(String, FsPermission, String, boolean, short, long)
