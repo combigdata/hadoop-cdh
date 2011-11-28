@@ -197,7 +197,7 @@ class DataBlockScanner implements Runnable {
     }
   }
 
-  private void init() {
+  private void init() throws InterruptedException {
     
     // get the list of blocks and arrange them in random order
     Block arr[] = dataset.getBlockReport();
@@ -627,9 +627,11 @@ class DataBlockScanner implements Runnable {
           } catch (InterruptedException ignored) {}
         }
       }
+    } catch (InterruptedException ie) {
+      LOG.info("DataBlockScanner interrupted");
     } catch (RuntimeException e) {
       LOG.warn("RuntimeException during DataBlockScanner.run() : " +
-               StringUtils.stringifyException(e));
+          e.getMessage() + "  " + StringUtils.stringifyException(e));
       throw e;
     } finally {
       shutdown();

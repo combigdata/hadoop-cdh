@@ -232,8 +232,9 @@ public interface FSDatasetInterface extends FSDatasetMBean {
    * Returns the block report - the full list of blocks stored
    * Returns only finalized blocks
    * @return - the block report - the full list of blocks stored
+   * @throws InterruptedException
    */
-  public Block[] getBlockReport();
+  public Block[] getBlockReport() throws InterruptedException;
   
   /**
    * Request that a block report be prepared.

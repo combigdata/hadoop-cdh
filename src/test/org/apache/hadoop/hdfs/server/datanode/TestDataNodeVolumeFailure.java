@@ -98,7 +98,7 @@ public class TestDataNodeVolumeFailure {
    * failure if the configuration parameter allows this.
    */
   @Test
-  public void testVolumeFailure() throws IOException {
+  public void testVolumeFailure() throws IOException, InterruptedException {
     FileSystem fs = cluster.getFileSystem();
     dataDir = new File(cluster.getDataDirectory());
     System.out.println("Data dir: is " +  dataDir.getPath());

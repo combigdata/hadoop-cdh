@@ -27,6 +27,7 @@ import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -34,6 +35,12 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
@@ -54,6 +61,8 @@ import org.apache.hadoop.util.DataChecksum;
 import org.apache.hadoop.util.DiskChecker;
 import org.apache.hadoop.util.DiskChecker.DiskErrorException;
 import org.apache.hadoop.util.DiskChecker.DiskOutOfSpaceException;
+
+import org.apache.hadoop.thirdparty.guava.common.util.concurrent.ThreadFactoryBuilder;
 
 /**************************************************
  * FSDataset manages a set of data blocks.  Each block
@@ -635,14 +644,37 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
     }
   }
     
+  private static class VolumeScanner implements Callable<Void> {
+    private FSVolume vol;
+    private Map<Block, File> blocks;
+
+    public VolumeScanner(FSVolume vol, Map<Block, File> blocks) {
+      this.vol = vol;
+      this.blocks = blocks;
+    }
+
+    @Override
+    public Void call() throws Exception {
+      vol.scanBlockFilesInconsistent(blocks);
+      return null;
+    }
+  }
+
   static class FSVolumeSet {
     FSVolume[] volumes = null;
     int curVolume = 0;
     int numFailedVolumes;
+    private final ThreadPoolExecutor pool;
 
-    FSVolumeSet(FSVolume[] volumes, int failedVols) {
+    FSVolumeSet(FSVolume[] volumes, int failedVols, int scannerThreads) {
       this.volumes = volumes;
       this.numFailedVolumes = failedVols;
+      pool = new ThreadPoolExecutor(scannerThreads, scannerThreads, 0L,
+          TimeUnit.SECONDS, new ArrayBlockingQueue<Runnable>(volumes.length));
+      pool.setThreadFactory(new ThreadFactoryBuilder()
+        .setDaemon(true)
+        .setNameFormat("Block Scanner Thread #%d")
+        .build());
     }
     
     private int numberOfVolumes() {
@@ -701,16 +733,27 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
       return remaining;
     }
 
-    void scanBlockFilesInconsistent(Map<Block, File> results) {
+    void scanBlockFilesInconsistent(Map<Block, File> seenOnDisk)
+        throws InterruptedException {
       // Make a local consistent copy of the volume list, since
       // it might change due to a disk failure
       FSVolume volumesCopy[];
       synchronized (this) {
         volumesCopy = Arrays.copyOf(volumes, volumes.length);
       }
-      
+
+      ArrayList<Future<Void>> results =
+        new ArrayList<Future<Void>>(volumes.length);
+
       for (FSVolume vol : volumesCopy) {
-        vol.scanBlockFilesInconsistent(results);
+        results.add(pool.submit(new VolumeScanner(vol, seenOnDisk)));
+      }
+      for (Future<Void> result : results) {
+        try {
+          result.get();
+        } catch (ExecutionException ee) {
+          throw new RuntimeException(ee.getCause());
+        }
       }
     }
     
@@ -784,6 +827,15 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
         if (idx != volumes.length - 1) { sb.append(","); }
       }
       return sb.toString();
+    }
+
+    void shutdown() {
+      pool.shutdown();
+      for (FSVolume volume : volumes) {
+        if (volume != null) {
+          volume.dfsUsage.shutdown();
+        }
+      }
     }
   }
   
@@ -979,12 +1031,13 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
         + ", volumes failed: " + volsFailed
         + ", volume failures tolerated: " + volFailuresTolerated);
     }
+    int scannerThreads = conf.getInt("dfs.datanode.directoryscan.threads", 1);
 
     FSVolume[] volArray = new FSVolume[storage.getNumStorageDirs()];
     for (int idx = 0; idx < storage.getNumStorageDirs(); idx++) {
       volArray[idx] = new FSVolume(storage.getStorageDir(idx).getCurrentDir(), conf);
     }
-    volumes = new FSVolumeSet(volArray, volsFailed);
+    volumes = new FSVolumeSet(volArray, volsFailed, scannerThreads);
     volumes.getVolumeMap(volumeMap);
     File[] roots = new File[storage.getNumStorageDirs()];
     for (int idx = 0; idx < storage.getNumStorageDirs(); idx++) {
@@ -1707,7 +1760,7 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
   
   @Override
   public Block[] retrieveAsyncBlockReport() {
-    HashMap<Block, File> seenOnDisk = asyncBlockReport.getAndReset();
+    Map<Block, File> seenOnDisk = asyncBlockReport.getAndReset();
     return reconcileRoughBlockScan(seenOnDisk);
   }
   
@@ -1715,9 +1768,9 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
    * Return a table of block data. This method is synchronous, and is used
    * by tests and during block scanner startup.
    */
-  public Block[] getBlockReport() {
+  public Block[] getBlockReport() throws InterruptedException {
     long st = System.currentTimeMillis();
-    HashMap<Block, File> seenOnDisk = roughBlockScan();
+    Map<Block, File> seenOnDisk = roughBlockScan();
     // the above results are inconsistent since modifications
     // happened concurrently. Now check any diffs
     DataNode.LOG.info("Generated rough (lockless) block report in "
@@ -1725,7 +1778,7 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
     return reconcileRoughBlockScan(seenOnDisk);
   }
 
-  private Block[] reconcileRoughBlockScan(HashMap<Block, File> seenOnDisk) {
+  private Block[] reconcileRoughBlockScan(Map<Block, File> seenOnDisk) {
     Set<Block> blockReport;
     synchronized (this) {
       long st = System.currentTimeMillis();
@@ -1746,13 +1799,13 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
    * locks. This generates a "rough" block report, since there
    * may be concurrent modifications to the disk structure.
    */
-  HashMap<Block, File> roughBlockScan() {
+  Map<Block, File> roughBlockScan() throws InterruptedException {
     int expectedNumBlocks;
     synchronized (this) {
       expectedNumBlocks = volumeMap.size();
     }
-    HashMap<Block, File> seenOnDisk =
-        new HashMap<Block, File>(expectedNumBlocks, 1.1f);
+    Map<Block, File> seenOnDisk = Collections.synchronizedMap(
+        new HashMap<Block,File>(expectedNumBlocks, 1.1f));
     volumes.scanBlockFilesInconsistent(seenOnDisk);
     return seenOnDisk;
   }
@@ -2089,12 +2142,8 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
       asyncBlockReport.shutdown();
     }
     
-    if(volumes != null) {
-      for (FSVolume volume : volumes.volumes) {
-        if(volume != null) {
-          volume.dfsUsage.shutdown();
-        }
-      }
+    if (volumes != null) {
+      volumes.shutdown();
     }
   }
 
@@ -2196,7 +2245,7 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
 
     boolean requested = false;
     boolean shouldRun = true;
-    private HashMap<Block, File> scan = null;
+    private Map<Block, File> scan = null;
     
     AsyncBlockReport(FSDataset fsd) {
       this.fsd = fsd;
@@ -2217,11 +2266,11 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
       return scan != null;
     }
 
-    synchronized HashMap<Block, File> getAndReset() {
+    synchronized Map<Block, File> getAndReset() {
       if (!isReady()) {
         throw new IllegalStateException("report not ready!");
       }
-      HashMap<Block, File> ret = scan;
+      Map<Block, File> ret = scan;
       scan = null;
       requested = false;
       return ret;
@@ -2241,7 +2290,7 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
           
           DataNode.LOG.info("Starting asynchronous block report scan");
           long st = System.currentTimeMillis();
-          HashMap<Block, File> result = fsd.roughBlockScan();
+          Map<Block, File> result = fsd.roughBlockScan();
           DataNode.LOG.info("Finished asynchronous block report scan in "
               + (System.currentTimeMillis() - st) + "ms");
           
