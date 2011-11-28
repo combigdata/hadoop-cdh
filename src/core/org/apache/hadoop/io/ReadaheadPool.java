@@ -27,8 +27,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.io.nativeio.NativeIO;
 
-import com.google.common.base.Preconditions;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.hadoop.thirdparty.guava.common.base.Preconditions;
+import org.apache.hadoop.thirdparty.guava.common.util.concurrent.ThreadFactoryBuilder;
 
 /**
  * Manages a pool of threads which can issue readahead requests on file descriptors.

@@ -104,11 +104,10 @@
       rev="${xmlenc.version}"
       conf="server->default"/>
 
-    <dependency org="com.google.guava"
+    <dependency org="org.apache.hadoop.thirdparty.guava"
       name="guava"
-      rev="r09"
+      rev="r09-jarjar"
       conf="client->default" />
-
 
     <!--Configuration: httpclient-->
 
