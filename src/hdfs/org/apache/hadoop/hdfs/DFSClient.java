@@ -2918,9 +2918,12 @@ public class DFSClient implements FSConstants, java.io.Closeable {
         try {
           // Pick the "least" datanode as the primary datanode to avoid deadlock.
           primaryNode = Collections.min(Arrays.asList(newnodes));
+          // Set the timeout to reflect that recovery requires at most two rpcs
+          // to each DN and two rpcs to the NN.
+          int recoveryTimeout =
+            (newnodes.length * 2 + 2) * DFSClient.this.socketTimeout;
           primary = createClientDatanodeProtocolProxy(
-              primaryNode, conf, DFSClient.this.socketTimeout,
-              block, accessToken);
+              primaryNode, conf, recoveryTimeout, block, accessToken);
           newBlock = primary.recoverBlock(block, isAppend, newnodes);
         } catch (IOException e) {
           LOG.warn("Failed recovery attempt #" + recoveryErrorCount +
