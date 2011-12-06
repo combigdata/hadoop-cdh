@@ -1294,9 +1294,7 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
    */
   private synchronized List<Thread> tryUpdateBlock(
       Block oldblock, Block newblock) throws IOException {
-    Block oldblockWildcardGS = new Block(
-      oldblock.getBlockId(), oldblock.getNumBytes(),
-      GenerationStamp.WILDCARD_STAMP);
+    Block oldblockWildcardGS = oldblock.getWithWildcardGS();
 
     //check ongoing create threads
     ArrayList<Thread> activeThreads = getActiveThreads(oldblockWildcardGS);
@@ -1494,8 +1492,7 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
         }
         ongoingCreates.remove(b);
       }
-      if (ongoingCreates.containsKey(new Block(
-        b.getBlockId(), b.getNumBytes(), GenerationStamp.WILDCARD_STAMP))) {
+      if (ongoingCreates.containsKey(b.getWithWildcardGS())) {
         DataNode.LOG.error("Unexpected: wildcard ongoingCreates exists for block " + b);
       }
       FSVolume v = null;
