@@ -216,7 +216,7 @@ public class UserGroupInformation {
    */
   private static synchronized void ensureInitialized() {
     if (!isInitialized) {
-      initialize(new Configuration());
+      initialize(new Configuration(), KerberosName.hasRulesBeenSet());
     }
   }
 
@@ -224,7 +224,8 @@ public class UserGroupInformation {
    * Set the configuration values for UGI.
    * @param conf the configuration to use
    */
-  private static synchronized void initialize(Configuration conf) {
+  private static synchronized void initialize(Configuration conf, boolean skipRulesSetting) {
+
     String value = conf.get(HADOOP_SECURITY_AUTHENTICATION);
     if (value == null || "simple".equals(value)) {
       useKerberos = false;
@@ -267,7 +268,9 @@ public class UserGroupInformation {
 
     // give the configuration on how to translate Kerberos names
     try {
-      KerberosName.setConfiguration(conf);
+      if (!skipRulesSetting) {
+        KerberosName.setConfiguration(conf);
+      }
     } catch (IOException ioe) {
       throw new RuntimeException("Problem with Kerberos auth_to_local name " +
                                  "configuration", ioe);
@@ -281,7 +284,7 @@ public class UserGroupInformation {
    * @param conf the configuration to use
    */
   public static void setConfiguration(Configuration conf) {
-    initialize(conf);
+    initialize(conf, false);
   }
   
   /**
