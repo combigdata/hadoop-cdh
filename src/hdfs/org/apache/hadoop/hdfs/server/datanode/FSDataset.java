@@ -51,6 +51,7 @@ import org.apache.hadoop.fs.DF;
 import org.apache.hadoop.fs.DU;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.hdfs.protocol.Block;
+import org.apache.hadoop.hdfs.protocol.BlockLocalPathInfo;
 import org.apache.hadoop.hdfs.protocol.FSConstants;
 import org.apache.hadoop.hdfs.server.common.GenerationStamp;
 import org.apache.hadoop.hdfs.server.datanode.metrics.FSDatasetMBean;
@@ -1128,6 +1129,16 @@ public class FSDataset implements FSConstants, FSDatasetInterface {
       throw new IOException("Block " + b + " is not valid.");
     }
     return f;
+  }
+  
+  @Override //FSDatasetInterface
+  public BlockLocalPathInfo getBlockLocalPathInfo(Block block)
+      throws IOException {
+    File datafile = getBlockFile(block);
+    File metafile = getMetaFile(datafile, block);
+    BlockLocalPathInfo info = new BlockLocalPathInfo(block,
+        datafile.getAbsolutePath(), metafile.getAbsolutePath());
+    return info;
   }
   
   public synchronized InputStream getBlockInputStream(Block b) throws IOException {
