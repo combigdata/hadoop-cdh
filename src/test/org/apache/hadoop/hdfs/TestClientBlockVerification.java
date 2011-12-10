@@ -26,7 +26,7 @@ import java.util.List;
 import java.io.IOException;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hdfs.DFSClient.BlockReader;
+import org.apache.hadoop.hdfs.DFSClient.RemoteBlockReader;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.protocol.DataTransferProtocol;
 import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
@@ -80,11 +80,10 @@ public class TestClientBlockVerification {
     testBlock = locatedBlocks.get(0); // first block
   }
 
-  private BlockReader getBlockReader(
+  private RemoteBlockReader getBlockReader(
     int offset, int lenToRead) throws IOException {
     InetSocketAddress targetAddr = null;
     Socket s = null;
-    BlockReader blockReader = null;
     Block block = testBlock.getBlock();
     DatanodeInfo[] nodes = testBlock.getLocations();
     targetAddr = NetUtils.createSocketAddr(nodes[0].getName());
@@ -92,7 +91,7 @@ public class TestClientBlockVerification {
     s.connect(targetAddr, HdfsConstants.READ_TIMEOUT);
     s.setSoTimeout(HdfsConstants.READ_TIMEOUT);
 
-    return DFSClient.BlockReader.newBlockReader(
+    return (RemoteBlockReader)RemoteBlockReader.newBlockReader(
       s, targetAddr.toString()+ ":" + block.getBlockId(),
       block.getBlockId(),
       testBlock.getBlockToken(),
@@ -106,7 +105,7 @@ public class TestClientBlockVerification {
    */
   @Test
   public void testBlockVerification() throws Exception {
-    BlockReader reader = spy(getBlockReader(0, FILE_SIZE_K * 1024));
+    RemoteBlockReader reader = spy(getBlockReader(0, FILE_SIZE_K * 1024));
     slurpReader(reader, FILE_SIZE_K * 1024, true);
     verify(reader).sendReadResult(
       reader.dnSock,
@@ -119,7 +118,7 @@ public class TestClientBlockVerification {
    */
   @Test
   public void testIncompleteRead() throws Exception {
-    BlockReader reader = spy(getBlockReader(0, FILE_SIZE_K * 1024));
+    RemoteBlockReader reader = spy(getBlockReader(0, FILE_SIZE_K * 1024));
     slurpReader(reader, FILE_SIZE_K / 2 * 1024, false);
 
     // We asked the blockreader for the whole file, and only read
@@ -138,7 +137,7 @@ public class TestClientBlockVerification {
   @Test
   public void testCompletePartialRead() throws Exception {
     // Ask for half the file
-    BlockReader reader = spy(getBlockReader(0, FILE_SIZE_K * 1024 / 2));
+    RemoteBlockReader reader = spy(getBlockReader(0, FILE_SIZE_K * 1024 / 2));
     // And read half the file
     slurpReader(reader, FILE_SIZE_K * 1024 / 2, true);
     verify(reader).sendReadResult(reader.dnSock,
@@ -159,7 +158,7 @@ public class TestClientBlockVerification {
       for (int length : lengths) {
         DFSClient.LOG.info("Testing startOffset = " + startOffset + " and " +
                            " len=" + length);
-        BlockReader reader = spy(getBlockReader(startOffset, length));
+        RemoteBlockReader reader = spy(getBlockReader(startOffset, length));
         slurpReader(reader, length, true);
         verify(reader).sendReadResult(
           reader.dnSock,

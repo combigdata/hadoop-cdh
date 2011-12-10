@@ -21,10 +21,10 @@ package org.apache.hadoop.hdfs.server.datanode;
 import java.util.List;
 
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hdfs.BlockReader;
 import org.apache.hadoop.hdfs.BlockReaderTestUtil;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.protocol.LocatedBlock;
-import org.apache.hadoop.hdfs.DFSClient.BlockReader;
 
 import org.junit.Test;
 import org.junit.AfterClass;

@@ -21,12 +21,11 @@ package org.apache.hadoop.hdfs;
 import java.net.Socket;
 import java.net.InetSocketAddress;
 import java.io.DataOutputStream;
-import java.util.Random;
 import java.util.List;
 import java.io.IOException;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hdfs.DFSClient.BlockReader;
+import org.apache.hadoop.hdfs.DFSClient.RemoteBlockReader;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
 import org.apache.hadoop.hdfs.protocol.LocatedBlock;
@@ -149,7 +148,7 @@ public class BlockReaderTestUtil {
     sock.connect(targetAddr, HdfsConstants.READ_TIMEOUT);
     sock.setSoTimeout(HdfsConstants.READ_TIMEOUT);
 
-    return BlockReader.newBlockReader(
+    return RemoteBlockReader.newBlockReader(
       sock, targetAddr.toString()+ ":" + block.getBlockId(), block.getBlockId(),
       testBlock.getBlockToken(),
       block.getGenerationStamp(),

@@ -29,8 +29,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DFSClient;
+import org.apache.hadoop.hdfs.DFSClient.RemoteBlockReader;
 import org.apache.hadoop.hdfs.DFSClient.DFSInputStream;
-import org.apache.hadoop.hdfs.DFSClient.BlockReader;
 import org.apache.hadoop.hdfs.SocketCache;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.protocol.LocatedBlock;
@@ -76,7 +76,7 @@ public class TestConnCache {
    * use the same socket.
    */
   private class MockGetBlockReader implements Answer<BlockReader> {
-    public BlockReader reader = null;
+    public RemoteBlockReader reader = null;
     private Socket sock = null;
     private final boolean shouldBeAllTheSame;
 
@@ -85,8 +85,8 @@ public class TestConnCache {
     }
 
     public BlockReader answer(InvocationOnMock invocation) throws Throwable {
-      BlockReader prevReader = reader;
-      reader = (BlockReader) invocation.callRealMethod();
+      RemoteBlockReader prevReader = reader;
+      reader = (RemoteBlockReader) invocation.callRealMethod();
       if (sock == null) {
         sock = reader.dnSock;
       } else if (prevReader != null &&
