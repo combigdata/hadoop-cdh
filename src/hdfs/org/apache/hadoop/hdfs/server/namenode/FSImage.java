@@ -41,7 +41,6 @@ import java.util.HashMap;
 import java.lang.Math;
 import java.nio.ByteBuffer;
 
-import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.PermissionStatus;
 import org.apache.hadoop.fs.permission.FsPermission;
@@ -127,9 +126,10 @@ public class FSImage extends Storage {
   }
   
   /**
-   * list of failed (and thus removed) storages
+   * List of failed (and thus removed) storages
    */
-  protected List<StorageDirectory> removedStorageDirs = new ArrayList<StorageDirectory>();
+  private List<StorageDirectory> removedStorageDirs 
+    = new ArrayList<StorageDirectory>();
   
   /**
    * Directories for importing an image from a checkpoint.
@@ -218,6 +218,11 @@ public class FSImage extends Storage {
   
   List<StorageDirectory> getRemovedStorageDirs() {
 	  return removedStorageDirs;
+  }
+
+  void updateRemovedDirs(StorageDirectory sd, IOException ioe) {
+    LOG.warn("Removing storage dir " + sd.getRoot().getPath(), ioe);
+    removedStorageDirs.add(sd);
   }
 
   File getEditFile(StorageDirectory sd) {
@@ -630,7 +635,7 @@ public class FSImage extends Storage {
         writeCheckpointTime(sd);
       } catch (IOException ioe) {
         editLog.removeEditsForStorageDir(sd);
-        removedStorageDirs.add(sd);
+        updateRemovedDirs(sd, ioe);
         it.remove();
       }
     }
@@ -649,7 +654,7 @@ public class FSImage extends Storage {
         } catch (Exception e) {
           // Ignore
         }
-        removedStorageDirs.add(sd);
+        updateRemovedDirs(sd, null);
         it.remove();
       }
     }
@@ -1475,7 +1480,7 @@ public class FSImage extends Storage {
         curFile.delete();
         if (!ckpt.renameTo(curFile)) {
           editLog.removeEditsForStorageDir(sd);
-          removedStorageDirs.add(sd);
+          updateRemovedDirs(sd, null);
           it.remove();
         }
       }
@@ -1503,9 +1508,8 @@ public class FSImage extends Storage {
       try {
         sd.write();
       } catch (IOException ioe) {
-        LOG.error("Cannot write file " + sd.getRoot(), ioe);
         editLog.removeEditsForStorageDir(sd);
-        removedStorageDirs.add(sd);
+        updateRemovedDirs(sd, ioe);
         it.remove();
       }
     }
