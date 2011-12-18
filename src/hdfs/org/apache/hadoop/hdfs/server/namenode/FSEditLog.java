@@ -1347,6 +1347,7 @@ public class FSEditLog {
       } catch (IOException e) {
         failedSd = true;
         // remove stream and this storage directory from list
+        processIOError(sd);
         sd.unlock();
         fsimage.removedStorageDirs.add(sd);
         it.remove();
