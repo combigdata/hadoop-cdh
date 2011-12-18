@@ -101,8 +101,8 @@ public class TestStorageRestore {
    * Remove edits and storage directories.
    */
   public void invalidateStorage(FSImage fi) throws IOException {
-    fi.getEditLog().processIOError(2); // name3
-    fi.getEditLog().processIOError(1); // name2
+    fi.getEditLog().removeEditsAndStorageDir(2); // name3
+    fi.getEditLog().removeEditsAndStorageDir(1); // name2
   }
   
   /**
@@ -194,7 +194,7 @@ public class TestStorageRestore {
       writeFile(fs, path1, 2);
   
       // Take name3 offline
-      fsImage.getEditLog().processIOError(2);
+      fsImage.getEditLog().removeEditsAndStorageDir(2);
       
       // Simulate a 2NN beginning a checkpoint, but not finishing. This will
       // cause name3 to be restored.
