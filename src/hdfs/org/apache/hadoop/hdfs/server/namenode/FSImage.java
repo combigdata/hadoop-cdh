@@ -639,6 +639,7 @@ public class FSImage extends Storage {
         it.remove();
       }
     }
+    editLog.exitIfNoStreams();
   }
   
   /**
@@ -662,6 +663,11 @@ public class FSImage extends Storage {
 
   public FSEditLog getEditLog() {
     return editLog;
+  }
+
+  /** Testing hook */
+  public void setEditLog(FSEditLog newLog) {
+    editLog = newLog;
   }
 
   public boolean isConversionNeeded(StorageDirectory sd) throws IOException {
@@ -1485,6 +1491,7 @@ public class FSImage extends Storage {
         }
       }
     }
+    editLog.exitIfNoStreams();
 
     //
     // Updates the fstime file on all directories (fsimage and edits)
@@ -1576,7 +1583,7 @@ public class FSImage extends Storage {
    * See if any of the removed storages dirs are writable and can be restored.
    */
   void attemptRestoreRemovedStorage() {
-    if (!restoreFailedStorage || removedStorageDirs.size() == 0) {
+    if (!restoreFailedStorage || removedStorageDirs.isEmpty()) {
       return;
     }
 
@@ -1584,12 +1591,11 @@ public class FSImage extends Storage {
     while (it.hasNext()) {
       StorageDirectory sd = it.next();
       File root = sd.getRoot();
-      LOG.info("Restore " + root.getAbsolutePath() + " type=" +
+      LOG.info("Try restore " + root.getAbsolutePath() + " type=" +
           sd.getStorageDirType() + " canwrite=" + root.canWrite());
       try {
-        if (root.exists() && root.canWrite()) { 
-          // Remove all the data with saving current in-memory state
-          // which could have changed.
+        if (root.exists() && root.canWrite()) {
+          // The directory will get re-populated during checkpoint
           sd.clearDirectory();
           addStorageDir(sd);
           it.remove();
