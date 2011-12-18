@@ -397,8 +397,6 @@ public class FSEditLog {
         eStream.flush();
         eStream.close();
       } catch (IOException e) {
-        FSNamesystem.LOG.warn("FSEditLog:close - failed to close stream " 
-            + eStream.getName());
         processIOError(idx);
         idx--;
       }
@@ -420,15 +418,17 @@ public class FSEditLog {
     assert(index < getNumStorageDirs());
     assert(getNumStorageDirs() == editStreams.size());
     
-    EditLogFileOutputStream eStream = (EditLogFileOutputStream)editStreams.get(index);
+    EditLogFileOutputStream eStream = 
+        (EditLogFileOutputStream)editStreams.get(index);
     File parentStorageDir = ((EditLogFileOutputStream)editStreams
                                       .get(index)).getFile()
                                       .getParentFile().getParentFile();
-    
     try {
       eStream.close();
-    } catch (Exception e) {}
-    
+    } catch (Exception e) {
+      // Ignore
+    }
+
     editStreams.remove(index);
     //
     // Invoke the ioerror routine of the fsimage
@@ -953,7 +953,6 @@ public class FSEditLog {
       try {
         eStream.write(op, writables);
       } catch (IOException ie) {
-        FSImage.LOG.warn("logEdit: removing "+ eStream.getName(), ie);
         processIOError(idx);         
         // processIOError will remove the idx's stream 
         // from the editStreams collection, so we need to update idx
@@ -1300,9 +1299,7 @@ public class FSEditLog {
         long curSize = es.length();
         assert (size == 0 || size == curSize) : "All streams must be the same";
         size = curSize;
-      } catch (IOException e) {
-        FSImage.LOG.warn("getEditLogSize: editstream.length failed. removing editlog (" +
-            idx + ") " + es.getName());
+      } catch (IOException ioe) {
         processIOError(idx);
       }
     }
@@ -1333,7 +1330,6 @@ public class FSEditLog {
 
     close();                     // close existing edit log
 
-    // check if any of failed storage is now available and put it back
     fsimage.attemptRestoreRemovedStorage();
     
     //
@@ -1351,14 +1347,14 @@ public class FSEditLog {
       } catch (IOException e) {
         failedSd = true;
         // remove stream and this storage directory from list
-        FSImage.LOG.warn("rollEdidLog: removing storage " + sd.getRoot().getPath());
         sd.unlock();
         fsimage.removedStorageDirs.add(sd);
         it.remove();
       }
     }
-    if(failedSd)
+    if (failedSd) {
       fsimage.incrementCheckpointTime();  // update time for the valid ones
+    }
   }
 
   /**
@@ -1389,7 +1385,6 @@ public class FSEditLog {
         getEditFile(sd).delete();
         if (!getEditNewFile(sd).renameTo(getEditFile(sd))) {
           // Should we also remove from edits
-          NameNode.LOG.warn("purgeEditLog: removing failed storage " + sd.getRoot().getPath());
           fsimage.removedStorageDirs.add(sd);
           it.remove(); 
         }
