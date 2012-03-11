@@ -27,6 +27,10 @@
   <name>Apache Hadoop Distribution</name>
   <packaging>jar</packaging>
 
+  <properties>
+    <maven.deploy.skip>false</maven.deploy.skip>
+  </properties>
+
   <!-- Using dependencies to ensure this module is the last one -->
   <dependencies>
     <dependency>
@@ -56,7 +60,7 @@
       <plugin>
         <artifactId>maven-deploy-plugin</artifactId>
         <configuration>
-          <skip>true</skip>
+          <skip>${maven.deploy.skip}</skip>
         </configuration>
       </plugin>
       <plugin>
@@ -159,6 +163,32 @@
                       <arg line="./dist-tar-stitching.sh"/>
                     </exec>
                   </target>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>build-helper-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>add-jar</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>attach-artifact</goal>
+                </goals>
+                <configuration>
+                  <artifacts>
+                    <artifact>
+                      <file>${project.build.directory}/hadoop-${project.version}.tar.gz</file>
+                      <type>tar.gz</type>
+                    </artifact>
+                    <artifact>
+                      <file>${project.build.directory}/hadoop-${project.version}-src.tar.gz</file>
+                      <type>tar.gz</type>
+                      <classifier>source</classifier>
+                    </artifact>
+                  </artifacts>
                 </configuration>
               </execution>
             </executions>
