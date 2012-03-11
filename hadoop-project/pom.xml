@@ -17,11 +17,11 @@
   <parent>
     <groupId>org.apache.hadoop</groupId>
     <artifactId>hadoop-main</artifactId>
-    <version>2.0.0-alpha</version>
+    <version>2.0.0-cdh4.0.0-SNAPSHOT</version>
   </parent>
   <groupId>org.apache.hadoop</groupId>
   <artifactId>hadoop-project</artifactId>
-  <version>2.0.0-alpha</version>
+  <version>2.0.0-cdh4.0.0-SNAPSHOT</version>
   <description>Apache Hadoop Project POM</description>
   <name>Apache Hadoop Project POM</name>
   <packaging>pom</packaging>
@@ -609,7 +609,7 @@
       <dependency>
         <groupId>org.apache.zookeeper</groupId>
         <artifactId>zookeeper</artifactId>
-        <version>3.4.2</version>
+        <version>${cdh.zookeeper.version}</version>
         <exclusions>
           <exclusion>
             <!-- otherwise seems to drag in junit 3.8.1 via jline -->
@@ -625,6 +625,13 @@
             <artifactId>jmxri</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.zookeeper</groupId>
+        <artifactId>zookeeper</artifactId>
+        <version>${cdh.zookeeper.version}</version>
+        <type>test-jar</type>
+        <scope>test</scope>
       </dependency>
       <dependency>
         <groupId>org.apache.bookkeeper</groupId>

@@ -21,7 +21,7 @@
   <property name="aspectversion" value="1.6.5"/>
   <!-- TODO this has to be changed synchronously with build.xml version prop.-->
   <!-- this workarounds of test-patch setting its own 'version' -->
-  <property name="project.version" value="2.0.0-alpha"/>
+  <property name="project.version" value="2.0.0-cdh4.0.0-SNAPSHOT"/>
 
   <!-- Properties common for all fault injections -->
   <property name="build-fi.dir" value="${basedir}/build-fi"/>
@@ -30,25 +30,25 @@
   <property file="${basedir}/build.properties"/>
 
   <!-- Properties related to system fault injection and tests -->
+  <property name="herriot.suffix" value="instrumented"/>
   <property name="system-test-build-dir" value="${build-fi.dir}/system"/>
   <!-- This varialbe is set by respective injection targets -->
-  <property name="hadoop.instrumented.jar" value=""/>
-
+  <property name="hadoop.instrumented.jars" value=""/>
   <!-- Properties specifically for system fault-injections and system tests -->
   <property name="herriot.suffix" value="instrumented"/>
   <property name="instrumented.final.name"
             value="${name}-${herriot.suffix}-${version}"/>
-  <property name="hadoop-hdfs-instrumented.pom"
-            location="${ivy.dir}/hadoop-hdfs-${herriot.suffix}.xml" />
-  <property name="hadoop-hdfs-instrumented-test.pom"
-            location="${ivy.dir}/hadoop-hdfs-${herriot.suffix}-test.xml" />
-  <property name="hadoop-hdfs-instrumented.jar"
+  <property name="hadoop-mapred-instrumented.pom"
+            location="${ivy.dir}/hadoop-mapred-${herriot.suffix}.xml" />
+  <property name="hadoop-mapred-instrumented-test.pom"
+            location="${ivy.dir}/hadoop-mapred-${herriot.suffix}-test.xml" />
+  <property name="hadoop-mapred-instrumented.jar"
             location="${system-test-build-dir}/${name}-${herriot.suffix}-${version}.jar" />
-  <property name="hadoop-hdfs-instrumented-sources.jar"
+  <property name="hadoop-mapred-instrumented-sources.jar"
             location="${system-test-build-dir}/${name}-${herriot.suffix}-${version}-sources.jar" />
-  <property name="hadoop-hdfs-instrumented-test.jar"
+  <property name="hadoop-mapred-instrumented-test.jar"
             location="${system-test-build-dir}/${name}-${herriot.suffix}-test-${version}.jar" />
-  <property name="hadoop-hdfs-instrumented-test-sources.jar"
+  <property name="hadoop-mapred-instrumented-test-sources.jar"
             location="${system-test-build-dir}/${name}-${herriot.suffix}-test-${version}-sources.jar" />
   <!--All Fault Injection (FI) related targets are located in this session -->
     
@@ -74,13 +74,13 @@
     </taskdef>
     <echo message="Start weaving aspects in place"/>
     <path id="aspect.path">
-      <pathelement location="${hadoop.instrumented.jar}"/>
+      <pathelement location="${hadoop.instrumented.jars}"/>
     </path>
     <iajc
       encoding="${build.encoding}" 
       srcdir="${java.src.dir};${build.src};${src.dir.path}"
       includes="org/apache/hadoop/**/*.java, org/apache/hadoop/**/*.aj"
-      excludes="org/apache/hadoop/classification/tools/**/*, org/apache/hadoop/record/**/*"
+      excludes="org/apache/hadoop/record/**/*"
       destDir="${dest.dir}"
       debug="${javac.debug}"
       target="${javac.version}"
@@ -110,9 +110,10 @@
         <pathelement location="${system-test-build-dir}/test/extraconf" />
         <pathelement location="${system-test-build-dir}/test/classes" />
         <pathelement location="${system-test-build-dir}/classes" />
+        <pathelement location="${system-test-build-dir}/test/mapred/classes"/>
+        <pathelement location="${system-test-build-dir}/tools" />
+        <pathelement location="${system-test-build-dir}" />
         <pathelement location="${test.src.dir}" />
-        <pathelement location="${build-fi.dir}" />
-        <pathelement location="${build-fi.dir}/tools" />
         <pathelement path="${clover.jar}" />
         <fileset dir="${system-test-build-dir}">
            <include name="**/*.jar" />
@@ -120,14 +121,33 @@
          </fileset>
         <path refid="classpath" />
   </path>
+  <!-- compile system tests... -->
+  <path id="test.system.compile.classpath">
+        <pathelement location="${system-test-build-dir}/test/extraconf" />
+        <pathelement location="${system-test-build-dir}/test/classes" />
+        <pathelement location="${system-test-build-dir}/classes" />
+        <pathelement location="${system-test-build-dir}/test/mapred/classes" />
+        <pathelement location="${system-test-build-dir}/test/mapred/testjar" />
+        <pathelement location="${system-test-build-dir}/tools" />
+        <pathelement location="${system-test-build-dir}/examples" />
+        <path refid="ivy-system.classpath"/>
+  </path>
 
   <!-- ================ -->
   <!-- run system tests -->
   <!-- ================ -->
-  <target name="test-system" depends="init, ivy-retrieve-system"
+  <target name="test-system" depends="ivy-retrieve-common, ivy-retrieve-system"
     description="Run system tests">
     <subant buildpath="build.xml" target="jar-test-system"/>
-    <macro-test-runner test.file="${test.hdfs.all.tests.file}"
+    <subant target="test-system-contrib">
+        <property name="hadoop.home" value="${hadoop.home}"/>
+       <property name="hadoop.conf.dir" value="${hadoop.conf.dir}"/>
+       <property name="version" value="${version}"/>
+       <property name="hadoop.conf.dir.deployed" 
+            value="${hadoop.conf.dir.deployed}"/>
+       <fileset file="${contrib.dir}/build.xml"/>
+    </subant>
+    <macro-test-runner test.file="${test.mapred.all.tests.file}"
                        suite.type="system/test"
                        classpath="test.system.classpath"
                        test.dir="${system-test-build-dir}/test"
@@ -143,7 +163,7 @@
     <delete file="${compile-inject.output}"/>
     <weave-injectfault-aspects dest.dir="${build-fi.dir}/classes"
                                src.dir="${test.src.dir}/aop"
-      aspects.jar="${build-fi.dir}/ivy/lib/${ant.project.name}/common/hadoop-common-${project.version}.jar">
+      aspects.jars="${build-fi.dir}/ivy/lib/${ant.project.name}/test/hadoop-common-${project.version}.jar">
     </weave-injectfault-aspects>
   </target>
 
@@ -153,7 +173,7 @@
   <!-- =============================================================== -->
   <target name="jar-system"
           depends="inject-system-faults"
-          description="Make hadoop-hdfs-instrumented.jar with system injections.">
+          description="Make hadoop-mapred-instrumented.jar with system injections.">
     <macro-jar-fault-inject target.name="jar"
       build.dir="${system-test-build-dir}"
       jar.final.name="final.name"
@@ -167,14 +187,15 @@
   </target>
 
   <target name="jar-test-system" depends="inject-system-faults, compile-test-system"
-    description="Make hadoop-hdfs-instrumented-test.jar with system injections.">
+    description="Make hadoop-mapred-instrumented-test.jar with system injections.">
     <subant buildpath="build.xml" target="-do-jar-test">
       <property name="build.dir" value="${system-test-build-dir}"/>
-      <property name="test.hdfs.final.name" value="${name}-${herriot.suffix}-test-${version}"/>
-      <property name="test.hdfs.build.classes"
+      <property name="test.final.name"
+        value="${name}-${herriot.suffix}-test-${project.version}"/>
+      <property name="test.build.classes"
         value="${system-test-build-dir}/test/classes"/>
     </subant>
-    <jar jarfile="${hadoop-hdfs-instrumented-test-sources.jar}">
+    <jar jarfile="${hadoop-mapred-instrumented-test-sources.jar}">
       <fileset dir="${test.src.dir}/system/test" includes="org/apache/hadoop/**/*.java" />
     </jar>
   </target>
@@ -185,18 +206,17 @@
     </subant>
   </target>
 
-  <target name="-compile-test-system.wrapper" depends="inject-system-faults, ivy-retrieve-common, ivy-retrieve-hdfs, ivy-retrieve-system">
-    <macro-compile-hdfs-test
-      target.dir="${system-test-build-dir}/test/classes"
+  <target name="-compile-test-system.wrapper" depends="inject-system-faults, ivy-retrieve-common, ivy-retrieve-system">
+    <macro-compile-test
       source.dir="${test.src.dir}/system/test"
       dest.dir="${system-test-build-dir}/test/classes"
-      classpath="test.system.classpath"/>
+      classpath="test.system.compile.classpath"/>
   </target>
 
   <macrodef name="weave-injectfault-aspects">
     <attribute name="dest.dir" />
     <attribute name="src.dir" />
-    <attribute name="aspects.jar"/>
+    <attribute name="aspects.jars"/>
     <attribute name="base.build.dir" default="${build-fi.dir}"/>
     <sequential>
       <subant buildpath="build.xml" target="-compile-fault-inject"
@@ -204,7 +224,7 @@
         <property name="build.dir" value="@{base.build.dir}" />
         <property name="src.dir.path" value="@{src.dir}" />
         <property name="dest.dir" value="@{dest.dir}" />
-        <property name="hadoop.instrumented.jar" value="@{aspects.jar}"/>
+        <property name="hadoop.instrumented.jars" value="@{aspects.jars}"/>
       </subant>
     </sequential>
   </macrodef>
@@ -218,7 +238,7 @@
     </subant>
     <weave-injectfault-aspects dest.dir="${system-test-build-dir}/classes"
                                src.dir="${test.src.dir}/system/java;${test.src.dir}/system/aop"
-      aspects.jar="${system-test-build-dir}/ivy/lib/${ant.project.name}/system/hadoop-common-${herriot.suffix}-${project.version}.jar"
+      aspects.jars="${system-test-build-dir}/ivy/lib/${ant.project.name}/system/hadoop-common-${herriot.suffix}-${project.version}.jar"
       base.build.dir="${system-test-build-dir}">
     </weave-injectfault-aspects>
   </target>
@@ -314,35 +334,36 @@
   <!-- End of cluster controller binary target -->
   <!-- Install Herriot artifacts to the local Maven -->
   <target name="-mvn-system-install" depends="mvn-taskdef, jar-system, jar-test-system">
-    <artifact:pom file="${hadoop-hdfs-instrumented.pom}"
-                  id="hadoop.hdfs.${herriot.suffix}"/>
-    <artifact:pom file="${hadoop-hdfs-instrumented-test.pom}"
-                  id="hadoop.hdfs.${herriot.suffix}.test"/>
-    <artifact:install file="${hadoop-hdfs-instrumented.jar}">
-      <pom refid="hadoop.hdfs.${herriot.suffix}"/>
-      <attach file="${hadoop-hdfs-instrumented-sources.jar}" classifier="sources" />
+    <artifact:pom file="${hadoop-mapred-instrumented.pom}"
+                  id="hadoop.mapred.${herriot.suffix}"/>
+    <artifact:pom file="${hadoop-mapred-instrumented-test.pom}"
+                  id="hadoop.mapred.${herriot.suffix}.test"/>
+    <artifact:install file="${hadoop-mapred-instrumented.jar}">
+      <pom refid="hadoop.mapred.${herriot.suffix}"/>
+      <attach file="${hadoop-mapred-instrumented-sources.jar}" classifier="sources" />
     </artifact:install>
-    <artifact:install file="${hadoop-hdfs-instrumented-test.jar}">
-      <pom refid="hadoop.hdfs.${herriot.suffix}.test"/>
-      <attach file="${hadoop-hdfs-instrumented-test-sources.jar}" classifier="sources" />
+    <artifact:install file="${hadoop-mapred-instrumented-test.jar}">
+      <pom refid="hadoop.mapred.${herriot.suffix}.test"/>
+      <attach file="${hadoop-mapred-instrumented-test-sources.jar}" classifier="sources" />
     </artifact:install>
   </target>
   <target name="-mvn-system-deploy" depends="mvn-taskdef, jar-system, jar-test-system">
     <property name="repourl" value="https://repository.apache.org/content/repositories/snapshots" />
-    <artifact:pom file="${hadoop-hdfs-instrumented.pom}"
-                  id="hadoop.hdfs.${herriot.suffix}"/>
-    <artifact:pom file="${hadoop-hdfs-instrumented-test.pom}"
-                   id="hadoop.hdfs.${herriot.suffix}.test"/>
+    <artifact:pom file="${hadoop-mapred-instrumented.pom}"
+                   id="hadoop.mapred.${herriot.suffix}"/>
+    <artifact:pom file="${hadoop-mapred-instrumented-test.pom}"
+                   id="hadoop.mapred.${herriot.suffix}.test"/>
+
     <artifact:install-provider artifactId="wagon-http" version="1.0-beta-2"/>
-    <artifact:deploy file="${hadoop-hdfs-instrumented.jar}">
+    <artifact:deploy file="${hadoop-mapred-instrumented.jar}">
       <remoteRepository id="apache.snapshots.https" url="${repourl}"/>
-      <pom refid="hadoop.hdfs.${herriot.suffix}"/>
-      <attach file="${hadoop-hdfs-instrumented-sources.jar}" classifier="sources" />
+      <pom refid="hadoop.mapred.${herriot.suffix}"/>
+      <attach file="${hadoop-mapred-instrumented-sources.jar}" classifier="sources" />
     </artifact:deploy>
-    <artifact:deploy file="${hadoop-hdfs-instrumented-test.jar}">
+    <artifact:deploy file="${hadoop-mapred-instrumented-test.jar}">
       <remoteRepository id="apache.snapshots.https" url="${repourl}"/>
-      <pom refid="hadoop.hdfs.${herriot.suffix}.test"/>
-      <attach file="${hadoop-hdfs-instrumented-test-sources.jar}" classifier="sources" />
+      <pom refid="hadoop.mapred.${herriot.suffix}.test"/>
+      <attach file="${hadoop-mapred-instrumented-test-sources.jar}" classifier="sources" />
     </artifact:deploy>
   </target>
   <!-- End of Maven -->
