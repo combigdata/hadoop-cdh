@@ -133,6 +133,7 @@
         <outputDirectory>share/hadoop/${hadoop.component}</outputDirectory>
         <includeDependencies>false</includeDependencies>
         <unpack>false</unpack>
+        <outputFileNameMapping>${module.artifactId}-${project.version}${dashClassifier?}.${module.extension}</outputFileNameMapping>
       </binaries>
     </moduleSet>
     <moduleSet>
