@@ -124,6 +124,7 @@
       <unpack>false</unpack>
       <scope>runtime</scope>
       <useProjectArtifact>false</useProjectArtifact>
+      <outputFileNameMapping>${artifact.artifactId}-${artifact.baseVersion}${dashClassifier?}.${artifact.extension}</outputFileNameMapping>
       <excludes>
         <exclude>org.apache.ant:*:jar</exclude>
         <exclude>jdiff:jdiff:jar</exclude>
