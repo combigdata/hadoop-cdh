@@ -29,6 +29,21 @@
       <fileMode>0755</fileMode>
     </fileSet>
     <fileSet>
+      <directory>target/native/include</directory>
+      <outputDirectory>include</outputDirectory>
+      <fileMode>0755</fileMode>
+    </fileSet>
+    <fileSet>
+      <directory>target/native/lib</directory>
+      <outputDirectory>lib/native</outputDirectory>
+      <fileMode>0755</fileMode>
+    </fileSet>
+    <fileSet>
+      <directory>target/native/bin</directory>
+      <outputDirectory>examples/bin</outputDirectory>
+      <fileMode>0755</fileMode>
+    </fileSet>
+    <fileSet>
       <directory>hadoop-yarn/bin</directory>
       <outputDirectory>bin</outputDirectory>
       <includes>

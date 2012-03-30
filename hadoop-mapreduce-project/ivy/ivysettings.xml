@@ -42,6 +42,11 @@
     <ibiblio name="maven2" root="${repo.maven.org}" pattern="${maven2.pattern.ext}" m2compatible="true"  checkconsistency="false"/>
     <ibiblio name="apache-snapshot" root="${snapshot.apache.org}" m2compatible="true"
         checkmodified="true" changingPattern=".*SNAPSHOT" checkconsistency="false"/>
+    <ibiblio name="cloudera-releases" m2compatible="true" pattern="${maven2.pattern.ext}"
+      root="https://repository.cloudera.com/content/groups/cdh-releases-rcs" checkmodified="true"/>
+    <ibiblio name="cloudera-snapshots" m2compatible="true" usepoms="true" 
+      pattern="[organisation]/[module]/[revision]/[artifact]-[revision](-[classifier]).[ext]"
+      root="https://repository.cloudera.com/content/repositories/snapshots" checkmodified="true"/>
 
     <filesystem name="fs" m2compatible="true" checkconsistency="false" force="${force-resolve}">
        <artifact pattern="${repo.dir}/${maven2.pattern.ext}"/>
@@ -51,6 +56,8 @@
     <chain name="default" dual="true" checkmodified="true" changingPattern=".*SNAPSHOT">
       <resolver ref="apache-snapshot"/> 
       <resolver ref="maven2"/>
+      <resolver ref="cloudera-releases"/>
+      <resolver ref="cloudera-snapshots"/>
     </chain>
 
     <chain name="internal" dual="true">

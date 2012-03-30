@@ -270,6 +270,37 @@
         </plugins>
       </build>
     </profile>
+    <profile>
+      <id>native</id>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-antrun-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>compile-native</id>
+                <phase>compile</phase>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+                <configuration>
+                  <target>
+                    <ant target="compile-c++-examples">
+                      <property name="compile.c++" value="yes"/>
+                      <property name="install.c++" value="${project.build.directory}/native"/>
+                      <property name="install.c++.examples" value="${project.build.directory}/native"/>
+                    </ant>
+                  </target>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+    </profile>
   </profiles>
 
 
