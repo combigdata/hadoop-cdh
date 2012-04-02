@@ -397,6 +397,7 @@
             <configuration>
               <target>
                 <property file="${basedir}/../../cloudera/build.properties" />
+                <property name="cloudera.hash" value="" />
                 <mkdir dir="${project.build.directory}/generated-sources/java"/>
                 <exec executable="sh">
                   <arg
