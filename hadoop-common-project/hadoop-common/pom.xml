@@ -396,10 +396,11 @@
             </goals>
             <configuration>
               <target>
+                <property file="${basedir}/../../cloudera/build.properties" />
                 <mkdir dir="${project.build.directory}/generated-sources/java"/>
                 <exec executable="sh">
                   <arg
-                      line="${basedir}/dev-support/saveVersion.sh ${project.version} ${project.build.directory}/generated-sources/java"/>
+                      line="${basedir}/dev-support/saveVersion.sh ${project.version} ${project.build.directory}/generated-sources/java ${cloudera.hash}"/>
                 </exec>
               </target>
             </configuration>

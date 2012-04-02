@@ -23,27 +23,39 @@ unset LC_CTYPE
 unset LC_TIME
 version=$1
 build_dir=$2
+revision=$3
+branch=$4
+url=$5
 user=`whoami`
 date=`date`
 dir=`pwd`
 cwd=`dirname $dir`
-if git rev-parse HEAD 2>/dev/null > /dev/null ; then
-  revision=`git log -1 --pretty=format:"%H" ../`
-  hostname=`hostname`
-  branch=`git branch | sed -n -e 's/^* //p'`
-  url="git://${hostname}${cwd}"
-elif [ -d .svn ]; then
-  revision=`svn info ../ | sed -n -e 's/Last Changed Rev: \(.*\)/\1/p'`
-  url=`svn info ../ | sed -n -e 's/^URL: \(.*\)/\1/p'`
+if [ "$revision" = "" ]; then
+    if git rev-parse HEAD 2>/dev/null > /dev/null ; then
+        revision=`git log -1 --pretty=format:"%H" ../`
+        hostname=`hostname`
+        branch=`git branch | sed -n -e 's/^* //p'`
+        url="git://${hostname}${cwd}"
+    elif [ -d .svn ]; then
+        revision=`svn info ../ | sed -n -e 's/Last Changed Rev: \(.*\)/\1/p'`
+        url=`svn info ../ | sed -n -e 's/^URL: \(.*\)/\1/p'`
   # Get canonical branch (branches/X, tags/X, or trunk)
-  branch=`echo $url | sed -n -e 's,.*\(branches/.*\)$,\1,p' \
-                             -e 's,.*\(tags/.*\)$,\1,p' \
-                             -e 's,.*trunk$,trunk,p'`
-else
-  revision="Unknown"
-  branch="Unknown"
-  url="file://$cwd"
+        branch=`echo $url | sed -n -e 's,.*\(branches/.*\)$,\1,p' \
+            -e 's,.*\(tags/.*\)$,\1,p' \
+            -e 's,.*trunk$,trunk,p'`
+    else
+        revision="Unknown"
+        branch="Unknown"
+        url="file://$cwd"
+    fi
 fi
+if [ "$branch" = "" ]; then
+    branch="Unknown"
+fi
+if [ "$url" = "" ]; then
+    url="file://$cwd"
+fi
+
 srcChecksum=`find ../ -name '*.java' | grep -v generated-sources | LC_ALL=C sort | xargs md5sum | md5sum | cut -d ' ' -f 1`
 
 mkdir -p $build_dir/generated-sources/version/org/apache/hadoop/yarn/
