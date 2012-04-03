@@ -21,6 +21,7 @@ import java.net.InetSocketAddress;
 import java.util.Map;
 
 import org.apache.hadoop.classification.InterfaceAudience;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.ha.BadFencingConfigurationException;
 import org.apache.hadoop.ha.HAServiceTarget;
 import org.apache.hadoop.ha.NodeFencer;
@@ -49,7 +50,7 @@ public class NNHAServiceTarget extends HAServiceTarget {
   private final String nnId;
   private final String nsId;
 
-  public NNHAServiceTarget(HdfsConfiguration conf,
+  public NNHAServiceTarget(Configuration conf,
       String nsId, String nnId) {
     Preconditions.checkNotNull(nnId);
     
@@ -97,6 +98,10 @@ public class NNHAServiceTarget extends HAServiceTarget {
   public void checkFencingConfigured() throws BadFencingConfigurationException {
     if (fenceConfigError != null) {
       throw fenceConfigError;
+    }
+    if (fencer == null) {
+      throw new BadFencingConfigurationException(
+          "No fencer configured for " + this);
     }
   }
   
