@@ -29,7 +29,6 @@
 
   <properties>
     <hadoop.log.dir>${project.build.directory}/log</hadoop.log.dir>
-    <test.exclude.pattern>%regex[.*(TestStreamingStatus).*]</test.exclude.pattern>
   </properties>
 
   <dependencies>
