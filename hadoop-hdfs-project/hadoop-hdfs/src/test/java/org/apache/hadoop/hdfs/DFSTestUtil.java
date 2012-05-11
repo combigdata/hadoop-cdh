@@ -55,11 +55,11 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileSystem.Statistics;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hdfs.DFSTestUtil.Builder;
 import org.apache.hadoop.hdfs.MiniDFSCluster.NameNodeInfo;
 import org.apache.hadoop.hdfs.client.HdfsDataInputStream;
 import org.apache.hadoop.hdfs.protocol.DatanodeID;
 import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
+import org.apache.hadoop.hdfs.protocol.DatanodeInfo.AdminStates;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants;
 import org.apache.hadoop.hdfs.protocol.LocatedBlock;
@@ -724,12 +724,19 @@ public class DFSTestUtil {
         .join(nameservices));
   }
   
+  private static DatanodeID getDatanodeID(String ipAddr) {
+    return new DatanodeID(ipAddr, "localhost",
+        DFSConfigKeys.DFS_DATANODE_DEFAULT_PORT);
+  }
+
   public static DatanodeID getLocalDatanodeID() {
-    return new DatanodeID("127.0.0.1", "localhost", DFSConfigKeys.DFS_DATANODE_DEFAULT_PORT);
+    return new DatanodeID("127.0.0.1", "localhost",
+        DFSConfigKeys.DFS_DATANODE_DEFAULT_PORT);
   }
 
   public static DatanodeID getLocalDatanodeID(int port) {
-    return new DatanodeID("127.0.0.1", "localhost", "", port, port, port);
+    return new DatanodeID("127.0.0.1", "localhost", "",
+        port, port, port);
   }
 
   public static DatanodeDescriptor getLocalDatanodeDescriptor() {
@@ -740,45 +747,37 @@ public class DFSTestUtil {
     return new DatanodeInfo(getLocalDatanodeID());
   }
 
+  public static DatanodeInfo getDatanodeInfo(String ipAddr) {
+    return new DatanodeInfo(getDatanodeID(ipAddr));
+  }
+  
   public static DatanodeInfo getLocalDatanodeInfo(int port) {
     return new DatanodeInfo(getLocalDatanodeID(port));
   }
 
-  public static class Builder {
-    private int maxLevels = 3;
-    private int maxSize = 8*1024;
-    private int minSize = 1;
-    private int nFiles = 1;
-    
-    public Builder() {
-    }
-    
-    public Builder setName(String string) {
-      return this;
-    }
+  public static DatanodeInfo getDatanodeInfo(String ipAddr, 
+      String host, int port) {
+    return new DatanodeInfo(new DatanodeID(ipAddr, host, port));
+  }
 
-    public Builder setNumFiles(int nFiles) {
-      this.nFiles = nFiles;
-      return this;
-    }
-    
-    public Builder setMaxLevels(int maxLevels) {
-      this.maxLevels = maxLevels;
-      return this;
-    }
+  public static DatanodeInfo getLocalDatanodeInfo(String ipAddr,
+      String hostname, AdminStates adminState) {
+    return new DatanodeInfo(ipAddr, hostname, "storage",
+        DFSConfigKeys.DFS_DATANODE_DEFAULT_PORT,
+        DFSConfigKeys.DFS_DATANODE_HTTP_DEFAULT_PORT,
+        DFSConfigKeys.DFS_DATANODE_IPC_DEFAULT_PORT,
+        1, 2, 3, 4, 5, 6, "local", adminState);
+  }
 
-    public Builder setMaxSize(int maxSize) {
-      this.maxSize = maxSize;
-      return this;
-    }
+  public static DatanodeDescriptor getDatanodeDescriptor(String ipAddr,
+      String rackLocation) {
+    return getDatanodeDescriptor(ipAddr, DFSConfigKeys.DFS_DATANODE_DEFAULT_PORT,
+        rackLocation);
+  }
 
-    public Builder setMinSize(int minSize) {
-      this.minSize = minSize;
-      return this;
-    }
-    
-    public DFSTestUtil build() {
-      return new DFSTestUtil(nFiles, maxLevels, maxSize, minSize);
-    }
+  public static DatanodeDescriptor getDatanodeDescriptor(String ipAddr,
+      int port, String rackLocation) {
+    return new DatanodeDescriptor(new DatanodeID(ipAddr, port), rackLocation);
+>>>>>>> 3dcc916... HDFS-3401. Cleanup DatanodeDescriptor creation in the tests. Contributed by Eli Collins
   }
 }
