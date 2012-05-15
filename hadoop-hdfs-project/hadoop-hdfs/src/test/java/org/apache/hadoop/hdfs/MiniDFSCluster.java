@@ -1660,20 +1660,15 @@ public class MiniDFSCluster {
     return FSNamesystem.getNamespaceEditsDirs(nameNodes[nnIndex].conf);
   }
   
-  private HAServiceProtocol getHaServiceClient(int nnIndex) throws IOException {
-    InetSocketAddress addr = nameNodes[nnIndex].nameNode.getServiceRpcAddress();
-    return new HAServiceProtocolClientSideTranslatorPB(addr, conf);
-  }
-  
   public void transitionToActive(int nnIndex) throws IOException,
       ServiceFailedException {
-    HAServiceProtocolHelper.transitionToActive(getHaServiceClient(nnIndex),
+    getNameNode(nnIndex).getRpcServer().transitionToActive(
         new StateChangeRequestInfo(RequestSource.REQUEST_BY_USER_FORCED));
   }
   
   public void transitionToStandby(int nnIndex) throws IOException,
       ServiceFailedException {
-    HAServiceProtocolHelper.transitionToStandby(getHaServiceClient(nnIndex),
+    getNameNode(nnIndex).getRpcServer().transitionToStandby(
         new StateChangeRequestInfo(RequestSource.REQUEST_BY_USER_FORCED));
   }
   
