@@ -431,7 +431,7 @@ public class TestBlockRecovery {
     DataNode spyDN = spy(dn);
     doThrow(new RecoveryInProgressException("Replica recovery is in progress")).
        when(spyDN).initReplicaRecovery(any(RecoveringBlock.class));
-    Daemon d = spyDN.recoverBlocks(initRecoveringBlocks());
+    Daemon d = spyDN.recoverBlocks("fake NN", initRecoveringBlocks());
     d.join();
     verify(spyDN, never()).syncBlock(
         any(RecoveringBlock.class), anyListOf(BlockRecord.class));
@@ -451,7 +451,7 @@ public class TestBlockRecovery {
     DataNode spyDN = spy(dn);
     doThrow(new IOException()).
        when(spyDN).initReplicaRecovery(any(RecoveringBlock.class));
-    Daemon d = spyDN.recoverBlocks(initRecoveringBlocks());
+    Daemon d = spyDN.recoverBlocks("fake NN", initRecoveringBlocks());
     d.join();
     verify(spyDN, never()).syncBlock(
         any(RecoveringBlock.class), anyListOf(BlockRecord.class));
@@ -471,7 +471,7 @@ public class TestBlockRecovery {
     doReturn(new ReplicaRecoveryInfo(block.getBlockId(), 0,
         block.getGenerationStamp(), ReplicaState.FINALIZED)).when(spyDN).
         initReplicaRecovery(any(RecoveringBlock.class));
-    Daemon d = spyDN.recoverBlocks(initRecoveringBlocks());
+    Daemon d = spyDN.recoverBlocks("fake NN", initRecoveringBlocks());
     d.join();
     DatanodeProtocol dnP = dn.getActiveNamenodeForBP(POOL_ID);
     verify(dnP).commitBlockSynchronization(
