@@ -64,6 +64,11 @@
       <type>pom</type>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-gridmix</artifactId>
+      <scope>compile</scope>
+    </dependency>
   </dependencies>
 
   <build>
