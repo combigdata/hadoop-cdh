@@ -57,10 +57,10 @@ import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.hdfs.protocol.CorruptFileBlocks;
-import org.apache.hadoop.hdfs.protocol.DirectoryListing;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.protocol.HdfsFileStatus;
 import org.apache.hadoop.hdfs.protocol.LocatedBlocks;
+import org.apache.hadoop.hdfs.server.namenode.NamenodeFsck.Result;
 import org.apache.hadoop.hdfs.server.protocol.NamenodeProtocols;
 import org.apache.hadoop.hdfs.tools.DFSck;
 import org.apache.hadoop.io.IOUtils;
@@ -102,8 +102,9 @@ public class TestFsck {
     PrintStream out = new PrintStream(bStream, true);
     ((Log4JLogger)FSPermissionChecker.LOG).getLogger().setLevel(Level.ALL);
     int errCode = ToolRunner.run(new DFSck(conf, out), path);
-    if (checkErrorCode)
+    if (checkErrorCode) {
       assertEquals(expectedErrCode, errCode);
+    }
     ((Log4JLogger)FSPermissionChecker.LOG).getLogger().setLevel(Level.INFO);
     FSImage.LOG.error("OUTPUT = " + bStream.toString());
     return bStream.toString();
@@ -782,6 +783,75 @@ public class TestFsck {
       fs.delete(filePath, true);
     } finally {
       if (cluster != null) {
+        cluster.shutdown();
+      }
+    }
+  }
+  
+  /**
+   * Tests that the # of missing block replicas and expected replicas is correct
+   * @throws IOException
+   */
+  @Test
+  public void testFsckMissingReplicas() throws IOException {
+    // Desired replication factor
+    // Set this higher than NUM_REPLICAS so it's under-replicated
+    final short REPL_FACTOR = 2;
+    // Number of replicas to actually start
+    final short NUM_REPLICAS = 1;
+    // Number of blocks to write
+    final short NUM_BLOCKS = 3;
+    // Set a small-ish blocksize
+    final long blockSize = 512;
+    
+    Configuration conf = new Configuration();
+    conf.setLong(DFSConfigKeys.DFS_BLOCK_SIZE_KEY, blockSize);
+    
+    MiniDFSCluster cluster = null;
+    DistributedFileSystem dfs = null;
+    
+    try {
+      // Startup a minicluster
+      cluster = 
+          new MiniDFSCluster.Builder(conf).numDataNodes(NUM_REPLICAS).build();
+      assertNotNull("Failed Cluster Creation", cluster);
+      cluster.waitClusterUp();
+      dfs = (DistributedFileSystem) cluster.getFileSystem();
+      assertNotNull("Failed to get FileSystem", dfs);
+      
+      // Create a file that will be intentionally under-replicated
+      final String pathString = new String("/testfile");
+      final Path path = new Path(pathString);
+      long fileLen = blockSize * NUM_BLOCKS;
+      DFSTestUtil.createFile(dfs, path, fileLen, REPL_FACTOR, 1);
+      
+      // Create an under-replicated file
+      NameNode namenode = cluster.getNameNode();
+      NetworkTopology nettop = cluster.getNamesystem().getBlockManager()
+          .getDatanodeManager().getNetworkTopology();
+      Map<String,String[]> pmap = new HashMap<String, String[]>();
+      Writer result = new StringWriter();
+      PrintWriter out = new PrintWriter(result, true);
+      InetAddress remoteAddress = InetAddress.getLocalHost();
+      NamenodeFsck fsck = new NamenodeFsck(conf, namenode, nettop, pmap, out, 
+          NUM_REPLICAS, (short)1, remoteAddress);
+      
+      // Run the fsck and check the Result
+      final HdfsFileStatus file = 
+          namenode.getRpcServer().getFileInfo(pathString);
+      assertNotNull(file);
+      Result res = new Result(conf);
+      fsck.check(pathString, file, res);
+      // Also print the output from the fsck, for ex post facto sanity checks
+      System.out.println(result.toString());
+      assertEquals(res.missingReplicas, 
+          (NUM_BLOCKS*REPL_FACTOR) - (NUM_BLOCKS*NUM_REPLICAS));
+      assertEquals(res.numExpectedReplicas, NUM_BLOCKS*REPL_FACTOR);
+    } finally {
+      if(dfs != null) {
+        dfs.close();
+      }
+      if(cluster != null) {
         cluster.shutdown();
       }
     }
