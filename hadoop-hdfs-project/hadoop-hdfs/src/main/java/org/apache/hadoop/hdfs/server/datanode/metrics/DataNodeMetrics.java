@@ -61,6 +61,8 @@ public class DataNodeMetrics {
   @Metric MutableCounterLong writesFromLocalClient;
   @Metric MutableCounterLong writesFromRemoteClient;
   @Metric MutableCounterLong blocksGetLocalPathInfo;
+
+  @Metric MutableCounterLong fsyncCount;
   
   @Metric MutableCounterLong volumeFailures;
 
@@ -74,6 +76,7 @@ public class DataNodeMetrics {
 
   @Metric MutableRate sendDataPacketBlockedOnNetworkNanos;
   @Metric MutableRate sendDataPacketTransferNanos;
+  @Metric MutableRate fsync;
 
   final MetricsRegistry registry = new MetricsRegistry("datanode");
   final String name;
@@ -152,6 +155,14 @@ public class DataNodeMetrics {
 
   public void incrBlocksRead() {
     blocksRead.incr();
+  }
+
+  public void incrFsyncCount() {
+    fsyncCount.incr();
+  }
+
+  public void addFsync(long latency) {
+    fsync.add(latency);
   }
 
   public void shutdown() {
