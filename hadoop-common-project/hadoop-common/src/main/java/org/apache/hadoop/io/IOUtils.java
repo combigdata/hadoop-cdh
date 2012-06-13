@@ -252,10 +252,9 @@ public class IOUtils {
   /**
    * Write a ByteBuffer to a WritableByteChannel, handling short writes.
    * 
-   * @param bc               The WritableByteChannel to write to.
+   * @param bc               The WritableByteChannel to write to
    * @param buf              The input buffer
-   * @param offset           The offset in the file to start writing at.
-   * @throws IOException     On I/O error.
+   * @throws IOException     On I/O error
    */
   public static void writeFully(WritableByteChannel bc, ByteBuffer buf)
       throws IOException {
@@ -268,10 +267,10 @@ public class IOUtils {
    * Write a ByteBuffer to a FileChannel at a given offset, 
    * handling short writes.
    * 
-   * @param fc               The FileChannel to write to.
+   * @param fc               The FileChannel to write to
    * @param buf              The input buffer
-   * @param offset           The offset in the file to start writing at.
-   * @throws IOException     On I/O error.
+   * @param offset           The offset in the file to start writing at
+   * @throws IOException     On I/O error
    */
   public static void writeFully(FileChannel fc, ByteBuffer buf,
       long offset) throws IOException {
