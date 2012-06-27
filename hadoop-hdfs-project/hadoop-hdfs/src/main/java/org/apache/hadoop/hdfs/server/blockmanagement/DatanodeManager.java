@@ -1036,4 +1036,8 @@ public class DatanodeManager {
     }
   }
 
+  @Override
+  public String toString() {
+    return getClass().getSimpleName() + ": " + host2DatanodeMap;
+  }
 }
