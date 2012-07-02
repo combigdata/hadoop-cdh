@@ -245,12 +245,6 @@ public class ProtobufRpcEngine implements RpcEngine {
     }
   }
 
-  @Override
-  public Object[] call(Method method, Object[][] params,
-      InetSocketAddress[] addrs, UserGroupInformation ticket, Configuration conf) {
-    throw new UnsupportedOperationException();
-  }
-
   /**
    * Writable Wrapper for Protocol Buffer Requests
    */
