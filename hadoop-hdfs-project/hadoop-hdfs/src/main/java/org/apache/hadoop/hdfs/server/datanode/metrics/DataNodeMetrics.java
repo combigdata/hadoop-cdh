@@ -72,6 +72,9 @@ public class DataNodeMetrics {
   @Metric MutableRate heartbeats;
   @Metric MutableRate blockReports;
 
+  @Metric MutableRate sendDataPacketBlockedOnNetworkNanos;
+  @Metric MutableRate sendDataPacketTransferNanos;
+
   final MetricsRegistry registry = new MetricsRegistry("datanode");
   final String name;
 
@@ -170,5 +173,13 @@ public class DataNodeMetrics {
   /** Increment for getBlockLocalPathInfo calls */
   public void incrBlocksGetLocalPathInfo() {
     blocksGetLocalPathInfo.incr();
+  }
+  
+  public MutableRate getSendDataPacketBlockedOnNetworkNanos() {
+    return sendDataPacketBlockedOnNetworkNanos;
+  }
+  
+  public MutableRate getSendDataPacketTransferNanos() {
+    return sendDataPacketTransferNanos;
   }
 }
