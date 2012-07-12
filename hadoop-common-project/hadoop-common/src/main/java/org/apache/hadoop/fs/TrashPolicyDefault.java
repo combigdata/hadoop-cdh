@@ -37,6 +37,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.util.Time;
 
 /** Provides a <i>trash</i> feature.  Files are moved to a user's trash
  * directory, a subdirectory of their home directory named ".Trash".  Files are
@@ -135,7 +136,7 @@ public class TrashPolicyDefault extends TrashPolicy {
         String orig = trashPath.toString();
         
         while(fs.exists(trashPath)) {
-          trashPath = new Path(orig + System.currentTimeMillis());
+          trashPath = new Path(orig + Time.now());
         }
         
         if (fs.rename(path, trashPath))           // move to current trash
@@ -175,7 +176,7 @@ public class TrashPolicyDefault extends TrashPolicy {
       return;
     }
 
-    long now = System.currentTimeMillis();
+    long now = Time.now();
     for (int i = 0; i < dirs.length; i++) {
       Path path = dirs[i].getPath();
       String dir = path.toUri().getPath();
@@ -236,7 +237,7 @@ public class TrashPolicyDefault extends TrashPolicy {
     public void run() {
       if (emptierInterval == 0)
         return;                                   // trash disabled
-      long now = System.currentTimeMillis();
+      long now = Time.now();
       long end;
       while (true) {
         end = ceiling(now, emptierInterval);
@@ -247,7 +248,7 @@ public class TrashPolicyDefault extends TrashPolicy {
         }
 
         try {
-          now = System.currentTimeMillis();
+          now = Time.now();
           if (now >= end) {
 
             FileStatus[] homes = null;

@@ -73,6 +73,7 @@ import org.apache.hadoop.ipc.RemoteException;
 import org.apache.hadoop.ipc.Server;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.test.GenericTestUtils;
+import org.apache.hadoop.util.Time;
 import org.apache.log4j.Level;
 import org.mockito.Mockito;
 import org.apache.hadoop.test.GenericTestUtils;
@@ -484,10 +485,10 @@ public class TestDFSClientRetries extends TestCase {
 
     //
     // Test 1: might fail
-    //
-    long timestamp = System.currentTimeMillis();
+    // 
+    long timestamp = Time.now();
     boolean pass = busyTest(xcievers, threads, fileLen, timeWin, retries);
-    long timestamp2 = System.currentTimeMillis();
+    long timestamp2 = Time.now();
     if ( pass ) {
       LOG.info("Test 1 succeeded! Time spent: " + (timestamp2-timestamp)/1000.0 + " sec.");
     } else {
@@ -498,9 +499,9 @@ public class TestDFSClientRetries extends TestCase {
     // Test 2: should never fail
     //
     retries = 50;
-    timestamp = System.currentTimeMillis();
+    timestamp = Time.now();
     pass = busyTest(xcievers, threads, fileLen, timeWin, retries);
-    timestamp2 = System.currentTimeMillis();
+    timestamp2 = Time.now();
     assertTrue("Something wrong! Test 2 got Exception with maxmum retries!", pass);
     LOG.info("Test 2 succeeded! Time spent: "  + (timestamp2-timestamp)/1000.0 + " sec.");
 
@@ -509,9 +510,9 @@ public class TestDFSClientRetries extends TestCase {
     //
     retries = 3;
     timeWin = 1000;
-    timestamp = System.currentTimeMillis();
+    timestamp = Time.now();
     pass = busyTest(xcievers, threads, fileLen, timeWin, retries);
-    timestamp2 = System.currentTimeMillis();
+    timestamp2 = Time.now();
     if ( pass ) {
       LOG.info("Test 3 succeeded! Time spent: " + (timestamp2-timestamp)/1000.0 + " sec.");
     } else {
@@ -523,9 +524,9 @@ public class TestDFSClientRetries extends TestCase {
     //
     retries = 50;
     timeWin = 1000;
-    timestamp = System.currentTimeMillis();
+    timestamp = Time.now();
     pass = busyTest(xcievers, threads, fileLen, timeWin, retries);
-    timestamp2 = System.currentTimeMillis();
+    timestamp2 = Time.now();
     assertTrue("Something wrong! Test 4 got Exception with maxmum retries!", pass);
     LOG.info("Test 4 succeeded! Time spent: "  + (timestamp2-timestamp)/1000.0 + " sec.");
   }
@@ -566,7 +567,7 @@ public class TestDFSClientRetries extends TestCase {
       LOG.info("Path : \"" + file1 + "\"");
 
       // write 1 block to file
-      byte[] buffer = AppendTestUtil.randomBytes(System.currentTimeMillis(), fileLen);
+      byte[] buffer = AppendTestUtil.randomBytes(Time.now(), fileLen);
       stm.write(buffer, 0, fileLen);
       stm.close();
 

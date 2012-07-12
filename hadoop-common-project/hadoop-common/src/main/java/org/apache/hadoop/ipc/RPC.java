@@ -51,6 +51,7 @@ import org.apache.hadoop.security.token.SecretManager;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.conf.*;
 import org.apache.hadoop.util.ReflectionUtils;
+import org.apache.hadoop.util.Time;
 
 import com.google.protobuf.BlockingService;
 
@@ -370,7 +371,7 @@ public class RPC {
                                int rpcTimeout,
                                RetryPolicy connectionRetryPolicy,
                                long timeout) throws IOException { 
-    long startTime = System.currentTimeMillis();
+    long startTime = Time.now();
     IOException ioe;
     while (true) {
       try {
@@ -388,7 +389,7 @@ public class RPC {
         ioe = nrthe;
       }
       // check if timed out
-      if (System.currentTimeMillis()-timeout >= startTime) {
+      if (Time.now()-timeout >= startTime) {
         throw ioe;
       }
 

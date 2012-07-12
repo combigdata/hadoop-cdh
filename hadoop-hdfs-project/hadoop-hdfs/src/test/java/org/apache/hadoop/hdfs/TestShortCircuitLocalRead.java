@@ -43,6 +43,7 @@ import org.apache.hadoop.hdfs.server.datanode.SimulatedFSDataset;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
+import org.apache.hadoop.util.Time;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -362,7 +363,7 @@ public class TestShortCircuitLocalRead {
     stm.write(dataToWrite);
     stm.close();
 
-    long start = System.currentTimeMillis();
+    long start = Time.now();
     final int iteration = 20;
     Thread[] threads = new Thread[threadCount];
     for (int i = 0; i < threadCount; i++) {
@@ -385,7 +386,7 @@ public class TestShortCircuitLocalRead {
     for (int i = 0; i < threadCount; i++) {
       threads[i].join();
     }
-    long end = System.currentTimeMillis();
+    long end = Time.now();
     System.out.println("Iteration " + iteration + " took " + (end - start));
     fs.delete(file1, false);
   }
