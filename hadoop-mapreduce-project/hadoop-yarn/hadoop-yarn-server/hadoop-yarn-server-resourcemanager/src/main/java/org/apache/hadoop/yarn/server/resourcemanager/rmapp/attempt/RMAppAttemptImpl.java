@@ -144,16 +144,24 @@ public class RMAppAttemptImpl implements RMAppAttempt {
       .addTransition(RMAppAttemptState.NEW, RMAppAttemptState.KILLED,
           RMAppAttemptEventType.KILL,
           new BaseFinalTransition(RMAppAttemptState.KILLED))
-
+      .addTransition(RMAppAttemptState.NEW, RMAppAttemptState.FAILED,
+          RMAppAttemptEventType.REGISTERED,
+          new UnexpectedAMRegisteredTransition())
+          
       // Transitions from SUBMITTED state
       .addTransition(RMAppAttemptState.SUBMITTED, RMAppAttemptState.FAILED,
           RMAppAttemptEventType.APP_REJECTED, new AppRejectedTransition())
-      .addTransition(RMAppAttemptState.SUBMITTED, RMAppAttemptState.SCHEDULED,
-          RMAppAttemptEventType.APP_ACCEPTED, new ScheduleTransition())
+      .addTransition(RMAppAttemptState.SUBMITTED, 
+          EnumSet.of(RMAppAttemptState.LAUNCHED, RMAppAttemptState.SCHEDULED),
+          RMAppAttemptEventType.APP_ACCEPTED, 
+          new ScheduleTransition())
       .addTransition(RMAppAttemptState.SUBMITTED, RMAppAttemptState.KILLED,
           RMAppAttemptEventType.KILL,
           new BaseFinalTransition(RMAppAttemptState.KILLED))
-
+      .addTransition(RMAppAttemptState.SUBMITTED, RMAppAttemptState.FAILED,
+          RMAppAttemptEventType.REGISTERED,
+          new UnexpectedAMRegisteredTransition())
+          
        // Transitions from SCHEDULED State
       .addTransition(RMAppAttemptState.SCHEDULED,
           RMAppAttemptState.ALLOCATED,
@@ -174,7 +182,7 @@ public class RMAppAttemptImpl implements RMAppAttempt {
           RMAppAttemptEventType.LAUNCH_FAILED, new LaunchFailedTransition())
       .addTransition(RMAppAttemptState.ALLOCATED, RMAppAttemptState.KILLED,
           RMAppAttemptEventType.KILL, new KillAllocatedAMTransition())
-
+          
        // Transitions from LAUNCHED State
       .addTransition(RMAppAttemptState.LAUNCHED, RMAppAttemptState.RUNNING,
           RMAppAttemptEventType.REGISTERED, new AMRegisteredTransition())
@@ -584,9 +592,11 @@ public class RMAppAttemptImpl implements RMAppAttempt {
   private static final List<ResourceRequest> EMPTY_CONTAINER_REQUEST_LIST =
     new ArrayList<ResourceRequest>();
 
-  private static final class ScheduleTransition extends BaseTransition {
+  private static final class ScheduleTransition
+      implements
+      MultipleArcTransition<RMAppAttemptImpl, RMAppAttemptEvent, RMAppAttemptState> {
     @Override
-    public void transition(RMAppAttemptImpl appAttempt,
+    public RMAppAttemptState transition(RMAppAttemptImpl appAttempt,
         RMAppAttemptEvent event) {
 
       // Send the acceptance to the app
@@ -594,17 +604,27 @@ public class RMAppAttemptImpl implements RMAppAttempt {
           .getApplicationAttemptId().getApplicationId(),
           RMAppEventType.APP_ACCEPTED));
 
-      // Request a container for the AM.
-      ResourceRequest request = BuilderUtils.newResourceRequest(
-          AM_CONTAINER_PRIORITY, "*", appAttempt.submissionContext
-              .getAMContainerSpec().getResource(), 1);
+      if (!appAttempt.submissionContext.getUnmanagedAM()) {
+        // Request a container for the AM.
+        ResourceRequest request = BuilderUtils.newResourceRequest(
+            AM_CONTAINER_PRIORITY, "*", appAttempt.submissionContext
+                .getAMContainerSpec().getResource(), 1);
 
-      Allocation amContainerAllocation = 
-          appAttempt.scheduler.allocate(appAttempt.applicationAttemptId,
-              Collections.singletonList(request), EMPTY_CONTAINER_RELEASE_LIST);
-      if (amContainerAllocation != null
-          && amContainerAllocation.getContainers() != null) {
-        assert(amContainerAllocation.getContainers().size() == 0);
+        Allocation amContainerAllocation = appAttempt.scheduler.allocate(
+            appAttempt.applicationAttemptId,
+            Collections.singletonList(request), EMPTY_CONTAINER_RELEASE_LIST);
+        if (amContainerAllocation != null
+            && amContainerAllocation.getContainers() != null) {
+          assert (amContainerAllocation.getContainers().size() == 0);
+        }
+        return RMAppAttemptState.SCHEDULED;
+      } else {
+        // RM not allocating container. AM is self launched. 
+        // Directly go to LAUNCHED state
+        // Register with AMLivelinessMonitor
+        appAttempt.rmContext.getAMLivelinessMonitor().register(
+            appAttempt.applicationAttemptId);
+        return RMAppAttemptState.LAUNCHED;
       }
     }
   }
@@ -812,10 +832,29 @@ public class RMAppAttemptImpl implements RMAppAttempt {
       appAttempt.rmContext.getAMLivelinessMonitor().unregister(
           appAttempt.getAppAttemptId());
 
-      // Tell the launcher to cleanup.
-      appAttempt.eventHandler.handle(new AMLauncherEvent(
-          AMLauncherEventType.CLEANUP, appAttempt));
+      if(!appAttempt.submissionContext.getUnmanagedAM()) {
+        // Tell the launcher to cleanup.
+        appAttempt.eventHandler.handle(new AMLauncherEvent(
+            AMLauncherEventType.CLEANUP, appAttempt));
+      }
     }
+  }
+  
+  private static class UnexpectedAMRegisteredTransition extends
+      BaseFinalTransition {
+
+    public UnexpectedAMRegisteredTransition() {
+      super(RMAppAttemptState.FAILED);
+    }
+
+    @Override
+    public void transition(RMAppAttemptImpl appAttempt, RMAppAttemptEvent event) {
+      assert appAttempt.submissionContext.getUnmanagedAM();
+      appAttempt
+          .setDiagnostics("Unmanaged AM must register after AM attempt reaches LAUNCHED state.");
+      super.transition(appAttempt, event);
+    }
+
   }
 
   private static final class StatusUpdateTransition extends
@@ -885,8 +924,11 @@ public class RMAppAttemptImpl implements RMAppAttempt {
 
       // Is this container the AmContainer? If the finished container is same as
       // the AMContainer, AppAttempt fails
-      if (appAttempt.masterContainer.getId().equals(
-          containerStatus.getContainerId())) {
+      if (appAttempt.masterContainer != null
+          && appAttempt.masterContainer.getId().equals(
+              containerStatus.getContainerId())) {
+        // container associated with AM. must not be unmanaged 
+        assert appAttempt.submissionContext.getUnmanagedAM() == false;
         // Setup diagnostic message
         appAttempt.diagnostics.append("AM Container for " +
             appAttempt.getAppAttemptId() + " exited with " +
