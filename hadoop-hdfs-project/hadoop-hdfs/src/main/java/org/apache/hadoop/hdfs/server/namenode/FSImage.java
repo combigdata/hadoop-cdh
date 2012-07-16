@@ -780,6 +780,7 @@ public class FSImage implements Closeable {
       this.sd = sd;
     }
 
+    @Override
     public void run() {
       try {
         saveFSImage(context, sd);
@@ -793,6 +794,7 @@ public class FSImage implements Closeable {
       }
     }
     
+    @Override
     public String toString() {
       return "FSImageSaver for " + sd.getRoot() +
              " of type " + sd.getStorageDirType();
@@ -1076,6 +1078,7 @@ public class FSImage implements Closeable {
     }
   }
 
+  @Override
   synchronized public void close() throws IOException {
     if (editLog != null) { // 2NN doesn't have any edit log
       getEditLog().close();

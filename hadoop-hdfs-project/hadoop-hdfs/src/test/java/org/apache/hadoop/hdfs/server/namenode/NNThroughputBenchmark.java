@@ -391,6 +391,7 @@ public class NNThroughputBenchmark {
       setName(toString());
     }
 
+    @Override
     public void run() {
       localNumOpsExecuted = 0;
       localCumulativeTime = 0;
@@ -403,6 +404,7 @@ public class NNThroughputBenchmark {
       }
     }
 
+    @Override
     public String toString() {
       return "StatsDaemon-" + daemonId;
     }
@@ -445,16 +447,19 @@ public class NNThroughputBenchmark {
       keepResults = true;
     }
 
+    @Override
     String getOpName() {
       return OP_CLEAN_NAME;
     }
 
+    @Override
     void parseArguments(List<String> args) {
       boolean ignoreUnrelatedOptions = verifyOpArgument(args);
       if(args.size() > 2 && !ignoreUnrelatedOptions)
         printUsage();
     }
 
+    @Override
     void generateInputs(int[] opsPerThread) throws IOException {
       // do nothing
     }
@@ -462,6 +467,7 @@ public class NNThroughputBenchmark {
     /**
      * Does not require the argument
      */
+    @Override
     String getExecutionArgument(int daemonId) {
       return null;
     }
@@ -469,6 +475,7 @@ public class NNThroughputBenchmark {
     /**
      * Remove entire benchmark directory.
      */
+    @Override
     long executeOp(int daemonId, int inputIdx, String ignore) 
     throws IOException {
       nameNodeProto.setSafeMode(HdfsConstants.SafeModeAction.SAFEMODE_LEAVE);
@@ -478,6 +485,7 @@ public class NNThroughputBenchmark {
       return end-start;
     }
 
+    @Override
     void printResults() {
       LOG.info("--- " + getOpName() + " inputs ---");
       LOG.info("Remove directory " + BASE_DIR_NAME);
@@ -507,10 +515,12 @@ public class NNThroughputBenchmark {
       parseArguments(args);
     }
 
+    @Override
     String getOpName() {
       return OP_CREATE_NAME;
     }
 
+    @Override
     void parseArguments(List<String> args) {
       boolean ignoreUnrelatedOptions = verifyOpArgument(args);
       int nrFilesPerDir = 4;
@@ -533,6 +543,7 @@ public class NNThroughputBenchmark {
       nameGenerator = new FileNameGenerator(getBaseDir(), nrFilesPerDir);
     }
 
+    @Override
     void generateInputs(int[] opsPerThread) throws IOException {
       assert opsPerThread.length == numThreads : "Error opsPerThread.length"; 
       nameNodeProto.setSafeMode(HdfsConstants.SafeModeAction.SAFEMODE_LEAVE);
@@ -556,6 +567,7 @@ public class NNThroughputBenchmark {
     /**
      * returns client name
      */
+    @Override
     String getExecutionArgument(int daemonId) {
       return getClientName(daemonId);
     }
@@ -563,6 +575,7 @@ public class NNThroughputBenchmark {
     /**
      * Do file create.
      */
+    @Override
     long executeOp(int daemonId, int inputIdx, String clientName) 
     throws IOException {
       long start = System.currentTimeMillis();
@@ -577,6 +590,7 @@ public class NNThroughputBenchmark {
       return end-start;
     }
 
+    @Override
     void printResults() {
       LOG.info("--- " + getOpName() + " inputs ---");
       LOG.info("nrFiles = " + numOpsRequired);
@@ -606,10 +620,12 @@ public class NNThroughputBenchmark {
       super(args);
     }
 
+    @Override
     String getOpName() {
       return OP_OPEN_NAME;
     }
 
+    @Override
     void parseArguments(List<String> args) {
       int ueIndex = args.indexOf("-useExisting");
       useExisting = (ueIndex >= 0);
@@ -619,6 +635,7 @@ public class NNThroughputBenchmark {
       super.parseArguments(args);
     }
 
+    @Override
     void generateInputs(int[] opsPerThread) throws IOException {
       // create files using opsPerThread
       String[] createArgs = new String[] {
@@ -651,6 +668,7 @@ public class NNThroughputBenchmark {
     /**
      * Do file open.
      */
+    @Override
     long executeOp(int daemonId, int inputIdx, String ignore) 
     throws IOException {
       long start = System.currentTimeMillis();
@@ -675,10 +693,12 @@ public class NNThroughputBenchmark {
       super(args);
     }
 
+    @Override
     String getOpName() {
       return OP_DELETE_NAME;
     }
 
+    @Override
     long executeOp(int daemonId, int inputIdx, String ignore) 
     throws IOException {
       long start = System.currentTimeMillis();
@@ -703,10 +723,12 @@ public class NNThroughputBenchmark {
       super(args);
     }
 
+    @Override
     String getOpName() {
       return OP_FILE_STATUS_NAME;
     }
 
+    @Override
     long executeOp(int daemonId, int inputIdx, String ignore) 
     throws IOException {
       long start = System.currentTimeMillis();
@@ -733,10 +755,12 @@ public class NNThroughputBenchmark {
       super(args);
     }
 
+    @Override
     String getOpName() {
       return OP_RENAME_NAME;
     }
 
+    @Override
     void generateInputs(int[] opsPerThread) throws IOException {
       super.generateInputs(opsPerThread);
       destNames = new String[fileNames.length][];
@@ -748,6 +772,7 @@ public class NNThroughputBenchmark {
       }
     }
 
+    @Override
     long executeOp(int daemonId, int inputIdx, String ignore) 
     throws IOException {
       long start = System.currentTimeMillis();
@@ -792,6 +817,7 @@ public class NNThroughputBenchmark {
       this.nrBlocks = 0;
     }
 
+    @Override
     public String toString() {
       return dnRegistration.toString();
     }
@@ -867,6 +893,7 @@ public class NNThroughputBenchmark {
       return blockReportList;
     }
 
+    @Override
     public int compareTo(String xferAddr) {
       return getXferAddr().compareTo(xferAddr);
     }
@@ -958,10 +985,12 @@ public class NNThroughputBenchmark {
       return numThreads;
     }
 
+    @Override
     String getOpName() {
       return OP_BLOCK_REPORT_NAME;
     }
 
+    @Override
     void parseArguments(List<String> args) {
       boolean ignoreUnrelatedOptions = verifyOpArgument(args);
       for (int i = 2; i < args.size(); i++) {       // parse command line
@@ -982,6 +1011,7 @@ public class NNThroughputBenchmark {
       }
     }
 
+    @Override
     void generateInputs(int[] ignore) throws IOException {
       int nrDatanodes = getNumDatanodes();
       int nrBlocks = (int)Math.ceil((double)blocksPerReport * nrDatanodes 
@@ -1043,10 +1073,12 @@ public class NNThroughputBenchmark {
     /**
      * Does not require the argument
      */
+    @Override
     String getExecutionArgument(int daemonId) {
       return null;
     }
 
+    @Override
     long executeOp(int daemonId, int inputIdx, String ignore) throws IOException {
       assert daemonId < numThreads : "Wrong daemonId.";
       TinyDatanode dn = datanodes[daemonId];
@@ -1059,6 +1091,7 @@ public class NNThroughputBenchmark {
       return end-start;
     }
 
+    @Override
     void printResults() {
       String blockDistribution = "";
       String delim = "(";
@@ -1119,10 +1152,12 @@ public class NNThroughputBenchmark {
       numPendingBlocks = 0;
     }
 
+    @Override
     String getOpName() {
       return OP_REPLICATION_NAME;
     }
 
+    @Override
     void parseArguments(List<String> args) {
       boolean ignoreUnrelatedOptions = verifyOpArgument(args);
       for (int i = 2; i < args.size(); i++) {       // parse command line
@@ -1146,6 +1181,7 @@ public class NNThroughputBenchmark {
       }
     }
 
+    @Override
     void generateInputs(int[] ignore) throws IOException {
       final FSNamesystem namesystem = nameNode.getNamesystem();
 
@@ -1192,10 +1228,12 @@ public class NNThroughputBenchmark {
     /**
      * Does not require the argument
      */
+    @Override
     String getExecutionArgument(int daemonId) {
       return null;
     }
 
+    @Override
     long executeOp(int daemonId, int inputIdx, String ignore) throws IOException {
       assert daemonId < numThreads : "Wrong daemonId.";
       long start = System.currentTimeMillis();
@@ -1209,6 +1247,7 @@ public class NNThroughputBenchmark {
       return end-start;
     }
 
+    @Override
     void printResults() {
       String blockDistribution = "";
       String delim = "(";

@@ -87,6 +87,7 @@ public class DirectoryScanner implements Runnable {
       this.bpid = bpid;
     }
     
+    @Override
     public String toString() {
       return "BlockPool " + bpid
       + " Total blocks: " + totalBlocks + ", missing metadata files:"

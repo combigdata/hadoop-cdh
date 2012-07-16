@@ -761,6 +761,7 @@ public class TestBlockReport {
       this.all = all;
     }
 
+    @Override
     public boolean accept(File file, String s) {
       if (all)
         return s != null && s.startsWith(nameToAccept);
@@ -830,6 +831,7 @@ public class TestBlockReport {
       this.filePath = filePath;
     }
     
+    @Override
     public void run() {
       try {
         startDNandWait(filePath, true);

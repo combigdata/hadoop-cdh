@@ -130,6 +130,7 @@ public class TestEditLog extends TestCase {
     }
 
     // add a bunch of transactions.
+    @Override
     public void run() {
       PermissionStatus p = namesystem.createFsOwnerPermissions(
                                           new FsPermission((short)0777));
@@ -364,6 +365,7 @@ public class TestEditLog extends TestCase {
     final String filename) throws Exception
   {
     exec.submit(new Callable<Void>() {
+      @Override
       public Void call() {
         log.logSetReplication(filename, (short)1);
         return null;
@@ -375,6 +377,7 @@ public class TestEditLog extends TestCase {
     throws Exception
   {
     exec.submit(new Callable<Void>() {
+      @Override
       public Void call() {
         log.logSync();
         return null;
@@ -386,6 +389,7 @@ public class TestEditLog extends TestCase {
     throws Exception
   {
     exec.submit(new Callable<Void>() {
+      @Override
       public Void call() throws Exception {
         log.logSyncAll();
         return null;
@@ -1137,6 +1141,7 @@ public class TestEditLog extends TestCase {
     final long endGapTxId = 2*TXNS_PER_ROLL;
 
     File[] files = new File(f1, "current").listFiles(new FilenameFilter() {
+        @Override
         public boolean accept(File dir, String name) {
           if (name.startsWith(NNStorage.getFinalizedEditsFileName(startGapTxId, 
                                   endGapTxId))) {

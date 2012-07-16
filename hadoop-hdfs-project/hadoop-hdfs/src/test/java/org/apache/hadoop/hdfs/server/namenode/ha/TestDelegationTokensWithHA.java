@@ -158,6 +158,7 @@ public class TestDelegationTokensWithHA {
     final UserGroupInformation shortUgi = UserGroupInformation
         .createRemoteUser("JobTracker");
     longUgi.doAs(new PrivilegedExceptionAction<Void>() {
+      @Override
       public Void run() throws Exception {
         DistributedFileSystem dfs = (DistributedFileSystem)
             HATestUtil.configureFailoverFs(cluster, conf);
@@ -167,6 +168,7 @@ public class TestDelegationTokensWithHA {
       }
     });
     shortUgi.doAs(new PrivilegedExceptionAction<Void>() {
+      @Override
       public Void run() throws Exception {
         DistributedFileSystem dfs = (DistributedFileSystem)
             HATestUtil.configureFailoverFs(cluster, conf);
@@ -175,6 +177,7 @@ public class TestDelegationTokensWithHA {
       }
     });
     longUgi.doAs(new PrivilegedExceptionAction<Void>() {
+      @Override
       public Void run() throws Exception {
         DistributedFileSystem dfs = (DistributedFileSystem)
             HATestUtil.configureFailoverFs(cluster, conf);

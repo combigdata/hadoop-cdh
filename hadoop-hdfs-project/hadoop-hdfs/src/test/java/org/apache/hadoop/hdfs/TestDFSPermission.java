@@ -879,6 +879,7 @@ public class TestDFSPermission extends TestCase {
                 requiredAncestorPermission;
     }
 
+    @Override
     protected void logPermissions() {
       super.logPermissions();
       LOG.info("dst ancestor permission: "

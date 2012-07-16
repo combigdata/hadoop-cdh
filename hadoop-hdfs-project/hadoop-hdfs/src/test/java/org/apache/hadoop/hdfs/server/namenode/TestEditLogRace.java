@@ -111,6 +111,7 @@ public class TestEditLogRace {
     }
 
     // add a bunch of transactions.
+    @Override
     public void run() {
       thr = Thread.currentThread();
       PermissionStatus p = namesystem.createFsOwnerPermissions(
@@ -367,6 +368,7 @@ public class TestEditLogRace {
       final CountDownLatch waitToEnterFlush = new CountDownLatch(1);
       
       final Thread doAnEditThread = new Thread() {
+        @Override
         public void run() {
           try {
             LOG.info("Starting mkdirs");
@@ -462,6 +464,7 @@ public class TestEditLogRace {
       final CountDownLatch waitToEnterSync = new CountDownLatch(1);
       
       final Thread doAnEditThread = new Thread() {
+        @Override
         public void run() {
           try {
             LOG.info("Starting mkdirs");

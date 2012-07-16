@@ -146,6 +146,7 @@ public class INodeFileUnderConstruction extends INodeFile
    * Convert the last block of the file to an under-construction block.
    * Set its locations.
    */
+  @Override
   public BlockInfoUnderConstruction setLastBlock(BlockInfo lastBlock,
                                           DatanodeDescriptor[] targets)
   throws IOException {
