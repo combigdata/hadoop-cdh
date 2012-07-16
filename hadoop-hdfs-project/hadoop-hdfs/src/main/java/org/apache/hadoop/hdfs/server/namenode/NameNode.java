@@ -1198,7 +1198,7 @@ public class NameNode {
         namenode.join();
     } catch (Throwable e) {
       LOG.fatal("Exception in namenode join", e);
-      terminate(1);
+      terminate(1, e);
     }
   }
 
@@ -1286,7 +1286,7 @@ public class NameNode {
     } catch (Throwable ignored) {
       // This is unlikely to happen, but there's nothing we can do if it does.
     }
-    terminate(1, t.getMessage());
+    terminate(1, t);
   }
   
   /**
