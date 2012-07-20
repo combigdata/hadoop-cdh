@@ -18,7 +18,6 @@
 package org.apache.hadoop.hdfs;
 
 import static org.junit.Assert.*;
-import org.junit.Test;
 
 import java.io.DataOutputStream;
 import java.io.FileNotFoundException;
@@ -34,12 +33,14 @@ import org.apache.hadoop.hdfs.server.protocol.NamenodeProtocol;
 import org.apache.hadoop.hdfs.server.protocol.NamenodeProtocols;
 import org.apache.hadoop.test.GenericTestUtils;
 import org.apache.hadoop.util.Time;
+import org.junit.Test;
 
 /**
  * This class tests that the DFS command mkdirs only creates valid
  * directories, and generally behaves as expected.
  */
 public class TestDFSMkdirs {
+
   private Configuration conf = new HdfsConfiguration();
 
   private static final String[] NON_CANONICAL_PATHS = new String[] {
