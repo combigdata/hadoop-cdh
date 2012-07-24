@@ -435,16 +435,15 @@ public class TestStartup extends TestCase {
 
   private void testImageChecksum(boolean compress) throws Exception {
     MiniDFSCluster cluster = null;
-    Configuration conf = new HdfsConfiguration();
     if (compress) {
-      conf.setBoolean(DFSConfigKeys.DFS_IMAGE_COMPRESSION_CODEC_KEY, true);
+      config.setBoolean(DFSConfigKeys.DFS_IMAGE_COMPRESSION_CODEC_KEY, true);
     }
 
     try {
         LOG.info("\n===========================================\n" +
                  "Starting empty cluster");
         
-        cluster = new MiniDFSCluster.Builder(conf)
+        cluster = new MiniDFSCluster.Builder(config)
           .numDataNodes(0)
           .format(true)
           .build();
@@ -471,7 +470,7 @@ public class TestStartup extends TestCase {
         LOG.info("\n===========================================\n" +
         "Starting same cluster after simulated crash");
         try {
-          cluster = new MiniDFSCluster.Builder(conf)
+          cluster = new MiniDFSCluster.Builder(config)
             .numDataNodes(0)
             .format(false)
             .build();
@@ -498,19 +497,18 @@ public class TestStartup extends TestCase {
     FileSystem localFileSys;
     Path hostsFile;
     Path excludeFile;
-    Configuration conf = new HdfsConfiguration();
     int HEARTBEAT_INTERVAL = 1; // heartbeat interval in seconds
     // Set up the hosts/exclude files.
-    localFileSys = FileSystem.getLocal(conf);
+    localFileSys = FileSystem.getLocal(config);
     Path workingDir = localFileSys.getWorkingDirectory();
     Path dir = new Path(workingDir, "build/test/data/work-dir/restartnn");
     hostsFile = new Path(dir, "hosts");
     excludeFile = new Path(dir, "exclude");
 
     // Setup conf
-    conf.set(DFSConfigKeys.DFS_HOSTS_EXCLUDE, excludeFile.toUri().getPath());
+    config.set(DFSConfigKeys.DFS_HOSTS_EXCLUDE, excludeFile.toUri().getPath());
     writeConfigFile(localFileSys, excludeFile, null);
-    conf.set(DFSConfigKeys.DFS_HOSTS, hostsFile.toUri().getPath());
+    config.set(DFSConfigKeys.DFS_HOSTS, hostsFile.toUri().getPath());
     // write into hosts file
     ArrayList<String>list = new ArrayList<String>();
     byte b[] = {127, 0, 0, 1};
@@ -520,7 +518,7 @@ public class TestStartup extends TestCase {
     int numDatanodes = 1;
     
     try {
-      cluster = new MiniDFSCluster.Builder(conf)
+      cluster = new MiniDFSCluster.Builder(config)
       .numDataNodes(numDatanodes).setupHostsFile(true).build();
       cluster.waitActive();
   
