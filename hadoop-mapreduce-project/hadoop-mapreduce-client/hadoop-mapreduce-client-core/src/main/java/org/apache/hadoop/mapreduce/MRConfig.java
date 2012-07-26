@@ -71,4 +71,9 @@ public interface MRConfig {
 
   public static final String TASK_LOCAL_OUTPUT_CLASS =
   "mapreduce.task.local.output.class";
+
+  public static final String SHUFFLE_SSL_ENABLED_KEY =
+    "mapreduce.shuffle.ssl.enabled";
+
+  public static final boolean SHUFFLE_SSL_ENABLED_DEFAULT = false;
 }

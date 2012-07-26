@@ -50,3 +50,5 @@ MapReduce NextGen aka YARN aka MRv2
   * {{{./WebApplicationProxy.html}Web Application Proxy}}
 
 
+  * {{{./EncryptedShuffle.html}Encrypted Shuffle}}
+
