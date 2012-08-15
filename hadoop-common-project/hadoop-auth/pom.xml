@@ -35,6 +35,7 @@
 
   <dependencies>
     <dependency>
+      <!-- Used, even though 'mvn dependency:analyze' doesn't find it -->
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-annotations</artifactId>
       <scope>provided</scope>
@@ -72,12 +73,12 @@
     <dependency>
       <groupId>log4j</groupId>
       <artifactId>log4j</artifactId>
-      <scope>compile</scope>
+      <scope>runtime</scope>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-log4j12</artifactId>
-      <scope>compile</scope>
+      <scope>runtime</scope>
     </dependency>
   </dependencies>
 
