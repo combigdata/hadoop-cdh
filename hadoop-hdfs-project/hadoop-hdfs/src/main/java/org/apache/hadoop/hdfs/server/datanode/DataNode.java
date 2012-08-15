@@ -46,6 +46,7 @@ import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_DATANODE_SCAN_PERIOD_HOUR
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_DATANODE_STARTUP_KEY;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_DATANODE_USER_NAME_KEY;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_HTTPS_ENABLE_KEY;
+import static org.apache.hadoop.util.ExitUtil.terminate;
 
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
@@ -55,6 +56,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -101,8 +103,8 @@ import org.apache.hadoop.hdfs.protocol.HdfsProtoUtil;
 import org.apache.hadoop.hdfs.protocol.LocatedBlock;
 import org.apache.hadoop.hdfs.protocol.RecoveryInProgressException;
 import org.apache.hadoop.hdfs.protocol.datatransfer.BlockConstructionStage;
-import org.apache.hadoop.hdfs.protocol.datatransfer.DataTransferProtocol;
 import org.apache.hadoop.hdfs.protocol.datatransfer.DataTransferEncryptor;
+import org.apache.hadoop.hdfs.protocol.datatransfer.DataTransferProtocol;
 import org.apache.hadoop.hdfs.protocol.datatransfer.IOStreamPair;
 import org.apache.hadoop.hdfs.protocol.datatransfer.Sender;
 import org.apache.hadoop.hdfs.protocol.proto.ClientDatanodeProtocolProtos.ClientDatanodeProtocolService;
@@ -127,9 +129,6 @@ import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.StartupOption;
 import org.apache.hadoop.hdfs.server.common.JspHelper;
 import org.apache.hadoop.hdfs.server.common.StorageInfo;
 import org.apache.hadoop.hdfs.server.common.Util;
-
-import static org.apache.hadoop.util.ExitUtil.terminate;
-
 import org.apache.hadoop.hdfs.server.datanode.SecureDataNodeStarter.SecureResources;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
@@ -174,10 +173,9 @@ import org.apache.hadoop.util.Time;
 import org.apache.hadoop.util.VersionInfo;
 import org.mortbay.util.ajax.JSON;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Sets;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.BlockingService;
 
 /**********************************************************
@@ -234,6 +232,8 @@ public class DataNode extends Configured
         
   static final Log ClientTraceLog =
     LogFactory.getLog(DataNode.class.getName() + ".clienttrace");
+  
+  private static final String USAGE = "Usage: java DataNode [-rollback | -regular]";
 
   /**
    * Use {@link NetUtils#createSocketAddr(String)} instead.
@@ -1569,7 +1569,7 @@ public class DataNode extends Configured
     }
     
     if (!parseArguments(args, conf)) {
-      printUsage();
+      printUsage(System.err);
       return null;
     }
     Collection<URI> dataDirs = getStorageDirs(conf);
@@ -1683,9 +1683,8 @@ public class DataNode extends Configured
         + xmitsInProgress.get() + "}";
   }
 
-  private static void printUsage() {
-    System.err.println("Usage: java DataNode");
-    System.err.println("           [-rollback]");
+  private static void printUsage(PrintStream out) {
+    out.println(USAGE + "\n");
   }
 
   /**
@@ -1770,6 +1769,10 @@ public class DataNode extends Configured
   }
   
   public static void main(String args[]) {
+    if (DFSUtil.parseHelpArgument(args, DataNode.USAGE, System.out, true)) {
+      System.exit(0);
+    }
+
     secureMain(args, null);
   }
 

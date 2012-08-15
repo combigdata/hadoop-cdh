@@ -566,6 +566,9 @@ public class SecondaryNameNode implements Runnable {
     if (opts == null) {
       LOG.fatal("Failed to parse options");
       terminate(1);
+    } else if (opts.shouldPrintHelp()) {
+      opts.usage();
+      System.exit(0);
     }
     
     StringUtils.startupShutdownMessage(SecondaryNameNode.class, argv, LOG);
@@ -599,6 +602,7 @@ public class SecondaryNameNode implements Runnable {
     private final Option geteditsizeOpt;
     private final Option checkpointOpt;
     private final Option formatOpt;
+    private final Option helpOpt;
 
 
     Command cmd;
@@ -609,6 +613,7 @@ public class SecondaryNameNode implements Runnable {
     
     private boolean shouldForce;
     private boolean shouldFormat;
+    private boolean shouldPrintHelp;
 
     CommandLineOpts() {
       geteditsizeOpt = new Option("geteditsize",
@@ -616,19 +621,31 @@ public class SecondaryNameNode implements Runnable {
       checkpointOpt = OptionBuilder.withArgName("force")
         .hasOptionalArg().withDescription("checkpoint on startup").create("checkpoint");;
       formatOpt = new Option("format", "format the local storage during startup");
+      helpOpt = new Option("h", "help", false, "get help information");
       
       options.addOption(geteditsizeOpt);
       options.addOption(checkpointOpt);
       options.addOption(formatOpt);
+      options.addOption(helpOpt);
     }
     
     public boolean shouldFormat() {
       return shouldFormat;
     }
 
+    public boolean shouldPrintHelp() {
+      return shouldPrintHelp;
+    }
+    
     public void parse(String ... argv) throws ParseException {
       CommandLineParser parser = new PosixParser();
       CommandLine cmdLine = parser.parse(options, argv);
+      
+      if (cmdLine.hasOption(helpOpt.getOpt())
+          || cmdLine.hasOption(helpOpt.getLongOpt())) {
+        shouldPrintHelp = true;
+        return;
+      }
       
       boolean hasGetEdit = cmdLine.hasOption(geteditsizeOpt.getOpt());
       boolean hasCheckpoint = cmdLine.hasOption(checkpointOpt.getOpt()); 
@@ -666,8 +683,13 @@ public class SecondaryNameNode implements Runnable {
     }
     
     void usage() {
+      String header = "The Secondary NameNode is a helper "
+          + "to the primary NameNode. The Secondary is responsible "
+          + "for supporting periodic checkpoints of the HDFS metadata. "
+          + "The current design allows only one Secondary NameNode "
+          + "per HDFS cluster.";
       HelpFormatter formatter = new HelpFormatter();
-      formatter.printHelp("secondarynamenode", options);
+      formatter.printHelp("secondarynamenode", header, options, "", false);
     }
   }
 
