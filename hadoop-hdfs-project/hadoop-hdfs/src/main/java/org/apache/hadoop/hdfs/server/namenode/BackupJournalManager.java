@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.Collection;
 
 import org.apache.hadoop.hdfs.server.protocol.NamenodeRegistration;
+import org.apache.hadoop.hdfs.server.protocol.NamespaceInfo;
 
 /**
  * A JournalManager implementation that uses RPCs to log transactions
@@ -37,6 +38,20 @@ class BackupJournalManager implements JournalManager {
     this.nnReg = nnReg;
   }
 
+  @Override
+  public void format(NamespaceInfo nsInfo) {
+    // format() should only get called at startup, before any BNs
+    // can register with the NN.
+    throw new UnsupportedOperationException(
+        "BackupNode journal should never get formatted");
+  }
+  
+  @Override
+  public boolean hasSomeData() {
+    throw new UnsupportedOperationException();
+  }
+
+  
   @Override
   public EditLogOutputStream startLogSegment(long txId) throws IOException {
     EditLogBackupOutputStream stm = new EditLogBackupOutputStream(bnReg, nnReg);
