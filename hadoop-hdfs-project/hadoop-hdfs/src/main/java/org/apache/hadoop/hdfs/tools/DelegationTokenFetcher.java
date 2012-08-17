@@ -188,12 +188,16 @@ public class DelegationTokenFetcher {
                 }
               } else {
                 FileSystem fs = FileSystem.get(conf);
-                Token<?> token = fs.getDelegationToken(renewer);
                 Credentials cred = new Credentials();
-                cred.addToken(token.getService(), token);
+                Token<?> tokens[] = fs.addDelegationTokens(renewer, cred);
                 cred.writeTokenStorageFile(tokenFile, conf);
-                System.out.println("Fetched token for " + token.getService()
-                    + " into " + tokenFile);
+
+                if(LOG.isDebugEnabled()) {
+                  for (Token<?> token : tokens) {
+                    LOG.debug("Fetched token for " + token.getService()
+                        + " into " + tokenFile);
+                  }
+                }
               }
             }
             return null;
