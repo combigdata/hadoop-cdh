@@ -42,6 +42,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FsConstants;
 import org.apache.hadoop.fs.FsServerDefaults;
 import org.apache.hadoop.fs.FsStatus;
+import org.apache.hadoop.fs.Options.ChecksumOpt;
 import org.apache.hadoop.fs.ParentNotDirectoryException;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RemoteIterator;
@@ -269,7 +270,7 @@ public class ViewFs extends AbstractFileSystem {
   public FSDataOutputStream createInternal(final Path f,
       final EnumSet<CreateFlag> flag, final FsPermission absolutePermission,
       final int bufferSize, final short replication, final long blockSize,
-      final Progressable progress, final int bytesPerChecksum,
+      final Progressable progress, final ChecksumOpt checksumOpt,
       final boolean createParent) throws AccessControlException,
       FileAlreadyExistsException, FileNotFoundException,
       ParentNotDirectoryException, UnsupportedFileSystemException,
@@ -287,7 +288,7 @@ public class ViewFs extends AbstractFileSystem {
     assert(res.remainingPath != null);
     return res.targetFileSystem.createInternal(res.remainingPath, flag,
         absolutePermission, bufferSize, replication,
-        blockSize, progress, bytesPerChecksum,
+        blockSize, progress, checksumOpt,
         createParent);
   }
 
@@ -636,7 +637,7 @@ public class ViewFs extends AbstractFileSystem {
     public FSDataOutputStream createInternal(final Path f,
         final EnumSet<CreateFlag> flag, final FsPermission absolutePermission,
         final int bufferSize, final short replication, final long blockSize,
-        final Progressable progress, final int bytesPerChecksum,
+        final Progressable progress, final ChecksumOpt checksumOpt,
         final boolean createParent) throws AccessControlException,
         FileAlreadyExistsException, FileNotFoundException,
         ParentNotDirectoryException, UnsupportedFileSystemException,
