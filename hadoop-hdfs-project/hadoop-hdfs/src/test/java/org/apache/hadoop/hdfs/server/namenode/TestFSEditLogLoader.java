@@ -31,6 +31,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
+import java.util.Map;
 import java.util.SortedMap;
 
 import org.apache.commons.logging.impl.Log4JLogger;
@@ -49,6 +50,7 @@ import org.apache.hadoop.io.IOUtils;
 import org.apache.log4j.Level;
 import org.junit.Test;
 
+import com.google.common.io.Files;
 import com.google.common.collect.Maps;
 
 public class TestFSEditLogLoader {
