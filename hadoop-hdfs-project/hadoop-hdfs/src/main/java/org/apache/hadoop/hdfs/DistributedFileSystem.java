@@ -205,9 +205,9 @@ public class DistributedFileSystem extends FileSystem {
    * used because volume information can be unavailable if the corresponding
    * datanode is down or if the requested block is not found.
    * 
-   * This API is unstable, and datanode-side support is disabled by default. It
-   * can be enabled by setting "dfs.datanode.hdfs-blocks-metadata.enabled" to
-   * true.
+   * This API is unstable, and datanode-side support is enabled by default. It
+   * can be disabled by setting "dfs.datanode.hdfs-blocks-metadata.enabled" to
+   * false.
    * 
    * @param blocks
    *          List of target BlockLocations to query volume location information

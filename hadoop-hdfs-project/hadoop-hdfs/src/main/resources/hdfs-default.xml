@@ -1058,7 +1058,7 @@
 
 <property>
   <name>dfs.datanode.hdfs-blocks-metadata.enabled</name>
-  <value>false</value>
+  <value>true</value>
   <description>
     Boolean which enables backend datanode-side support for the experimental DistributedFileSystem#getFileVBlockStorageLocations API.
   </description>
