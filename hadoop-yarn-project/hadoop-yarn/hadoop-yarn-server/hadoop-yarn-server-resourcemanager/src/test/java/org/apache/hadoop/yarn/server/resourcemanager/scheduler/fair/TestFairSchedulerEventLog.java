@@ -54,7 +54,7 @@ public class TestFairSchedulerEventLog {
     resourceManager = new ResourceManager(store);
     resourceManager.init(conf);
     ((AsyncDispatcher)resourceManager.getRMContext().getDispatcher()).start();
-    scheduler.reinitialize(conf, null, resourceManager.getRMContext());
+    scheduler.reinitialize(conf, resourceManager.getRMContext());
   }
 
   /**

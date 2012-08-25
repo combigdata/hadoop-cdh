@@ -74,7 +74,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeAddedSc
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeRemovedSchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeUpdateSchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.SchedulerEvent;
-import org.apache.hadoop.yarn.server.security.ContainerTokenSecretManager;
+import org.apache.hadoop.yarn.server.resourcemanager.security.RMContainerTokenSecretManager;
 
 /**
  * A scheduler that schedules resources between a set of queues. The scheduler
@@ -102,7 +102,6 @@ public class FairScheduler implements ResourceScheduler {
 
   private boolean initialized;
   private FairSchedulerConfiguration conf;
-  private ContainerTokenSecretManager containerTokenSecretManager;
   private RMContext rmContext;
   private Resource minimumAllocation;
   private Resource maximumAllocation;
@@ -419,8 +418,8 @@ public class FairScheduler implements ResourceScheduler {
     }
   }
 
-  public ContainerTokenSecretManager getContainerTokenSecretManager() {
-    return this.containerTokenSecretManager;
+  public RMContainerTokenSecretManager getContainerTokenSecretManager() {
+    return this.rmContext.getContainerTokenSecretManager();
   }
 
   // synchronized for sizeBasedWeight
@@ -891,15 +890,11 @@ public class FairScheduler implements ResourceScheduler {
   }
 
   @Override
-  public synchronized void reinitialize(Configuration conf,
-      ContainerTokenSecretManager containerTokenSecretManager,
-      RMContext rmContext)
-  throws IOException
-  {
-    if (!initialized) {
+  public synchronized void
+      reinitialize(Configuration conf, RMContext rmContext) throws IOException {
+    if (!this.initialized) {
       this.conf = new FairSchedulerConfiguration(conf);
-      rootMetrics = QueueMetrics.forQueue("root", null, true, conf);
-      this.containerTokenSecretManager = containerTokenSecretManager;
+      this.rootMetrics = QueueMetrics.forQueue("root", null, true, conf);
       this.rmContext = rmContext;
       this.eventLog = new FairSchedulerEventLog();
       eventLog.init(this.conf);
