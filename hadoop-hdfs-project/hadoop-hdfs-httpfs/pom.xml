@@ -524,7 +524,7 @@
                   <target>
                     <mkdir dir="downloads"/>
                     <get
-                        src="http://archive.apache.org/dist/tomcat/tomcat-6/v${tomcat.version}/bin/apache-tomcat-${tomcat.version}.tar.gz"
+                        src="http://archive.cloudera.com/tarballs/apache-tomcat-${tomcat.version}.tar.gz"
                         dest="downloads/tomcat.tar.gz" verbose="true" skipexisting="true"/>
                     <delete dir="${project.build.directory}/tomcat.exp"/>
                     <mkdir dir="${project.build.directory}/tomcat.exp"/>
