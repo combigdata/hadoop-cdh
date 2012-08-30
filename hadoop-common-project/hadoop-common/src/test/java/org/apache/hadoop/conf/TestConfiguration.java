@@ -39,6 +39,7 @@ import java.util.regex.Pattern;
 
 import junit.framework.TestCase;
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertNotNull;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration.IntegerRanges;
@@ -1022,6 +1023,12 @@ public class TestConfiguration extends TestCase {
     assertTrue("Picked out wrong key " + key4, !res.containsKey(key4));
   }
 
+  public void testGetClassByNameOrNull() throws Exception {
+   Configuration config = new Configuration();
+   Class<?> clazz = config.getClassByNameOrNull("java.lang.Object");
+   assertNotNull(clazz);
+  }
+  
   public static void main(String[] argv) throws Exception {
     junit.textui.TestRunner.main(new String[]{
       TestConfiguration.class.getName()
