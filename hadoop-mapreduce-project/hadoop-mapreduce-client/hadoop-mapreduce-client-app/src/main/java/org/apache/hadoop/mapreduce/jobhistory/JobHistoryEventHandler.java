@@ -663,6 +663,8 @@ public class JobHistoryEventHandler extends AbstractService
       summaryFileOut = doneDirFS.create(qualifiedSummaryDoneFile, true);
       summaryFileOut.writeUTF(mi.getJobSummary().getJobSummaryString());
       summaryFileOut.close();
+      doneDirFS.setPermission(qualifiedSummaryDoneFile, new FsPermission(
+          JobHistoryUtils.HISTORY_INTERMEDIATE_FILE_PERMISSIONS));
     } catch (IOException e) {
       LOG.info("Unable to write out JobSummaryInfo to ["
           + qualifiedSummaryDoneFile + "]", e);
@@ -896,7 +898,7 @@ public class JobHistoryEventHandler extends AbstractService
       
       stagingDirFS.delete(fromPath, false);
     }
-    }
+  }
 
   boolean pathExists(FileSystem fileSys, Path path) throws IOException {
     return fileSys.exists(path);
