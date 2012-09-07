@@ -1363,6 +1363,13 @@
   <description>The amount of memory the MR AppMaster needs.</description>
 </property>
 
+<property>
+  <description>CLASSPATH for MR applications. A comma-separated list
+  of CLASSPATH entries</description>
+   <name>mapreduce.application.classpath</name>
+   <value>$HADOOP_MAPRED_HOME/share/hadoop/mapreduce/*,$HADOOP_MAPRED_HOME/share/hadoop/mapreduce/lib/*</value>
+</property>
+
 <!-- jobhistory properties -->
 
 <property>
