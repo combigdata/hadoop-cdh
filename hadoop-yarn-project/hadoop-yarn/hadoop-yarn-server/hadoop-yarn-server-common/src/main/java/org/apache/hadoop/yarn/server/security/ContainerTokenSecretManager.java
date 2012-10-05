@@ -59,13 +59,13 @@ public class ContainerTokenSecretManager extends
   }
 
   public ContainerToken createContainerToken(ContainerId containerId,
-      NodeId nodeId, Resource capability) {
+      NodeId nodeId, String appSubmitter, Resource capability) {
     try {
       long expiryTimeStamp =
           System.currentTimeMillis() + containerTokenExpiryInterval;
       ContainerTokenIdentifier tokenIdentifier =
           new ContainerTokenIdentifier(containerId, nodeId.toString(),
-            capability, expiryTimeStamp);
+            appSubmitter, capability, expiryTimeStamp);
       return BuilderUtils.newContainerToken(nodeId,
         ByteBuffer.wrap(this.createPassword(tokenIdentifier)), tokenIdentifier);
     } catch (IllegalArgumentException e) {
@@ -96,7 +96,8 @@ public class ContainerTokenSecretManager extends
   @Override
   public byte[] createPassword(ContainerTokenIdentifier identifier) {
     LOG.debug("Creating password for " + identifier.getContainerID()
-        + " to be run on NM " + identifier.getNmHostAddress() + " "
+        + " for user " + identifier.getUser() + " to be run on NM "
+        + identifier.getNmHostAddress() + " "
         + this.secretkeys.get(identifier.getNmHostAddress()));
     return createPassword(identifier.getBytes(),
         this.secretkeys.get(identifier.getNmHostAddress()));
@@ -106,7 +107,8 @@ public class ContainerTokenSecretManager extends
   public byte[] retrievePassword(ContainerTokenIdentifier identifier)
       throws org.apache.hadoop.security.token.SecretManager.InvalidToken {
     LOG.debug("Retrieving password for " + identifier.getContainerID()
-        + " to be run on NM " + identifier.getNmHostAddress());
+            + " for user " + identifier.getUser() + " to be run on NM "
+            + identifier.getNmHostAddress());
     return createPassword(identifier.getBytes(),
         this.secretkeys.get(identifier.getNmHostAddress()));
   }

@@ -323,7 +323,15 @@ public class ContainerManagerImpl extends CompositeService implements
             .append("\nContainerTokenIdentifier cannot be null! Null found for "
                 + containerIDStr);
       } else {
-
+        
+        // Is the container coming in with correct user-name?
+        if (!tokenId.getApplicationSubmitter().equals(launchContext.getUser())) {
+          unauthorized = true;
+          messageBuilder.append("\n Expected user-name "
+              + tokenId.getApplicationSubmitter() + " but found "
+              + launchContext.getUser());
+        }
+        
         // Ensure the token is not expired. 
         // Token expiry is not checked for stopContainer/getContainerStatus
         if (tokenId.getExpiryTimeStamp() < System.currentTimeMillis()) {

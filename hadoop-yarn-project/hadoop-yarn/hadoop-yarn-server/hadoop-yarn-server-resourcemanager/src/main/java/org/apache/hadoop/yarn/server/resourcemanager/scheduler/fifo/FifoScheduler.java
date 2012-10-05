@@ -544,7 +544,7 @@ public class FifoScheduler implements ResourceScheduler, Configurable {
         if (UserGroupInformation.isSecurityEnabled()) {
           containerToken =
               containerTokenSecretManager.createContainerToken(containerId,
-                nodeId, capability);
+                nodeId, application.getUser(), capability);
           if (containerToken == null) {
             return i; // Try again later.
           }
