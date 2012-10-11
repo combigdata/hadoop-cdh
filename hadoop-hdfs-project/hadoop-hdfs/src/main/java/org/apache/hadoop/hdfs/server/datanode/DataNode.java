@@ -256,7 +256,7 @@ public class DataNode extends Configured
   Daemon localDataXceiverServer = null;
   ThreadGroup threadGroup = null;
   private DNConf dnConf;
-  private boolean heartbeatsDisabledForTests = false;
+  private volatile boolean heartbeatsDisabledForTests = false;
   private DataStorage storage = null;
   private HttpServer infoServer = null;
   DataNodeMetrics metrics;
