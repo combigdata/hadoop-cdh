@@ -382,7 +382,7 @@ public class TestBlockManager {
   
   private BlockInfo addBlockOnNodes(long blockId, List<DatanodeDescriptor> nodes) {
     INodeFile iNode = Mockito.mock(INodeFile.class);
-    Mockito.doReturn((short)3).when(iNode).getReplication();
+    Mockito.doReturn((short)3).when(iNode).getBlockReplication();
     BlockInfo blockInfo = blockOnNodes(blockId, nodes);
 
     bm.blocksMap.addBlockCollection(blockInfo, iNode);

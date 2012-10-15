@@ -72,7 +72,7 @@ public class BlockInfo extends Block implements
    * @param from BlockInfo to copy from.
    */
   protected BlockInfo(BlockInfo from) {
-    this(from, from.bc.getReplication());
+    this(from, from.bc.getBlockReplication());
     this.bc = from.bc;
   }
 
@@ -334,7 +334,7 @@ public class BlockInfo extends Block implements
       BlockUCState s, DatanodeDescriptor[] targets) {
     if(isComplete()) {
       return new BlockInfoUnderConstruction(
-          this, getBlockCollection().getReplication(), s, targets);
+          this, getBlockCollection().getBlockReplication(), s, targets);
     }
     // the block is already under construction
     BlockInfoUnderConstruction ucBlock = (BlockInfoUnderConstruction)this;

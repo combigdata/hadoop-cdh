@@ -78,7 +78,7 @@ public class INodeFile extends INode implements BlockCollection {
 
   /** @return the replication factor of the file. */
   @Override
-  public short getReplication() {
+  public short getBlockReplication() {
     return (short) ((header & HEADERMASK) >> BLOCKBITS);
   }
 
@@ -222,7 +222,7 @@ public class INodeFile extends INode implements BlockCollection {
         isUnderConstruction()) {
       size += getPreferredBlockSize() - blkArr[blkArr.length-1].getNumBytes();
     }
-    return size * getReplication();
+    return size * getBlockReplication();
   }
   
   /**

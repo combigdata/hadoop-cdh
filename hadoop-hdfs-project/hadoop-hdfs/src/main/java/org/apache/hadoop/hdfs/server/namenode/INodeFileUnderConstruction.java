@@ -103,7 +103,7 @@ public class INodeFileUnderConstruction extends INodeFile
       "non-complete blocks! Blocks are: " + blocksAsString();
     INodeFile obj = new INodeFile(getPermissionStatus(),
                                   getBlocks(),
-                                  getReplication(),
+                                  getBlockReplication(),
                                   getModificationTime(),
                                   getModificationTime(),
                                   getPreferredBlockSize());
