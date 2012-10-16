@@ -113,11 +113,16 @@ import org.codehaus.jackson.JsonGenerator;
  *  All other objects will be converted to a string and output as such.
  *  
  *  The bean's name and modelerType will be returned for all beans.
+ *  
+ *  Optional paramater "callback" should be used to deliver JSONP response.
+ *  
  */
 public class JMXJsonServlet extends HttpServlet {
   private static final Log LOG = LogFactory.getLog(JMXJsonServlet.class);
 
   private static final long serialVersionUID = 1L;
+  
+  private static final String CALLBACK_PARAM = "callback";
 
   // ----------------------------------------------------- Instance Variables
   /**
@@ -151,48 +156,61 @@ public class JMXJsonServlet extends HttpServlet {
         return;
       }
 
-      response.setContentType("application/json; charset=utf8");
-
       PrintWriter writer = response.getWriter();
-
       JsonFactory jsonFactory = new JsonFactory();
       JsonGenerator jg = jsonFactory.createJsonGenerator(writer);
-      jg.useDefaultPrettyPrinter();
-      jg.writeStartObject();
-      if (mBeanServer == null) {
-        jg.writeStringField("result", "ERROR");
-        jg.writeStringField("message", "No MBeanServer could be found");
-        jg.close();
-        LOG.error("No MBeanServer could be found.");
-        response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-        return;
-      }
       
-      // query per mbean attribute
-      String getmethod = request.getParameter("get");
-      if (getmethod != null) {
-        String[] splitStrings = getmethod.split("\\:\\:");
-        if (splitStrings.length != 2) {
+      try {
+        jg.disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET);
+        jg.useDefaultPrettyPrinter();
+        jg.writeStartObject();
+        
+        // "callback" parameter implies JSONP outpout
+        String jsonpcb = request.getParameter(CALLBACK_PARAM);
+        if (jsonpcb != null) {
+          response.setContentType("application/javascript; charset=utf8");
+          writer.write(jsonpcb + "(");
+        } else {
+          response.setContentType("application/json; charset=utf8");
+        }
+        
+        if (mBeanServer == null) {
           jg.writeStringField("result", "ERROR");
-          jg.writeStringField("message", "query format is not as expected.");
+          jg.writeStringField("message", "No MBeanServer could be found");
           jg.close();
-          response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+          LOG.error("No MBeanServer could be found.");
+          response.setStatus(HttpServletResponse.SC_NOT_FOUND);
           return;
         }
-        listBeans(jg, new ObjectName(splitStrings[0]), splitStrings[1],
-            response);
+              
+        // query per mbean attribute
+        String getmethod = request.getParameter("get");
+        if (getmethod != null) {
+          String[] splitStrings = getmethod.split("\\:\\:");
+          if (splitStrings.length != 2) {
+            jg.writeStringField("result", "ERROR");
+            jg.writeStringField("message", "query format is not as expected.");
+            jg.close();
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            return;
+          }
+          listBeans(jg, new ObjectName(splitStrings[0]), splitStrings[1],
+              response);
+          jg.close();
+          return;
+        }
+
+        // query per mbean
+        String qry = request.getParameter("qry");
+        if (qry == null) {
+          qry = "*:*";
+        }
+        listBeans(jg, new ObjectName(qry), null, response);
+      } finally {
         jg.close();
-        return;
+        writer.write(");");
+        writer.close();
       }
-
-      // query per mbean
-      String qry = request.getParameter("qry");
-      if (qry == null) {
-        qry = "*:*";
-      }
-      listBeans(jg, new ObjectName(qry), null, response);
-      jg.close();
-
     } catch ( IOException e ) {
       LOG.error("Caught an exception while processing JMX request", e);
       response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
