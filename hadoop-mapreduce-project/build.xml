@@ -31,12 +31,7 @@
   <property name="module" value="mapreduce"/> 
   <property name="Name" value="Hadoop-Mapred"/>
   <property name="name" value="hadoop-${module}"/>
-<<<<<<< HEAD
-  <!-- Need to change aop.xml project.version prop. synchronously -->
   <property name="_version" value="2.0.0"/>
-=======
-  <property name="_version" value="3.0.0"/>
->>>>>>> dda4f2e... MAPREDUCE-4447. Remove aop from cruft from the ant build. Contributed by Eli Collins
   <property name="version" value="${_version}-SNAPSHOT"/>
   <property name="final.name" value="${name}-${version}"/>
   <property name="test.final.name" value="${name}-test-${version}"/>
