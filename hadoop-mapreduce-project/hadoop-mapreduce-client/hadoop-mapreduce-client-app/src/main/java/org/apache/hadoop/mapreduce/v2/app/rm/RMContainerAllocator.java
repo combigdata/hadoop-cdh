@@ -33,6 +33,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -88,7 +89,7 @@ public class RMContainerAllocator extends RMContainerRequestor
   private static final Priority PRIORITY_MAP;
 
   private Thread eventHandlingThread;
-  private volatile boolean stopEventHandling;
+  private final AtomicBoolean stopped;
 
   static {
     PRIORITY_FAST_FAIL_MAP = RecordFactoryProvider.getRecordFactory(null).newRecordInstance(Priority.class);
@@ -149,6 +150,7 @@ public class RMContainerAllocator extends RMContainerRequestor
 
   public RMContainerAllocator(ClientService clientService, AppContext context) {
     super(clientService, context);
+    this.stopped = new AtomicBoolean(false);
   }
 
   @Override
@@ -180,11 +182,13 @@ public class RMContainerAllocator extends RMContainerRequestor
 
         ContainerAllocatorEvent event;
 
-        while (!stopEventHandling && !Thread.currentThread().isInterrupted()) {
+        while (!stopped.get() && !Thread.currentThread().isInterrupted()) {
           try {
             event = RMContainerAllocator.this.eventQueue.take();
           } catch (InterruptedException e) {
-            LOG.error("Returning, interrupted : " + e);
+            if (!stopped.get()) {
+              LOG.error("Returning, interrupted : " + e);
+            }
             return;
           }
 
@@ -238,7 +242,10 @@ public class RMContainerAllocator extends RMContainerRequestor
 
   @Override
   public void stop() {
-    this.stopEventHandling = true;
+    if (stopped.getAndSet(true)) {
+      // return if already stopped
+      return;
+    }
     eventHandlingThread.interrupt();
     super.stop();
     LOG.info("Final Stats: " + getStat());
