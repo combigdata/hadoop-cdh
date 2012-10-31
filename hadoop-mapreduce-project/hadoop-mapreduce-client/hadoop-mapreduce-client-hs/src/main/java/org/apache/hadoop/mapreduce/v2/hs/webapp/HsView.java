@@ -89,7 +89,7 @@ public class HsView extends TwoColumnLayout {
         append(", bProcessing: true").
 
         // Sort by id upon page load
-        append(", aaSorting: [[2, 'asc']]").
+        append(", aaSorting: [[2, 'desc']]").
         append(", aoColumnDefs:[").
         // Maps Total, Maps Completed, Reduces Total and Reduces Completed
         append("{'sType':'numeric', 'bSearchable': false, 'aTargets': [ 7, 8, 9, 10 ] }").
