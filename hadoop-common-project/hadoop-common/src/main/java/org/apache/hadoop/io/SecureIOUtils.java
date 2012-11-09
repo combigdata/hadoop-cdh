@@ -121,7 +121,7 @@ public class SecureIOUtils {
     FileInputStream fis = new FileInputStream(f);
     boolean success = false;
     try {
-      Stat stat = NativeIO.fstat(fis.getFD());
+      Stat stat = NativeIO.getFstat(fis.getFD());
       checkStat(f, stat.getOwner(), stat.getGroup(), expectedOwner,
           expectedGroup);
       success = true;
