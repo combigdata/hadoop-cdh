@@ -19,11 +19,8 @@
 package org.apache.hadoop.yarn.webapp.view;
 
 import com.google.common.collect.Lists;
-import com.google.inject.Inject;
 
 import java.util.List;
-import java.util.Locale;
-import javax.servlet.http.Cookie;
 
 import static org.apache.commons.lang.StringEscapeUtils.*;
 import static org.apache.hadoop.yarn.util.StringHelper.*;
@@ -43,10 +40,7 @@ public class JQueryUI extends HtmlBlock {
   public static final String DIALOG_SELECTOR = DIALOG +".selector";
   public static final String PROGRESSBAR = "ui.progressbar";
   public static final String PROGRESSBAR_ID = PROGRESSBAR +".id";
-  public static final String THEMESWITCHER = "ui.themeswitcher";
-  public static final String THEMESWITCHER_ID = THEMESWITCHER +".id";
-  public static final String THEME_KEY = "theme";
-  public static final String COOKIE_THEME = "jquery-ui-theme";
+
   // common CSS classes
   public static final String _PROGRESSBAR =
       ".ui-progressbar.ui-widget.ui-widget-content.ui-corner-all";
@@ -74,7 +68,6 @@ public class JQueryUI extends HtmlBlock {
       script(root_url("static/jquery/jquery-ui-1.9.1.custom.min.js")).
       script(root_url("static/dt-1.9.4/js/jquery.dataTables.min.js")).
       script(root_url("static/yarn.dt.plugins.js")).
-      script(root_url("static/themeswitcher.js")).
       style("#jsnotice { padding: 0.2em; text-align: center; }",
             ".ui-progressbar { height: 1em; min-width: 5em }"); // required
 
@@ -83,7 +76,6 @@ public class JQueryUI extends HtmlBlock {
     initDataTables(list);
     initDialogs(list);
     initProgressBars(list);
-    initThemeSwitcher(list);
 
     if (!list.isEmpty()) {
       html.
@@ -175,28 +167,6 @@ public class JQueryUI extends HtmlBlock {
         list.add(join("  $('#", id, "').progressbar(", init, ");"));
       }
     }
-  }
-
-  protected void initThemeSwitcher(List<String> list) {
-    for (String id : split($(THEMESWITCHER_ID))) {
-      if (Html.isValidId(id)) {
-        list.add(join("  $('#", id,
-                      "').themeswitcher({expires:888, path:'/'});"));
-        break; // one is enough
-      }
-    }
-  }
-
-  protected String getTheme() {
-    String theme = $(THEME_KEY);
-    if (!theme.isEmpty()) {
-      return theme;
-    }
-    Cookie c = cookies().get(COOKIE_THEME);
-    if (c != null) {
-      return c.getValue().toLowerCase(Locale.US).replace("%20", "-");
-    }
-    return "base";
   }
 
   public static String initID(String name, String id) {
