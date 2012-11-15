@@ -57,6 +57,8 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.Apps;
 import org.apache.hadoop.yarn.util.BuilderUtils;
 
+import com.google.common.base.Charsets;
+
 /**
  * Helper class for MR applications
  */
@@ -162,7 +164,8 @@ public class MRApps extends Apps {
       }
 
       if (classpathFileStream != null) {
-        reader = new BufferedReader(new InputStreamReader(classpathFileStream));
+        reader = new BufferedReader(new InputStreamReader(classpathFileStream, 
+            Charsets.UTF_8));
         String cp = reader.readLine();
         if (cp != null) {
           Apps.addToEnvironment(environment, Environment.CLASSPATH.name(),
