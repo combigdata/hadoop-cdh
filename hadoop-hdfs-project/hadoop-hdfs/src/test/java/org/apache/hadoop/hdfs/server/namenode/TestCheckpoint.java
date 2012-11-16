@@ -1836,11 +1836,11 @@ public class TestCheckpoint {
 
       // Now primary NN saves namespace 3 times
       NamenodeProtocols nn = cluster.getNameNodeRpc();
-      nn.setSafeMode(SafeModeAction.SAFEMODE_ENTER);
+      nn.setSafeMode(SafeModeAction.SAFEMODE_ENTER, false);
       for (int i = 0; i < 3; i++) {
         nn.saveNamespace();
       }
-      nn.setSafeMode(SafeModeAction.SAFEMODE_LEAVE);
+      nn.setSafeMode(SafeModeAction.SAFEMODE_LEAVE, false);
       
       // Now the secondary tries to checkpoint again with its
       // old image in memory.
@@ -1927,9 +1927,9 @@ public class TestCheckpoint {
       // Perform a saveNamespace, so that the NN has a new fsimage, and the 2NN
       // therefore needs to download a new fsimage the next time it performs a
       // checkpoint.
-      cluster.getNameNodeRpc().setSafeMode(SafeModeAction.SAFEMODE_ENTER);
+      cluster.getNameNodeRpc().setSafeMode(SafeModeAction.SAFEMODE_ENTER, false);
       cluster.getNameNodeRpc().saveNamespace();
-      cluster.getNameNodeRpc().setSafeMode(SafeModeAction.SAFEMODE_LEAVE);
+      cluster.getNameNodeRpc().setSafeMode(SafeModeAction.SAFEMODE_LEAVE, false);
       
       // Ensure that the 2NN can still perform a checkpoint.
       secondary.doCheckpoint();
@@ -1974,9 +1974,9 @@ public class TestCheckpoint {
       // Perform a saveNamespace, so that the NN has a new fsimage, and the 2NN
       // therefore needs to download a new fsimage the next time it performs a
       // checkpoint.
-      cluster.getNameNodeRpc().setSafeMode(SafeModeAction.SAFEMODE_ENTER);
+      cluster.getNameNodeRpc().setSafeMode(SafeModeAction.SAFEMODE_ENTER, false);
       cluster.getNameNodeRpc().saveNamespace();
-      cluster.getNameNodeRpc().setSafeMode(SafeModeAction.SAFEMODE_LEAVE);
+      cluster.getNameNodeRpc().setSafeMode(SafeModeAction.SAFEMODE_LEAVE, false);
       
       // Ensure that the 2NN can still perform a checkpoint.
       secondary.doCheckpoint();
