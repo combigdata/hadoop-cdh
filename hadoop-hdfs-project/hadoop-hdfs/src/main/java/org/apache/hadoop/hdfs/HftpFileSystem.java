@@ -81,12 +81,8 @@ import org.xml.sax.helpers.XMLReaderFactory;
 @InterfaceStability.Evolving
 public class HftpFileSystem extends FileSystem
     implements DelegationTokenRenewer.Renewable {
-  private static final DelegationTokenRenewer<HftpFileSystem> dtRenewer
-      = new DelegationTokenRenewer<HftpFileSystem>(HftpFileSystem.class);
-  
   static {
     HttpURLConnection.setFollowRedirects(true);
-    dtRenewer.start();
   }
 
   public static final Text TOKEN_KIND = new Text("HFTP delegation");
@@ -104,6 +100,16 @@ public class HftpFileSystem extends FileSystem
   private Token<?> renewToken;
   private static final HftpDelegationTokenSelector hftpTokenSelector =
       new HftpDelegationTokenSelector();
+
+  private DelegationTokenRenewer dtRenewer = null;
+
+  private synchronized void addRenewAction(final HftpFileSystem hftpFs) {
+    if (dtRenewer == null) {
+      dtRenewer = DelegationTokenRenewer.getInstance();
+    }
+
+    dtRenewer.addRenewAction(hftpFs);
+  }
 
   public static final SimpleDateFormat getDateFormat() {
     final SimpleDateFormat df = new SimpleDateFormat(HFTP_DATE_FORMAT);
@@ -201,7 +207,7 @@ public class HftpFileSystem extends FileSystem
     if (token != null) {
       setDelegationToken(token);
       if (createdToken) {
-        dtRenewer.addRenewAction(this);
+        addRenewAction(this);
         LOG.debug("Created new DT for " + token.getService());
       } else {
         LOG.debug("Found existing DT for " + token.getService());
@@ -390,6 +396,14 @@ public class HftpFileSystem extends FileSystem
     String query = addDelegationTokenParam("ugi=" + getEncodedUgiParameter());
     URL u = getNamenodeURL(path, query);    
     return new FSDataInputStream(new RangeHeaderInputStream(u));
+  }
+
+  @Override
+  public void close() throws IOException {
+    super.close();
+    if (dtRenewer != null) {
+      dtRenewer.removeRenewAction(this); // blocks
+    }
   }
 
   /** Class to parse and store a listing reply from the server. */
