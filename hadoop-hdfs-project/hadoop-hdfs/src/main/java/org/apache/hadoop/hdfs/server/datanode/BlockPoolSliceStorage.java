@@ -336,7 +336,7 @@ public class BlockPoolSliceStorage extends Storage {
     // 4.rename <SD>/curernt/<bpid>/previous.tmp to <SD>/curernt/<bpid>/previous
     rename(bpTmpDir, bpPrevDir);
     LOG.info("Upgrade of block pool " + blockpoolID + " at " + bpSd.getRoot()
-        + " is complete.");
+        + " is complete");
   }
 
   /**
@@ -413,7 +413,7 @@ public class BlockPoolSliceStorage extends Storage {
     
     // 3. delete removed.tmp dir
     deleteDir(tmpDir);
-    LOG.info("Rollback of " + bpSd.getRoot() + " is complete.");
+    LOG.info("Rollback of " + bpSd.getRoot() + " is complete");
   }
 
   /*
