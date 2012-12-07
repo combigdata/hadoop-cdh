@@ -235,11 +235,6 @@ public class TestParam {
   }
 
   @Test(expected = IllegalArgumentException.class)
-  public void userNameTooLong() {
-    new UserParam("a123456789012345678901234567890x");
-  }
-
-  @Test(expected = IllegalArgumentException.class)
   public void userNameInvalidStart() {
     new UserParam("1x");
   }
@@ -252,12 +247,6 @@ public class TestParam {
   @Test
   public void userNameMinLength() {
     UserParam userParam = new UserParam("a");
-    assertNotNull(userParam.getValue());
-  }
-
-  @Test
-  public void userNameMaxLength() {
-    UserParam userParam = new UserParam("a123456789012345678901234567890");
     assertNotNull(userParam.getValue());
   }
 
