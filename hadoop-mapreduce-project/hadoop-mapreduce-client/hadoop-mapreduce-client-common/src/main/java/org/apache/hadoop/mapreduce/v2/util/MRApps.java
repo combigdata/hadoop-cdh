@@ -30,6 +30,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.conf.Configuration;
@@ -67,6 +69,8 @@ import com.google.common.base.Charsets;
 @Private
 @Unstable
 public class MRApps extends Apps {
+  private static final Log LOG = LogFactory.getLog(MRApps.class);
+  
   public static String toString(JobId jid) {
     return jid.toString();
   }
@@ -284,6 +288,16 @@ public class MRApps extends Apps {
     return "cache file (" + MRJobConfig.CACHE_FILES + ") ";
   }
   
+  private static String toString(org.apache.hadoop.yarn.api.records.URL url) {
+    StringBuffer b = new StringBuffer();
+    b.append(url.getScheme()).append("://").append(url.getHost());
+    if(url.getPort() >= 0) {
+      b.append(":").append(url.getPort());
+    }
+    b.append(url.getFile());
+    return b.toString();
+  }
+  
   // TODO - Move this to MR!
   // Use TaskDistributedCacheManager.CacheFiles.makeCacheFiles(URI[], 
   // long[], boolean[], Path[], FileType)
@@ -330,11 +344,15 @@ public class MRApps extends Apps {
         }
         String linkName = name.toUri().getPath();
         LocalResource orig = localResources.get(linkName);
-        if(orig != null && !orig.getResource().equals(
-            ConverterUtils.getYarnUrlFromURI(p.toUri()))) {
-          throw new InvalidJobConfException(
-              getResourceDescription(orig.getType()) + orig.getResource() + 
-              " conflicts with " + getResourceDescription(type) + u);
+        org.apache.hadoop.yarn.api.records.URL url = 
+          ConverterUtils.getYarnUrlFromURI(p.toUri());
+        if(orig != null && !orig.getResource().equals(url)) {
+          LOG.warn(
+              getResourceDescription(orig.getType()) + 
+              toString(orig.getResource()) + " conflicts with " + 
+              getResourceDescription(type) + toString(url) + 
+              " This will be an error in Hadoop 2.0");
+          continue;
         }
         localResources.put(
             linkName,
