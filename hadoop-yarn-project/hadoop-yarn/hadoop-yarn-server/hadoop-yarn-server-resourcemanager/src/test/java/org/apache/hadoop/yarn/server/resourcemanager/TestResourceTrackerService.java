@@ -346,8 +346,7 @@ public class TestResourceTrackerService {
     checkUnealthyNMCount(rm, nm2, true, 1);
     final int expectedNMs = ClusterMetrics.getMetrics().getNumActiveNMs();
     QueueMetrics metrics = rm.getResourceScheduler().getRootQueueMetrics();
-    // TODO Metrics incorrect in case of the FifoScheduler
-    Assert.assertEquals(5120, metrics.getAvailableMB());
+    Assert.assertEquals(5120 + 5120, metrics.getAvailableMB());
 
     // reconnect of healthy node
     nm1 = rm.registerNode("host1:1234", 5120);
