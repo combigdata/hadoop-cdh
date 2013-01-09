@@ -1139,7 +1139,7 @@ public class TestRMContainerAllocator {
     }
     TaskAttemptId attemptId = MRBuilderUtils.newTaskAttemptId(taskId,
         taskAttemptId);
-    Resource containerNeed = BuilderUtils.newResource(memory);
+    Resource containerNeed = BuilderUtils.newResource(memory, 1);
     if (earlierFailedAttempt) {
       return ContainerRequestEvent
           .createContainerRequestEventForFailedContainer(attemptId,
@@ -1222,8 +1222,8 @@ public class TestRMContainerAllocator {
       when(context.getApplicationAttemptId()).thenReturn(appAttemptId);
       when(context.getJob(isA(JobId.class))).thenReturn(job);
       when(context.getClusterInfo()).thenReturn(
-          new ClusterInfo(BuilderUtils.newResource(1024), BuilderUtils
-              .newResource(10240)));
+          new ClusterInfo(BuilderUtils.newResource(1024, 1), BuilderUtils
+              .newResource(10240, 1)));
       when(context.getEventHandler()).thenReturn(new EventHandler() {
         @Override
         public void handle(Event event) {
@@ -1280,12 +1280,12 @@ public class TestRMContainerAllocator {
 
     @Override
     protected Resource getMinContainerCapability() {
-      return BuilderUtils.newResource(1024);
+      return BuilderUtils.newResource(1024, 1);
     }
 
     @Override
     protected Resource getMaxContainerCapability() {
-      return BuilderUtils.newResource(10240);
+      return BuilderUtils.newResource(10240, 1);
     }
 
     public void sendRequest(ContainerRequestEvent req) {

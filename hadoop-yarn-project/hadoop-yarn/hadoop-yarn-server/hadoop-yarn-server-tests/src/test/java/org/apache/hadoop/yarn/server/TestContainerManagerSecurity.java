@@ -218,10 +218,11 @@ public class TestContainerManagerSecurity {
     dummyIdentifier.readFields(di);
 
     // Malice user modifies the resource amount
-    Resource modifiedResource = BuilderUtils.newResource(2048);
+    Resource modifiedResource = BuilderUtils.newResource(2048, 1);
     ContainerTokenIdentifier modifiedIdentifier = new ContainerTokenIdentifier(
         dummyIdentifier.getContainerID(), dummyIdentifier.getNmHostAddress(), "testUser",
         modifiedResource, Long.MAX_VALUE, dummyIdentifier.getMasterKeyId());
+
     Token<ContainerTokenIdentifier> modifiedToken = new Token<ContainerTokenIdentifier>(
         modifiedIdentifier.getBytes(), containerToken.getPassword().array(),
         new Text(containerToken.getKind()), new Text(containerToken
@@ -418,7 +419,7 @@ public class TestContainerManagerSecurity {
 
     ContainerLaunchContext amContainer = BuilderUtils
         .newContainerLaunchContext(null, "testUser", BuilderUtils
-            .newResource(1024), Collections.singletonMap(fileName, rsrc),
+	    .newResource(1024, 1), Collections.singletonMap(fileName, rsrc),
             new HashMap<String, String>(), Arrays.asList("sleep", "100"),
             new HashMap<String, ByteBuffer>(), null,
             new HashMap<ApplicationAccessType, String>());
@@ -496,7 +497,7 @@ public class TestContainerManagerSecurity {
     // Request a container allocation.
     List<ResourceRequest> ask = new ArrayList<ResourceRequest>();
     ask.add(BuilderUtils.newResourceRequest(BuilderUtils.newPriority(0), "*",
-        BuilderUtils.newResource(1024), 1));
+        BuilderUtils.newResource(1024, 1), 1));
 
     AllocateRequest allocateRequest = BuilderUtils.newAllocateRequest(
         BuilderUtils.newApplicationAttemptId(appID, 1), 0, 0F, ask,
@@ -597,7 +598,9 @@ public class TestContainerManagerSecurity {
     ContainerLaunchContext context =
         BuilderUtils.newContainerLaunchContext(tokenId.getContainerID(),
             "testUser",
-            BuilderUtils.newResource(tokenId.getResource().getMemory()),
+            BuilderUtils.newResource(
+                tokenId.getResource().getMemory(), 
+                tokenId.getResource().getVirtualCores()),
             new HashMap<String, LocalResource>(),
             new HashMap<String, String>(), new ArrayList<String>(),
             new HashMap<String, ByteBuffer>(), null,
