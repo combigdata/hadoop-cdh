@@ -136,7 +136,7 @@ Defining this allows the above command to also be run as follows:
   $ export HOD_CONF_DIR=~/hod-config
   $ hod -t ~/share/hadoop.tar.gz -o "allocate ~/hadoop-cluster 10" 
 
-4.1.2 Running Hadoop jobs using the allocated cluster
+4.1.3-SNAPSHOT Running Hadoop jobs using the allocated cluster
 -----------------------------------------------------
 
 Now, one can run Hadoop jobs using the allocated cluster in the usual manner:
