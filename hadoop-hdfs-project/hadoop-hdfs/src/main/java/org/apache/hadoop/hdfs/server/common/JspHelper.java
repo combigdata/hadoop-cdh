@@ -215,7 +215,7 @@ public class JspHelper {
         offsetIntoBlock, amtToRead,  true,
         "JspHelper", TcpPeerServer.peerFromSocketAndKey(s, encryptionKey),
         new DatanodeID(addr.getAddress().toString(),              
-            addr.getHostName(), poolId, addr.getPort(), 0, 0));
+            addr.getHostName(), poolId, addr.getPort(), 0, 0), null, false);
         
     byte[] buf = new byte[(int)amtToRead];
     int readOffset = 0;
@@ -234,8 +234,7 @@ public class JspHelper {
       amtToRead -= numRead;
       readOffset += numRead;
     }
-    blockReader = null;
-    s.close();
+    blockReader.close(null, null);
     out.print(HtmlQuoting.quoteHtmlChars(new String(buf)));
   }
 
