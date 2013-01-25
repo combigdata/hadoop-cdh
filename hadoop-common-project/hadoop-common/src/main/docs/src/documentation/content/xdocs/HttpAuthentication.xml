@@ -83,8 +83,8 @@
       </p>
 
       <p><code>hadoop.http.authentication.signature.secret.file</code>: The signature secret 
-      file for signing the authentication tokens. If not set a random secret is generated at 
-      startup time. The same secret should be used for all nodes in the cluster, JobTracker, 
+      file for signing the authentication tokens. 
+      The same secret should be used for all nodes in the cluster, JobTracker, 
       NameNode, DataNode and TastTracker. The default value is 
       <code>${user.home}/hadoop-http-auth-signature-secret</code>.
       IMPORTANT: This file should be readable only by the Unix user running the daemons.
