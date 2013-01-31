@@ -30,7 +30,7 @@ public class TestFsOptions {
 
   @Test
   public void testProcessChecksumOpt() {
-    ChecksumOpt defaultOpt = new ChecksumOpt(DataChecksum.Type.CRC32, 512);
+    ChecksumOpt defaultOpt = new ChecksumOpt(DataChecksum.CHECKSUM_CRC32, 512);
     ChecksumOpt finalOpt;
 
     // Give a null 
@@ -39,7 +39,7 @@ public class TestFsOptions {
 
     // null with bpc
     finalOpt = ChecksumOpt.processChecksumOpt(defaultOpt, null, 1024);
-    checkParams(DataChecksum.Type.CRC32, 1024, finalOpt);
+    checkParams(DataChecksum.CHECKSUM_CRC32, 1024, finalOpt);
 
     ChecksumOpt myOpt = new ChecksumOpt();
 
@@ -47,15 +47,15 @@ public class TestFsOptions {
     finalOpt = ChecksumOpt.processChecksumOpt(defaultOpt, myOpt);
     checkParams(defaultOpt, finalOpt);
 
-    myOpt = new ChecksumOpt(DataChecksum.Type.CRC32C, 2048);
+    myOpt = new ChecksumOpt(DataChecksum.CHECKSUM_CRC32C, 2048);
 
     // custom config
     finalOpt = ChecksumOpt.processChecksumOpt(defaultOpt, myOpt);
-    checkParams(DataChecksum.Type.CRC32C, 2048, finalOpt);
+    checkParams(DataChecksum.CHECKSUM_CRC32C, 2048, finalOpt);
 
     // custom config + bpc
     finalOpt = ChecksumOpt.processChecksumOpt(defaultOpt, myOpt, 4096);
-    checkParams(DataChecksum.Type.CRC32C, 4096, finalOpt);
+    checkParams(DataChecksum.CHECKSUM_CRC32C, 4096, finalOpt);
   }
 
   private void checkParams(ChecksumOpt expected, ChecksumOpt obtained) {
@@ -63,7 +63,7 @@ public class TestFsOptions {
     assertEquals(expected.getBytesPerChecksum(), obtained.getBytesPerChecksum());
   }
 
-  private void checkParams(DataChecksum.Type type, int bpc, ChecksumOpt obtained) {
+  private void checkParams(int type, int bpc, ChecksumOpt obtained) {
     assertEquals(type, obtained.getChecksumType());
     assertEquals(bpc, obtained.getBytesPerChecksum());
   }

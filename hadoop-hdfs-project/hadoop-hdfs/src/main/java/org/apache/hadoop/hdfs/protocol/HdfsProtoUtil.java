@@ -156,12 +156,12 @@ public abstract class HdfsProtoUtil {
     return ret;
   }
 
-  public static DataChecksum.Type fromProto(HdfsProtos.ChecksumTypeProto type) {
-    return DataChecksum.Type.valueOf(type.getNumber());
+  public static int fromProto(HdfsProtos.ChecksumTypeProto type) {
+    return type.getNumber();
   }
 
-  public static HdfsProtos.ChecksumTypeProto toProto(DataChecksum.Type type) {
-    return HdfsProtos.ChecksumTypeProto.valueOf(type.id);
+  public static HdfsProtos.ChecksumTypeProto toProto(int type) {
+    return HdfsProtos.ChecksumTypeProto.valueOf(type);
   }
 
   public static InputStream vintPrefixed(final InputStream input)

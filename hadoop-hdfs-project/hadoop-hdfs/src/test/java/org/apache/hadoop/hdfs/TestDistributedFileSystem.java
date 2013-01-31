@@ -691,8 +691,8 @@ public class TestDistributedFileSystem {
     // create args 
     Path path1 = new Path(testBasePath, "file_wtih_crc1");
     Path path2 = new Path(testBasePath, "file_with_crc2");
-    ChecksumOpt opt1 = new ChecksumOpt(DataChecksum.Type.CRC32C, 512);
-    ChecksumOpt opt2 = new ChecksumOpt(DataChecksum.Type.CRC32, 512);
+    ChecksumOpt opt1 = new ChecksumOpt(DataChecksum.CHECKSUM_CRC32C, 512);
+    ChecksumOpt opt2 = new ChecksumOpt(DataChecksum.CHECKSUM_CRC32, 512);
 
     // common args
     FsPermission perm = FsPermission.getDefault().applyUMask(
@@ -728,8 +728,8 @@ public class TestDistributedFileSystem {
       assertFalse(sum1.equals(sum2));
 
       // check the individual params
-      assertEquals(DataChecksum.Type.CRC32C, sum1.getCrcType());
-      assertEquals(DataChecksum.Type.CRC32,  sum2.getCrcType());
+      assertEquals(DataChecksum.CHECKSUM_CRC32C, sum1.getCrcType());
+      assertEquals(DataChecksum.CHECKSUM_CRC32,  sum2.getCrcType());
 
     } finally {
       if (cluster != null) {

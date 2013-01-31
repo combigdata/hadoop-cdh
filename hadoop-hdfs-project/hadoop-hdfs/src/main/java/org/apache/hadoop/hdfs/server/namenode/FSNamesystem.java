@@ -492,9 +492,9 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
 
       // Get the checksum type from config
       String checksumTypeStr = conf.get(DFS_CHECKSUM_TYPE_KEY, DFS_CHECKSUM_TYPE_DEFAULT);
-      DataChecksum.Type checksumType;
+      int checksumType;
       try {
-         checksumType = DataChecksum.Type.valueOf(checksumTypeStr);
+         checksumType = DataChecksum.getTypeFromName(checksumTypeStr);
       } catch (IllegalArgumentException iae) {
          throw new IOException("Invalid checksum type in "
             + DFS_CHECKSUM_TYPE_KEY + ": " + checksumTypeStr);

@@ -515,16 +515,16 @@ public class JsonUtil {
     final byte[] bytes = StringUtils.hexStringToByte((String)m.get("bytes"));
 
     final DataInputStream in = new DataInputStream(new ByteArrayInputStream(bytes));
-    final DataChecksum.Type crcType = 
+    final int crcType = 
         MD5MD5CRC32FileChecksum.getCrcTypeFromAlgorithmName(algorithm);
     final MD5MD5CRC32FileChecksum checksum;
 
     // Recreate what DFSClient would have returned.
     switch(crcType) {
-      case CRC32:
+      case DataChecksum.CHECKSUM_CRC32:
         checksum = new MD5MD5CRC32GzipFileChecksum();
         break;
-      case CRC32C:
+      case DataChecksum.CHECKSUM_CRC32C:
         checksum = new MD5MD5CRC32CastagnoliFileChecksum();
         break;
       default:

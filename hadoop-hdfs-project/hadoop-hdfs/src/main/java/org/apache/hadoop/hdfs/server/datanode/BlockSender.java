@@ -40,6 +40,7 @@ import org.apache.hadoop.hdfs.protocol.datatransfer.PacketHeader;
 import org.apache.hadoop.hdfs.util.DataTransferThrottler;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.ReadaheadPool;
 import org.apache.hadoop.io.ReadaheadPool.ReadaheadRequest;
 import org.apache.hadoop.io.nativeio.NativeIO;
 import org.apache.hadoop.net.SocketOutputStream;
@@ -254,7 +255,7 @@ class BlockSender implements java.io.Closeable {
         // even if the checksum type is NULL. So, choosing too big of a value
         // would risk sending too much unnecessary data. 512 (1 disk sector)
         // is likely to result in minimal extra IO.
-        csum = DataChecksum.newDataChecksum(DataChecksum.Type.NULL, 512);
+        csum = DataChecksum.newDataChecksum(DataChecksum.CHECKSUM_NULL, 512);
       }
 
       /*
