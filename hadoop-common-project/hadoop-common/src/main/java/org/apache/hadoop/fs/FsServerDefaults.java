@@ -52,7 +52,7 @@ public class FsServerDefaults implements Writable {
   private int fileBufferSize;
   private boolean encryptDataTransfer;
   private long trashInterval;
-  private DataChecksum.Type checksumType;
+  private int checksumType;
 
   public FsServerDefaults() {
   }
@@ -60,7 +60,7 @@ public class FsServerDefaults implements Writable {
   public FsServerDefaults(long blockSize, int bytesPerChecksum,
       int writePacketSize, short replication, int fileBufferSize,
       boolean encryptDataTransfer, long trashInterval,
-      DataChecksum.Type checksumType) {
+      int checksumType) {
     this.blockSize = blockSize;
     this.bytesPerChecksum = bytesPerChecksum;
     this.writePacketSize = writePacketSize;
@@ -99,7 +99,7 @@ public class FsServerDefaults implements Writable {
     return trashInterval;
   }
 
-  public DataChecksum.Type getChecksumType() {
+  public int getChecksumType() {
     return checksumType;
   }
 
@@ -113,7 +113,7 @@ public class FsServerDefaults implements Writable {
     out.writeInt(writePacketSize);
     out.writeShort(replication);
     out.writeInt(fileBufferSize);
-    WritableUtils.writeEnum(out, checksumType);
+    out.writeInt(checksumType);
   }
 
   @InterfaceAudience.Private
@@ -123,6 +123,6 @@ public class FsServerDefaults implements Writable {
     writePacketSize = in.readInt();
     replication = in.readShort();
     fileBufferSize = in.readInt();
-    checksumType = WritableUtils.readEnum(in, DataChecksum.Type.class);
+    checksumType = in.readInt();
   }
 }

@@ -154,7 +154,6 @@ import org.apache.hadoop.security.token.SecretManager.InvalidToken;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenRenewer;
 import org.apache.hadoop.util.DataChecksum;
-import org.apache.hadoop.util.DataChecksum.Type;
 import org.apache.hadoop.util.Progressable;
 import org.apache.hadoop.util.Time;
 
@@ -313,23 +312,24 @@ public class DFSClient implements java.io.Closeable {
         DFSConfigKeys.DFS_CLIENT_DOMAIN_SOCKET_DATA_TRAFFIC_DEFAULT);
     }
 
-    private DataChecksum.Type getChecksumType(Configuration conf) {
-      final String checksum = conf.get(
-          DFSConfigKeys.DFS_CHECKSUM_TYPE_KEY,
+    private int getChecksumType(Configuration conf) {
+      String checksum = conf.get(DFSConfigKeys.DFS_CHECKSUM_TYPE_KEY,
           DFSConfigKeys.DFS_CHECKSUM_TYPE_DEFAULT);
-      try {
-        return DataChecksum.Type.valueOf(checksum);
-      } catch(IllegalArgumentException iae) {
-        LOG.warn("Bad checksum type: " + checksum + ". Using default "
-            + DFSConfigKeys.DFS_CHECKSUM_TYPE_DEFAULT);
-        return DataChecksum.Type.valueOf(
-            DFSConfigKeys.DFS_CHECKSUM_TYPE_DEFAULT); 
+      if ("CRC32".equals(checksum)) {
+        return DataChecksum.CHECKSUM_CRC32;
+      } else if ("CRC32C".equals(checksum)) {
+        return DataChecksum.CHECKSUM_CRC32C;
+      } else if ("NULL".equals(checksum)) {
+        return DataChecksum.CHECKSUM_NULL;
+      } else {
+        LOG.warn("Bad checksum type: " + checksum + ". Using default.");
+        return DataChecksum.CHECKSUM_CRC32C;
       }
     }
 
     // Construct a checksum option from conf
     private ChecksumOpt getChecksumOptFromConf(Configuration conf) {
-      DataChecksum.Type type = getChecksumType(conf);
+      int type = getChecksumType(conf);
       int bytesPerChecksum = conf.getInt(DFS_BYTES_PER_CHECKSUM_KEY,
           DFS_BYTES_PER_CHECKSUM_DEFAULT);
       return new ChecksumOpt(type, bytesPerChecksum);
@@ -350,7 +350,7 @@ public class DFSClient implements java.io.Closeable {
           myOpt.getBytesPerChecksum());
       if (dataChecksum == null) {
         throw new IOException("Invalid checksum type specified: "
-            + myOpt.getChecksumType().name());
+            + DataChecksum.getNameOfType(myOpt.getChecksumType()));
       }
       return dataChecksum;
     }
@@ -1628,7 +1628,7 @@ public class DFSClient implements java.io.Closeable {
     List<LocatedBlock> locatedblocks = blockLocations.getLocatedBlocks();
     final DataOutputBuffer md5out = new DataOutputBuffer();
     int bytesPerCRC = -1;
-    DataChecksum.Type crcType = DataChecksum.Type.DEFAULT;
+    int crcType = DataChecksum.CHECKSUM_DEFAULT;
     long crcPerBlock = 0;
     boolean refetchBlocks = false;
     int lastRetriedIndex = -1;
@@ -1706,7 +1706,7 @@ public class DFSClient implements java.io.Closeable {
           md5.write(md5out);
           
           // read crc-type
-          final DataChecksum.Type ct;
+          final int ct;
           if (checksumData.hasCrcType()) {
             ct = HdfsProtoUtil.fromProto(checksumData.getCrcType());
           } else {
@@ -1719,10 +1719,10 @@ public class DFSClient implements java.io.Closeable {
 
           if (i == 0) { // first block
             crcType = ct;
-          } else if (crcType != DataChecksum.Type.MIXED
+          } else if (crcType != DataChecksum.CHECKSUM_MIXED
               && crcType != ct) {
             // if crc types are mixed in a file
-            crcType = DataChecksum.Type.MIXED;
+            crcType = DataChecksum.CHECKSUM_MIXED;
           }
 
           done = true;
@@ -1764,10 +1764,10 @@ public class DFSClient implements java.io.Closeable {
     //compute file MD5
     final MD5Hash fileMD5 = MD5Hash.digest(md5out.getData()); 
     switch (crcType) {
-      case CRC32:
+      case DataChecksum.CHECKSUM_CRC32:
         return new MD5MD5CRC32GzipFileChecksum(bytesPerCRC,
             crcPerBlock, fileMD5);
-      case CRC32C:
+      case DataChecksum.CHECKSUM_CRC32C:
         return new MD5MD5CRC32CastagnoliFileChecksum(bytesPerCRC,
             crcPerBlock, fileMD5);
       default:
@@ -1836,7 +1836,7 @@ public class DFSClient implements java.io.Closeable {
    * @return the inferred checksum type
    * @throws IOException if an error occurs
    */
-  private static Type inferChecksumTypeByReading(
+  private static int inferChecksumTypeByReading(
       String clientName, SocketFactory socketFactory, int socketTimeout,
       LocatedBlock lb, DatanodeInfo dn,
       DataEncryptionKey encryptionKey, boolean connectToDnViaHostname)

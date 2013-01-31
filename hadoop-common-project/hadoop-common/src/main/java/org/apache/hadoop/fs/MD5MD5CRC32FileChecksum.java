@@ -60,15 +60,15 @@ public class MD5MD5CRC32FileChecksum extends FileChecksum {
   /** {@inheritDoc} */ 
   public String getAlgorithmName() {
     return "MD5-of-" + crcPerBlock + "MD5-of-" + bytesPerCRC +
-        getCrcType().name();
+        DataChecksum.getNameOfType(getCrcType());
   }
 
-  public static DataChecksum.Type getCrcTypeFromAlgorithmName(String algorithm)
+  public static int getCrcTypeFromAlgorithmName(String algorithm)
       throws IOException {
-    if (algorithm.endsWith(DataChecksum.Type.CRC32.name())) {
-      return DataChecksum.Type.CRC32;
-    } else if (algorithm.endsWith(DataChecksum.Type.CRC32C.name())) {
-      return DataChecksum.Type.CRC32C;
+    if (algorithm.endsWith(DataChecksum.getNameOfType(DataChecksum.CHECKSUM_CRC32))) {
+      return DataChecksum.CHECKSUM_CRC32;
+    } else if (algorithm.endsWith(DataChecksum.getNameOfType(DataChecksum.CHECKSUM_CRC32C))) {
+      return DataChecksum.CHECKSUM_CRC32C;
     }
 
     throw new IOException("Unknown checksum type in " + algorithm);
@@ -83,9 +83,9 @@ public class MD5MD5CRC32FileChecksum extends FileChecksum {
   }
 
   /** returns the CRC type */
-  public DataChecksum.Type getCrcType() {
+  public int getCrcType() {
     // default to the one that is understood by all releases.
-    return DataChecksum.Type.CRC32;
+    return DataChecksum.CHECKSUM_CRC32;
   }
 
   public ChecksumOpt getChecksumOpt() {
@@ -113,7 +113,7 @@ public class MD5MD5CRC32FileChecksum extends FileChecksum {
     if (that != null) {
       xml.attribute("bytesPerCRC", "" + that.bytesPerCRC);
       xml.attribute("crcPerBlock", "" + that.crcPerBlock);
-      xml.attribute("crcType", ""+ that.getCrcType().name());
+      xml.attribute("crcType", ""+ DataChecksum.getNameOfType(that.getCrcType()));
       xml.attribute("md5", "" + that.md5);
     }
     xml.endTag();
@@ -126,7 +126,7 @@ public class MD5MD5CRC32FileChecksum extends FileChecksum {
     final String crcPerBlock = attrs.getValue("crcPerBlock");
     final String md5 = attrs.getValue("md5");
     String crcType = attrs.getValue("crcType");
-    DataChecksum.Type finalCrcType;
+    int finalCrcType;
     if (bytesPerCRC == null || crcPerBlock == null || md5 == null) {
       return null;
     }
@@ -134,18 +134,18 @@ public class MD5MD5CRC32FileChecksum extends FileChecksum {
     try {
       // old versions don't support crcType.
       if (crcType == null || crcType == "") {
-        finalCrcType = DataChecksum.Type.CRC32;
+        finalCrcType = DataChecksum.CHECKSUM_CRC32;
       } else {
-        finalCrcType = DataChecksum.Type.valueOf(crcType);
+        finalCrcType = DataChecksum.getTypeFromName(crcType);
       }
 
       switch (finalCrcType) {
-        case CRC32:
+        case DataChecksum.CHECKSUM_CRC32:
           return new MD5MD5CRC32GzipFileChecksum(
               Integer.valueOf(bytesPerCRC),
               Integer.valueOf(crcPerBlock),
               new MD5Hash(md5));
-        case CRC32C:
+        case DataChecksum.CHECKSUM_CRC32C:
           return new MD5MD5CRC32CastagnoliFileChecksum(
               Integer.valueOf(bytesPerCRC),
               Integer.valueOf(crcPerBlock),

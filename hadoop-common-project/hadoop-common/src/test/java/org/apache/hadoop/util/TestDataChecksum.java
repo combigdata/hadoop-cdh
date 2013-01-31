@@ -35,13 +35,13 @@ public class TestDataChecksum {
   private static final int DATA_TRAILER_IN_BUFFER = 3;
   
   private static final int BYTES_PER_CHUNK = 512;
-  private static final DataChecksum.Type CHECKSUM_TYPES[] = {
-    DataChecksum.Type.CRC32, DataChecksum.Type.CRC32C
+  private static final int CHECKSUM_TYPES[] = new int[] {
+    DataChecksum.CHECKSUM_CRC32, DataChecksum.CHECKSUM_CRC32C
   };
   
   @Test
   public void testBulkOps() throws Exception {
-    for (DataChecksum.Type type : CHECKSUM_TYPES) {
+    for (int type : CHECKSUM_TYPES) {
       System.err.println(
           "---- beginning tests with checksum type " + type  + "----");
       DataChecksum checksum = DataChecksum.newDataChecksum(
@@ -118,20 +118,21 @@ public class TestDataChecksum {
   @Test
   public void testEquality() {
     assertEquals(
-        DataChecksum.newDataChecksum(DataChecksum.Type.CRC32, 512),
-        DataChecksum.newDataChecksum(DataChecksum.Type.CRC32, 512));
+        DataChecksum.newDataChecksum(DataChecksum.CHECKSUM_CRC32, 512),
+        DataChecksum.newDataChecksum(DataChecksum.CHECKSUM_CRC32, 512));
     assertFalse(
-        DataChecksum.newDataChecksum(DataChecksum.Type.CRC32, 512).equals(
-        DataChecksum.newDataChecksum(DataChecksum.Type.CRC32, 1024)));
+        DataChecksum.newDataChecksum(DataChecksum.CHECKSUM_CRC32, 512).equals(
+        DataChecksum.newDataChecksum(DataChecksum.CHECKSUM_CRC32, 1024)));
     assertFalse(
-        DataChecksum.newDataChecksum(DataChecksum.Type.CRC32, 512).equals(
-        DataChecksum.newDataChecksum(DataChecksum.Type.CRC32C, 512)));        
+        DataChecksum.newDataChecksum(DataChecksum.CHECKSUM_CRC32, 512).equals(
+        DataChecksum.newDataChecksum(DataChecksum.CHECKSUM_CRC32C, 512)));        
   }
   
   @Test
   public void testToString() {
     assertEquals("DataChecksum(type=CRC32, chunkSize=512)",
-        DataChecksum.newDataChecksum(DataChecksum.Type.CRC32, 512).toString());
+        DataChecksum.newDataChecksum(DataChecksum.CHECKSUM_CRC32, 512)
+          .toString());
   }
 
   private static void corruptBufferOffset(ByteBuffer buf, int offset) {

@@ -33,8 +33,8 @@ public class MD5MD5CRC32GzipFileChecksum extends MD5MD5CRC32FileChecksum {
     super(bytesPerCRC, crcPerBlock, md5);
   }
   @Override
-  public DataChecksum.Type getCrcType() {
+  public int getCrcType() {
     // default to the one that is understood by all releases.
-    return DataChecksum.Type.CRC32;
+    return DataChecksum.CHECKSUM_CRC32;
   }
 }

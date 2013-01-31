@@ -26,17 +26,17 @@ import static org.junit.Assert.assertEquals;
 public class TestHdfsProtoUtil {
   @Test
   public void testChecksumTypeProto() {
-    assertEquals(DataChecksum.Type.NULL,
+    assertEquals(DataChecksum.CHECKSUM_NULL,
         HdfsProtoUtil.fromProto(HdfsProtos.ChecksumTypeProto.CHECKSUM_NULL));
-    assertEquals(DataChecksum.Type.CRC32,
+    assertEquals(DataChecksum.CHECKSUM_CRC32,
         HdfsProtoUtil.fromProto(HdfsProtos.ChecksumTypeProto.CHECKSUM_CRC32));
-    assertEquals(DataChecksum.Type.CRC32C,
+    assertEquals(DataChecksum.CHECKSUM_CRC32C,
         HdfsProtoUtil.fromProto(HdfsProtos.ChecksumTypeProto.CHECKSUM_CRC32C));
-    assertEquals(HdfsProtoUtil.toProto(DataChecksum.Type.NULL),
+    assertEquals(HdfsProtoUtil.toProto(DataChecksum.CHECKSUM_NULL),
         HdfsProtos.ChecksumTypeProto.CHECKSUM_NULL);
-    assertEquals(HdfsProtoUtil.toProto(DataChecksum.Type.CRC32),
+    assertEquals(HdfsProtoUtil.toProto(DataChecksum.CHECKSUM_CRC32),
         HdfsProtos.ChecksumTypeProto.CHECKSUM_CRC32);
-    assertEquals(HdfsProtoUtil.toProto(DataChecksum.Type.CRC32C),
+    assertEquals(HdfsProtoUtil.toProto(DataChecksum.CHECKSUM_CRC32C),
         HdfsProtos.ChecksumTypeProto.CHECKSUM_CRC32C);
   }
 }

@@ -34,8 +34,8 @@ public class MD5MD5CRC32CastagnoliFileChecksum extends MD5MD5CRC32FileChecksum {
   }
 
   @Override
-  public DataChecksum.Type getCrcType() {
+  public int getCrcType() {
     // default to the one that is understood by all releases.
-    return DataChecksum.Type.CRC32C;
+    return DataChecksum.CHECKSUM_CRC32C;
   }
 }

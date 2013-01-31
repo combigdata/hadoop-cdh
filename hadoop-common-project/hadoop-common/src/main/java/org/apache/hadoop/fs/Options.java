@@ -227,14 +227,14 @@ public final class Options {
    */
   public static class ChecksumOpt {
     private final int crcBlockSize;
-    private final DataChecksum.Type crcType;
+    private final int crcType;
 
     /**
      * Create a uninitialized one
      */
     public ChecksumOpt() {
       crcBlockSize = -1;
-      crcType = DataChecksum.Type.DEFAULT;
+      crcType = DataChecksum.CHECKSUM_DEFAULT;
     }
 
     /**
@@ -242,7 +242,7 @@ public final class Options {
      * @param type checksum type
      * @param size bytes per checksum
      */
-    public ChecksumOpt(DataChecksum.Type type, int size) {
+    public ChecksumOpt(int type, int size) {
       crcBlockSize = size;
       crcType = type;
     }
@@ -251,7 +251,7 @@ public final class Options {
       return crcBlockSize;
     }
 
-    public DataChecksum.Type getChecksumType() {
+    public int getChecksumType() {
       return crcType;
     }
 
@@ -259,7 +259,7 @@ public final class Options {
      * Create a ChecksumOpts that disables checksum
      */
     public static ChecksumOpt createDisabled() {
-      return new ChecksumOpt(DataChecksum.Type.NULL, -1);
+      return new ChecksumOpt(DataChecksum.CHECKSUM_NULL, -1);
     }
 
     /**
@@ -296,7 +296,7 @@ public final class Options {
       //   user specified value in checksumOpt
       //   default.
       if (userOpt != null &&
-            userOpt.getChecksumType() != DataChecksum.Type.DEFAULT) {
+            userOpt.getChecksumType() != DataChecksum.CHECKSUM_DEFAULT) {
         useDefaultType = false;
       } else {
         useDefaultType = true;
@@ -310,7 +310,7 @@ public final class Options {
       }
 
       // Take care of the rest of combinations
-      DataChecksum.Type type = useDefaultType ? defaultOpt.getChecksumType() :
+      int type = useDefaultType ? defaultOpt.getChecksumType() :
           userOpt.getChecksumType();
       if (whichSize == 0) {
         return new ChecksumOpt(type, defaultOpt.getBytesPerChecksum());

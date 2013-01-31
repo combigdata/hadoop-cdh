@@ -52,8 +52,7 @@ public class LocalConfigKeys extends CommonConfigurationKeys {
   public static final int CLIENT_WRITE_PACKET_SIZE_DEFAULT = 64*1024;
   public static final boolean ENCRYPT_DATA_TRANSFER_DEFAULT = false;
   public static final long FS_TRASH_INTERVAL_DEFAULT = 0;
-  public static final DataChecksum.Type CHECKSUM_TYPE_DEFAULT =
-      DataChecksum.Type.CRC32;
+  public static final int CHECKSUM_TYPE_DEFAULT = DataChecksum.CHECKSUM_CRC32;
   public static FsServerDefaults getServerDefaults() throws IOException {
     return new FsServerDefaults(
         BLOCK_SIZE_DEFAULT,
