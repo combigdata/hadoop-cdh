@@ -5725,6 +5725,12 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     this.nnResourceChecker = nnResourceChecker;
   }
 
+  @Override
+  public boolean isAvoidingStaleDataNodesForWrite() {
+    return this.blockManager.getDatanodeManager()
+        .shouldAvoidStaleDataNodesForWrite();
+  }
+
   /**
    * Default AuditLogger implementation; used when no access logger is
    * defined in the config file. It can also be explicitly listed in the
@@ -5762,11 +5768,5 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       }
     }
 
-  }
-
-  @Override
-  public boolean isAvoidingStaleDataNodesForWrite() {
-    return this.blockManager.getDatanodeManager()
-        .isAvoidingStaleDataNodesForWrite();
   }
 }
