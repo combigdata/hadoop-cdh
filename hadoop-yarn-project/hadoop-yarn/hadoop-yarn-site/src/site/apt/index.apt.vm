@@ -53,3 +53,4 @@ MapReduce NextGen aka YARN aka MRv2
 
   * {{{./EncryptedShuffle.html}Encrypted Shuffle}}
 
+  * {{{./PluggableShuffleAndPluggableSort.html}Pluggable Shuffle and Pluggable Sort}}
