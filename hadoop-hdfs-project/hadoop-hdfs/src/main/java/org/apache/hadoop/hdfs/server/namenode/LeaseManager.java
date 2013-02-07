@@ -330,21 +330,18 @@ public class LeaseManager {
     }
   }
 
-  synchronized void changeLease(String src, String dst,
-      String overwrite, String replaceBy) {
+  synchronized void changeLease(String src, String dst) {
     if (LOG.isDebugEnabled()) {
       LOG.debug(getClass().getSimpleName() + ".changelease: " +
-               " src=" + src + ", dest=" + dst + 
-               ", overwrite=" + overwrite +
-               ", replaceBy=" + replaceBy);
+               " src=" + src + ", dest=" + dst);
     }
 
-    final int len = overwrite.length();
+    final int len = src.length();
     for(Map.Entry<String, Lease> entry : findLeaseWithPrefixPath(src, sortedLeasesByPath)) {
       final String oldpath = entry.getKey();
       final Lease lease = entry.getValue();
-      //overwrite must be a prefix of oldpath
-      final String newpath = replaceBy + oldpath.substring(len);
+      // replace stem of src with new destination
+      final String newpath = dst + oldpath.substring(len);
       if (LOG.isDebugEnabled()) {
         LOG.debug("changeLease: replacing " + oldpath + " with " + newpath);
       }
@@ -424,6 +421,38 @@ public class LeaseManager {
         }
       }
     }
+  }
+
+  /**
+   * Get the list of inodes corresponding to valid leases.
+   * @return list of inodes
+   * @throws UnresolvedLinkException
+   */
+  Map<String, INodeFileUnderConstruction> getINodesUnderConstruction() {
+    Map<String, INodeFileUnderConstruction> inodes =
+        new TreeMap<String, INodeFileUnderConstruction>();
+    for (String p : sortedLeasesByPath.keySet()) {
+      String error = null;
+      INodeFile node = null;
+      try {
+        node = fsnamesystem.dir.getFileINode(p);
+      } catch (UnresolvedLinkException ule) {
+        error = "file does not reside on this FS";
+      }
+      if (error == null) {
+        if (node == null) {
+          error = "no matching entry in namespace";
+        } else if (!node.isUnderConstruction()) {
+          error = "is not under construction";
+        }
+      }
+      if (error == null) {
+        inodes.put(p, (INodeFileUnderConstruction)node);
+      } else {
+        LOG.error("found path " + p + " but " + error);
+      }
+    }
+    return inodes;
   }
 
   /** Check the leases beginning from the oldest.
