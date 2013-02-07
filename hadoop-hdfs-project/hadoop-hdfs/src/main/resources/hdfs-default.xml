@@ -1126,7 +1126,7 @@
 
 <property>
   <name>dfs.domain.socket.path</name>
-  <value></value>
+  <value>/var/run/hadoop-hdfs/dn._PORT</value>
   <description>
     Optional.  This is a path to a UNIX domain socket that will be used for
     communication between the DataNode and local HDFS clients.

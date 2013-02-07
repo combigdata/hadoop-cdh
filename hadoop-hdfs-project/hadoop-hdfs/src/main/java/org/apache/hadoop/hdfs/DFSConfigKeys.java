@@ -379,7 +379,7 @@ public class DFSConfigKeys extends CommonConfigurationKeys {
   
   public static final String DFS_BLOCK_LOCAL_PATH_ACCESS_USER_KEY = "dfs.block.local-path-access.user";
   public static final String DFS_DOMAIN_SOCKET_PATH_KEY = "dfs.domain.socket.path";
-  public static final String DFS_DOMAIN_SOCKET_PATH_DEFAULT = "";
+  public static final String DFS_DOMAIN_SOCKET_PATH_DEFAULT = "/var/run/hadoop-hdfs/dn._PORT";
 
   // HA related configuration
   public static final String DFS_HA_NAMENODES_KEY_PREFIX = "dfs.ha.namenodes";
