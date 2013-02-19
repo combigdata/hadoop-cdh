@@ -851,6 +851,9 @@ public abstract class TaskImpl implements Task, EventHandler<TaskEvent> {
       if (task.successfulAttempt == null) {
         task.addAndScheduleAttempt();
       }
+      if ((task.commitAttempt != null) && (task.commitAttempt == taskAttemptId)) {
+    	task.commitAttempt = null;
+      }
     }
   }
 
