@@ -157,6 +157,16 @@ class BookKeeperEditLogInputStream extends EditLogInputStream {
     }
   }
 
+  @Override
+  public String toString() {
+    return ("BookKeeperEditLogInputStream {" + this.getName() + "}");
+  }
+
+  @Override
+  public void setMaxOpSize(int maxOpSize) {
+    reader.setMaxOpSize(maxOpSize);
+  }
+
   /**
    * Input stream implementation which can be used by 
    * FSEditLogOp.Reader
