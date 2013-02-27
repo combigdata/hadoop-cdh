@@ -177,7 +177,7 @@ public class TestDoAsEffectiveUser {
             }
           });
 
-      Assert.assertEquals(PROXY_USER_NAME + " (auth:SIMPLE) via " + REAL_USER_NAME + " (auth:SIMPLE)", retVal);
+      Assert.assertEquals(PROXY_USER_NAME + " (auth:PROXY) via " + REAL_USER_NAME + " (auth:SIMPLE)", retVal);
     } catch (Exception e) {
       e.printStackTrace();
       Assert.fail();
@@ -220,7 +220,7 @@ public class TestDoAsEffectiveUser {
             }
           });
 
-      Assert.assertEquals(PROXY_USER_NAME + " (auth:SIMPLE) via " + REAL_USER_NAME + " (auth:SIMPLE)", retVal);
+      Assert.assertEquals(PROXY_USER_NAME + " (auth:PROXY) via " + REAL_USER_NAME + " (auth:SIMPLE)", retVal);
     } catch (Exception e) {
       e.printStackTrace();
       Assert.fail();
