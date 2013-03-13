@@ -447,6 +447,7 @@ public class DFSClient implements java.io.Closeable {
           "null URI");
       NameNodeProxies.ProxyAndInfo<ClientProtocol> proxyInfo =
         NameNodeProxies.createProxy(conf, nameNodeUri, ClientProtocol.class);
+      
       this.dtService = proxyInfo.getDelegationTokenService();
       this.namenode = proxyInfo.getProxy();
     }
@@ -1624,7 +1625,7 @@ public class DFSClient implements java.io.Closeable {
    * @param socketFactory to create sockets to connect to DNs
    * @param socketTimeout timeout to use when connecting and waiting for a response
    * @param encryptionKey the key needed to communicate with DNs in this cluster
-   * @param connectToDnViaHostname {@see #connectToDnViaHostname()}
+   * @param connectToDnViaHostname {@link #connectToDnViaHostname()}
    * @return The checksum 
    */
   static MD5MD5CRC32FileChecksum getFileChecksum(String src,

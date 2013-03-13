@@ -925,8 +925,8 @@ public class DFSInputStream extends FSInputStream implements ByteBufferReadable 
         DFSClient.isLocalAddress(dnAddr) &&
         (!shortCircuitForbidden())) {
       try {
-        return BlockReaderFactory.getLegacyBlockReaderLocal(dfsClient.conf,
-            clientName, block, blockToken, chosenNode,
+        return BlockReaderFactory.getLegacyBlockReaderLocal(dfsClient.ugi,
+            dfsClient.conf, clientName, block, blockToken, chosenNode,
             dfsClient.hdfsTimeout, startOffset,dfsClient.connectToDnViaHostname());
       } catch (IOException e) {
         DFSClient.LOG.warn("error creating legacy BlockReaderLocal.  " +
