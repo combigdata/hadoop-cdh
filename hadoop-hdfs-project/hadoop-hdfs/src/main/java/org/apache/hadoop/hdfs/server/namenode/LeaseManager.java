@@ -255,7 +255,7 @@ public class LeaseManager {
     private String findPath(INodeFileUnderConstruction pendingFile) {
       try {
         for (String src : paths) {
-          if (fsnamesystem.dir.getFileINode(src) == pendingFile) {
+          if (fsnamesystem.dir.getINode(src) == pendingFile) {
             return src;
           }
         }
@@ -435,8 +435,8 @@ public class LeaseManager {
       String error = null;
       INodeFile node = null;
       try {
-        node = fsnamesystem.dir.getFileINode(p);
-      } catch (UnresolvedLinkException ule) {
+        node = INodeFile.valueOf(fsnamesystem.dir.getINode(p), p);
+      } catch (IOException ioe) {
         error = "file does not reside on this FS";
       }
       if (error == null) {
