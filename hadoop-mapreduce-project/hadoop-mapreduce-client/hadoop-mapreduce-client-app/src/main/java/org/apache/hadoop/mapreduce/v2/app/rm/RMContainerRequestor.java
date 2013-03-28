@@ -55,7 +55,6 @@ import org.apache.hadoop.yarn.util.BuilderUtils;
 public abstract class RMContainerRequestor extends RMCommunicator {
   
   private static final Log LOG = LogFactory.getLog(RMContainerRequestor.class);
-  static final String ANY = "*";
 
   private int lastResponseID;
   private Resource availableResources;
@@ -276,7 +275,7 @@ public abstract class RMContainerRequestor extends RMCommunicator {
     }
 
     // Off-switch
-    addResourceRequest(req.priority, ANY, req.capability); 
+    addResourceRequest(req.priority, ResourceRequest.ANY, req.capability);
   }
 
   protected void decContainerReq(ContainerRequest req) {
@@ -289,7 +288,7 @@ public abstract class RMContainerRequestor extends RMCommunicator {
       decResourceRequest(req.priority, rack, req.capability);
     }
    
-    decResourceRequest(req.priority, ANY, req.capability);
+    decResourceRequest(req.priority, ResourceRequest.ANY, req.capability);
   }
 
   private void addResourceRequest(Priority priority, String resourceName,

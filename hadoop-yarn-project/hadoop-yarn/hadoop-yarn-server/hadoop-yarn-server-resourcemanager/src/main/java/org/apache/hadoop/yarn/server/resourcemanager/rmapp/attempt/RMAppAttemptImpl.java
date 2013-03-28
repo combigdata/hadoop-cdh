@@ -58,10 +58,10 @@ import org.apache.hadoop.yarn.server.resourcemanager.ApplicationMasterService;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 import org.apache.hadoop.yarn.server.resourcemanager.amlauncher.AMLauncherEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.amlauncher.AMLauncherEventType;
+import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore.ApplicationAttemptState;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore.ApplicationState;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore.RMState;
-import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.Recoverable;
 import org.apache.hadoop.yarn.server.resourcemanager.resource.Resources;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppEvent;
@@ -711,7 +711,7 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
 
         // Request a container for the AM.
         ResourceRequest request = BuilderUtils.newResourceRequest(
-            AM_CONTAINER_PRIORITY, "*", appAttempt.submissionContext
+            AM_CONTAINER_PRIORITY, ResourceRequest.ANY, appAttempt.submissionContext
                 .getAMContainerSpec().getResource(), 1);
 
         Allocation amContainerAllocation = appAttempt.scheduler.allocate(

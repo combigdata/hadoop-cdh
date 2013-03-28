@@ -36,8 +36,6 @@ import org.apache.hadoop.yarn.server.api.records.HeartbeatResponse;
  */
 public interface RMNode {
 
-  public static final String ANY = "*";
-
   /**
    * the node id of of this node.
    * @return the node id of this node.

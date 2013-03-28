@@ -482,8 +482,8 @@ public class TestContainerManagerSecurity {
 
     // Request a container allocation.
     List<ResourceRequest> ask = new ArrayList<ResourceRequest>();
-    ask.add(BuilderUtils.newResourceRequest(BuilderUtils.newPriority(0), "*",
-        BuilderUtils.newResource(1024, 1), 1));
+    ask.add(BuilderUtils.newResourceRequest(BuilderUtils.newPriority(0),
+        ResourceRequest.ANY, BuilderUtils.newResource(1024, 1), 1));
 
     AllocateRequest allocateRequest = BuilderUtils.newAllocateRequest(
         BuilderUtils.newApplicationAttemptId(appID, 1), 0, 0F, ask,

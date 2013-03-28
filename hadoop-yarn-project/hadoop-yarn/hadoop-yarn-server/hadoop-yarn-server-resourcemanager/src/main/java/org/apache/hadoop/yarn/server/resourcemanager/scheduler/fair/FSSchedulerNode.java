@@ -60,8 +60,6 @@ public class FSSchedulerNode extends SchedulerNode {
   
   private final RMNode rmNode;
 
-  public static final String ANY = "*";
-
   public FSSchedulerNode(RMNode node) {
     this.rmNode = node;
     this.availableResource = Resources.clone(node.getTotalCapability());

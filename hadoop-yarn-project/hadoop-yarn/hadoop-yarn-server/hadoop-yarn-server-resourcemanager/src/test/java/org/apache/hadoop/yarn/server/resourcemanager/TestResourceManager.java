@@ -30,6 +30,7 @@ import org.apache.hadoop.net.NetworkTopology;
 import org.apache.hadoop.yarn.api.records.NodeHealthStatus;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.resourcemanager.resource.Resources;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
@@ -122,7 +123,7 @@ public class TestResourceManager {
     Task t2 = new Task(application, priority1, new String[] {host1, host2});
     application.addTask(t2);
 
-    Task t3 = new Task(application, priority0, new String[] {RMNode.ANY});
+    Task t3 = new Task(application, priority0, new String[] {ResourceRequest.ANY});
     application.addTask(t3);
 
     // Send resource requests to the scheduler
