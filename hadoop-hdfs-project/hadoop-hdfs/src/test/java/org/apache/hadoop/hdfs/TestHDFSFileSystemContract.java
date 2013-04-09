@@ -43,6 +43,7 @@ public class TestHDFSFileSystemContract extends FileSystemContractBaseTest {
   protected void tearDown() throws Exception {
     super.tearDown();
     cluster.shutdown();
+    cluster = null;
   }
 
   @Override
