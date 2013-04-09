@@ -3145,4 +3145,7 @@ assert storedBlock.findDatanode(dn) < 0 : "Block " + block
     OK
   }
 
+  public void shutdown() {
+    blocksMap.close();
+  }
 }
