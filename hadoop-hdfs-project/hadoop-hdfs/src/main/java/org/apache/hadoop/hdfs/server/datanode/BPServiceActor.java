@@ -508,7 +508,7 @@ class BPServiceActor implements Runnable {
         //
         // Every so often, send heartbeat or block-report
         //
-        if (startTime - lastHeartbeat > dnConf.heartBeatInterval) {
+        if (startTime - lastHeartbeat >= dnConf.heartBeatInterval) {
           //
           // All heartbeat messages include following info:
           // -- Datanode name
