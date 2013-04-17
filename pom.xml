@@ -84,6 +84,7 @@
     <distMgmtSnapshotsName>Apache Development Snapshot Repository</distMgmtSnapshotsName>
     <distMgmtSnapshotsUrl>https://repository.apache.org/content/repositories/snapshots</distMgmtSnapshotsUrl>
     <javaVersion>1.6</javaVersion>
+    <targetJavaVersion>1.6</targetJavaVersion>
   </properties>
 
   <modules>
