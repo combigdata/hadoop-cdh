@@ -52,6 +52,7 @@ public class FSSchedulerNode extends SchedulerNode {
   private volatile int numContainers;
 
   private RMContainer reservedContainer;
+  private AppSchedulable reservedAppSchedulable;
   
   /* set of containers that are allocated containers */
   private final Map<ContainerId, RMContainer> launchedContainers = 
@@ -223,6 +224,7 @@ public class FSSchedulerNode extends SchedulerNode {
           " on node " + this + " for application " + application);
     }
     this.reservedContainer = reservedContainer;
+    this.reservedAppSchedulable = application.getAppSchedulable();
   }
 
   public synchronized void unreserveResource(
@@ -239,11 +241,15 @@ public class FSSchedulerNode extends SchedulerNode {
           " on node " + this);
     }
     
-    reservedContainer = null;
+    this.reservedContainer = null;
+    this.reservedAppSchedulable = null;
   }
 
   public synchronized RMContainer getReservedContainer() {
     return reservedContainer;
   }
 
+  public synchronized AppSchedulable getReservedAppSchedulable() {
+    return reservedAppSchedulable;
+  }
 }
