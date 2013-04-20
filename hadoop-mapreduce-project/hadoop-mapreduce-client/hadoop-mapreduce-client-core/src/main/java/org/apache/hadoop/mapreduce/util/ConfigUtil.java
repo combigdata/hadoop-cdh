@@ -246,6 +246,8 @@ public class ConfigUtil {
       new String[] {MRJobConfig.CACHE_FILE_TIMESTAMPS});
     Configuration.addDeprecation("mapred.cache.archives.timestamps", 
       new String[] {MRJobConfig.CACHE_ARCHIVES_TIMESTAMPS});
+    Configuration.addDeprecation(MRJobConfig.MAPREDUCE_TASK_CLASSPATH_PRECEDENCE,
+      new String[] {MRJobConfig.MAPREDUCE_JOB_USER_CLASSPATH_FIRST});
     Configuration.addDeprecation("mapred.working.dir", 
       new String[] {MRJobConfig.WORKING_DIR});
     Configuration.addDeprecation("user.name", 

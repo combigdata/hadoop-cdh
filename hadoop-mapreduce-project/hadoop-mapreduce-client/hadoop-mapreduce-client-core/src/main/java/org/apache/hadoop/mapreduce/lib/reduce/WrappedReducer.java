@@ -188,6 +188,11 @@ public class WrappedReducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT>
     }
 
     @Override
+    public boolean userClassesTakesPrecedence() {
+      return reduceContext.userClassesTakesPrecedence();
+    }
+
+    @Override
     public boolean getJobSetupCleanupNeeded() {
       return reduceContext.getJobSetupCleanupNeeded();
     }
