@@ -276,26 +276,21 @@ public class DelegationTokenRenewer extends AbstractService {
     Collection <Token<?>> tokens = ts.getAllTokens();
     long now = System.currentTimeMillis();
     
-    // find tokens for renewal, but don't add timers until we know
-    // all renewable tokens are valid
-    Set<DelegationTokenToRenew> dtrs = new HashSet<DelegationTokenToRenew>();
     for(Token<?> token : tokens) {
       // first renew happens immediately
       if (token.isManaged()) {
         DelegationTokenToRenew dtr = 
           new DelegationTokenToRenew(applicationId, token, getConfig(), now, 
               shouldCancelAtEnd); 
-        renewToken(dtr);
-        dtrs.add(dtr);
-      }
-    }
-    for (DelegationTokenToRenew dtr : dtrs) {
-      addTokenToList(dtr);
-      setTimerForTokenRenewal(dtr);
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("Registering token for renewal for:" +
-            " service = " + dtr.token.getService() +
-            " for appId = " + applicationId);
+
+        addTokenToList(dtr);
+      
+        setTimerForTokenRenewal(dtr, true);
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Registering token for renewal for:" +
+              " service = " + token.getService() + 
+              " for appId = " + applicationId);
+        }
       }
     }
   }
@@ -320,13 +315,22 @@ public class DelegationTokenRenewer extends AbstractService {
 
       Token<?> token = dttr.token;
       try {
-        renewToken(dttr);
+        // need to use doAs so that http can find the kerberos tgt
+        dttr.expirationDate = UserGroupInformation.getLoginUser()
+          .doAs(new PrivilegedExceptionAction<Long>(){
+
+          @Override
+          public Long run() throws Exception {
+            return dttr.token.renew(dttr.conf);
+          }
+        });
+
         if (LOG.isDebugEnabled()) {
           LOG.debug("Renewing delegation-token for:" + token.getService() + 
               "; new expiration;" + dttr.expirationDate);
         }
         
-        setTimerForTokenRenewal(dttr);// set the next one
+        setTimerForTokenRenewal(dttr, false);// set the next one
       } catch (Exception e) {
         LOG.error("Exception renewing token" + token + ". Not rescheduled", e);
         removeFailedDelegationToken(dttr);
@@ -343,36 +347,25 @@ public class DelegationTokenRenewer extends AbstractService {
   /**
    * set task to renew the token
    */
-  private void setTimerForTokenRenewal(DelegationTokenToRenew token)
-      throws IOException {
+  private 
+  void setTimerForTokenRenewal(DelegationTokenToRenew token, 
+                               boolean firstTime) throws IOException {
       
     // calculate timer time
-    long expiresIn = token.expirationDate - System.currentTimeMillis();
-    long renewIn = token.expirationDate - expiresIn/10; // little bit before the expiration
+    long now = System.currentTimeMillis();
+    long renewIn;
+    if(firstTime) {
+      renewIn = now;
+    } else {
+      long expiresIn = (token.expirationDate - now); 
+      renewIn = now + expiresIn - expiresIn/10; // little bit before the expiration
+    }
     
     // need to create new task every time
     TimerTask tTask = new RenewalTimerTask(token);
     token.setTimerTask(tTask); // keep reference to the timer
 
     renewalTimer.schedule(token.timerTask, new Date(renewIn));
-  }
-
-  // renew a token
-  private void renewToken(final DelegationTokenToRenew dttr)
-      throws IOException {
-    // need to use doAs so that http can find the kerberos tgt
-    // NOTE: token renewers should be responsible for the correct UGI!
-    try {
-      dttr.expirationDate = UserGroupInformation.getLoginUser().doAs(
-          new PrivilegedExceptionAction<Long>(){          
-            @Override
-            public Long run() throws Exception {
-              return dttr.token.renew(dttr.conf);
-            }
-          });
-    } catch (InterruptedException e) {
-      throw new IOException(e);
-    }
   }
 
   // cancel a token
