@@ -84,6 +84,7 @@ public class RemoteBlockReader2  implements BlockReader {
   
   final private Peer peer;
   final private DatanodeID datanodeID;
+  final private PeerCache peerCache;
   private final ReadableByteChannel in;
   private DataChecksum checksum;
   
@@ -255,7 +256,7 @@ public class RemoteBlockReader2  implements BlockReader {
   protected RemoteBlockReader2(String file, String bpid, long blockId,
       DataChecksum checksum, boolean verifyChecksum,
       long startOffset, long firstChunkOffset, long bytesToRead, Peer peer,
-      DatanodeID datanodeID) {
+      DatanodeID datanodeID, PeerCache peerCache) {
     // Path is used only for printing block and file information in debug
     this.peer = peer;
     this.datanodeID = datanodeID;
@@ -264,6 +265,7 @@ public class RemoteBlockReader2  implements BlockReader {
     this.verifyChecksum = verifyChecksum;
     this.startOffset = Math.max( startOffset, 0 );
     this.filename = file;
+    this.peerCache = peerCache;
 
     // The total number of bytes that we need to transfer from the DN is
     // the amount that the user wants (bytesToRead), plus the padding at
@@ -276,8 +278,7 @@ public class RemoteBlockReader2  implements BlockReader {
 
 
   @Override
-  public synchronized void close(PeerCache peerCache,
-      FileInputStreamCache fisCache) throws IOException {
+  public synchronized void close() throws IOException {
     packetReceiver.close();
     startOffset = -1;
     checksum = null;
@@ -367,8 +368,8 @@ public class RemoteBlockReader2  implements BlockReader {
                                      long startOffset, long len,
                                      boolean verifyChecksum,
                                      String clientName,
-                                     Peer peer, DatanodeID datanodeID)
-                                     throws IOException {
+                                     Peer peer, DatanodeID datanodeID,
+                                     PeerCache peerCache) throws IOException {
     // in and out will be closed when sock is closed (by the caller)
     final DataOutputStream out = new DataOutputStream(new BufferedOutputStream(
           peer.getOutputStream()));
@@ -401,7 +402,7 @@ public class RemoteBlockReader2  implements BlockReader {
 
     return new RemoteBlockReader2(file, block.getBlockPoolId(), block.getBlockId(),
         checksum, verifyChecksum, startOffset, firstChunkOffset, len, peer,
-        datanodeID);
+        datanodeID, peerCache);
   }
 
   static void checkSuccess(

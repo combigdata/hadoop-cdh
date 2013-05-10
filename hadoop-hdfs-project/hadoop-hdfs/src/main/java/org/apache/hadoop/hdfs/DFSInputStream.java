@@ -440,7 +440,7 @@ public class DFSInputStream extends FSInputStream implements ByteBufferReadable 
 
     // Will be getting a new BlockReader.
     if (blockReader != null) {
-      blockReader.close(peerCache, fileInputStreamCache);
+      blockReader.close();
       blockReader = null;
     }
 
@@ -522,7 +522,7 @@ public class DFSInputStream extends FSInputStream implements ByteBufferReadable 
     dfsClient.checkOpen();
 
     if (blockReader != null) {
-      blockReader.close(peerCache, fileInputStreamCache);
+      blockReader.close();
       blockReader = null;
     }
     super.close();
@@ -846,7 +846,7 @@ public class DFSInputStream extends FSInputStream implements ByteBufferReadable 
         }
       } finally {
         if (reader != null) {
-          reader.close(peerCache, fileInputStreamCache);
+          reader.close();
         }
       }
       // Put chosen node into dead list, continue
@@ -915,7 +915,8 @@ public class DFSInputStream extends FSInputStream implements ByteBufferReadable 
             "the FileInputStreamCache.");
       }
       return new BlockReaderLocal(dfsClient.conf, file,
-        block, startOffset, len, fis[0], fis[1], chosenNode, verifyChecksum);
+        block, startOffset, len, fis[0], fis[1], chosenNode, verifyChecksum,
+        fileInputStreamCache);
     }
     
     // If the legacy local block reader is enabled and we are reading a local
@@ -948,7 +949,8 @@ public class DFSInputStream extends FSInputStream implements ByteBufferReadable 
         reader = BlockReaderFactory.newBlockReader(
             dfsClient.conf, file, block, blockToken, startOffset,
             len, verifyChecksum, clientName, peer, chosenNode, 
-            dsFactory, allowShortCircuitLocalReads);
+            dsFactory, peerCache, fileInputStreamCache,
+            allowShortCircuitLocalReads);
         return reader;
       } catch (IOException ex) {
         DFSClient.LOG.debug("Error making BlockReader with DomainSocket. " +
@@ -969,8 +971,9 @@ public class DFSInputStream extends FSInputStream implements ByteBufferReadable 
             shortCircuitLocalReads && (!shortCircuitForbidden());
         reader = BlockReaderFactory.newBlockReader(
             dfsClient.conf, file, block, blockToken, startOffset,
-            len, verifyChecksum, clientName, peer, chosenNode, 
-            dsFactory, allowShortCircuitLocalReads);
+            len, verifyChecksum, clientName, peer, chosenNode,
+            dsFactory, peerCache, fileInputStreamCache,
+            allowShortCircuitLocalReads);
         return reader;
       } catch (IOException e) {
         DFSClient.LOG.warn("failed to connect to " + domSock, e);
@@ -993,7 +996,7 @@ public class DFSInputStream extends FSInputStream implements ByteBufferReadable 
         reader = BlockReaderFactory.newBlockReader(
             dfsClient.conf, file, block, blockToken, startOffset,
             len, verifyChecksum, clientName, peer, chosenNode, 
-            dsFactory, false);
+            dsFactory, peerCache, fileInputStreamCache, false);
         return reader;
       } catch (IOException ex) {
         DFSClient.LOG.debug("Error making BlockReader. Closing stale " +
@@ -1012,7 +1015,7 @@ public class DFSInputStream extends FSInputStream implements ByteBufferReadable 
     return BlockReaderFactory.newBlockReader(
         dfsClient.conf, file, block, blockToken, startOffset,
         len, verifyChecksum, clientName, peer, chosenNode, 
-        dsFactory, false);
+        dsFactory, peerCache, fileInputStreamCache, false);
   }
 
 
