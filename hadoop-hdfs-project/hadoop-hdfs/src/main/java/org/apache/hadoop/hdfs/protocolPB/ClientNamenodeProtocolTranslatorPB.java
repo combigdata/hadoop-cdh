@@ -853,7 +853,13 @@ public class ClientNamenodeProtocolTranslatorPB implements
     try {
       return rpcProxy.isFileClosed(null, req).getResult();
     } catch (ServiceException e) {
-      throw ProtobufHelper.getRemoteException(e);
+      IOException ioe = ProtobufHelper.getRemoteException(e);
+      if (ioe.getMessage().startsWith("Unknown method isFileClosed called")) {
+        throw new UnsupportedOperationException(
+            "Remote server does not implement isFileClosed.", ioe);
+      } else {
+        throw ioe;
+      }
     }
   }
 
