@@ -266,29 +266,15 @@ public abstract class GenericTestUtils {
    */
   public static class DelegateAnswer implements Answer<Object> { 
     private final Object delegate;
-    private final Log log;
     
     public DelegateAnswer(Object delegate) {
-      this(null, delegate);
-    }
-    
-    public DelegateAnswer(Log log, Object delegate) {
-      this.log = log;
       this.delegate = delegate;
     }
 
     @Override
     public Object answer(InvocationOnMock invocation) throws Throwable {
-      try {
-        if (log != null) {
-          log.info("Call to " + invocation + " on " + delegate,
-              new Exception("TRACE"));
-        }
-        return invocation.getMethod().invoke(
-            delegate, invocation.getArguments());
-      } catch (InvocationTargetException ite) {
-        throw ite.getCause();
-      }
+      return invocation.getMethod().invoke(
+          delegate, invocation.getArguments());
     }
   }
 
