@@ -934,7 +934,8 @@ public class DataNode extends Configured
     MBeans.register("DataNode", "DataNodeInfo", this);
   }
   
-  int getXferPort() {
+  @VisibleForTesting
+  public int getXferPort() {
     return streamingAddr.getPort();
   }
   
