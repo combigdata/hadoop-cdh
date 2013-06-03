@@ -131,7 +131,7 @@ public class DatanodeManager {
   private final int defaultIpcPort;
 
   /** Read include/exclude files*/
-  private final HostFileManager hostFileManager;
+  private final HostFileManager hostFileManager = new HostFileManager();
 
   /** The period to wait for datanode heartbeat.*/
   private final long heartbeatExpireInterval;
@@ -177,11 +177,6 @@ public class DatanodeManager {
             NetworkTopology.class, NetworkTopology.class);
     networktopology = (NetworkTopology) ReflectionUtils.newInstance(
         networkTopologyClass, conf);
-    int dnsResolutionSeconds = conf.getInt(
-        DFSConfigKeys.DFS_NAMENODE_HOSTS_DNS_RESOLUTION_INTERVAL_SECONDS,
-        DFSConfigKeys.DFS_NAMENODE_HOSTS_DNS_RESOLUTION_INTERVAL_SECONDS_DEFAULT);
-    this.hostFileManager = new HostFileManager(dnsResolutionSeconds);
-     
 
     this.heartbeatManager = new HeartbeatManager(namesystem, blockManager, conf);
 
@@ -301,7 +296,6 @@ public class DatanodeManager {
   }
 
   void close() {
-    IOUtils.cleanup(LOG, hostFileManager);
     if (decommissionthread != null) {
       decommissionthread.interrupt();
       try {
