@@ -60,8 +60,6 @@ public class TestRMRestart {
     conf.set(YarnConfiguration.RECOVERY_ENABLED, "true");
     conf.set(YarnConfiguration.RM_STORE, 
     "org.apache.hadoop.yarn.server.resourcemanager.recovery.MemoryRMStateStore");
-    conf.set(YarnConfiguration.RM_SCHEDULER, 
-    "org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FairScheduler");
 
     MemoryRMStateStore memStore = new MemoryRMStateStore();
     memStore.init(conf);
