@@ -40,6 +40,7 @@ import javax.xml.parsers.ParserConfigurationException;
 import junit.framework.Assert;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.metrics2.lib.DefaultMetricsSystem;
 import org.apache.hadoop.security.authorize.AccessControlList;
 import org.apache.hadoop.yarn.Clock;
 import org.apache.hadoop.yarn.MockApps;
@@ -129,6 +130,7 @@ public class TestFairScheduler {
     scheduler = null;
     resourceManager = null;
     QueueMetrics.clearQueueMetrics();
+    DefaultMetricsSystem.shutdown();
   }
   
   private Configuration createConfiguration() {
