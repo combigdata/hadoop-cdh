@@ -117,14 +117,9 @@ public class NodeStatusUpdaterImpl extends AbstractService implements
             YarnConfiguration.DEFAULT_NM_VMEM_PMEM_RATIO); 
     int virtualMemoryMb = (int)Math.ceil(memoryMb * vMemToPMem);
     
-    int cpuCores =
+    int virtualCores =
         conf.getInt(
             YarnConfiguration.NM_VCORES, YarnConfiguration.DEFAULT_NM_VCORES);
-    float vCoresToPCores =             
-        conf.getFloat(
-            YarnConfiguration.NM_VCORES_PCORES_RATIO, 
-            YarnConfiguration.DEFAULT_NM_VCORES_PCORES_RATIO); 
-    int virtualCores = (int)Math.ceil(cpuCores * vCoresToPCores); 
 
     this.totalResource = recordFactory.newRecordInstance(Resource.class);
     this.totalResource.setMemory(memoryMb);
@@ -136,8 +131,8 @@ public class NodeStatusUpdaterImpl extends AbstractService implements
             YarnConfiguration.DEFAULT_RM_NM_EXPIRY_INTERVAL_MS);
     
     LOG.info("Initialized nodemanager for " + nodeId + ":" +
-    		" physical-memory=" + memoryMb + " virtual-memory=" + virtualMemoryMb +
-    		" physical-cores=" + cpuCores + " virtual-cores=" + virtualCores);
+        " physical-memory=" + memoryMb + " virtual-memory=" + virtualMemoryMb +
+        " virtual-cores=" + virtualCores);
     
     super.init(conf);
   }
