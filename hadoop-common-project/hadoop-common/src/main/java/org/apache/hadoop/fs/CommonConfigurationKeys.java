@@ -176,6 +176,9 @@ public class CommonConfigurationKeys extends CommonConfigurationKeysPublic {
       "ha.failover-controller.graceful-fence.connection.retries";
   public static final int HA_FC_GRACEFUL_FENCE_CONNECTION_RETRIES_DEFAULT = 1;
 
+  public static final String  IPC_CLIENT_FALLBACK_TO_SIMPLE_AUTH_ALLOWED_KEY = "ipc.client.fallback-to-simple-auth-allowed";
+  public static final boolean IPC_CLIENT_FALLBACK_TO_SIMPLE_AUTH_ALLOWED_DEFAULT = false;
+
   /* Timeout that the CLI (manual) FC waits for monitorHealth, getServiceState */
   public static final String HA_FC_CLI_CHECK_TIMEOUT_KEY =
     "ha.failover-controller.cli-check.rpc-timeout.ms";
