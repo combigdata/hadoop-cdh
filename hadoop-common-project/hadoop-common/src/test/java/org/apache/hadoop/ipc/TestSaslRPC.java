@@ -79,6 +79,9 @@ public class TestSaslRPC {
   static {
     conf = new Configuration();
     conf.set(HADOOP_SECURITY_AUTHENTICATION, "kerberos");
+    conf.setBoolean(
+        CommonConfigurationKeys.IPC_CLIENT_FALLBACK_TO_SIMPLE_AUTH_ALLOWED_KEY,
+        true);
     UserGroupInformation.setConfiguration(conf);
   }
 
