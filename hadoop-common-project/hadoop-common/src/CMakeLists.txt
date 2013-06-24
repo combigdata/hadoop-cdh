@@ -154,7 +154,8 @@ add_dual_library(hadoop
     ${D}/io/nativeio/file_descriptor.c
     ${D}/security/JniBasedUnixGroupsMapping.c
     ${D}/security/JniBasedUnixGroupsNetgroupMapping.c
-    ${D}/security/getGroup.c
+    ${D}/security/hadoop_group_info.c
+    ${D}/security/hadoop_user_info.c
     ${D}/util/NativeCodeLoader.c
     ${D}/util/NativeCrc32.c
     ${D}/util/bulk_crc32.c
