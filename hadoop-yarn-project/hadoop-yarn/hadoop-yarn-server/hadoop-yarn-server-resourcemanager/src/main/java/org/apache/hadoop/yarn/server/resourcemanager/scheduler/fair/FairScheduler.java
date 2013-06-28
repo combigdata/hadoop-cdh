@@ -140,7 +140,7 @@ public class FairScheduler implements ResourceScheduler {
       new Allocation(EMPTY_CONTAINER_LIST, Resources.createResource(0));
 
   // Aggregate metrics
-  QueueMetrics rootMetrics;
+  FSQueueMetrics rootMetrics;
 
   // Time when we last updated preemption vars
   protected long lastPreemptionUpdateTime;
@@ -996,7 +996,7 @@ public class FairScheduler implements ResourceScheduler {
     waitTimeBeforeKill = this.conf.getWaitTimeBeforeKill();
 
     if (!initialized) {
-      rootMetrics = QueueMetrics.forQueue("root", null, true, conf);
+      rootMetrics = FSQueueMetrics.forQueue("root", null, true, conf);
       this.rmContext = rmContext;
       this.eventLog = new FairSchedulerEventLog();
       eventLog.init(this.conf);

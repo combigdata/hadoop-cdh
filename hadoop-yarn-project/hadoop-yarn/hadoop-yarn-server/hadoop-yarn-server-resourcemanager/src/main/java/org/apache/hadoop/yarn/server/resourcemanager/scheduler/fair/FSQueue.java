@@ -45,7 +45,7 @@ public abstract class FSQueue extends Schedulable implements Queue {
   private final String name;
   private final QueueManager queueMgr;
   private final FairScheduler scheduler;
-  private final QueueMetrics metrics;
+  private final FSQueueMetrics metrics;
   
   protected final FSParentQueue parent;
   protected final RecordFactory recordFactory =
@@ -58,7 +58,9 @@ public abstract class FSQueue extends Schedulable implements Queue {
     this.name = name;
     this.queueMgr = queueMgr;
     this.scheduler = scheduler;
-    this.metrics = QueueMetrics.forQueue(getName(), parent, true, scheduler.getConf());
+    this.metrics = FSQueueMetrics.forQueue(getName(), parent, true, scheduler.getConf());
+    metrics.setMinShare(getMinShare());
+    metrics.setMaxShare(getMaxShare());
     this.parent = parent;
   }
   
@@ -141,8 +143,14 @@ public abstract class FSQueue extends Schedulable implements Queue {
   }
   
   @Override
-  public QueueMetrics getMetrics() {
+  public FSQueueMetrics getMetrics() {
     return metrics;
+  }
+  
+  @Override
+  public void setFairShare(Resource fairShare) {
+    super.setFairShare(fairShare);
+    metrics.setFairShare(fairShare);
   }
   
   public boolean hasAccess(QueueACL acl, UserGroupInformation user) {
