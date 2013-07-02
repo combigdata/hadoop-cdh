@@ -200,6 +200,7 @@ public class WrappedMapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT>
     }
 
     @Override
+    @Deprecated
     public boolean userClassesTakesPrecedence() {
       return mapContext.userClassesTakesPrecedence();
     }

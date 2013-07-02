@@ -351,8 +351,14 @@ public class Job extends JobContextImpl implements JobContext {
   /**
    * Set the boolean property for specifying which classpath takes precedence -
    * the user's one or the system one, when the tasks are launched
+   * 
+   * Setting mapreduce.job.classloader to true is preferable to using this,
+   * using this, as the former will prefer system classes for system code and
+   * user classes for user code.
+   * 
    * @param value pass true if user's classes should take precedence
    */
+  @Deprecated
   public void setUserClassesTakesPrecedence(boolean value) {
     ensureState(JobState.DEFINE);
     conf.setUserClassesTakesPrecedence(value);

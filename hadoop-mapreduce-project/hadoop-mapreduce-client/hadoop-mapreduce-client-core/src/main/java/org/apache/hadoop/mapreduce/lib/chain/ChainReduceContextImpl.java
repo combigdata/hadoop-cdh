@@ -191,6 +191,7 @@ class ChainReduceContextImpl<KEYIN, VALUEIN, KEYOUT, VALUEOUT> implements
   }
 
   @Override
+  @Deprecated
   public boolean userClassesTakesPrecedence() {
     return base.userClassesTakesPrecedence();
   }

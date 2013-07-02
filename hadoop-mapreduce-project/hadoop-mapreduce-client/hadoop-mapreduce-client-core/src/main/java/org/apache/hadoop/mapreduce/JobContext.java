@@ -112,6 +112,7 @@ public interface JobContext extends MRJobConfig {
    * precedence. False - system's classes takes precedence.
    * @return true if user's classes should take precedence
    */
+  @Deprecated
   public boolean userClassesTakesPrecedence();
 
   /**

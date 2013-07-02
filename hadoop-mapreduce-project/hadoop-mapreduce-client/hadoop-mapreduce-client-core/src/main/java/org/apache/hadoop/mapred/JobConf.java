@@ -1633,9 +1633,15 @@ public class JobConf extends Configuration {
 
   /**
    * Set the boolean property for specifying which classpath takes precedence -
-   * the user's one or the system one, when the tasks are launched
+   * the user's one or the system one, when the tasks are launched.
+   * 
+   * Setting mapreduce.job.classloader to true is preferable to using this,
+   * using this, as the former will prefer system classes for system code and
+   * user classes for user code.
+   * 
    * @param value pass true if user's classes should take precedence
    */
+  @Deprecated
   public void setUserClassesTakesPrecedence(boolean value) {
     setBoolean(MRJobConfig.MAPREDUCE_JOB_USER_CLASSPATH_FIRST, value);
   }
@@ -1646,6 +1652,7 @@ public class JobConf extends Configuration {
    * precedence. False - system's classes takes precedence.
    * @return true if user's classes should take precedence
    */
+  @Deprecated
   public boolean userClassesTakesPrecedence() {
     return getBoolean(MRJobConfig.MAPREDUCE_JOB_USER_CLASSPATH_FIRST, false);
   }

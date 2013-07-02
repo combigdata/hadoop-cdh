@@ -193,6 +193,7 @@ public class WrappedReducer<KEYIN, VALUEIN, KEYOUT, VALUEOUT>
     }
 
     @Override
+    @Deprecated
     public boolean userClassesTakesPrecedence() {
       return reduceContext.userClassesTakesPrecedence();
     }
