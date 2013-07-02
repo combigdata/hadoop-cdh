@@ -25,6 +25,7 @@ import static org.mockito.Mockito.mock;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 
 import org.apache.hadoop.conf.Configuration;
@@ -47,6 +48,23 @@ import org.junit.Assert;
 import org.junit.Test;
 
 public class TestWebHdfsUrl {
+
+  @Test(timeout=60000)
+  public void testEncodedPathUrl() throws IOException, URISyntaxException {
+    Configuration conf = new Configuration();
+    final URI uri = URI.create(WebHdfsFileSystem.SCHEME + "://" + "127.0.0.1:0");
+    final WebHdfsFileSystem webhdfs = (WebHdfsFileSystem) FileSystem.get(
+        uri, conf);
+
+    // Construct a file path that contains percentage-encoded string
+
+    String pathName = "/hdtest010%2C60020%2C1371000602151.1371058984668";
+    Path fsPath = new Path(pathName);
+    URL encodedPathUrl = webhdfs.toUrl(PutOpParam.Op.CREATE, fsPath);
+    // We should get back the original file path after cycling back and decoding
+    Assert.assertEquals(WebHdfsFileSystem.PATH_PREFIX + pathName,
+        encodedPathUrl.toURI().getPath());
+  }
 
   @Test
   public void testDelegationTokenInUrl() throws IOException {
