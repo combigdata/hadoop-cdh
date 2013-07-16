@@ -74,6 +74,7 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.authorize.RefreshAuthorizationPolicyProtocol;
 import org.apache.hadoop.tools.GetUserMappingsProtocol;
 import org.apache.hadoop.util.ExitUtil.ExitException;
+import org.apache.hadoop.util.JvmPauseMonitor;
 import org.apache.hadoop.util.ServicePlugin;
 import org.apache.hadoop.util.StringUtils;
 
@@ -251,6 +252,8 @@ public class NameNode {
   private List<ServicePlugin> plugins;
   
   private NameNodeRpcServer rpcServer;
+
+  private JvmPauseMonitor pauseMonitor;
   
   /** Format a new filesystem.  Destroys any filesystem that may already
    * exist at this location.  **/
@@ -441,6 +444,9 @@ public class NameNode {
       LOG.fatal(e.toString());
       throw e;
     }
+    
+    pauseMonitor = new JvmPauseMonitor(conf);
+    pauseMonitor.start();
 
     startCommonServices(conf);
   }
@@ -500,6 +506,7 @@ public class NameNode {
   private void stopCommonServices() {
     if(namesystem != null) namesystem.close();
     if(rpcServer != null) rpcServer.stop();
+    if (pauseMonitor != null) pauseMonitor.stop();
     if (plugins != null) {
       for (ServicePlugin p : plugins) {
         try {
