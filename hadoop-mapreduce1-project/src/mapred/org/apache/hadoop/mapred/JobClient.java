@@ -37,6 +37,7 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.net.UnknownHostException;
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -78,6 +79,8 @@ import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.authorize.AccessControlList;
 import org.apache.hadoop.security.token.Token;
+import org.apache.hadoop.security.token.TokenIdentifier;
+import org.apache.hadoop.security.token.delegation.AbstractDelegationTokenIdentifier;
 import org.apache.hadoop.security.token.SecretManager.InvalidToken;
 import org.apache.hadoop.security.token.TokenRenewer;
 import org.apache.hadoop.util.ReflectionUtils;
@@ -87,6 +90,8 @@ import org.apache.hadoop.util.ToolRunner;
 import org.codehaus.jackson.JsonParseException;
 import org.codehaus.jackson.map.JsonMappingException;
 import org.codehaus.jackson.map.ObjectMapper;
+
+import com.google.common.base.Joiner;
 
 /**
  * <code>JobClient</code> is the primary interface for the user-job to interact
@@ -1009,6 +1014,22 @@ public class JobClient extends Configured implements MRConstants, Tool  {
           // because of it if present as the referral will point to a
           // different job.
           TokenCache.cleanUpTokenReferral(jobCopy);
+      
+          // Include delegation tokens in the job conf so that it can be associated
+          // with FS operations
+          List<String> idStrs = new ArrayList<String>();
+          for (Token<? extends TokenIdentifier> token : job.getCredentials().getAllTokens()) {
+            TokenIdentifier identifier = token.decodeIdentifier();
+            // Only delegation tokens have sequence numbers
+            if (identifier instanceof AbstractDelegationTokenIdentifier) {
+              AbstractDelegationTokenIdentifier dtIdentifier =
+                  (AbstractDelegationTokenIdentifier)identifier;
+              idStrs.add(token.getKind() + "|" + token.getService() + "|"
+                  + dtIdentifier.getSequenceNumber());
+            }
+          }
+          jobCopy.setStrings("delegation.token.ids",
+              idStrs.toArray(new String[idStrs.size()]));
 
           try {
             jobCopy.writeXml(out);
