@@ -477,5 +477,10 @@ public class DFSConfigKeys extends CommonConfigurationKeys {
   
   public static final String DFS_MAX_NUM_BLOCKS_TO_LOG_KEY = "dfs.namenode.max-num-blocks-to-log";
   public static final long   DFS_MAX_NUM_BLOCKS_TO_LOG_DEFAULT = 1000l;
+
+  // Hidden configuration undocumented in hdfs-site. xml
+  // Timeout to wait for block receiver and responder thread to stop
+  public static final String DFS_DATANODE_XCEIVER_STOP_TIMEOUT_MILLIS_KEY = "dfs.datanode.xceiver.stop.timeout.millis";
+  public static final long   DFS_DATANODE_XCEIVER_STOP_TIMEOUT_MILLIS_DEFAULT = 60000;
 }
 
