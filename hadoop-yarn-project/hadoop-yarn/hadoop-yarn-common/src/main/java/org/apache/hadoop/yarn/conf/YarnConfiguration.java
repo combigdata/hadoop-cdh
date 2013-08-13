@@ -523,6 +523,14 @@ public class YarnConfiguration extends Configuration {
 
   public static final String DEFAULT_NM_USER_HOME_DIR= "/home/";
 
+  /**
+   * Whether users are explicitly trying to control resource monitoring
+   * configuration for the MiniYARNCluster. Disabled by default.
+   */
+  public static final String YARN_MINICLUSTER_CONTROL_RESOURCE_MONITORING =
+      YARN_PREFIX + "minicluster.control-resource-monitoring";
+  public static final boolean
+      DEFAULT_YARN_MINICLUSTER_CONTROL_RESOURCE_MONITORING = false;
 
   public static final int INVALID_CONTAINER_EXIT_STATUS = -1000;
   public static final int ABORTED_CONTAINER_EXIT_STATUS = -100;
