@@ -50,6 +50,9 @@
     
     <test.build.dir>${project.build.directory}/test-dir</test.build.dir>
     <test.build.data>${test.build.dir}</test.build.data>
+    <protobuf.version>2.4.0a</protobuf.version>
+    <protoc.path>HADOOP_PROTOC_CDH4_PATH</protoc.path>
+    <protoc.version>2.4</protoc.version>
   </properties>
 
   <dependencyManagement>
@@ -595,7 +598,7 @@
       <dependency>
         <groupId>com.google.protobuf</groupId>
         <artifactId>protobuf-java</artifactId>
-        <version>2.4.0a</version>
+        <version>${protobuf.version}</version>
       </dependency>
       <dependency>
         <groupId>commons-daemon</groupId>

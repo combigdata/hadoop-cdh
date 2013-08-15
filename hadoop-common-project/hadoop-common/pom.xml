@@ -274,6 +274,16 @@
             <configuration>
               <target>
                 <echo file="target/compile-proto.sh">
+                    #!/bin/bash
+                    PROTOC="$${protoc.path}"
+                    if [ "${PROTOC}X" = "X" ]; then
+                      PROTOC="protoc"
+                    fi
+                    PROTOC_VERSION=`${PROTOC} --version`
+                    if [[ "${PROTOC_VERSION}" != *${protoc.version}* ]]; then
+                      echo "Required version of 'protoc' is ${protobuf.version}, reported ${PROTOC_VERSION}"
+                      exit 1
+                    fi
                     PROTO_DIR=src/main/proto
                     JAVA_DIR=target/generated-sources/java
                     which cygpath 2> /dev/null
@@ -288,13 +298,13 @@
                     for PROTO_FILE in `ls $PROTO_DIR/*.proto 2> /dev/null`
                     do
                         if [ "$IS_WIN" = "true" ]; then
-                          protoc -I$WIN_PROTO_DIR --java_out=$WIN_JAVA_DIR $PROTO_FILE
+                          ${PROTOC} -I$WIN_PROTO_DIR --java_out=$WIN_JAVA_DIR $PROTO_FILE
                         else
-                          protoc -I$PROTO_DIR --java_out=$JAVA_DIR $PROTO_FILE
+                          ${PROTOC} -I$PROTO_DIR --java_out=$JAVA_DIR $PROTO_FILE
                         fi
                     done
                 </echo>
-                <exec executable="sh" dir="${basedir}" failonerror="true">
+                <exec executable="bash" dir="${basedir}" failonerror="true">
                   <arg line="target/compile-proto.sh"/>
                 </exec>
               </target>
@@ -309,6 +319,16 @@
             <configuration>
               <target>
                 <echo file="target/compile-test-proto.sh">
+                    #!/bin/bash
+                    PROTOC="$${protoc.path}"
+                    if [ "${PROTOC}X" = "X" ]; then
+                      PROTOC="protoc"
+                    fi
+                    PROTOC_VERSION=`${PROTOC} --version`
+                    if [[ "${PROTOC_VERSION}" != *${protoc.version}* ]]; then
+                      echo "Required version of 'protoc' is ${protobuf.version}, reported ${PROTOC_VERSION}"
+                      exit 1
+                    fi
                     PROTO_DIR=src/test/proto
                     JAVA_DIR=target/generated-test-sources/java
                     which cygpath 2> /dev/null
@@ -323,13 +343,13 @@
                     for PROTO_FILE in `ls $PROTO_DIR/*.proto 2> /dev/null`
                     do
                         if [ "$IS_WIN" = "true" ]; then
-                          protoc -I$WIN_PROTO_DIR --java_out=$WIN_JAVA_DIR $PROTO_FILE
+                          ${PROTOC} -I$WIN_PROTO_DIR --java_out=$WIN_JAVA_DIR $PROTO_FILE
                         else
-                          protoc -I$PROTO_DIR --java_out=$JAVA_DIR $PROTO_FILE
+                          ${PROTOC} -I$PROTO_DIR --java_out=$JAVA_DIR $PROTO_FILE
                         fi
                     done
                 </echo>
-                <exec executable="sh" dir="${basedir}" failonerror="true">
+                <exec executable="bash" dir="${basedir}" failonerror="true">
                   <arg line="target/compile-test-proto.sh"/>
                 </exec>
               </target>
