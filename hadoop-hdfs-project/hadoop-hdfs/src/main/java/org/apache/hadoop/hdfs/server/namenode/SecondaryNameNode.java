@@ -408,10 +408,8 @@ public class SecondaryNameNode implements Runnable {
             dstImage.getStorage().cTime = sig.cTime;
 
             // get fsimage
-            boolean downloadImage = true;
             if (sig.mostRecentCheckpointTxId ==
                 dstImage.getStorage().getMostRecentCheckpointTxId()) {
-              downloadImage = false;
               LOG.info("Image has not changed. Will not download image.");
             } else {
               LOG.info("Image has changed. Downloading updated image from NN.");
@@ -427,7 +425,9 @@ public class SecondaryNameNode implements Runnable {
                   nnHostPort, log, dstImage.getStorage());
             }
         
-            return Boolean.valueOf(downloadImage);
+            // true if we haven't loaded all the transactions represented by the
+            // downloaded fsimage.
+            return dstImage.getLastAppliedTxId() < sig.mostRecentCheckpointTxId;
           }
         });
         return b.booleanValue();
