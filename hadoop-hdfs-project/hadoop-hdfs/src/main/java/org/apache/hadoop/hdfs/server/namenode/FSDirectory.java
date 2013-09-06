@@ -58,6 +58,7 @@ import org.apache.hadoop.hdfs.server.blockmanagement.BlockManager;
 import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeDescriptor;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.BlockUCState;
 import org.apache.hadoop.hdfs.util.ByteArray;
+import org.apache.hadoop.hdfs.util.ChunkedArrayList;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -763,7 +764,7 @@ public class FSDirectory implements Closeable {
         if (removedDst != null) {
           INode rmdst = removedDst;
           removedDst = null;
-          List<Block> collectedBlocks = new ArrayList<Block>();
+          List<Block> collectedBlocks = new ChunkedArrayList<Block>();
           filesDeleted = rmdst.collectSubtreeBlocksAndClear(collectedBlocks);
           getFSNamesystem().removePathAndBlocks(src, collectedBlocks);
         }
@@ -1067,7 +1068,7 @@ public class FSDirectory implements Closeable {
   void unprotectedDelete(String src, long mtime) 
     throws UnresolvedLinkException {
     assert hasWriteLock();
-    List<Block> collectedBlocks = new ArrayList<Block>();
+    List<Block> collectedBlocks = new ChunkedArrayList<Block>();
     int filesRemoved = unprotectedDelete(src, collectedBlocks, mtime);
     if (filesRemoved > 0) {
       getFSNamesystem().removePathAndBlocks(src, collectedBlocks);

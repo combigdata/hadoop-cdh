@@ -197,6 +197,7 @@ import org.apache.hadoop.hdfs.server.protocol.NamenodeCommand;
 import org.apache.hadoop.hdfs.server.protocol.NamenodeRegistration;
 import org.apache.hadoop.hdfs.server.protocol.NamespaceInfo;
 import org.apache.hadoop.hdfs.server.protocol.UpgradeCommand;
+import org.apache.hadoop.hdfs.util.ChunkedArrayList;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.ipc.Server;
@@ -2924,7 +2925,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       boolean enforcePermission)
       throws AccessControlException, SafeModeException, UnresolvedLinkException,
              IOException {
-    ArrayList<Block> collectedBlocks = new ArrayList<Block>();
+    ChunkedArrayList<Block> collectedBlocks = new ChunkedArrayList<Block>();
     FSPermissionChecker pc = getPermissionChecker();
     checkOperation(OperationCategory.WRITE);
     writeLock();
@@ -2963,20 +2964,16 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
    * ensure that other waiters on the lock can get in. See HDFS-2938
    */
   private void removeBlocks(List<Block> blocks) {
-    int start = 0;
-    int end = 0;
-    while (start < blocks.size()) {
-      end = BLOCK_DELETION_INCREMENT + start;
-      end = end > blocks.size() ? blocks.size() : end;
+    Iterator<Block> iter = blocks.iterator();
+    while (iter.hasNext()) {
       writeLock();
       try {
-        for (int i = start; i < end; i++) {
-          blockManager.removeBlock(blocks.get(i));
+        for (int i = 0; i < BLOCK_DELETION_INCREMENT && iter.hasNext(); i++) {
+          blockManager.removeBlock(iter.next());
         }
       } finally {
         writeUnlock();
       }
-      start = end;
     }
   }
   
