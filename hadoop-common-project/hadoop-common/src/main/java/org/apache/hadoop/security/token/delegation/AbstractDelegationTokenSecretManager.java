@@ -86,6 +86,11 @@ extends AbstractDelegationTokenIdentifier>
   private long tokenMaxLifetime;
   private long tokenRemoverScanInterval;
   private long tokenRenewInterval;
+  /**
+   * Whether to store a token's tracking ID in its TokenInformation.
+   * Can be overridden by a subclass.
+   */
+  protected boolean storeTokenTrackingId;
   private Thread tokenRemoverThread;
   protected volatile boolean running;
 
@@ -102,6 +107,7 @@ extends AbstractDelegationTokenIdentifier>
     this.tokenMaxLifetime = delegationTokenMaxLifetime;
     this.tokenRenewInterval = delegationTokenRenewInterval;
     this.tokenRemoverScanInterval = delegationTokenRemoverScanInterval;
+    this.storeTokenTrackingId = false;
   }
 
   /** should be called before this object is used */
@@ -216,7 +222,7 @@ extends AbstractDelegationTokenIdentifier>
     LOG.info("Creating password for identifier: " + identifier);
     byte[] password = createPassword(identifier.getBytes(), currentKey.getKey());
     currentTokens.put(identifier, new DelegationTokenInformation(now
-        + tokenRenewInterval, password));
+        + tokenRenewInterval, password, getTrackingIdIfEnabled(identifier)));
     return password;
   }
 
@@ -233,6 +239,21 @@ extends AbstractDelegationTokenIdentifier>
       throw new InvalidToken("token (" + identifier.toString() + ") is expired");
     }
     return info.getPassword();
+  }
+
+  protected String getTrackingIdIfEnabled(TokenIdent ident) {
+    if (storeTokenTrackingId) {
+      return ident.getTrackingId();
+    }
+    return null;
+  }
+
+  public synchronized String getTokenTrackingId(TokenIdent identifier) {
+    DelegationTokenInformation info = currentTokens.get(identifier);
+    if (info == null) {
+      return null;
+    }
+    return info.getTrackingId();
   }
 
   /**
@@ -295,8 +316,9 @@ extends AbstractDelegationTokenIdentifier>
           + " is trying to renew a token with " + "wrong password");
     }
     long renewTime = Math.min(id.getMaxDate(), now + tokenRenewInterval);
+    String trackingId = getTrackingIdIfEnabled(id);
     DelegationTokenInformation info = new DelegationTokenInformation(renewTime,
-        password);
+        password, trackingId);
 
     if (currentTokens.get(id) == null) {
       throw new InvalidToken("Renewal request for unknown token");
@@ -354,9 +376,13 @@ extends AbstractDelegationTokenIdentifier>
   public static class DelegationTokenInformation {
     long renewDate;
     byte[] password;
-    public DelegationTokenInformation(long renewDate, byte[] password) {
+    String trackingId;
+
+    public DelegationTokenInformation(long renewDate, byte[] password,
+        String trackingId) {
       this.renewDate = renewDate;
       this.password = password;
+      this.trackingId = trackingId;
     }
     /** returns renew date */
     public long getRenewDate() {
@@ -365,6 +391,10 @@ extends AbstractDelegationTokenIdentifier>
     /** returns password */
     byte[] getPassword() {
       return password;
+    }
+    /** returns tracking id */
+    public String getTrackingId() {
+      return trackingId;
     }
   }
   

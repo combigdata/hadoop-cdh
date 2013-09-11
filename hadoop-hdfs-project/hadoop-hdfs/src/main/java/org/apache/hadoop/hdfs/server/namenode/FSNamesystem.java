@@ -36,6 +36,8 @@ import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_HA_STANDBY_CHECKPOINTS_KE
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_NAMENODE_ACCESSTIME_PRECISION_KEY;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_NAMENODE_ACCESSTIME_PRECISION_DEFAULT;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_NAMENODE_AUDIT_LOGGERS_KEY;
+import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_NAMENODE_AUDIT_LOG_TOKEN_TRACKING_ID_DEFAULT;
+import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_NAMENODE_AUDIT_LOG_TOKEN_TRACKING_ID_KEY;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_NAMENODE_DEFAULT_AUDIT_LOGGER_NAME;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_NAMENODE_DELEGATION_KEY_UPDATE_INTERVAL_DEFAULT;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_NAMENODE_DELEGATION_KEY_UPDATE_INTERVAL_KEY;
@@ -85,6 +87,8 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.management.ManagementFactory;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.URI;
 import java.util.ArrayList;
@@ -100,6 +104,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -201,6 +206,7 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.UserGroupInformation.AuthenticationMethod;
 import org.apache.hadoop.security.token.SecretManager.InvalidToken;
 import org.apache.hadoop.security.token.Token;
+import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.security.token.delegation.DelegationKey;
 import org.apache.hadoop.util.Daemon;
 import org.apache.hadoop.util.DataChecksum;
@@ -274,6 +280,28 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
           stat.getGroup(), symlink, path);
     }
     for (AuditLogger logger : auditLoggers) {
+      // Try to invoke new reflected method, fall back to the old method
+      if (hdfsAuditLoggerMethodCache.containsKey(logger)) {
+        Exception ex = null;
+        try {
+          Method m = hdfsAuditLoggerMethodCache.get(logger);
+          m.invoke(logger, succeeded, ugi.toString(), addr, cmd, src, dst,
+              status, ugi, dtSecretManager);
+          continue; // success
+        } catch (IllegalAccessException e) {
+          ex = e;
+        } catch (IllegalArgumentException e) {
+          ex = e;
+        } catch (InvocationTargetException e) {
+          ex = e;
+        }
+        if (ex != null) {
+          LOG.warn("Exception while trying to call logAuditEvent with"
+              + " token tracking ID information", ex);
+          hdfsAuditLoggerMethodCache.remove(logger);
+        }
+      }
+      // Not in cache or reflected method failed
       logger.logAuditEvent(succeeded, ugi.toString(), addr,
           cmd, src, dst, status);
     }
@@ -315,6 +343,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
   // underlying logger is disabled, and avoid some unnecessary work.
   private final boolean isDefaultAuditLogger;
   private final List<AuditLogger> auditLoggers;
+  private final Map<AuditLogger, Method> hdfsAuditLoggerMethodCache;
 
   /** The namespace tree. */
   FSDirectory dir;
@@ -579,6 +608,8 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       this.dir = new FSDirectory(fsImage, this, conf);
       this.safeMode = new SafeModeInfo(conf);
       this.auditLoggers = initAuditLoggers(conf);
+      this.hdfsAuditLoggerMethodCache =
+          initHdfsAuditLoggerMethodCache(auditLoggers);
       this.isDefaultAuditLogger = auditLoggers.size() == 1 &&
         auditLoggers.get(0) instanceof DefaultAuditLogger;
     } catch(IOException e) {
@@ -620,6 +651,36 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       auditLoggers.add(new DefaultAuditLogger());
     }
     return auditLoggers;
+  }
+
+  private static Map<AuditLogger, Method> initHdfsAuditLoggerMethodCache(
+      List<AuditLogger> auditLoggers) {
+    Map<AuditLogger, Method> hdfsAuditLoggerMethodCache =
+        new ConcurrentHashMap<AuditLogger, Method>(auditLoggers.size());
+    for (AuditLogger logger: auditLoggers) {
+      try {
+        Method m = logger.getClass().getMethod(
+            "logAuditEvent",
+            boolean.class,     // succeeded
+            String.class,      // userName
+            InetAddress.class, // addr
+            String.class,      // cmd
+            String.class,      // src
+            String.class,      // dst
+            FileStatus.class,  // stat
+            UserGroupInformation.class,        // ugi
+            DelegationTokenSecretManager.class // dtSecretManager
+            );
+        hdfsAuditLoggerMethodCache.put(logger, m);
+      } catch (NoSuchMethodException e) {
+        LOG.info("Could not find logAuditEvent method for logging token"
+            + " tracking IDs", e);
+      } catch (SecurityException e) {
+        LOG.warn("SecurityException while trying to find logAuditEvent method"
+            + " for logging token tracking IDs", e);
+      }
+    }
+    return hdfsAuditLoggerMethodCache;
   }
 
   void loadFSImage(StartupOption startOpt, FSImage fsImage, boolean haEnabled)
@@ -5226,7 +5287,10 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
             DFS_NAMENODE_DELEGATION_TOKEN_MAX_LIFETIME_DEFAULT),
         conf.getLong(DFS_NAMENODE_DELEGATION_TOKEN_RENEW_INTERVAL_KEY,
             DFS_NAMENODE_DELEGATION_TOKEN_RENEW_INTERVAL_DEFAULT),
-        DELEGATION_TOKEN_REMOVER_SCAN_INTERVAL, this);
+        DELEGATION_TOKEN_REMOVER_SCAN_INTERVAL,
+        conf.getBoolean(DFS_NAMENODE_AUDIT_LOG_TOKEN_TRACKING_ID_KEY,
+            DFS_NAMENODE_AUDIT_LOG_TOKEN_TRACKING_ID_DEFAULT),
+        this);
   }
 
   /**
@@ -5712,17 +5776,22 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
    * defined in the config file. It can also be explicitly listed in the
    * config file.
    */
-  private static class DefaultAuditLogger implements AuditLogger {
+  private static class DefaultAuditLogger extends HdfsAuditLogger {
+
+    private boolean logTokenTrackingId;
 
     @Override
     public void initialize(Configuration conf) {
-      // Nothing to do.
+      logTokenTrackingId = conf.getBoolean(
+          DFSConfigKeys.DFS_NAMENODE_AUDIT_LOG_TOKEN_TRACKING_ID_KEY,
+          DFSConfigKeys.DFS_NAMENODE_AUDIT_LOG_TOKEN_TRACKING_ID_DEFAULT);
     }
 
     @Override
     public void logAuditEvent(boolean succeeded, String userName,
         InetAddress addr, String cmd, String src, String dst,
-        FileStatus status) {
+        FileStatus status, UserGroupInformation ugi,
+        DelegationTokenSecretManager dtSecretManager) {
       if (auditLog.isInfoEnabled()) {
         final StringBuilder sb = auditBuffer.get();
         sb.setLength(0);
@@ -5739,6 +5808,22 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
           sb.append(status.getOwner()).append(":");
           sb.append(status.getGroup()).append(":");
           sb.append(status.getPermission());
+        }
+        if (logTokenTrackingId) {
+          sb.append("\t").append("trackingId=");
+          String trackingId = null;
+          if (ugi != null && dtSecretManager != null
+              && ugi.getAuthenticationMethod() == AuthenticationMethod.TOKEN) {
+            for (TokenIdentifier tid: ugi.getTokenIdentifiers()) {
+              if (tid instanceof DelegationTokenIdentifier) {
+                DelegationTokenIdentifier dtid =
+                    (DelegationTokenIdentifier)tid;
+                trackingId = dtSecretManager.getTokenTrackingId(dtid);
+                break;
+              }
+            }
+          }
+          sb.append(trackingId);
         }
         auditLog.info(sb);
       }
