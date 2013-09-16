@@ -1350,8 +1350,8 @@ public class TestRMWebServicesApps extends JerseyTest {
         trackingUI);
     WebServicesTestUtils.checkStringMatch("diagnostics", app.getDiagnostics()
         .toString(), diagnostics);
-    assertEquals("clusterId doesn't match", ResourceManager.clusterTimeStamp,
-        clusterId);
+    assertEquals("clusterId doesn't match",
+        ResourceManager.getClusterTimeStamp(), clusterId);
     assertEquals("startedTime doesn't match", app.getStartTime(), startedTime);
     assertEquals("finishedTime doesn't match", app.getFinishTime(),
         finishedTime);
