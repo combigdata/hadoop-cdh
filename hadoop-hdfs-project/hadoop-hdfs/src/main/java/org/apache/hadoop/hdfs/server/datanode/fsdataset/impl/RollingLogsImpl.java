@@ -128,6 +128,7 @@ class RollingLogsImpl implements RollingLogs {
    */
   private class Reader implements RollingLogs.LineIterator {
     private File file;
+    private File lastReadFile;
     private BufferedReader reader;
     private String line;
     private boolean closed = false;
@@ -141,6 +142,11 @@ class RollingLogsImpl implements RollingLogs {
     @Override
     public boolean isPrevious() {
       return file == prev;
+    }
+
+    @Override
+    public boolean isLastReadFromPrevious() {
+      return lastReadFile == prev;
     }
 
     private boolean openFile() throws IOException {
@@ -196,6 +202,7 @@ class RollingLogsImpl implements RollingLogs {
     public String next() {
       String curLine = line;
       try {
+        lastReadFile = file;
         readNext();
       } catch (IOException e) {
         DataBlockScanner.LOG.warn("Failed to read next line.", e);
