@@ -79,8 +79,8 @@ public class HAUtil {
     return rmId;
   }
 
-  private static String getConfValueForRMInstance(String prefix,
-                                                  Configuration conf) {
+  public static String getConfValueForRMInstance(String prefix,
+                                                 Configuration conf) {
     String confKey = addSuffix(prefix, getRMHAId(conf));
     String retVal = conf.get(confKey);
     if (LOG.isTraceEnabled()) {
@@ -105,6 +105,11 @@ public class HAUtil {
     for (String confKey : RPC_ADDRESS_CONF_KEYS) {
       setConfValue(confKey, conf);
     }
+  }
+
+  public static String getZKStoreRootNodeACLString(Configuration conf) {
+    return getConfValueForRMInstance(
+        YarnConfiguration.ZK_RM_STATE_STORE_ROOT_NODE_ACL, conf);
   }
 
   /** Add non empty and non null suffix to a key */

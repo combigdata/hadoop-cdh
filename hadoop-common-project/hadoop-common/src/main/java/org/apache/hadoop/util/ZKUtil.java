@@ -71,6 +71,10 @@ public class ZKUtil {
     return perm;
   }
 
+  public static int removeSpecificPerms(int perms, int remove) {
+    return perms ^ remove;
+  }
+
   /**
    * Parse comma separated list of ACL entries to secure generated nodes, e.g.
    * <code>sasl:hdfs/host1@MY.DOMAIN:cdrwa,sasl:hdfs/host2@MY.DOMAIN:cdrwa</code>

@@ -86,6 +86,7 @@ public class RMDelegationTokenSecretManager extends
       rmContext.getStateStore().storeRMDTMasterKey(newKey);
     } catch (Exception e) {
       LOG.error("Error in storing master key with KeyID: " + newKey.getKeyId());
+      LOG.error("Exception stack trace", e);
       ExitUtil.terminate(1, e);
     }
   }

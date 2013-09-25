@@ -321,6 +321,19 @@
   </property>
 
   <property>
+    <description>ACLs to be used for the root znode when using
+      ZKRMStateStore, and is primarily meant for implicitly fencing the other
+      RM from making any changes to the store. For fencing, users are
+      required to set up ACLs in a way that both RMs have read-write-admin
+      access, but exclusive create-delete access. In a HA
+      setting, when not set, an RM-specific ACL is generated to ensure two
+      RMs don't use the store at the same time. In a non-HA setting,
+      when not set, the ACL set for all znodes via
+      yarn.resourcemanager.zk.state-store.acl is used by default.</description>
+    <name>yarn.resourcemanager.zk.state-store.root-node.acl</name>
+  </property>
+
+  <property>
     <description>URI pointing to the location of the FileSystem path where
     RM state will be stored. This must be supplied when using
     org.apache.hadoop.yarn.server.resourcemanager.recovery.FileSystemRMStateStore
