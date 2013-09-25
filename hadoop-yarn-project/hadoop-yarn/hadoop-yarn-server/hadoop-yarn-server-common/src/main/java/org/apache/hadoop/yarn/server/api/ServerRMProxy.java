@@ -21,23 +21,53 @@ package org.apache.hadoop.yarn.server.api;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
+import com.google.common.base.Preconditions;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.yarn.client.ConfiguredFailoverProxyProvider;
 import org.apache.hadoop.yarn.client.RMProxy;
+import org.apache.hadoop.yarn.conf.HAUtil;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
 public class ServerRMProxy<T> extends RMProxy<T> {
-
   private static final Log LOG = LogFactory.getLog(ServerRMProxy.class);
+
+  @InterfaceAudience.Private
+  static class ServerProxyProvider<T>
+      extends ConfiguredFailoverProxyProvider<T> {
+
+    ServerProxyProvider(Configuration conf, Class<T> xface) {
+      super(conf, xface);
+    }
+
+    @Override
+    public void checkAllowedProtocols(Class<T> protocol) {
+      Preconditions.checkArgument(
+          protocol.isAssignableFrom(ResourceTracker.class),
+          "RM does not support this protocol");
+    }
+
+    @Override
+    public InetSocketAddress getRMAddress() throws IOException {
+      return ServerRMProxy.getRMAddress(conf, protocol);
+    }
+  }
 
   public static <T> T createRMProxy(final Configuration configuration,
       final Class<T> protocol) throws IOException {
     YarnConfiguration conf = (configuration instanceof YarnConfiguration)
         ? (YarnConfiguration) configuration
         : new YarnConfiguration(configuration);
-    InetSocketAddress rmAddress = getRMAddress(conf, protocol);
-    return createRMProxy(conf, protocol, rmAddress);
+    if (HAUtil.isHAEnabled(conf)) {
+      ServerProxyProvider<T> provider =
+          new ServerProxyProvider<T>(conf, protocol);
+      return createRMProxy(conf, protocol, provider);
+    } else {
+      InetSocketAddress rmAddress = getRMAddress(conf, protocol);
+      return createRMProxy(conf, protocol, rmAddress);
+    }
   }
 
   private static InetSocketAddress getRMAddress(YarnConfiguration conf,

@@ -21,8 +21,10 @@ package org.apache.hadoop.yarn.client;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
+import com.google.common.base.Preconditions;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.SecurityUtil;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -30,21 +32,53 @@ import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.yarn.api.ApplicationClientProtocol;
 import org.apache.hadoop.yarn.api.ApplicationMasterProtocol;
+import org.apache.hadoop.yarn.conf.HAUtil;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.apache.hadoop.yarn.server.api.ResourceManagerAdministrationProtocol;
 
 public class ClientRMProxy<T> extends RMProxy<T>  {
-
   private static final Log LOG = LogFactory.getLog(ClientRMProxy.class);
+
+  private interface ClientRMProtocols extends ApplicationClientProtocol,
+      ApplicationMasterProtocol, ResourceManagerAdministrationProtocol {
+    // Add nothing
+  }
+
+  @InterfaceAudience.Private
+  static class ClientConfiguredFailoverProxyProvider<T>
+      extends ConfiguredFailoverProxyProvider<T> {
+
+    ClientConfiguredFailoverProxyProvider(Configuration conf, Class<T> xface) {
+      super(conf, xface);
+    }
+
+    @Override
+    public void checkAllowedProtocols(Class xface) {
+      Preconditions.checkArgument(
+          xface.isAssignableFrom(ClientRMProtocols.class),
+          "RM does not support this client protocol");
+    }
+
+    @Override
+    public InetSocketAddress getRMAddress() throws IOException {
+      return ClientRMProxy.getRMAddress(conf, protocol);
+    }
+  }
 
   public static <T> T createRMProxy(final Configuration configuration,
       final Class<T> protocol) throws IOException {
     YarnConfiguration conf = (configuration instanceof YarnConfiguration)
         ? (YarnConfiguration) configuration
         : new YarnConfiguration(configuration);
-    InetSocketAddress rmAddress = getRMAddress(conf, protocol);
-    return createRMProxy(conf, protocol, rmAddress);
+    if (HAUtil.isHAEnabled(conf)) {
+      ClientConfiguredFailoverProxyProvider<T> provider = new
+          ClientConfiguredFailoverProxyProvider<T>(conf, protocol);
+      return createRMProxy(conf, protocol, provider);
+    } else {
+      InetSocketAddress rmAddress = getRMAddress(conf, protocol);
+      return createRMProxy(conf, protocol, rmAddress);
+    }
   }
 
   private static void setupTokens(InetSocketAddress resourceManagerAddress)

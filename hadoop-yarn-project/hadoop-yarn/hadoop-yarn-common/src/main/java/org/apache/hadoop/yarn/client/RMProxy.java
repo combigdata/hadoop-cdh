@@ -26,21 +26,22 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.retry.FailoverProxyProvider;
 import org.apache.hadoop.io.retry.RetryPolicies;
 import org.apache.hadoop.io.retry.RetryPolicy;
 import org.apache.hadoop.io.retry.RetryProxy;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.yarn.conf.HAUtil;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.ipc.YarnRPC;
-
-import com.google.common.annotations.VisibleForTesting;
 
 @InterfaceAudience.Public
 @InterfaceStability.Evolving
@@ -55,6 +56,13 @@ public class RMProxy<T> {
     T proxy = RMProxy.<T>getProxy(conf, protocol, rmAddress);
     LOG.info("Connecting to ResourceManager at " + rmAddress);
     return (T) RetryProxy.create(protocol, proxy, retryPolicy);
+  }
+
+  public static <T> T createRMProxy(
+      final Configuration conf, final Class<T> protocol,
+      final FailoverProxyProvider<T> provider) throws IOException {
+    RetryPolicy retryPolicy = createRetryPolicy(conf);
+    return (T) RetryProxy.create(protocol, provider, retryPolicy);
   }
 
   private static <T> T getProxy(final Configuration conf,
@@ -110,10 +118,15 @@ public class RMProxy<T> {
       }
     }
 
-    RetryPolicy retryPolicy =
-        RetryPolicies.retryUpToMaximumTimeWithFixedSleep(rmConnectWaitMS,
-            rmConnectionRetryIntervalMS,
-            TimeUnit.MILLISECONDS);
+    RetryPolicy retryPolicy;
+    if (HAUtil.isHAEnabled(conf)) {
+      retryPolicy = RetryPolicies.failoverOnNetworkException(
+          RetryPolicies.TRY_ONCE_THEN_FAIL, 10,
+          rmConnectionRetryIntervalMS, rmConnectWaitMS);
+    } else {
+      retryPolicy = RetryPolicies.retryUpToMaximumTimeWithFixedSleep(
+          rmConnectWaitMS, rmConnectionRetryIntervalMS, TimeUnit.MILLISECONDS);
+    }
 
     Map<Class<? extends Exception>, RetryPolicy> exceptionToPolicyMap =
         new HashMap<Class<? extends Exception>, RetryPolicy>();
