@@ -109,7 +109,7 @@ public class ResourceManager extends CompositeService implements Recoverable {
   public static final int SHUTDOWN_HOOK_PRIORITY = 30;
 
   private static final Log LOG = LogFactory.getLog(ResourceManager.class);
-  public static final long clusterTimeStamp = System.currentTimeMillis();
+  public static long clusterTimeStamp = System.currentTimeMillis();
 
   protected ClientToAMTokenSecretManagerInRM clientToAMSecretManager =
       new ClientToAMTokenSecretManagerInRM();
@@ -150,6 +150,15 @@ public class ResourceManager extends CompositeService implements Recoverable {
     return this.rmContext;
   }
   
+  public static long getClusterTimeStamp() {
+    return clusterTimeStamp;
+  }
+
+  @VisibleForTesting
+  protected static void setClusterTimeStamp(long timestamp) {
+    clusterTimeStamp = timestamp;
+  }
+
   @Override
   protected void serviceInit(Configuration conf) throws Exception {
 
