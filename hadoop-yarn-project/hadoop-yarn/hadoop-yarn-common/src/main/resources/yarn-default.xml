@@ -360,6 +360,18 @@
   </property>
 
   <property>
+    <description>The address of the RM HA admin interface.</description>
+    <name>yarn.resourcemanager.ha.admin.address</name>
+    <value>${yarn.resourcemanager.hostname}:8034</value>
+  </property>
+
+  <property>
+    <description>Number of threads to handle RM HA admin interface.</description>
+    <name>yarn.resourcemanager.ha.admin.client.thread-count</name>
+    <value>1</value>
+  </property>
+
+  <property>
     <description>The maximum number of completed applications RM keeps. </description>
     <name>yarn.resourcemanager.max-completed-applications</name>
     <value>10000</value>

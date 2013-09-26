@@ -278,9 +278,18 @@ public class YarnConfiguration extends Configuration {
   public static final String RM_HA_PREFIX = RM_PREFIX + "ha.";
   public static final String RM_HA_ENABLED = RM_HA_PREFIX + "enabled";
   public static final boolean DEFAULT_RM_HA_ENABLED = false;
-  
+
   public static final String RM_HA_IDS = RM_HA_PREFIX + "rm-ids";
   public static final String RM_HA_ID = RM_HA_PREFIX + "id";
+
+  public static final String RM_HA_ADMIN_ADDRESS =
+      RM_HA_PREFIX + "admin.address";
+  public static final int DEFAULT_RM_HA_ADMIN_PORT = 8034;
+  public static String DEFAULT_RM_HA_ADMIN_ADDRESS =
+      "0.0.0.0:" + DEFAULT_RM_HA_ADMIN_PORT;
+  public static final String RM_HA_ADMIN_CLIENT_THREAD_COUNT =
+      RM_HA_PREFIX + "admin.client.thread-count";
+  public static final int DEFAULT_RM_HA_ADMIN_CLIENT_THREAD_COUNT = 1;
 
   ////////////////////////////////
   // RM state store configs

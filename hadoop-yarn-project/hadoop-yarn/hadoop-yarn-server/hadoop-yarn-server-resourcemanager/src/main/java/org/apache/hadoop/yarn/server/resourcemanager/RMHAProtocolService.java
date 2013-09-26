@@ -20,19 +20,31 @@ package org.apache.hadoop.yarn.server.resourcemanager;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import com.google.protobuf.BlockingService;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.ha.HAServiceProtocol;
 import org.apache.hadoop.ha.HAServiceStatus;
 import org.apache.hadoop.ha.HealthCheckFailedException;
+import org.apache.hadoop.ha.proto.HAServiceProtocolProtos;
+import org.apache.hadoop.ha.protocolPB.HAServiceProtocolPB;
+import org.apache.hadoop.ha.protocolPB.HAServiceProtocolServerSideTranslatorPB;
+import org.apache.hadoop.ipc.ProtobufRpcEngine;
+import org.apache.hadoop.ipc.RPC;
+import org.apache.hadoop.ipc.Server;
+import org.apache.hadoop.ipc.WritableRpcEngine;
 import org.apache.hadoop.service.AbstractService;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.conf.HAUtil;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
+import org.apache.hadoop.yarn.server.resourcemanager.security.authorize.RMPolicyProvider;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 
 @InterfaceAudience.Private
 @InterfaceStability.Unstable
@@ -44,6 +56,7 @@ public class RMHAProtocolService extends AbstractService implements
   private ResourceManager rm;
   @VisibleForTesting
   protected HAServiceState haState = HAServiceState.INITIALIZING;
+  private Server haAdminServer;
   private boolean haEnabled;
 
   public RMHAProtocolService(ResourceManager resourceManager)  {
@@ -68,6 +81,7 @@ public class RMHAProtocolService extends AbstractService implements
   protected synchronized void serviceStart() throws Exception {
     if (haEnabled) {
       transitionToStandby(true);
+      startHAAdminServer();
     } else {
       transitionToActive();
     }
@@ -77,9 +91,64 @@ public class RMHAProtocolService extends AbstractService implements
 
   @Override
   protected synchronized void serviceStop() throws Exception {
+    if (haEnabled) {
+      stopHAAdminServer();
+    }
     transitionToStandby(false);
     haState = HAServiceState.STOPPING;
     super.serviceStop();
+  }
+
+
+  protected void startHAAdminServer() throws Exception {
+    InetSocketAddress haAdminServiceAddress = conf.getSocketAddr(
+        YarnConfiguration.RM_HA_ADMIN_ADDRESS,
+        YarnConfiguration.DEFAULT_RM_HA_ADMIN_ADDRESS,
+        YarnConfiguration.DEFAULT_RM_HA_ADMIN_PORT);
+
+    RPC.setProtocolEngine(conf, HAServiceProtocolPB.class,
+        ProtobufRpcEngine.class);
+
+    HAServiceProtocolServerSideTranslatorPB haServiceProtocolXlator =
+        new HAServiceProtocolServerSideTranslatorPB(this);
+    BlockingService haPbService =
+        HAServiceProtocolProtos.HAServiceProtocolService
+            .newReflectiveBlockingService(haServiceProtocolXlator);
+
+    WritableRpcEngine.ensureInitialized();
+
+    String bindHost = haAdminServiceAddress.getHostName();
+
+    int serviceHandlerCount = conf.getInt(
+        YarnConfiguration.RM_HA_ADMIN_CLIENT_THREAD_COUNT,
+        YarnConfiguration.DEFAULT_RM_HA_ADMIN_CLIENT_THREAD_COUNT);
+
+    haAdminServer = new RPC.Builder(conf)
+        .setProtocol(HAServiceProtocolPB.class)
+        .setInstance(haPbService)
+        .setBindAddress(bindHost)
+        .setPort(haAdminServiceAddress.getPort())
+        .setNumHandlers(serviceHandlerCount)
+        .setVerbose(false)
+        .build();
+
+    // Enable service authorization?
+    if (conf.getBoolean(
+        CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHORIZATION, false)) {
+      haAdminServer.refreshServiceAcl(conf, new RMPolicyProvider());
+    }
+
+    haAdminServer.start();
+    conf.updateConnectAddr(YarnConfiguration.RM_HA_ADMIN_ADDRESS,
+        haAdminServer.getListenerAddress());
+  }
+
+  private void stopHAAdminServer() throws Exception {
+    if (haAdminServer != null) {
+      haAdminServer.stop();
+      haAdminServer.join();
+      haAdminServer = null;
+    }
   }
 
   @Override

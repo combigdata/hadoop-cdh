@@ -40,7 +40,8 @@ public class HAUtil {
           YarnConfiguration.RM_SCHEDULER_ADDRESS,
           YarnConfiguration.RM_ADMIN_ADDRESS,
           YarnConfiguration.RM_RESOURCE_TRACKER_ADDRESS,
-          YarnConfiguration.RM_WEBAPP_ADDRESS));
+          YarnConfiguration.RM_WEBAPP_ADDRESS,
+          YarnConfiguration.RM_HA_ADMIN_ADDRESS));
 
   private HAUtil() { /* Hidden constructor */ }
 
