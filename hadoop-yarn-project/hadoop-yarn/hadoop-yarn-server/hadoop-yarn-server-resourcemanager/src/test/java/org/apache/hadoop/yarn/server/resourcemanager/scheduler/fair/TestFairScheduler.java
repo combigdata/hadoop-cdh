@@ -357,7 +357,8 @@ public class TestFairScheduler {
     // Queue 1 requests full capacity of node
     createSchedulingRequest(1024, "queue1", "user1", 1);
     scheduler.update();
-    NodeUpdateSchedulerEvent updateEvent = new NodeUpdateSchedulerEvent(node1);
+    NodeUpdateSchedulerEvent updateEvent = new NodeUpdateSchedulerEvent(node1,
+        new ArrayList<ContainerStatus>(), new ArrayList<ContainerStatus>());
     scheduler.handle(updateEvent);
 
     // Now queue 2 requests likewise
@@ -371,7 +372,8 @@ public class TestFairScheduler {
     // Now another node checks in with capacity
     RMNode node2 = MockNodes.newNodeInfo(1, Resources.createResource(1024));
     NodeAddedSchedulerEvent nodeEvent2 = new NodeAddedSchedulerEvent(node2);
-    NodeUpdateSchedulerEvent updateEvent2 = new NodeUpdateSchedulerEvent(node2);
+    NodeUpdateSchedulerEvent updateEvent2 = new NodeUpdateSchedulerEvent(node2,
+        new ArrayList<ContainerStatus>(), new ArrayList<ContainerStatus>());
     scheduler.handle(nodeEvent2);
     scheduler.handle(updateEvent2);
 
