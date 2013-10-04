@@ -18,9 +18,7 @@
 
 package org.apache.hadoop.yarn.conf;
 
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
 import java.util.Arrays;
 
 import org.apache.hadoop.classification.InterfaceAudience.Public;
@@ -84,7 +82,7 @@ public class YarnConfiguration extends Configuration {
   // Resource Manager Configs
   ////////////////////////////////
   public static final String RM_PREFIX = "yarn.resourcemanager.";
-  
+
   /** The address of the applications manager interface in the RM.*/
   public static final String RM_ADDRESS = 
     RM_PREFIX + "address";
@@ -281,6 +279,8 @@ public class YarnConfiguration extends Configuration {
   public static final String RM_HA_ENABLED = RM_HA_PREFIX + "enabled";
   public static final boolean DEFAULT_RM_HA_ENABLED = false;
   
+  public static final String RM_HA_IDS = RM_HA_PREFIX + "rm-ids";
+  public static final String RM_HA_ID = RM_HA_PREFIX + "id";
 
   ////////////////////////////////
   // RM state store configs
@@ -879,5 +879,25 @@ public class YarnConfiguration extends Configuration {
     if (! (conf instanceof YarnConfiguration)) {
       this.reloadConfiguration();
     }
+  }
+
+  /**
+   * Get the socket address for <code>name</code> property as a
+   * <code>InetSocketAddress</code>.
+   * @param name property name.
+   * @param defaultAddress the default value
+   * @param defaultPort the default port
+   * @return InetSocketAddress
+   */
+  @Override
+  public InetSocketAddress getSocketAddr(
+      String name, String defaultAddress, int defaultPort) {
+    String address;
+    if (HAUtil.isHAEnabled(this)) {
+      address = HAUtil.getConfValueForRMInstance(name, defaultAddress, this);
+    } else {
+      address = get(name, defaultAddress);
+    }
+    return NetUtils.createSocketAddr(address, defaultPort, name);
   }
 }
