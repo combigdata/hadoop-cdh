@@ -2258,49 +2258,7 @@ public class TestFairScheduler {
         fs.applications, FSSchedulerApp.class);
   }
 
-  @Test
-  public void testDontAllowUndeclaredPools() throws Exception{
-    Configuration conf = createConfiguration();
-    conf.setBoolean(FairSchedulerConfiguration.ALLOW_UNDECLARED_POOLS, false);
-    conf.set(FairSchedulerConfiguration.ALLOCATION_FILE, ALLOC_FILE);
-    scheduler.reinitialize(conf, resourceManager.getRMContext());
-
-    PrintWriter out = new PrintWriter(new FileWriter(ALLOC_FILE));
-    out.println("<?xml version=\"1.0\"?>");
-    out.println("<allocations>");
-    out.println("<queue name=\"jerry\">");
-    out.println("</queue>");
-    out.println("</allocations>");
-    out.close();
-
-    QueueManager queueManager = scheduler.getQueueManager();
-    queueManager.initialize();
-    
-    FSLeafQueue jerryQueue = queueManager.getLeafQueue("jerry", false);
-    FSLeafQueue defaultQueue = queueManager.getLeafQueue("default", false);
-    
-    // Should get put into jerry
-    createSchedulingRequest(1024, "jerry", "someuser");
-    assertEquals(1, jerryQueue.getAppSchedulables().size());
-
-    // Should get forced into default
-    createSchedulingRequest(1024, "newqueue", "someuser");
-    assertEquals(1, jerryQueue.getAppSchedulables().size());
-    assertEquals(1, defaultQueue.getAppSchedulables().size());
-    
-    // Would get put into someuser because of user-as-default-queue, but should
-    // be forced into default
-    createSchedulingRequest(1024, "default", "someuser");
-    assertEquals(1, jerryQueue.getAppSchedulables().size());
-    assertEquals(2, defaultQueue.getAppSchedulables().size());
-    
-    // Should get put into jerry because of user-as-default-queue
-    createSchedulingRequest(1024, "default", "jerry");
-    assertEquals(2, jerryQueue.getAppSchedulables().size());
-    assertEquals(2, defaultQueue.getAppSchedulables().size());
-  }
-
-  @Test
+  @Test (timeout = 5000)
   public void testContinuousScheduling() throws Exception {
     // set continuous scheduling enabled
     FairScheduler fs = new FairScheduler();
@@ -2336,11 +2294,13 @@ public class TestFairScheduler {
     // at least one pass
     Thread.sleep(fs.getConf().getContinuousSchedulingSleepMs() + 500);
 
+    FSSchedulerApp app = fs.applications.get(appAttemptId);
+    // Wait until app gets resources.
+    while (app.getCurrentConsumption().equals(Resources.none())) { }
+    
     // check consumption
-    Resource consumption =
-            fs.applications.get(appAttemptId).getCurrentConsumption();
-    Assert.assertEquals(1024, consumption.getMemory());
-    Assert.assertEquals(1, consumption.getVirtualCores());
+    Assert.assertEquals(1024, app.getCurrentConsumption().getMemory());
+    Assert.assertEquals(1, app.getCurrentConsumption().getVirtualCores());
   }
 
   @Test
