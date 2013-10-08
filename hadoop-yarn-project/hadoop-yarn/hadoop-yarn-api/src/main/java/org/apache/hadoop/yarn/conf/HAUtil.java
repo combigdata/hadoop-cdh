@@ -60,6 +60,11 @@ public class HAUtil {
         YarnConfiguration.DEFAULT_RM_HA_ENABLED);
   }
 
+  public static boolean isAutomaticFailoverEnabled(Configuration conf) {
+    return conf.getBoolean(YarnConfiguration.RM_HA_AUTOMATIC_FAILOVER_ENABLED,
+        YarnConfiguration.DEFAULT_RM_HA_AUTOMATIC_FAILOVER_ENABLED);
+  }
+
   public static Collection<String> getRMHAIds(Configuration conf) {
     return conf.getTrimmedStringCollection(YarnConfiguration.RM_HA_IDS);
   }
@@ -105,6 +110,11 @@ public class HAUtil {
     for (String confKey : RPC_ADDRESS_CONF_KEYS) {
       setConfValue(confKey, conf);
     }
+
+    int failoverPort = conf.getInt(
+        addSuffix(YarnConfiguration.RM_HA_AUTOMATIC_FAILOVER_PORT, getRMHAId(conf)),
+        YarnConfiguration.DEFAULT_RM_HA_AUTOMATIC_FAILOVER_PORT);
+    conf.setInt(YarnConfiguration.RM_HA_AUTOMATIC_FAILOVER_PORT, failoverPort);
   }
 
   public static String getZKStoreRootNodeACLString(Configuration conf) {

@@ -62,8 +62,16 @@
     <description>The hostname of the RM.</description>
     <name>yarn.resourcemanager.hostname</name>
     <value>0.0.0.0</value>
-  </property>    
-  
+  </property>
+
+  <property>
+    <description>Name of the RM-cluster, used to identify the
+      cluster. For instance, ZK-based ActiveStandbyElector uses this to elect
+      a leader within the cluster.</description>
+    <name>yarn.resourcemanager.cluster.id</name>
+    <value>yarn-rm-cluster</value>
+  </property>
+
   <property>
     <description>The address of the applications manager interface in the RM.</description>
     <name>yarn.resourcemanager.address</name>
@@ -354,6 +362,34 @@
       - {rpc-config}.{id}</description>
     <name>yarn.resourcemanager.ha.enabled</name>
     <value>false</value>
+  </property>
+
+  <property>
+    <description>Enable automatic failover</description>
+    <name>yarn.resourcemanager.ha.automatic-failover.enabled</name>
+    <value>false</value>
+  </property>
+  <property>
+    <description>When automatic failover is enabled, the failover-controller
+      plugin to use for leader election and failover. The plugin should
+      implement
+      org.apache.hadoop.yarn.server.resourcemanager.RMFailoverController
+    </description>
+    <name>yarn.resourcemanager.ha.automatic-failover.controller.class</name>
+    <value>org.apache.hadoop.yarn.server.resourcemanager.RMFailoverControllerZKImpl</value>
+  </property>
+  <property>
+    <description>Failover controller to use when automatic
+      failover is enabled</description>
+    <name>yarn.resourcemanager.ha.automatic-failover.port</name>
+    <value>8035</value>
+  </property>
+  <property>
+    <description>Fencing mechanism to use when HA is enabled.
+      Multiple methods can be provided, one per line. Fencing
+      mechanisms must implement org.apache.hadoop.ha.FenceMethod</description>
+    <name>yarn.resourcemanager.ha.fencer</name>
+    <value>org.apache.hadoop.yarn.server.resourcemanager.ZKStoreNodeFencer </value>
   </property>
 
   <property>

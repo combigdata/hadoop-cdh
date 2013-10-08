@@ -25,6 +25,7 @@ import org.apache.hadoop.ha.HAServiceProtocol;
 import org.apache.hadoop.ha.HAServiceProtocol.HAServiceState;
 import org.apache.hadoop.ha.HAServiceProtocol.StateChangeRequestInfo;
 import org.apache.hadoop.ha.HealthCheckFailedException;
+import org.apache.hadoop.security.AccessControlException;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.conf.HAUtil;
 import org.junit.Before;
@@ -40,6 +41,7 @@ import static org.junit.Assert.fail;
 public class TestRMHA {
   private Log LOG = LogFactory.getLog(TestRMHA.class);
   private MockRM rm = null;
+  private Configuration conf;
   private static final String STATE_ERR =
       "ResourceManager is in wrong HA state";
 
@@ -48,19 +50,16 @@ public class TestRMHA {
 
   @Before
   public void setUp() throws Exception {
-    Configuration conf = new YarnConfiguration();
+    conf = new YarnConfiguration();
     conf.setBoolean(YarnConfiguration.RM_HA_ENABLED, true);
     conf.set(YarnConfiguration.RM_HA_IDS, RM1_NODE_ID);
     for (String confKey : HAUtil.RPC_ADDRESS_CONF_KEYS) {
       conf.set(HAUtil.addSuffix(confKey, RM1_NODE_ID), RM1_ADDRESS);
     }
     conf.set(YarnConfiguration.RM_HA_ID, RM1_NODE_ID);
-
-    rm = new MockRM(conf);
-    rm.init(conf);
   }
 
-  private void checkMonitorHealth() {
+  private void checkMonitorHealth() throws AccessControlException {
     try {
       rm.haService.monitorHealth();
     } catch (HealthCheckFailedException e) {
@@ -112,6 +111,8 @@ public class TestRMHA {
     StateChangeRequestInfo requestInfo = new StateChangeRequestInfo(
         HAServiceProtocol.RequestSource.REQUEST_BY_USER);
 
+    rm = new MockRM(conf);
+    rm.init(conf);
     assertEquals(STATE_ERR, HAServiceState.INITIALIZING,
         rm.haService.getServiceStatus().getState());
     assertFalse("RM is ready to become active before being started",
@@ -157,5 +158,53 @@ public class TestRMHA {
     assertFalse("Active RM services are started",
         rm.areActiveServicesRunning());
     checkMonitorHealth();
+  }
+
+  @Test
+  public void testTransitionsWhenAutomaticFailoverEnabled() {
+    final String ERR_UNFORCED_REQUEST = "User request succeeded even when " +
+        "automatic failover is enabled";
+    conf.setBoolean(YarnConfiguration.RM_HA_AUTOMATIC_FAILOVER_ENABLED, true);
+    rm = new MockRM(conf);
+    rm.init(conf);
+    rm.start();
+
+    StateChangeRequestInfo requestInfo = new StateChangeRequestInfo(
+        HAServiceProtocol.RequestSource.REQUEST_BY_USER);
+
+    // Transition to standby
+    try {
+      rm.haService.transitionToStandby(requestInfo);
+      fail(ERR_UNFORCED_REQUEST);
+    } catch (AccessControlException e) {
+      // expected
+    }
+
+    // Transition to active
+    try {
+      rm.haService.transitionToActive(requestInfo);
+      fail(ERR_UNFORCED_REQUEST);
+    } catch (AccessControlException e) {
+      // expected
+    }
+
+    final String ERR_FORCED_REQUEST = "Forced request by user should work " +
+        "even if automatic failover is enabled";
+    requestInfo = new StateChangeRequestInfo(
+        HAServiceProtocol.RequestSource.REQUEST_BY_USER_FORCED);
+
+    // Transition to standby
+    try {
+      rm.haService.transitionToStandby(requestInfo);
+    } catch (AccessControlException e) {
+      fail(ERR_FORCED_REQUEST);
+    }
+
+    // Transition to active
+    try {
+      rm.haService.transitionToActive(requestInfo);
+    } catch (AccessControlException e) {
+      fail(ERR_FORCED_REQUEST);
+    }
   }
 }

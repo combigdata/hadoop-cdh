@@ -19,6 +19,9 @@ package org.apache.hadoop.yarn.server.resourcemanager.security.authorize;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
+import org.apache.hadoop.fs.CommonConfigurationKeys;
+import org.apache.hadoop.ha.HAServiceProtocol;
+import org.apache.hadoop.ha.ZKFCProtocol;
 import org.apache.hadoop.security.authorize.PolicyProvider;
 import org.apache.hadoop.security.authorize.Service;
 import org.apache.hadoop.yarn.api.ApplicationMasterProtocolPB;
@@ -52,6 +55,12 @@ public class RMPolicyProvider extends PolicyProvider {
     new Service(
         YarnConfiguration.YARN_SECURITY_SERVICE_AUTHORIZATION_CONTAINER_MANAGEMENT_PROTOCOL, 
         ContainerManagementProtocolPB.class),
+    new Service(
+        CommonConfigurationKeys.SECURITY_HA_SERVICE_PROTOCOL_ACL,
+        HAServiceProtocol.class),
+    new Service(
+        CommonConfigurationKeys.SECURITY_ZKFC_PROTOCOL_ACL,
+        ZKFCProtocol.class),
   };
 
   @Override

@@ -18,22 +18,26 @@
 
 package org.apache.hadoop.yarn.server.resourcemanager;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 
+import org.apache.commons.logging.Log;
+import org.apache.hadoop.security.AccessControlException;
+import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.security.authorize.AccessControlList;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.NodeState;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.ResourceBlacklistRequest;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
-import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.exceptions.InvalidContainerReleaseException;
 import org.apache.hadoop.yarn.exceptions.InvalidResourceBlacklistRequestException;
 import org.apache.hadoop.yarn.exceptions.InvalidResourceRequestException;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
-import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppState;
+import org.apache.hadoop.yarn.exceptions.YarnException;
+import org.apache.hadoop.yarn.ipc.RPCUtil;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerUtils;
 
@@ -67,7 +71,7 @@ public class RMServerUtils {
     }
     return results;
   }
-  
+
   /**
    * Utility method to validate a list resource requests, by insuring that the
    * requested memory/vcore is non-negative and not greater than max
@@ -114,5 +118,37 @@ public class RMServerUtils {
             + appAttemptId);
       }
     }
+  }
+
+  public static UserGroupInformation verifyAccess(
+      AccessControlList acl, String method, final Log LOG)
+      throws YarnException {
+    UserGroupInformation user;
+    try {
+      user = UserGroupInformation.getCurrentUser();
+    } catch (IOException ioe) {
+      LOG.warn("Couldn't get current user", ioe);
+      RMAuditLogger.logFailure("UNKNOWN", method, acl.toString(),
+          "AdminService", "Couldn't get current user");
+      throw RPCUtil.getRemoteException(ioe);
+    }
+
+    if (!acl.isUserAllowed(user)) {
+      LOG.warn("User " + user.getShortUserName() + " doesn't have permission" +
+          " to call '" + method + "'");
+
+      RMAuditLogger.logFailure(user.getShortUserName(), method,
+          acl.toString(), "AdminService",
+          RMAuditLogger.AuditConstants.UNAUTHORIZED_USER);
+
+      throw RPCUtil.getRemoteException(
+          new AccessControlException("User " + user.getShortUserName() +
+              " doesn't have permission" +
+              " to call '" + method + "'"));
+    }
+    if (LOG.isTraceEnabled()) {
+      LOG.trace(method + " invoked by user " + user.getShortUserName());
+    }
+    return user;
   }
 }

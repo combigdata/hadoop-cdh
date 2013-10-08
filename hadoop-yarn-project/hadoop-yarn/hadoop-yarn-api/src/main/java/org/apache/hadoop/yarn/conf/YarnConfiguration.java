@@ -83,6 +83,9 @@ public class YarnConfiguration extends Configuration {
   ////////////////////////////////
   public static final String RM_PREFIX = "yarn.resourcemanager.";
 
+  public static final String RM_CLUSTER_ID = RM_PREFIX + "cluster-id";
+  public static final String DEFAULT_RM_CLUSTER_ID = "yarn-rm-cluster";
+
   /** The address of the applications manager interface in the RM.*/
   public static final String RM_ADDRESS = 
     RM_PREFIX + "address";
@@ -290,6 +293,23 @@ public class YarnConfiguration extends Configuration {
   public static final String RM_HA_ADMIN_CLIENT_THREAD_COUNT =
       RM_HA_PREFIX + "admin.client.thread-count";
   public static final int DEFAULT_RM_HA_ADMIN_CLIENT_THREAD_COUNT = 1;
+
+  public static final String RM_HA_FENCER = RM_HA_PREFIX + "fencer";
+  public static final String DEFAULT_RM_HA_FENCER =
+      "org.apache.hadoop.yarn.server.resourcemanager.ZKStoreNodeFencer";
+
+  public static final String RM_HA_AUTOMATIC_FAILOVER_ENABLED =
+      RM_HA_PREFIX + "automatic-failover.enabled";
+  public static final boolean DEFAULT_RM_HA_AUTOMATIC_FAILOVER_ENABLED = false;
+
+  public static final String RM_HA_AUTOMATIC_FAILOVER_CONTROLLER =
+      RM_HA_PREFIX + "automatic-failover.controller.class";
+  public static String DEFAULT_RM_HA_AUTOMATIC_FAILOVER_CONTROLLER =
+    "org.apache.hadoop.yarn.server.resourcemanager.RMFailoverControllerZKImpl";
+
+  public static final String RM_HA_AUTOMATIC_FAILOVER_PORT =
+      RM_HA_PREFIX + "automatic-failover.port";
+  public static final int DEFAULT_RM_HA_AUTOMATIC_FAILOVER_PORT = 8035;
 
   ////////////////////////////////
   // RM state store configs

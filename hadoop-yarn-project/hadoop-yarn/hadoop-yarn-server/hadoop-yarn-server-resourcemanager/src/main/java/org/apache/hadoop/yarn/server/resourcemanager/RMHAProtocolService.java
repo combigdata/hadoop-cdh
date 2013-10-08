@@ -37,9 +37,14 @@ import org.apache.hadoop.ipc.ProtobufRpcEngine;
 import org.apache.hadoop.ipc.RPC;
 import org.apache.hadoop.ipc.Server;
 import org.apache.hadoop.ipc.WritableRpcEngine;
+import org.apache.hadoop.security.AccessControlException;
+import org.apache.hadoop.security.authorize.AccessControlList;
 import org.apache.hadoop.service.AbstractService;
+import org.apache.hadoop.util.ReflectionUtils;
+import org.apache.hadoop.util.ShutdownThreadsHelper;
 import org.apache.hadoop.yarn.conf.HAUtil;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.server.resourcemanager.security.authorize.RMPolicyProvider;
 
@@ -56,8 +61,12 @@ public class RMHAProtocolService extends AbstractService implements
   private ResourceManager rm;
   @VisibleForTesting
   protected HAServiceState haState = HAServiceState.INITIALIZING;
+  private AccessControlList adminAcl;
   private Server haAdminServer;
+  private Thread failoverThread;
+
   private boolean haEnabled;
+  private boolean autoFailoverEnabled;
 
   public RMHAProtocolService(ResourceManager resourceManager)  {
     super("RMHAProtocolService");
@@ -68,10 +77,18 @@ public class RMHAProtocolService extends AbstractService implements
   protected synchronized void serviceInit(Configuration conf) throws
       Exception {
     this.conf = conf;
+    adminAcl = new AccessControlList(conf.get(
+        YarnConfiguration.YARN_ADMIN_ACL,
+        YarnConfiguration.DEFAULT_YARN_ADMIN_ACL));
+
     haEnabled = HAUtil.isHAEnabled(this.conf);
     if (haEnabled) {
       HAUtil.setAllRpcAddresses(this.conf);
       rm.setConf(this.conf);
+      autoFailoverEnabled = HAUtil.isAutomaticFailoverEnabled(this.conf);
+      if (autoFailoverEnabled) {
+        createFailoverThread();
+      }
     }
     rm.createAndInitActiveServices();
     super.serviceInit(this.conf);
@@ -82,6 +99,9 @@ public class RMHAProtocolService extends AbstractService implements
     if (haEnabled) {
       transitionToStandby(true);
       startHAAdminServer();
+      if (autoFailoverEnabled) {
+        failoverThread.start();
+      }
     } else {
       transitionToActive();
     }
@@ -92,13 +112,15 @@ public class RMHAProtocolService extends AbstractService implements
   @Override
   protected synchronized void serviceStop() throws Exception {
     if (haEnabled) {
+      if (autoFailoverEnabled) {
+        ShutdownThreadsHelper.shutdownThread(failoverThread, 3000);
+      }
       stopHAAdminServer();
     }
     transitionToStandby(false);
     haState = HAServiceState.STOPPING;
     super.serviceStop();
   }
-
 
   protected void startHAAdminServer() throws Exception {
     InetSocketAddress haAdminServiceAddress = conf.getSocketAddr(
@@ -151,8 +173,28 @@ public class RMHAProtocolService extends AbstractService implements
     }
   }
 
+  private void createFailoverThread() throws ClassNotFoundException {
+    Class<? extends RMFailoverController> defaultFailoverController;
+    try {
+      defaultFailoverController =
+          (Class<? extends RMFailoverController>) Class.forName(
+              YarnConfiguration.DEFAULT_RM_HA_AUTOMATIC_FAILOVER_CONTROLLER);
+    } catch (ClassCastException cce) {
+      throw new YarnRuntimeException("The failover controller plugin " +
+          "provided does not implement " + RMFailoverController.class);
+    }
+
+    RMFailoverController failoverController = ReflectionUtils.newInstance(
+        conf.getClass(YarnConfiguration.RM_HA_AUTOMATIC_FAILOVER_CONTROLLER,
+            defaultFailoverController, RMFailoverController.class), conf);
+    failoverThread = new Thread(failoverController, "FailoverController");
+    failoverThread.setDaemon(true);
+  }
+
   @Override
-  public synchronized void monitorHealth() throws HealthCheckFailedException {
+  public synchronized void monitorHealth()
+      throws HealthCheckFailedException, AccessControlException {
+    checkAccess("monitorHealth");
     if (haState == HAServiceState.ACTIVE && !rm.areActiveServicesRunning()) {
       throw new HealthCheckFailedException(
           "Active ResourceManager services are not running!");
@@ -172,9 +214,10 @@ public class RMHAProtocolService extends AbstractService implements
   }
 
   @Override
-  public synchronized void transitionToActive(StateChangeRequestInfo reqInfo) {
-    // TODO (YARN-1177): When automatic failover is enabled,
-    // check if transition should be allowed for this request
+  public synchronized void transitionToActive(StateChangeRequestInfo reqInfo)
+      throws AccessControlException {
+    checkAccess("transitionToActive");
+    checkTransitionAllowed(reqInfo);
     try {
       transitionToActive();
     } catch (Exception e) {
@@ -202,9 +245,10 @@ public class RMHAProtocolService extends AbstractService implements
   }
 
   @Override
-  public synchronized void transitionToStandby(StateChangeRequestInfo reqInfo) {
-    // TODO (YARN-1177): When automatic failover is enabled,
-    // check if transition should be allowed for this request
+  public synchronized void transitionToStandby(StateChangeRequestInfo reqInfo)
+      throws AccessControlException {
+    checkAccess("transitionToStandby");
+    checkTransitionAllowed(reqInfo);
     try {
       transitionToStandby(true);
     } catch (Exception e) {
@@ -215,6 +259,7 @@ public class RMHAProtocolService extends AbstractService implements
 
   @Override
   public synchronized HAServiceStatus getServiceStatus() throws IOException {
+    checkAccess("getServiceStatus");
     HAServiceStatus ret = new HAServiceStatus(haState);
     if (haState == HAServiceState.ACTIVE || haState == HAServiceState.STANDBY) {
       ret.setReadyToBecomeActive();
@@ -222,5 +267,41 @@ public class RMHAProtocolService extends AbstractService implements
       ret.setNotReadyToBecomeActive("State is " + haState);
     }
     return ret;
+  }
+
+  private void checkAccess(String method) throws AccessControlException {
+    try {
+      RMServerUtils.verifyAccess(adminAcl, method, LOG);
+    } catch (YarnException e) {
+      throw new AccessControlException(e);
+    }
+  }
+
+  /**
+   * Check that a request to change this RM's HA state is valid.
+   * In particular, verifies that, if auto failover is enabled, non-forced
+   * requests from the RMHAAdminCLI are rejected, and vice versa.
+   *
+   * @param req the request to check
+   * @throws org.apache.hadoop.security.AccessControlException if the request is
+   * disallowed
+   */
+  private void checkTransitionAllowed(StateChangeRequestInfo req)
+      throws AccessControlException {
+    if (req.getSource() == RequestSource.REQUEST_BY_USER &&
+        autoFailoverEnabled) {
+      throw new AccessControlException("Manual HA control for this " +
+          "ResourceManager is disallowed, because automatic HA is enabled.");
+    } else if (req.getSource() == RequestSource.REQUEST_BY_USER_FORCED &&
+        autoFailoverEnabled) {
+      LOG.warn("Allowing manual HA control from " + Server.getRemoteAddress() +
+          " even though automatic HA is enabled, because the user " +
+          "specified the force flag");
+    } else if (req.getSource() == RequestSource.REQUEST_BY_ZKFC &&
+        !autoFailoverEnabled) {
+      throw new AccessControlException("Request from ZK failover controller " +
+          "at " + Server.getRemoteAddress() + " denied since automatic HA " +
+          "is not enabled");
+    }
   }
 }

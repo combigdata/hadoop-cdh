@@ -82,3 +82,14 @@ message ApplicationAttemptStateDataProto {
   optional ContainerProto master_container = 2;
   optional bytes app_attempt_tokens = 3;
 }
+
+//////////////////////////////////////////////////////////////////
+////// FailoverController related records ////////////////////////
+//////////////////////////////////////////////////////////////////
+message RMActiveNodeInfoProto {
+  required int32 port = 1;
+  required int32 zkfcPort = 2;
+  required string hostname = 3;
+  required string clusterid = 4;
+  required string rmId = 5;
+}
