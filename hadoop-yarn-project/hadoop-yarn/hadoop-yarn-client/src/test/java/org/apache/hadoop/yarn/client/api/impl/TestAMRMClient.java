@@ -681,8 +681,8 @@ public class TestAMRMClient {
     int iterationsLeft = 3;
     Set<ContainerId> releases = new TreeSet<ContainerId>();
     
-    NMTokenCache.clearCache();
-    Assert.assertEquals(0, NMTokenCache.numberOfNMTokensInCache());
+    amClient.getNMTokenCache().clearCache();
+    Assert.assertEquals(0, amClient.getNMTokenCache().numberOfNMTokensInCache());
     HashMap<String, Token> receivedNMTokens = new HashMap<String, Token>();
     
     while (allocatedContainerCount < containersRequestedAny

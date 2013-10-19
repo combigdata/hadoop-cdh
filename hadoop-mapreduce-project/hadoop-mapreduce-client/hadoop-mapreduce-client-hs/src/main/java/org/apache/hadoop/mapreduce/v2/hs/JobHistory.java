@@ -44,6 +44,7 @@ import org.apache.hadoop.service.Service;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.client.api.NMTokenCache;
 import org.apache.hadoop.yarn.event.EventHandler;
 import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
@@ -328,4 +329,9 @@ public class JobHistory extends AbstractService implements HistoryContext {
     return true;
   }
 
+  @Override
+  public NMTokenCache getNMTokenCache() {
+    // bogus - Not Required
+    return null;
+  }
 }

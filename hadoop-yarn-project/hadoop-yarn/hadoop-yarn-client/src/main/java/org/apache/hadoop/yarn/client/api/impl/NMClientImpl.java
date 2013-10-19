@@ -130,7 +130,11 @@ public class NMClientImpl extends NMClient {
   @Override
   protected void serviceInit(Configuration conf) throws Exception {
     super.serviceInit(conf);
+    if (getNMTokenCache() == null) {
+      throw new IllegalStateException("NMTokenCache has not been set");
+    }
     cmProxy = new ContainerManagementProtocolProxy(conf);
+    cmProxy.setNMTokenCache(getNMTokenCache());
   }
   
   @Override
@@ -188,6 +192,7 @@ public class NMClientImpl extends NMClient {
         proxy =
             cmProxy.getProxy(container.getNodeId().toString(),
                 container.getId());
+        cmProxy.setNMTokenCache(getNMTokenCache());
         StartContainerRequest scRequest =
             StartContainerRequest.newInstance(containerLaunchContext,
               container.getContainerToken());
@@ -261,6 +266,7 @@ public class NMClientImpl extends NMClient {
     containerIds.add(containerId);
     try {
       proxy = cmProxy.getProxy(nodeId.toString(), containerId);
+      cmProxy.setNMTokenCache(getNMTokenCache());
       GetContainerStatusesResponse response =
           proxy.getContainerManagementProtocol().getContainerStatuses(
               GetContainerStatusesRequest.newInstance(containerIds));
@@ -286,6 +292,7 @@ public class NMClientImpl extends NMClient {
     containerIds.add(containerId);
     try {
       proxy = cmProxy.getProxy(nodeId.toString(), containerId);
+      cmProxy.setNMTokenCache(getNMTokenCache());
       StopContainersResponse response =
           proxy.getContainerManagementProtocol().stopContainers(
             StopContainersRequest.newInstance(containerIds));

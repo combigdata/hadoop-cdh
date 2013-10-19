@@ -473,6 +473,7 @@ public class ApplicationMaster {
 
     containerListener = createNMCallbackHandler();
     nmClientAsync = new NMClientAsyncImpl(containerListener);
+    nmClientAsync.setNMTokenCache(amRMClient.getNMTokenCache());
     nmClientAsync.init(conf);
     nmClientAsync.start();
 

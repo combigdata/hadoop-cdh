@@ -126,6 +126,7 @@ import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
+import org.apache.hadoop.yarn.client.api.NMTokenCache;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.event.AsyncDispatcher;
 import org.apache.hadoop.yarn.event.Dispatcher;
@@ -908,11 +909,13 @@ public class MRAppMaster extends CompositeService {
     private final Configuration conf;
     private final ClusterInfo clusterInfo = new ClusterInfo();
     private final ClientToAMTokenSecretManager clientToAMTokenSecretManager;
+    private final NMTokenCache nmTokenCache;
 
     public RunningAppContext(Configuration config) {
       this.conf = config;
       this.clientToAMTokenSecretManager =
           new ClientToAMTokenSecretManager(appAttemptID, null);
+      this.nmTokenCache = new NMTokenCache();
     }
 
     @Override
@@ -992,6 +995,11 @@ public class MRAppMaster extends CompositeService {
     public void computeIsLastAMRetry() {
       isLastAMRetry = appAttemptID.getAttemptId() >= maxAppAttempts;
     }
+
+    public NMTokenCache getNMTokenCache() {
+      return nmTokenCache;
+    }
+
   }
 
   @SuppressWarnings("unchecked")

@@ -37,6 +37,7 @@ import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.client.api.AMRMClient;
 import org.apache.hadoop.yarn.client.api.AMRMClient.ContainerRequest;
+import org.apache.hadoop.yarn.client.api.NMTokenCache;
 import org.apache.hadoop.yarn.client.api.async.impl.AMRMClientAsyncImpl;
 import org.apache.hadoop.yarn.client.api.impl.AMRMClientImpl;
 import org.apache.hadoop.yarn.exceptions.YarnException;
@@ -118,6 +119,15 @@ extends AbstractService {
     this.client = client;
     this.heartbeatIntervalMs.set(intervalMs);
     this.handler = callbackHandler;
+  }
+
+  /**
+   * Returns the NM token cache of the AM.
+   *
+   * @return the NM token cache of the AM.
+   */
+  public NMTokenCache getNMTokenCache() {
+    return client.getNMTokenCache();
   }
     
   public void setHeartbeatInterval(int interval) {

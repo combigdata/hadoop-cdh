@@ -20,7 +20,6 @@ package org.apache.hadoop.yarn.client.api.async;
 
 import java.nio.ByteBuffer;
 import java.util.Map;
-import java.util.concurrent.ConcurrentMap;
 
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceAudience.Public;
@@ -31,8 +30,8 @@ import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.NodeId;
-import org.apache.hadoop.yarn.api.records.Token;
 import org.apache.hadoop.yarn.client.api.NMClient;
+import org.apache.hadoop.yarn.client.api.NMTokenCache;
 import org.apache.hadoop.yarn.client.api.async.impl.NMClientAsyncImpl;
 import org.apache.hadoop.yarn.client.api.impl.NMClientImpl;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
@@ -148,6 +147,23 @@ public abstract class NMClientAsync extends AbstractService {
 
   public void setClient(NMClient client) {
     this.client = client;
+  }
+
+  /**
+   * Set the NM Token cache of the <code>NMClient</code>. This cache must be
+   * shared with the {@link org.apache.hadoop.yarn.client.api.AMRMClient} that 
+   * requested the containers managed by this <code>NMClientAsync</code>
+   * <p/>
+   * If a NM token cache is not set, the {@link NMTokenCache#getSingleton()}
+   * singleton instance will be used.
+   *
+   * @param nmTokenCache the NM token cache to use.
+   */
+  public void setNMTokenCache(NMTokenCache nmTokenCache) {
+    if (client == null) {
+      throw new IllegalStateException("NMClient cannot be NULL");
+    }
+    client.setNMTokenCache(nmTokenCache);
   }
 
   public CallbackHandler getCallbackHandler() {

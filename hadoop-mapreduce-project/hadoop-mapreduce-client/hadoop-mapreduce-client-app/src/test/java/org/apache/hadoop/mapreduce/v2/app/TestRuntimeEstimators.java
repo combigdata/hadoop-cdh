@@ -69,6 +69,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.Token;
+import org.apache.hadoop.yarn.client.api.NMTokenCache;
 import org.apache.hadoop.yarn.event.AsyncDispatcher;
 import org.apache.hadoop.yarn.event.EventHandler;
 import org.apache.hadoop.yarn.factories.RecordFactory;
@@ -789,6 +790,7 @@ public class TestRuntimeEstimators {
     private final ApplicationId myApplicationID;
     private final JobId myJobID;
     private final Map<JobId, Job> allJobs;
+    private final NMTokenCache nmTokenCache;
 
     MyAppContext(int numberMaps, int numberReduces) {
       myApplicationID = ApplicationId.newInstance(clock.getTime(), 1);
@@ -801,6 +803,8 @@ public class TestRuntimeEstimators {
           = new MyJobImpl(myJobID, numberMaps, numberReduces);
 
       allJobs = Collections.singletonMap(myJobID, myJob);
+
+      nmTokenCache = new NMTokenCache();
     }
 
     @Override
@@ -874,5 +878,9 @@ public class TestRuntimeEstimators {
       return true;
     }
 
+    @Override
+    public NMTokenCache getNMTokenCache() {
+      return nmTokenCache;
+    }
   }
 }

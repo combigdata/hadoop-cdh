@@ -57,7 +57,6 @@ import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.AMRMClient;
 import org.apache.hadoop.yarn.client.api.AMRMClient.ContainerRequest;
 import org.apache.hadoop.yarn.client.api.NMClient;
-import org.apache.hadoop.yarn.client.api.NMTokenCache;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
@@ -166,6 +165,7 @@ public class TestNMClient {
 
     // start am nm client
     nmClient = (NMClientImpl) NMClient.createNMClient();
+    nmClient.setNMTokenCache(rmClient.getNMTokenCache());
     nmClient.init(conf);
     nmClient.start();
     assertNotNull(nmClient);
@@ -258,7 +258,7 @@ public class TestNMClient {
       }
       if (!allocResponse.getNMTokens().isEmpty()) {
         for (NMToken token : allocResponse.getNMTokens()) {
-          NMTokenCache.setNMToken(token.getNodeId().toString(),
+          rmClient.getNMTokenCache().setNMToken(token.getNodeId().toString(),
               token.getToken());
         }
       }

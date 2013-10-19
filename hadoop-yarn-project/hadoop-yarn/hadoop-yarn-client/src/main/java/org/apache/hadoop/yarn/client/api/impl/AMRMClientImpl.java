@@ -288,12 +288,12 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
   protected void populateNMTokens(AllocateResponse allocateResponse) {
     for (NMToken token : allocateResponse.getNMTokens()) {
       String nodeId = token.getNodeId().toString();
-      if (NMTokenCache.containsNMToken(nodeId)) {
+      if (getNMTokenCache().containsNMToken(nodeId)) {
         LOG.debug("Replacing token for : " + nodeId);
       } else {
         LOG.debug("Received new token for : " + nodeId);
       }
-      NMTokenCache.setNMToken(nodeId, token.getToken());
+      getNMTokenCache().setNMToken(nodeId, token.getToken());
     }
   }
 

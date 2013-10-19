@@ -51,6 +51,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.client.ClientRMProxy;
+import org.apache.hadoop.yarn.client.api.NMTokenCache;
 import org.apache.hadoop.yarn.event.EventHandler;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
@@ -115,6 +116,10 @@ public abstract class RMCommunicator extends AbstractService
     JobId jobId = TypeConverter.toYarn(id);
     job = context.getJob(jobId);
     super.serviceStart();
+  }
+
+  protected NMTokenCache getNMTokenCache() {
+    return context.getNMTokenCache();
   }
 
   protected AppContext getContext() {

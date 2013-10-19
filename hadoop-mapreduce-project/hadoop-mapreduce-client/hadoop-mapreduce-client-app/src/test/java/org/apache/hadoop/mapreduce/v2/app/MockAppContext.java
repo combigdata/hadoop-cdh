@@ -26,6 +26,7 @@ import org.apache.hadoop.mapreduce.v2.api.records.JobId;
 import org.apache.hadoop.mapreduce.v2.app.job.Job;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.client.api.NMTokenCache;
 import org.apache.hadoop.yarn.event.EventHandler;
 import org.apache.hadoop.yarn.security.client.ClientToAMTokenSecretManager;
 import org.apache.hadoop.yarn.util.Clock;
@@ -39,7 +40,8 @@ public class MockAppContext implements AppContext {
   final Map<JobId, Job> jobs;
   final long startTime = System.currentTimeMillis();
   Set<String> blacklistedNodes;
-  
+  final NMTokenCache nmTokenCache = NMTokenCache.getSingleton();
+
   public MockAppContext(int appid) {
     appID = MockJobs.newAppID(appid);
     appAttemptID = ApplicationAttemptId.newInstance(appID, 0);
@@ -142,4 +144,8 @@ public class MockAppContext implements AppContext {
     return true;
   }
 
+  @Override
+  public NMTokenCache getNMTokenCache() {
+    return nmTokenCache;
+  }
 }

@@ -248,6 +248,7 @@ public class ContainerLauncherImpl extends AbstractService implements
     LOG.info("Upper limit on the thread pool size is " + this.limitOnPoolSize);
     super.serviceInit(conf);
     cmProxy = new ContainerManagementProtocolProxy(conf);
+    cmProxy.setNMTokenCache(context.getNMTokenCache());
   }
 
   protected void serviceStart() throws Exception {

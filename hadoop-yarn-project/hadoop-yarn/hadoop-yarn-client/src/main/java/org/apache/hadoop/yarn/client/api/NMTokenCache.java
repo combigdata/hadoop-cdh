@@ -28,16 +28,27 @@ import org.apache.hadoop.yarn.api.records.Token;
 import com.google.common.annotations.VisibleForTesting;
 
 /**
- * It manages NMTokens required for communicating with Node manager. Its a
- * static token cache.
+ * It manages NMTokens required for communicating with Node manager.
  */
 @Public
 @Evolving
 public class NMTokenCache {
-  private static ConcurrentHashMap<String, Token> nmTokens;
-  
-  
-  static {
+  private static final NMTokenCache NM_TOKEN_CACHE = new NMTokenCache();
+
+  /**
+   * Returns the singleton NM token cache.
+   * @return
+   */
+  public static NMTokenCache getSingleton() {
+    return NM_TOKEN_CACHE;
+  }
+
+  private ConcurrentHashMap<String, Token> nmTokens;
+
+  /**
+   * Creates a NM token cache instance.
+   */
+  public NMTokenCache() {
     nmTokens = new ConcurrentHashMap<String, Token>();
   }
   
@@ -49,7 +60,7 @@ public class NMTokenCache {
    */
   @Public
   @Evolving
-  public static Token getNMToken(String nodeAddr) {
+  public Token getNMToken(String nodeAddr) {
     return nmTokens.get(nodeAddr);
   }
   
@@ -60,7 +71,7 @@ public class NMTokenCache {
    */
   @Public
   @Evolving
-  public static void setNMToken(String nodeAddr, Token token) {
+  public void setNMToken(String nodeAddr, Token token) {
     nmTokens.put(nodeAddr, token);
   }
   
@@ -69,7 +80,7 @@ public class NMTokenCache {
    */
   @Private
   @VisibleForTesting
-  public static boolean containsNMToken(String nodeAddr) {
+  public boolean containsNMToken(String nodeAddr) {
     return nmTokens.containsKey(nodeAddr);
   }
   
@@ -78,7 +89,7 @@ public class NMTokenCache {
    */
   @Private
   @VisibleForTesting
-  public static int numberOfNMTokensInCache() {
+  public int numberOfNMTokensInCache() {
     return nmTokens.size();
   }
   
@@ -88,7 +99,7 @@ public class NMTokenCache {
    */
   @Private
   @VisibleForTesting
-  public static void removeNMToken(String nodeAddr) {
+  public void removeNMToken(String nodeAddr) {
     nmTokens.remove(nodeAddr);
   }
   
@@ -97,7 +108,7 @@ public class NMTokenCache {
    */
   @Private
   @VisibleForTesting
-  public static void clearCache() {
+  public void clearCache() {
     nmTokens.clear();
   }
 }

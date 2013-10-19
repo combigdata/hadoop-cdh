@@ -82,6 +82,7 @@ import org.apache.hadoop.yarn.api.records.ContainerState;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
+import org.apache.hadoop.yarn.client.api.NMTokenCache;
 import org.apache.hadoop.yarn.event.Dispatcher;
 import org.apache.hadoop.yarn.event.DrainDispatcher;
 import org.apache.hadoop.yarn.event.Event;
@@ -1397,6 +1398,8 @@ public class TestRMContainerAllocator {
           }
         }
       });
+      NMTokenCache nmTokenCache = new NMTokenCache();
+      when(context.getNMTokenCache()).thenReturn(nmTokenCache);
       return context;
     }
 
