@@ -375,11 +375,22 @@ public class QueueManager {
           queueMaxAppsDefault, defaultSchedPolicy, minSharePreemptionTimeouts,
           queueAcls, fairSharePreemptionTimeout, defaultMinSharePreemptionTimeout);
       
-      // Update metrics
+      // Make sure all queues exist
+      for (String name: queueNamesInAllocFile) {
+        getLeafQueue(name, true);
+      }
+      
       for (FSQueue queue : queues.values()) {
+        // Update queue metrics
         FSQueueMetrics queueMetrics = queue.getMetrics();
         queueMetrics.setMinShare(queue.getMinShare());
         queueMetrics.setMaxShare(queue.getMaxShare());
+        // Set scheduling policies
+        if (queuePolicies.containsKey(queue.getName())) {
+          queue.setPolicy(queuePolicies.get(queue.getName()));
+        } else {
+          queue.setPolicy(SchedulingPolicy.getDefault());
+        }
       }
       
       // Root queue should have empty ACLs.  As a queue's ACL is the union of
@@ -391,15 +402,6 @@ public class QueueManager {
       rootAcls.put(QueueACL.ADMINISTER_QUEUE, new AccessControlList(" "));
       queueAcls.put(ROOT_QUEUE, rootAcls);
  
-      // Create all queus
-      for (String name: queueNamesInAllocFile) {
-        getLeafQueue(name, true);
-      }
-      
-      // Set custom policies as specified
-      for (Map.Entry<String, SchedulingPolicy> entry : queuePolicies.entrySet()) {
-        queues.get(entry.getKey()).setPolicy(entry.getValue());
-      }
     }
   }
   
