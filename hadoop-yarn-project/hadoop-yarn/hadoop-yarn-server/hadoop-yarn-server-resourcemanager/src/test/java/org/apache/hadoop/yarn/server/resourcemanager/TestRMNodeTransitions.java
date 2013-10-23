@@ -79,6 +79,18 @@ public class TestRMNodeTransitions {
     }
   }
 
+  private NodesListManagerEvent nodesListManagerEvent = null;
+  
+  private class TestNodeListManagerEventDispatcher implements
+      EventHandler<NodesListManagerEvent> {
+    
+    @Override
+    public void handle(NodesListManagerEvent event) {
+      nodesListManagerEvent = event;
+    }
+
+  }
+
   @Before
   public void setUp() throws Exception {
     InlineDispatcher rmDispatcher = new InlineDispatcher();
@@ -108,10 +120,13 @@ public class TestRMNodeTransitions {
     
     rmDispatcher.register(SchedulerEventType.class, 
         new TestSchedulerEventDispatcher());
-    
+
+    rmDispatcher.register(NodesListManagerEventType.class, 
+        new TestNodeListManagerEventDispatcher());
+
     NodeId nodeId = BuilderUtils.newNodeId("localhost", 0);
     node = new RMNodeImpl(nodeId, rmContext, null, 0, 0, null, null);
-
+    nodesListManagerEvent =  null;
   }
   
   @After
@@ -405,4 +420,36 @@ public class TestRMNodeTransitions {
     Assert.assertEquals(NodeState.UNHEALTHY, node.getState());
     return node;
   }
+
+
+  private RMNodeImpl getNewNode() {
+    NodeId nodeId = BuilderUtils.newNodeId("localhost", 0);
+    RMNodeImpl node = new RMNodeImpl(nodeId, rmContext, null, 0, 0, null, null);
+    return node;
+  }
+
+  @Test
+  public void testAdd() {
+    RMNodeImpl node = getNewNode();
+    ClusterMetrics cm = ClusterMetrics.getMetrics();
+    int initialActive = cm.getNumActiveNMs();
+    int initialLost = cm.getNumLostNMs();
+    int initialUnhealthy = cm.getUnhealthyNMs();
+    int initialDecommissioned = cm.getNumDecommisionedNMs();
+    int initialRebooted = cm.getNumRebootedNMs();
+    node.handle(new RMNodeEvent(node.getNodeID(), RMNodeEventType.STARTED));
+    Assert.assertEquals("Active Nodes", initialActive + 1, cm.getNumActiveNMs());
+    Assert.assertEquals("Lost Nodes", initialLost, cm.getNumLostNMs());
+    Assert.assertEquals("Unhealthy Nodes",
+        initialUnhealthy, cm.getUnhealthyNMs());
+    Assert.assertEquals("Decommissioned Nodes",
+        initialDecommissioned, cm.getNumDecommisionedNMs());
+    Assert.assertEquals("Rebooted Nodes",
+        initialRebooted, cm.getNumRebootedNMs());
+    Assert.assertEquals(NodeState.RUNNING, node.getState());
+    Assert.assertNotNull(nodesListManagerEvent);
+    Assert.assertEquals(NodesListManagerEventType.NODE_USABLE, 
+        nodesListManagerEvent.getType());
+  }
+
 }
