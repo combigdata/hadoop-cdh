@@ -144,6 +144,7 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
   private Progressable progress;
   private final short blockReplication; // replication factor of file
   private boolean shouldSyncBlock = false; // force blocks to disk upon close
+  private boolean failPacket = false;
   
   private class Packet {
     long    seqno;               // sequencenumber of buffer in block
@@ -740,6 +741,16 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
                                     one.seqno + " but received " + seqno);
             }
             isLastPacketInBlock = one.lastPacketInBlock;
+
+            // Fail the packet write for testing in order to force a
+            // pipeline recovery.
+            if (DFSClientFaultInjector.get().failPacket() &&
+                isLastPacketInBlock) {
+              failPacket = true;
+              throw new IOException(
+                    "Failing the last packet for testing.");
+            }
+              
             // update bytesAcked
             block.setNumBytes(one.getLastByteOffsetBlock());
 
@@ -1019,7 +1030,18 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
         accessToken = lb.getBlockToken();
         
         // set up the pipeline again with the remaining nodes
-        success = createBlockOutputStream(nodes, newGS, isRecovery);
+        if (failPacket) { // for testing
+          success = createBlockOutputStream(nodes, newGS-1, isRecovery);
+          failPacket = false;
+          try {
+            // Give DNs time to send in bad reports. In real situations,
+            // good reports should follow bad ones, if client committed
+            // with those nodes.
+            Thread.sleep(2000);
+          } catch (InterruptedException ie) {}
+        } else {
+          success = createBlockOutputStream(nodes, newGS, isRecovery);
+        }
       }
 
       if (success) {
@@ -1821,7 +1843,9 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
   // be called during unit tests
   private void completeFile(ExtendedBlock last) throws IOException {
     long localstart = Time.now();
+    long localTimeout = 400;
     boolean fileComplete = false;
+    int retries = dfsClient.getConf().nBlockWriteLocateFollowingRetry;
     while (!fileComplete) {
       fileComplete = dfsClient.namenode.complete(src, dfsClient.clientName, last);
       if (!fileComplete) {
@@ -1836,7 +1860,13 @@ public class DFSOutputStream extends FSOutputSummer implements Syncable {
             throw new IOException(msg);
         }
         try {
-          Thread.sleep(400);
+          Thread.sleep(localTimeout);
+          if (retries == 0) {
+            throw new IOException("Unable to close file because the last block"
+                + " does not have enough number of replicas.");
+          }
+          retries--;
+          localTimeout *= 2;
           if (Time.now() - localstart > 5000) {
             DFSClient.LOG.info("Could not complete " + src + " retrying...");
           }
