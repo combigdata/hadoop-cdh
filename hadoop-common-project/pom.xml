@@ -32,7 +32,6 @@
     <module>hadoop-auth-examples</module>
     <module>hadoop-common</module>
     <module>hadoop-annotations</module>
-    <module>cloudera-jets3t</module>
   </modules>
 
   <build>
@@ -55,4 +54,12 @@
     </plugins>
   </build>
 
+  <profiles>
+    <profile>
+      <id>dist</id>
+      <modules>
+        <module>cloudera-jets3t</module>
+      </modules>
+    </profile>
+  </profiles>
 </project>
