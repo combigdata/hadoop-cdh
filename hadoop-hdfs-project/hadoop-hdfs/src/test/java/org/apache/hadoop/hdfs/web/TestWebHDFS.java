@@ -19,6 +19,8 @@
 package org.apache.hadoop.hdfs.web;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.security.PrivilegedExceptionAction;
 import java.util.Random;
 
 import org.apache.commons.logging.Log;
@@ -29,9 +31,13 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsAction;
+import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.hdfs.TestDFSClientRetries;
 import org.apache.hadoop.hdfs.server.namenode.web.resources.NamenodeWebHdfsMethods;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.log4j.Level;
 import org.junit.Assert;
 import org.junit.Test;
@@ -207,5 +213,31 @@ public class TestWebHDFS {
     ((Log4JLogger)NamenodeWebHdfsMethods.LOG).getLogger().setLevel(Level.ALL);
     final Configuration conf = WebHdfsTestUtil.createConf();
     TestDFSClientRetries.namenodeRestartTest(conf, true);
+  }
+
+  @Test(timeout=300000)
+  public void testNumericalUserName() throws Exception {
+    final Configuration conf = WebHdfsTestUtil.createConf();
+    conf.set(DFSConfigKeys.DFS_WEBHDFS_USER_PATTERN_KEY, "^[A-Za-z0-9_][A-Za-z0-9._-]*[$]?$");
+    final MiniDFSCluster cluster =
+        new MiniDFSCluster.Builder(conf).numDataNodes(1).build();
+    try {
+      cluster.waitActive();
+      WebHdfsTestUtil.getWebHdfsFileSystem(conf).setPermission(new Path("/"),
+              new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+
+      UserGroupInformation.createUserForTesting("123", new String[]{"my-group"})
+        .doAs(new PrivilegedExceptionAction<Void>() {
+          @Override
+          public Void run() throws IOException, URISyntaxException {
+            FileSystem fs = WebHdfsTestUtil.getWebHdfsFileSystem(conf);
+            Path d = new Path("/my-dir");
+            Assert.assertTrue(fs.mkdirs(d));
+            return null;
+          }
+        });
+    } finally {
+      cluster.shutdown();
+    }
   }
 }
