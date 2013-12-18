@@ -427,6 +427,14 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
   private HAContext haContext;
 
   private final boolean haEnabled;
+
+  /** flag indicating whether replication queues have been initialized */
+  boolean initializedReplQueues = false;
+
+  /**
+   * Whether the namenode is in the middle of starting the active service
+   */
+  private volatile boolean startingActiveService = false;
     
   /**
    * Clear all loaded data
@@ -784,8 +792,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     try {
       nnResourceChecker = new NameNodeResourceChecker(conf);
       checkAvailableResources();
-      assert safeMode != null &&
-        !safeMode.isPopulatingReplQueues();
+      assert safeMode != null && !isPopulatingReplQueues();
       setBlockTotal();
       blockManager.activate(conf);
     } finally {
@@ -833,13 +840,13 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
         blockManager.getDatanodeManager().markAllDatanodesStale();
         blockManager.clearQueues();
         blockManager.processAllPendingDNMessages();
-        
-        if (!isInSafeMode() ||
-            (isInSafeMode() && safeMode.isPopulatingReplQueues())) {
+
+        // Only need to re-process the queue, If not in SafeMode.
+        if (!isInSafeMode()) {
           LOG.info("Reprocessing replication and invalidation queues");
-          blockManager.processMisReplicatedBlocks();
+          initializeReplQueues();
         }
-        
+
         if (LOG.isDebugEnabled()) {
           LOG.debug("NameNode metadata after re-processing " +
               "replication and invalidation queues during failover:\n" +
@@ -879,6 +886,25 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     }
   }
 
+  /**
+   * Initialize replication queues.
+   */
+  private void initializeReplQueues() {
+    LOG.info("initializing replication queues");
+    blockManager.processMisReplicatedBlocks();
+    initializedReplQueues = true;
+  }
+
+  /**
+   * @return Whether the namenode is transitioning to active state and is in the
+   *         middle of the {@link #startActiveServices()}
+   */
+  public boolean inTransitionToActive() {
+    return haEnabled && haContext != null
+        && haContext.getState().getServiceState() == HAServiceState.ACTIVE
+        && startingActiveService;
+  }
+
   private boolean shouldUseDelegationTokens() {
     return UserGroupInformation.isSecurityEnabled() ||
       alwaysUseDelegationTokensForTests;
@@ -912,6 +938,9 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
         // so that the tailer starts from the right spot.
         dir.fsImage.updateLastAppliedTxIdFromWritten();
       }
+      // Don't want to keep replication queues when not in Active.
+      blockManager.clearQueues();
+      initializedReplQueues = false;
     } finally {
       writeUnlock();
     }
@@ -4002,7 +4031,6 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     private int safeReplication;
     /** threshold for populating needed replication queues */
     private double replQueueThreshold;
-      
     // internal fields
     /** Time when threshold was reached.
      * 
@@ -4020,8 +4048,6 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     private int blockReplQueueThreshold;
     /** time of the last status printout */
     private long lastStatusReport = 0;
-    /** flag indicating whether replication queues have been initialized */
-    boolean initializedReplQueues = false;
     /** Was safemode entered automatically because available resources were low. */
     private boolean resourcesLow = false;
     /** Should safemode adjust its block totals as blocks come in */
@@ -4079,7 +4105,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
      * 
      * @see SafeModeInfo
      */
-    private SafeModeInfo(boolean resourcesLow, boolean isReplQueuesInited) {
+    private SafeModeInfo(boolean resourcesLow) {
       this.threshold = 1.5f;  // this threshold can never be reached
       this.datanodeThreshold = Integer.MAX_VALUE;
       this.extension = Integer.MAX_VALUE;
@@ -4088,7 +4114,6 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       this.blockTotal = -1;
       this.blockSafe = -1;
       this.resourcesLow = resourcesLow;
-      this.initializedReplQueues = isReplQueuesInited;
       enter();
       reportStatus("STATE* Safe mode is ON.", true);
     }
@@ -4102,13 +4127,6 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       return this.reached >= 0;
     }
       
-    /**
-     * Check if we are populating replication queues.
-     */
-    private synchronized boolean isPopulatingReplQueues() {
-      return initializedReplQueues;
-    }
-
     /**
      * Enter safe mode.
      */
@@ -4133,7 +4151,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
         }
         if(needUpgrade) {
           // switch to manual safe mode
-          safeMode = new SafeModeInfo(false, isPopulatingReplQueues());
+          safeMode = new SafeModeInfo(false);
           return;
         }
       }
@@ -4160,21 +4178,6 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
           + blockManager.numOfUnderReplicatedBlocks() + " blocks");
 
       startSecretManagerIfNecessary();
-    }
-
-    /**
-     * Initialize replication queues.
-     */
-    private synchronized void initializeReplQueues() {
-      LOG.info("initializing replication queues");
-      assert !isPopulatingReplQueues() : "Already initialized repl queues";
-      long startTimeMisReplicatedScan = now();
-      blockManager.processMisReplicatedBlocks();
-      initializedReplQueues = true;
-      NameNode.stateChangeLog.info("STATE* Replication Queue initialization "
-          + "scan for invalid, over- and under-replicated blocks "
-          + "completed in " + (now() - startTimeMisReplicatedScan)
-          + " msec");
     }
 
     /**
@@ -4222,7 +4225,8 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       if (needEnter()) {
         enter();
         // check if we are ready to initialize replication queues
-        if (canInitializeReplQueues() && !isPopulatingReplQueues()) {
+        if (canInitializeReplQueues() && !isPopulatingReplQueues()
+            && !haEnabled) {
           initializeReplQueues();
         }
         reportStatus("STATE* Safe mode ON.", false);
@@ -4245,7 +4249,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       reportStatus("STATE* Safe mode extension entered.", true);
 
       // check if we are ready to initialize replication queues
-      if (canInitializeReplQueues() && !isPopulatingReplQueues()) {
+      if (canInitializeReplQueues() && !isPopulatingReplQueues() && !haEnabled) {
         initializeReplQueues();
       }
     }
@@ -4546,11 +4550,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     if (!shouldPopulateReplQueues()) {
       return false;
     }
-    // safeMode is volatile, and may be set to null at any time
-    SafeModeInfo safeMode = this.safeMode;
-    if (safeMode == null)
-      return true;
-    return safeMode.isPopulatingReplQueues();
+    return initializedReplQueues;
   }
 
   private boolean shouldPopulateReplQueues() {
@@ -4671,7 +4671,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
         getEditLog().logSyncAll();
       }
       if (!isInSafeMode()) {
-        safeMode = new SafeModeInfo(resourcesLow, isPopulatingReplQueues());
+        safeMode = new SafeModeInfo(resourcesLow);
         return;
       }
       if (resourcesLow) {
