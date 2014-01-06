@@ -39,6 +39,7 @@ import org.apache.hadoop.metrics2.MetricsRecordBuilder;
 import org.apache.hadoop.security.UserGroupInformation.AuthenticationMethod;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
+import static org.apache.hadoop.fs.CommonConfigurationKeys.HADOOP_USER_GROUP_METRICS_PERCENTILES_INTERVALS;
 import static org.apache.hadoop.test.MetricsAsserts.*;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 
@@ -50,6 +51,10 @@ public class TestUserGroupInformation {
   final private static String[] GROUP_NAMES = 
     new String[]{GROUP1_NAME, GROUP2_NAME, GROUP3_NAME};
   
+  // Rollover interval of percentile metrics (in seconds)
+  private static final int PERCENTILES_INTERVAL = 1;
+  private static Configuration conf;
+ 
   /**
    * UGI should not use the default security conf, else it will collide
    * with other classes that may change the default conf.  Using this dummy
@@ -76,16 +81,22 @@ public class TestUserGroupInformation {
     UserGroupInformation.setConfiguration(conf);
     javax.security.auth.login.Configuration.setConfiguration(
         new DummyLoginConfiguration());
+
+    TestUserGroupInformation.conf = conf;
   }
-  
+
   /** Test login method */
   @Test
   public void testLogin() throws Exception {
+    conf.set(HADOOP_USER_GROUP_METRICS_PERCENTILES_INTERVALS,
+      String.valueOf(PERCENTILES_INTERVAL));
+    UserGroupInformation.setConfiguration(conf);
     // login from unix
     UserGroupInformation ugi = UserGroupInformation.getCurrentUser();
     assertEquals(UserGroupInformation.getCurrentUser(),
                  UserGroupInformation.getLoginUser());
     assertTrue(ugi.getGroupNames().length >= 1);
+    verifyGroupMetrics(1);
 
     // ensure that doAs works correctly
     UserGroupInformation userGroupInfo = 
@@ -511,6 +522,21 @@ public class TestUserGroupInformation {
     if (failure > 0) {
       assertCounter("LoginFailureNumPos", failure, rb);
       assertGaugeGt("LoginFailureAvgTime", 0, rb);
+    }
+  }
+
+  private static void verifyGroupMetrics(
+      long groups) throws InterruptedException {
+    MetricsRecordBuilder rb = getMetrics("UgiMetrics");
+    if (groups > 0) {
+      assertCounter("GetGroupsNumOps", groups, rb);
+      double avg = getDoubleGauge("GetGroupsAvgTime", rb);
+      assertTrue(avg >= 0.0);
+
+      // Sleep for an interval+slop to let the percentiles rollover
+      Thread.sleep((PERCENTILES_INTERVAL+1)*1000);
+      // Check that the percentiles were updated
+      assertQuantileGauges("GetGroups1s", rb);
     }
   }
 

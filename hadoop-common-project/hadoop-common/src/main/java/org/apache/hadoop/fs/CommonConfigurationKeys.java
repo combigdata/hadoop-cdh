@@ -21,7 +21,6 @@ package org.apache.hadoop.fs;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.http.lib.StaticUserWebFilter;
-import org.apache.hadoop.security.authorize.Service;
 
 /** 
  * This class contains constants for configuration keys used
@@ -212,5 +211,7 @@ public class CommonConfigurationKeys extends CommonConfigurationKeysPublic {
 
   public static final long HADOOP_SECURITY_UID_NAME_CACHE_TIMEOUT_DEFAULT =
     4*60*60; // 4 hours
-
+  
+  public static final String HADOOP_USER_GROUP_METRICS_PERCENTILES_INTERVALS =
+    "hadoop.user.group.metrics.percentiles.intervals";
 }
