@@ -61,6 +61,9 @@ Release 2.3.0 - 2014-02-18
     ability in ResourceManager to optionally not kill containers when the
     ApplicationMaster exits. (Jian He via vinodkv)
 
+    YARN-1566. Changed Distributed Shell to retain containers across application
+    attempts. (Jian He via vinodkv)
+
   IMPROVEMENTS
 
     YARN-305. Fair scheduler logs too many "Node offered to app" messages.
