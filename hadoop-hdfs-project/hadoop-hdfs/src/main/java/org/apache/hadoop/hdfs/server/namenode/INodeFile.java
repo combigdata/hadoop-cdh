@@ -243,7 +243,7 @@ class INodeFile extends INode implements BlockCollection {
   }
 
   @Override
-  public BlockInfo getLastBlock() throws IOException {
+  public BlockInfo getLastBlock() {
     return blocks == null || blocks.length == 0? null: blocks[blocks.length-1];
   }
 
