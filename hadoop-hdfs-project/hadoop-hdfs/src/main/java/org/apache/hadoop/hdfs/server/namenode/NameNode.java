@@ -59,8 +59,6 @@ import org.apache.hadoop.hdfs.server.namenode.ha.HAContext;
 import org.apache.hadoop.hdfs.server.namenode.ha.HAState;
 import org.apache.hadoop.hdfs.server.namenode.ha.StandbyState;
 import org.apache.hadoop.hdfs.server.namenode.metrics.NameNodeMetrics;
-import org.apache.hadoop.hdfs.server.namenode.startupprogress.StartupProgress;
-import org.apache.hadoop.hdfs.server.namenode.startupprogress.StartupProgressMetrics;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeProtocol;
 import org.apache.hadoop.hdfs.server.protocol.JournalProtocol;
 import org.apache.hadoop.hdfs.server.protocol.NamenodeProtocol;
@@ -166,14 +164,12 @@ public class NameNode {
    */
   public static final String[] NAMENODE_SPECIFIC_KEYS = {
     DFS_NAMENODE_RPC_ADDRESS_KEY,
-    DFS_NAMENODE_RPC_BIND_HOST_KEY,
     DFS_NAMENODE_NAME_DIR_KEY,
     DFS_NAMENODE_EDITS_DIR_KEY,
     DFS_NAMENODE_SHARED_EDITS_DIR_KEY,
     DFS_NAMENODE_CHECKPOINT_DIR_KEY,
     DFS_NAMENODE_CHECKPOINT_EDITS_DIR_KEY,
     DFS_NAMENODE_SERVICE_RPC_ADDRESS_KEY,
-    DFS_NAMENODE_SERVICE_RPC_BIND_HOST_KEY,
     DFS_NAMENODE_HTTP_ADDRESS_KEY,
     DFS_NAMENODE_KEYTAB_FILE_KEY,
     DFS_NAMENODE_SECONDARY_HTTP_ADDRESS_KEY,
@@ -182,7 +178,6 @@ public class NameNode {
     DFS_NAMENODE_BACKUP_HTTP_ADDRESS_KEY,
     DFS_NAMENODE_BACKUP_SERVICE_RPC_ADDRESS_KEY,
     DFS_NAMENODE_USER_NAME_KEY,
-    DFS_NAMENODE_INTERNAL_SPNEGO_USER_NAME_KEY,
     DFS_HA_FENCE_METHODS_KEY,
     DFS_HA_ZKFC_PORT_KEY,
     DFS_HA_FENCE_METHODS_KEY
@@ -267,10 +262,6 @@ public class NameNode {
   }
 
   static NameNodeMetrics metrics;
-  private static final StartupProgress startupProgress = new StartupProgress();
-  static {
-    StartupProgressMetrics.register(startupProgress);
-  }
 
   /** Return the {@link FSNamesystem} object.
    * @return {@link FSNamesystem} object.
@@ -290,16 +281,7 @@ public class NameNode {
   public static NameNodeMetrics getNameNodeMetrics() {
     return metrics;
   }
-
-  /**
-   * Returns object used for reporting namenode startup progress.
-   * 
-   * @return StartupProgress for reporting namenode startup progress
-   */
-  public static StartupProgress getStartupProgress() {
-    return startupProgress;
-  }
-
+  
   public static InetSocketAddress getAddress(String address) {
     return NetUtils.createSocketAddr(address, DEFAULT_PORT);
   }
@@ -388,28 +370,6 @@ public class NameNode {
     return getAddress(conf);
   }
   
-  /** Given a configuration get the bind host of the service rpc server
-   *  If the bind host is not configured returns null.
-   */
-  protected String getServiceRpcServerBindHost(Configuration conf) {
-    String addr = conf.getTrimmed(DFS_NAMENODE_SERVICE_RPC_BIND_HOST_KEY);
-    if (addr == null || addr.isEmpty()) {
-      return null;
-    }
-    return addr;
-  }
-
-  /** Given a configuration get the bind host of the client rpc server
-   *  If the bind host is not configured returns null.
-   */
-  protected String getRpcServerBindHost(Configuration conf) {
-    String addr = conf.getTrimmed(DFS_NAMENODE_RPC_BIND_HOST_KEY);
-    if (addr == null || addr.isEmpty()) {
-      return null;
-    }
-    return addr;
-  }
-   
   /**
    * Modifies the configuration passed to contain the service rpc address setting
    */
@@ -455,15 +415,6 @@ public class NameNode {
     return nodeRegistration;
   }
 
-  /* optimize ugi lookup for RPC operations to avoid a trip through
-   * UGI.getCurrentUser which is synch'ed
-   */
-  public static UserGroupInformation getRemoteUser() throws IOException {
-    UserGroupInformation ugi = Server.getRemoteUser();
-    return (ugi != null) ? ugi : UserGroupInformation.getCurrentUser();
-  }
-
-
   /**
    * Login as the configured user for the NameNode.
    */
@@ -483,19 +434,15 @@ public class NameNode {
     loginAsNameNodeUser(conf);
 
     NameNode.initMetrics(conf, this.getRole());
-
-    if (NamenodeRole.NAMENODE == role) {
-      startHttpServer(conf);
-      validateConfigurationSettingsOrAbort(conf);
-    }
     loadNamesystem(conf);
 
     rpcServer = createRpcServer(conf);
-    if (NamenodeRole.NAMENODE == role) {
-      httpServer.setNameNodeAddress(getNameNodeAddress());
-      httpServer.setFSImage(getFSImage());
-    } else {
-      validateConfigurationSettingsOrAbort(conf);
+    
+    try {
+      validateConfigurationSettings(conf);
+    } catch (IOException e) {
+      LOG.fatal(e.toString());
+      throw e;
     }
 
     startCommonServices(conf);
@@ -532,31 +479,10 @@ public class NameNode {
     } 
   }
 
-  /**
-   * Validate NameNode configuration.  Log a fatal error and abort if
-   * configuration is invalid.
-   * 
-   * @param conf Configuration to validate
-   * @throws IOException thrown if conf is invalid
-   */
-  private void validateConfigurationSettingsOrAbort(Configuration conf)
-      throws IOException {
-    try {
-      validateConfigurationSettings(conf);
-    } catch (IOException e) {
-      LOG.fatal(e.toString());
-      throw e;
-    }
-  }
-
   /** Start the services common to active and standby states */
   private void startCommonServices(Configuration conf) throws IOException {
     namesystem.startCommonServices(conf, haContext);
-    if (NamenodeRole.NAMENODE != role) {
-      startHttpServer(conf);
-      httpServer.setNameNodeAddress(getNameNodeAddress());
-      httpServer.setFSImage(getFSImage());
-    }
+    startHttpServer(conf);
     rpcServer.start();
     plugins = conf.getInstances(DFS_NAMENODE_PLUGINS_KEY,
         ServicePlugin.class);
@@ -595,7 +521,7 @@ public class NameNode {
     if (trashInterval == 0) {
       return;
     } else if (trashInterval < 0) {
-      throw new IOException("Cannot start trash emptier with negative interval."
+      throw new IOException("Cannot start tresh emptier with negative interval."
           + " Set " + FS_TRASH_INTERVAL_KEY + " to a positive value.");
     }
     
@@ -624,7 +550,6 @@ public class NameNode {
   private void startHttpServer(final Configuration conf) throws IOException {
     httpServer = new NameNodeHttpServer(conf, this, getHttpServerAddress(conf));
     httpServer.start();
-    httpServer.setStartupProgress(startupProgress);
     setHttpServerAddress(conf);
   }
   
@@ -751,8 +676,7 @@ public class NameNode {
   }
     
   /** get FSImage */
-  @VisibleForTesting
-  public FSImage getFSImage() {
+  FSImage getFSImage() {
     return namesystem.dir.fsImage;
   }
 
@@ -974,49 +898,41 @@ public class NameNode {
     FSEditLog sourceEditLog = fsns.getFSImage().editLog;
     
     long fromTxId = fsns.getFSImage().getMostRecentCheckpointTxId();
+    Collection<EditLogInputStream> streams = sourceEditLog.selectInputStreams(
+        fromTxId+1, 0);
+
+    // Set the nextTxid to the CheckpointTxId+1
+    newSharedEditLog.setNextTxId(fromTxId + 1);
     
-    Collection<EditLogInputStream> streams = null;
-    try {
-      streams = sourceEditLog.selectInputStreams(fromTxId + 1, 0);
-
-      // Set the nextTxid to the CheckpointTxId+1
-      newSharedEditLog.setNextTxId(fromTxId + 1);
-
-      // Copy all edits after last CheckpointTxId to shared edits dir
-      for (EditLogInputStream stream : streams) {
-        LOG.debug("Beginning to copy stream " + stream + " to shared edits");
-        FSEditLogOp op;
-        boolean segmentOpen = false;
-        while ((op = stream.readOp()) != null) {
-          if (LOG.isTraceEnabled()) {
-            LOG.trace("copying op: " + op);
-          }
-          if (!segmentOpen) {
-            newSharedEditLog.startLogSegment(op.txid, false);
-            segmentOpen = true;
-          }
-
-          newSharedEditLog.logEdit(op);
-
-          if (op.opCode == FSEditLogOpCodes.OP_END_LOG_SEGMENT) {
-            newSharedEditLog.logSync();
-            newSharedEditLog.endCurrentLogSegment(false);
-            LOG.debug("ending log segment because of END_LOG_SEGMENT op in "
-                + stream);
-            segmentOpen = false;
-          }
+    // Copy all edits after last CheckpointTxId to shared edits dir
+    for (EditLogInputStream stream : streams) {
+      LOG.debug("Beginning to copy stream " + stream + " to shared edits");
+      FSEditLogOp op;
+      boolean segmentOpen = false;
+      while ((op = stream.readOp()) != null) {
+        if (LOG.isTraceEnabled()) {
+          LOG.trace("copying op: " + op);
         }
+        if (!segmentOpen) {
+          newSharedEditLog.startLogSegment(op.txid, false);
+          segmentOpen = true;
+        }
+        
+        newSharedEditLog.logEdit(op);
 
-        if (segmentOpen) {
-          LOG.debug("ending log segment because of end of stream in " + stream);
+        if (op.opCode == FSEditLogOpCodes.OP_END_LOG_SEGMENT) {
           newSharedEditLog.logSync();
           newSharedEditLog.endCurrentLogSegment(false);
+          LOG.debug("ending log segment because of END_LOG_SEGMENT op in " + stream);
           segmentOpen = false;
         }
       }
-    } finally {
-      if (streams != null) {
-        FSEditLog.closeAllStreams(streams);
+      
+      if (segmentOpen) {
+        LOG.debug("ending log segment because of end of stream in " + stream);
+        newSharedEditLog.logSync();
+        newSharedEditLog.endCurrentLogSegment(false);
+        segmentOpen = false;
       }
     }
   }

@@ -21,6 +21,7 @@ package org.apache.hadoop.yarn.server.resourcemanager.resourcetracker;
 import java.io.IOException;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.yarn.api.records.NodeHealthStatus;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.event.Dispatcher;
@@ -34,7 +35,6 @@ import org.apache.hadoop.yarn.server.api.protocolrecords.NodeHeartbeatRequest;
 import org.apache.hadoop.yarn.server.api.protocolrecords.NodeHeartbeatResponse;
 import org.apache.hadoop.yarn.server.api.protocolrecords.RegisterNodeManagerRequest;
 import org.apache.hadoop.yarn.server.api.records.NodeAction;
-import org.apache.hadoop.yarn.server.api.records.NodeHealthStatus;
 import org.apache.hadoop.yarn.server.resourcemanager.NMLivelinessMonitor;
 import org.apache.hadoop.yarn.server.resourcemanager.NodesListManager;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
@@ -45,7 +45,6 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNodeEventType;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.SchedulerEventType;
 import org.apache.hadoop.yarn.server.resourcemanager.security.RMContainerTokenSecretManager;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
-import org.apache.hadoop.yarn.server.resourcemanager.security.NMTokenSecretManagerInRM;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -70,19 +69,16 @@ public class TestRMNMRPCResponseId {
     });
     RMContext context =
         new RMContextImpl(dispatcher, null, null, null, null,
-          null, new RMContainerTokenSecretManager(conf),
-          new NMTokenSecretManagerInRM(conf), null);
+          null, new RMContainerTokenSecretManager(conf), null);
     dispatcher.register(RMNodeEventType.class,
         new ResourceManager.NodeEventDispatcher(context));
     NodesListManager nodesListManager = new NodesListManager(context);
     nodesListManager.init(conf);
     
     context.getContainerTokenSecretManager().rollMasterKey();
-    context.getNMTokenSecretManager().rollMasterKey();
     resourceTrackerService = new ResourceTrackerService(context,
         nodesListManager, new NMLivelinessMonitor(dispatcher),
-        context.getContainerTokenSecretManager(),
-        context.getNMTokenSecretManager());
+        context.getContainerTokenSecretManager());
     resourceTrackerService.init(conf);
   }
   

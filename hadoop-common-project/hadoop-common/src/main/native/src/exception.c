@@ -107,12 +107,3 @@ jthrowable newIOException(JNIEnv* env, const char *fmt, ...)
   va_end(ap);
   return jthr;
 }
-
-const char* terror(int errnum)
-{
-  if ((errnum < 0) || (errnum >= sys_nerr)) {
-    return "unknown error.";
-  }
-  return sys_errlist[errnum];
-}
-

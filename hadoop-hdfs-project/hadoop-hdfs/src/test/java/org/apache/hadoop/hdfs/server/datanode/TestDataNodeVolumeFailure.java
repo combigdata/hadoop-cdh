@@ -35,7 +35,6 @@ import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.BlockReader;
 import org.apache.hadoop.hdfs.BlockReaderFactory;
-import org.apache.hadoop.hdfs.DFSClient;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.DFSTestUtil;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
@@ -285,10 +284,9 @@ public class TestDataNodeVolumeFailure {
         "test-blockpoolid",
         block.getBlockId());
     BlockReader blockReader =
-      BlockReaderFactory.newBlockReader(new DFSClient.Conf(conf), file, block,
+      BlockReaderFactory.newBlockReader(conf, file, block,
         lblock.getBlockToken(), 0, -1, true, "TestDataNodeVolumeFailure",
-        TcpPeerServer.peerFromSocket(s), datanode, null, null, null, false,
-        CachingStrategy.newDefaultStrategy());
+        TcpPeerServer.peerFromSocket(s), datanode, null, null, null, false);
     blockReader.close();
   }
   

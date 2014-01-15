@@ -33,12 +33,12 @@ import junit.framework.Assert;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
+import org.apache.hadoop.yarn.api.records.NodeHealthStatus;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.NodeState;
 import org.apache.hadoop.yarn.event.EventHandler;
 import org.apache.hadoop.yarn.event.InlineDispatcher;
 import org.apache.hadoop.yarn.server.api.protocolrecords.NodeHeartbeatResponse;
-import org.apache.hadoop.yarn.server.api.records.NodeHealthStatus;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNodeCleanAppEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNodeCleanContainerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNodeEvent;
@@ -48,7 +48,6 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNodeStatusEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.YarnScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeAddedSchedulerEvent;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeRemovedSchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeUpdateSchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.SchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.SchedulerEventType;
@@ -85,7 +84,7 @@ public class TestRMNodeTransitions {
     
     rmContext =
         new RMContextImpl(rmDispatcher, null, null, null,
-            mock(DelegationTokenRenewer.class), null, null, null, null);
+            mock(DelegationTokenRenewer.class), null, null, null);
     scheduler = mock(YarnScheduler.class);
     doAnswer(
         new Answer<Void>() {
@@ -267,30 +266,7 @@ public class TestRMNodeTransitions {
   @Test
   public void testUnhealthyExpire() {
     RMNodeImpl node = getUnhealthyNode();
-    ClusterMetrics cm = ClusterMetrics.getMetrics();
-    int initialActive = cm.getNumActiveNMs();
-    int initialLost = cm.getNumLostNMs();
-    int initialUnhealthy = cm.getUnhealthyNMs();
-    int initialDecommissioned = cm.getNumDecommisionedNMs();
-    int initialRebooted = cm.getNumRebootedNMs();
     node.handle(new RMNodeEvent(node.getNodeID(), RMNodeEventType.EXPIRE));
-    Assert.assertEquals("Active Nodes", initialActive, cm.getNumActiveNMs());
-    Assert.assertEquals("Lost Nodes", initialLost + 1, cm.getNumLostNMs());
-    Assert.assertEquals("Unhealthy Nodes",
-        initialUnhealthy - 1, cm.getUnhealthyNMs());
-    Assert.assertEquals("Decommissioned Nodes",
-        initialDecommissioned, cm.getNumDecommisionedNMs());
-    Assert.assertEquals("Rebooted Nodes",
-        initialRebooted, cm.getNumRebootedNMs());
-    Assert.assertEquals(NodeState.LOST, node.getState());
-  }
-  
-  @Test
-  public void testUnhealthyExpireForSchedulerRemove() {
-    RMNodeImpl node = getUnhealthyNode();
-    verify(scheduler,times(2)).handle(any(NodeRemovedSchedulerEvent.class));
-    node.handle(new RMNodeEvent(node.getNodeID(), RMNodeEventType.EXPIRE));
-    verify(scheduler,times(2)).handle(any(NodeRemovedSchedulerEvent.class));
     Assert.assertEquals(NodeState.LOST, node.getState());
   }
 
@@ -305,22 +281,8 @@ public class TestRMNodeTransitions {
   @Test
   public void testUnhealthyDecommission() {
     RMNodeImpl node = getUnhealthyNode();
-    ClusterMetrics cm = ClusterMetrics.getMetrics();
-    int initialActive = cm.getNumActiveNMs();
-    int initialLost = cm.getNumLostNMs();
-    int initialUnhealthy = cm.getUnhealthyNMs();
-    int initialDecommissioned = cm.getNumDecommisionedNMs();
-    int initialRebooted = cm.getNumRebootedNMs();
     node.handle(new RMNodeEvent(node.getNodeID(),
         RMNodeEventType.DECOMMISSION));
-    Assert.assertEquals("Active Nodes", initialActive, cm.getNumActiveNMs());
-    Assert.assertEquals("Lost Nodes", initialLost, cm.getNumLostNMs());
-    Assert.assertEquals("Unhealthy Nodes",
-        initialUnhealthy - 1, cm.getUnhealthyNMs());
-    Assert.assertEquals("Decommissioned Nodes",
-        initialDecommissioned + 1, cm.getNumDecommisionedNMs());
-    Assert.assertEquals("Rebooted Nodes",
-        initialRebooted, cm.getNumRebootedNMs());
     Assert.assertEquals(NodeState.DECOMMISSIONED, node.getState());
   }
 
@@ -335,22 +297,8 @@ public class TestRMNodeTransitions {
   @Test
   public void testUnhealthyRebooting() {
     RMNodeImpl node = getUnhealthyNode();
-    ClusterMetrics cm = ClusterMetrics.getMetrics();
-    int initialActive = cm.getNumActiveNMs();
-    int initialLost = cm.getNumLostNMs();
-    int initialUnhealthy = cm.getUnhealthyNMs();
-    int initialDecommissioned = cm.getNumDecommisionedNMs();
-    int initialRebooted = cm.getNumRebootedNMs();
     node.handle(new RMNodeEvent(node.getNodeID(),
         RMNodeEventType.REBOOTING));
-    Assert.assertEquals("Active Nodes", initialActive, cm.getNumActiveNMs());
-    Assert.assertEquals("Lost Nodes", initialLost, cm.getNumLostNMs());
-    Assert.assertEquals("Unhealthy Nodes",
-        initialUnhealthy - 1, cm.getUnhealthyNMs());
-    Assert.assertEquals("Decommissioned Nodes",
-        initialDecommissioned, cm.getNumDecommisionedNMs());
-    Assert.assertEquals("Rebooted Nodes",
-        initialRebooted + 1, cm.getNumRebootedNMs());
     Assert.assertEquals(NodeState.REBOOTED, node.getState());
   }
 
@@ -398,8 +346,9 @@ public class TestRMNodeTransitions {
 
   private RMNodeImpl getUnhealthyNode() {
     RMNodeImpl node = getRunningNode();
-    NodeHealthStatus status = NodeHealthStatus.newInstance(false, "sick",
-        System.currentTimeMillis());
+    NodeHealthStatus status = node.getNodeHealthStatus();
+    status.setHealthReport("sick");
+    status.setIsNodeHealthy(false);
     node.handle(new RMNodeStatusEvent(node.getNodeID(), status,
         new ArrayList<ContainerStatus>(), null, null));
     Assert.assertEquals(NodeState.UNHEALTHY, node.getState());

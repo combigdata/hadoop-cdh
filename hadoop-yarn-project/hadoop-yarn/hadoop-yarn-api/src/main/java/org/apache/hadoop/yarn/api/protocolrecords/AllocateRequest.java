@@ -22,10 +22,10 @@ import java.util.List;
 
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Stable;
-import org.apache.hadoop.yarn.api.ApplicationMasterProtocol;
+import org.apache.hadoop.yarn.api.AMRMProtocol;
+import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
-import org.apache.hadoop.yarn.api.records.ResourceBlacklistRequest;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.util.Records;
 
@@ -35,6 +35,10 @@ import org.apache.hadoop.yarn.util.Records;
  *
  * <p>The request includes:
  *   <ul>
+ *     <li>
+ *         {@link ApplicationAttemptId} being managed by the 
+ *         <code>ApplicationMaster</code>
+ *     </li>
  *     <li>A response id to track duplicate responses.</li>
  *     <li>Progress information.</li>
  *     <li>
@@ -48,27 +52,45 @@ import org.apache.hadoop.yarn.util.Records;
  *   </ul>
  * </p>
  * 
- * @see ApplicationMasterProtocol#allocate(AllocateRequest)
+ * @see AMRMProtocol#allocate(AllocateRequest)
  */
 @Public
 @Stable
 public abstract class AllocateRequest {
 
-  @Public
-  @Stable
-  public static AllocateRequest newInstance(int responseID, float appProgress,
-      List<ResourceRequest> resourceAsk,
-      List<ContainerId> containersToBeReleased,
-      ResourceBlacklistRequest resourceBlacklistRequest) {
+  public static AllocateRequest newInstance(
+      ApplicationAttemptId applicationAttemptId, int responseID,
+      float appProgress, List<ResourceRequest> resourceAsk,
+      List<ContainerId> containersToBeReleased) {
     AllocateRequest allocateRequest = Records.newRecord(AllocateRequest.class);
+    allocateRequest.setApplicationAttemptId(applicationAttemptId);
     allocateRequest.setResponseId(responseID);
     allocateRequest.setProgress(appProgress);
     allocateRequest.setAskList(resourceAsk);
     allocateRequest.setReleaseList(containersToBeReleased);
-    allocateRequest.setResourceBlacklistRequest(resourceBlacklistRequest);
     return allocateRequest;
   }
+
+  /**
+   * Get the <code>ApplicationAttemptId</code> being managed by the 
+   * <code>ApplicationMaster</code>.
+   * @return <code>ApplicationAttemptId</code> being managed by the 
+   *         <code>ApplicationMaster</code>
+   */
+  @Public
+  @Stable
+  public abstract ApplicationAttemptId getApplicationAttemptId();
   
+  /**
+   * Set the <code>ApplicationAttemptId</code> being managed by the 
+   * <code>ApplicationMaster</code>.
+   * @param applicationAttemptId <code>ApplicationAttemptId</code> being managed 
+   *                             by the <code>ApplicationMaster</code>
+   */
+  @Public
+  @Stable
+  public abstract void setApplicationAttemptId(ApplicationAttemptId applicationAttemptId);
+
   /**
    * Get the <em>response id</em> used to track duplicate responses.
    * @return <em>response id</em>
@@ -105,7 +127,6 @@ public abstract class AllocateRequest {
    * Get the list of <code>ResourceRequest</code> to update the 
    * <code>ResourceManager</code> about the application's resource requirements.
    * @return the list of <code>ResourceRequest</code>
-   * @see ResourceRequest
    */
   @Public
   @Stable
@@ -117,7 +138,6 @@ public abstract class AllocateRequest {
    * @param resourceRequests list of <code>ResourceRequest</code> to update the 
    *                        <code>ResourceManager</code> about the application's 
    *                        resource requirements
-   * @see ResourceRequest
    */
   @Public
   @Stable
@@ -137,37 +157,10 @@ public abstract class AllocateRequest {
    * Set the list of <code>ContainerId</code> of containers being
    * released by the <code>ApplicationMaster</code>
    * @param releaseContainers list of <code>ContainerId</code> of 
-   *                          containers being released by the 
-   *                          <code>ApplicationMaster</code>
+   *                          containers being released by the <
+   *                          code>ApplicationMaster</code>
    */
   @Public
   @Stable
   public abstract void setReleaseList(List<ContainerId> releaseContainers);
-  
-  /**
-   * Get the <code>ResourceBlacklistRequest</code> being sent by the 
-   * <code>ApplicationMaster</code>.
-   * @return the <code>ResourceBlacklistRequest</code> being sent by the 
-   *         <code>ApplicationMaster</code>
-   * @see ResourceBlacklistRequest
-   */
-  @Public
-  @Stable
-  public abstract ResourceBlacklistRequest getResourceBlacklistRequest();
-  
-  /**
-   * Set the <code>ResourceBlacklistRequest</code> to inform the 
-   * <code>ResourceManager</code> about the blacklist additions and removals
-   * per the <code>ApplicationMaster</code>.
-   * 
-   * @param resourceBlacklistRequest the <code>ResourceBlacklistRequest</code>  
-   *                         to inform the <code>ResourceManager</code> about  
-   *                         the blacklist additions and removals
-   *                         per the <code>ApplicationMaster</code>
-   * @see ResourceBlacklistRequest
-   */
-  @Public
-  @Stable
-  public abstract void setResourceBlacklistRequest(
-      ResourceBlacklistRequest resourceBlacklistRequest);
 }

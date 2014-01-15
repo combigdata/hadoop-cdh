@@ -58,10 +58,9 @@ import org.apache.hadoop.mapreduce.v2.app.job.TaskAttempt;
 import org.apache.hadoop.mapreduce.v2.hs.HistoryFileManager.HistoryFileInfo;
 import org.apache.hadoop.mapreduce.v2.jobhistory.JobHistoryUtils;
 import org.apache.hadoop.mapreduce.v2.util.MRBuilderUtils;
-import org.apache.hadoop.mapreduce.v2.util.MRWebAppUtil;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.authorize.AccessControlList;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
+import org.apache.hadoop.yarn.YarnRuntimeException;
 import org.apache.hadoop.yarn.util.Records;
 
 
@@ -143,9 +142,7 @@ public class CompletedJob implements org.apache.hadoop.mapreduce.v2.app.job.Job 
     report.setJobFile(getConfFile().toString());
     String historyUrl = "N/A";
     try {
-      historyUrl =
-          MRWebAppUtil.getApplicationWebURLOnJHSWithoutScheme(conf,
-              jobId.getAppId());
+      historyUrl = JobHistoryUtils.getHistoryUrl(conf, jobId.getAppId());
     } catch (UnknownHostException e) {
       //Ignore.
     }

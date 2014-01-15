@@ -42,8 +42,8 @@ import org.apache.hadoop.security.authorize.AccessControlList;
 import org.apache.hadoop.yarn.api.records.QueueACL;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.hadoop.yarn.server.resourcemanager.resource.Resources;
 import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
-import org.apache.hadoop.yarn.util.resource.Resources;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -75,8 +75,11 @@ public class QueueManager {
 
   private final FairScheduler scheduler;
 
-  // Path to XML file containing allocations. 
-  private File allocFile; 
+  private Object allocFile; // Path to XML file containing allocations. This
+                            // is either a URL to specify a classpath resource
+                            // (if the fair-scheduler.xml on the classpath is
+                            // used) or a String to specify an absolute path (if
+                            // mapred.fairscheduler.allocation.file is used).
 
   private final Collection<FSLeafQueue> leafQueues = 
       new CopyOnWriteArrayList<FSLeafQueue>();
@@ -104,32 +107,40 @@ public class QueueManager {
     queues.put(rootQueue.getName(), rootQueue);
     
     this.allocFile = conf.getAllocationFile();
-    
+    if (allocFile == null) {
+      // No allocation file specified in jobconf. Use the default allocation
+      // file, fair-scheduler.xml, looking for it on the classpath.
+      allocFile = new Configuration().getResource("fair-scheduler.xml");
+      if (allocFile == null) {
+        LOG.error("The fair scheduler allocation file fair-scheduler.xml was "
+            + "not found on the classpath, and no other config file is given "
+            + "through mapred.fairscheduler.allocation.file.");
+      }
+    }
     reloadAllocs();
     lastSuccessfulReload = scheduler.getClock().getTime();
     lastReloadAttempt = scheduler.getClock().getTime();
     // Create the default queue
-    getLeafQueue(YarnConfiguration.DEFAULT_QUEUE_NAME, true);
+    getLeafQueue(YarnConfiguration.DEFAULT_QUEUE_NAME);
   }
   
   /**
-   * Get a queue by name, creating it if the create param is true and is necessary.
-   * If the queue is not or can not be a leaf queue, i.e. it already exists as a
-   * parent queue, or one of the parents in its name is already a leaf queue,
-   * null is returned.
+   * Get a queue by name, creating it if necessary.  If the queue
+   * is not or can not be a leaf queue, i.e. it already exists as a parent queue,
+   * or one of the parents in its name is already a leaf queue, null is returned.
    * 
    * The root part of the name is optional, so a queue underneath the root 
    * named "queue1" could be referred to  as just "queue1", and a queue named
    * "queue2" underneath a parent named "parent1" that is underneath the root 
    * could be referred to as just "parent1.queue2".
    */
-  public FSLeafQueue getLeafQueue(String name, boolean create) {
+  public FSLeafQueue getLeafQueue(String name) {
     if (!name.startsWith(ROOT_QUEUE + ".")) {
       name = ROOT_QUEUE + "." + name;
     }
     synchronized (queues) {
       FSQueue queue = queues.get(name);
-      if (queue == null && create) {
+      if (queue == null) {
         FSLeafQueue leafQueue = createLeafQueue(name);
         if (leafQueue == null) {
           return null;
@@ -225,6 +236,13 @@ public class QueueManager {
   }
 
   /**
+   * Get the queue for a given AppSchedulable.
+   */
+  public FSLeafQueue getQueueForApp(AppSchedulable app) {
+    return getLeafQueue(app.getApp().getQueueName());
+  }
+
+  /**
    * Reload allocations file if it hasn't been loaded in a while
    */
   public void reloadAllocsIfNecessary() {
@@ -237,7 +255,14 @@ public class QueueManager {
       try {
         // Get last modified time of alloc file depending whether it's a String
         // (for a path name) or an URL (for a classloader resource)
-        long lastModified = allocFile.lastModified();
+        long lastModified;
+        if (allocFile instanceof String) {
+          File file = new File((String) allocFile);
+          lastModified = file.lastModified();
+        } else { // allocFile is an URL
+          URLConnection conn = ((URL) allocFile).openConnection();
+          lastModified = conn.getLastModified();
+        }
         if (lastModified > lastSuccessfulReload &&
             time > lastModified + ALLOC_RELOAD_WAIT) {
           reloadAllocs();
@@ -296,7 +321,12 @@ public class QueueManager {
       DocumentBuilderFactory.newInstance();
     docBuilderFactory.setIgnoringComments(true);
     DocumentBuilder builder = docBuilderFactory.newDocumentBuilder();
-    Document doc = builder.parse(allocFile);
+    Document doc;
+    if (allocFile instanceof String) {
+      doc = builder.parse(new File((String) allocFile));
+    } else {
+      doc = builder.parse(allocFile.toString());
+    }
     Element root = doc.getDocumentElement();
     if (!"allocations".equals(root.getTagName()))
       throw new AllocationConfigurationException("Bad fair scheduler config " +
@@ -360,13 +390,6 @@ public class QueueManager {
           queueMaxAppsDefault, defaultSchedPolicy, minSharePreemptionTimeouts,
           queueAcls, fairSharePreemptionTimeout, defaultMinSharePreemptionTimeout);
       
-      // Update metrics
-      for (FSQueue queue : queues.values()) {
-        FSQueueMetrics queueMetrics = queue.getMetrics();
-        queueMetrics.setMinShare(queue.getMinShare());
-        queueMetrics.setMaxShare(queue.getMaxShare());
-      }
-      
       // Root queue should have empty ACLs.  As a queue's ACL is the union of
       // its ACL and all its parents' ACLs, setting the roots' to empty will
       // neither allow nor prohibit more access to its children.
@@ -378,7 +401,7 @@ public class QueueManager {
  
       // Create all queus
       for (String name: queueNamesInAllocFile) {
-        getLeafQueue(name, true);
+        getLeafQueue(name);
       }
       
       // Set custom policies as specified

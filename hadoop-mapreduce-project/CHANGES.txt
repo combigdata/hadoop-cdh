@@ -1,6 +1,6 @@
 Hadoop MapReduce Change Log
 
-Release 2.2.0 - 2013-10-13
+Release 2.3.0 - UNRELEASED
 
   INCOMPATIBLE CHANGES
 
@@ -11,82 +11,8 @@ Release 2.2.0 - 2013-10-13
   OPTIMIZATIONS
 
   BUG FIXES
-    MAPREDUCE-5504. mapred queue -info inconsistent with types (Kousuke Saruta
-    via tgraves)
 
-    MAPREDUCE-5488. Changed MR client to keep trying to reach the application
-    when it sees that on attempt's AM is down. (Jian He via vinodkv)
-
-    MAPREDUCE-5515. Fixed MR AM's webapp to depend on a new config
-    mapreduce.ssl.enabled to enable https and disabling it by default as MR AM
-    needs to set up its own certificates etc and not depend on clusters'.
-    (Omkar Vinit Joshi via vinodkv)
-
-    MAPREDUCE-5505. Clients should be notified job finished only after job
-    successfully unregistered (Zhijie Shen via bikas)
-
-    MAPREDUCE-5503. Fixed a test issue in TestMRJobClient. (Jian He via vinodkv)
-
-    MAPREDUCE-5170. Fixed a wrong log message in CombineFileInputFormat class.
-    (Sangjin Lee via vinodkv)
-
-    MAPREDUCE-5525. Increase timeout of TestDFSIO.testAppend and
-    TestMRJobsWithHistoryService.testJobHistoryData. (Chuan Liu via cnauroth)
-
-    MAPREDUCE-5513. ConcurrentModificationException in JobControl (Robert
-    Parker via jlowe)
-
-    MAPREDUCE-5531. Fix compat with hadoop-1 in mapreduce.(TaskID,
-    TaskAttemptID) by re-introducing missing constructors. (Robert Kanter via
-    acmurthy)
-
-    MAPREDUCE-5545. org.apache.hadoop.mapred.TestTaskAttemptListenerImpl.testCommitWindow
-    times out (Robert Kanter via jlowe)
-
-    MAPREDUCE-5529. Fix compat with hadoop-1 in mapred.TotalOrderPartitioner
-    by re-introducing (get,set)PartitionFile which takes in JobConf. (Robert 
-    Kanter via acmurthy)
-
-    MAPREDUCE-5538. Fixed MR AppMaster to send job-notification URL only after
-    the job is really done - a bug caused by MAPREDUCE-5505. (Zhijie Shen via
-    vinodkv)
-
-    MAPREDUCE-5551. Fix compat with hadoop-1 in
-    SequenceFileAsBinaryOutputFormat.WritableValueBytes by re-introducing
-    missing constructors. (Zhijie Shen via acmurthy)
-
-    MAPREDUCE-5544. JobClient#getJob loads job conf twice. (Sandy Ryza)
-
-    MAPREDUCE-5536. Fixed MR AM and JHS to respect
-    mapreduce.jobhistory.webapp.https.address. (Omkar Vinit Joshi via vinodkv)
-
-    MAPREDUCE-5530. Fix compat with hadoop-1 in
-    mapred.lib.CombinFileInputFormat by re-introducing
-    isSplittable(FileSystem, Path) api and ensuring semantic compatibility.
-    (Robert Kanter via acmurthy)
-
-    MAPREDUCE-5459. Update documentation on how to run MRv1 examples on YARN.
-    (Zhijie Shen via acmurthy)
-
-    MAPREDUCE-5554. hdfs-site.xml included in hadoop-mapreduce-client-jobclient
-    tests jar is breaking tests for downstream components (Robert Kanter via
-    Sandy Ryza)
-
-    MAPREDUCE-5489. MR jobs hangs as it does not use the node-blacklisting
-    feature in RM requests (Zhijie Shen via bikas)
-
-    MAPREDUCE-5442. $HADOOP_MAPRED_HOME/$HADOOP_CONF_DIR setting not working on
-    Windows. (Yingda Chen via cnauroth)
-
-    MAPREDUCE-5533. Fixed MR speculation code to track any TaskAttempts that
-    aren't heart-beating for a while, so that we can aggressively speculate
-    instead of waiting for task-timeout (Xuan Gong via vinodkv)
-
-    MAPREDUCE-5562. Fixed MR App Master to perform pending tasks like staging-dir
-    cleanup, sending job-end notification correctly when unregister with RM
-    fails. (Zhijie Shen via vinodkv)
-
-Release 2.1.1-beta - 2013-09-23
+Release 2.2.0 - UNRELEASED
 
   INCOMPATIBLE CHANGES
 
@@ -94,98 +20,11 @@ Release 2.1.1-beta - 2013-09-23
 
   IMPROVEMENTS
 
-    MAPREDUCE-5478. TeraInputFormat unnecessarily defines its own FileSplit
-    subclass (Sandy Ryza)
-
-    MAPREDUCE-5497. Changed MRAppMaster to sleep only after doing everything else
-    but just before ClientService to avoid race conditions during RM restart.
-    (Jian He via vinodkv)
-
-    MAPREDUCE-5379. Include token tracking ids in jobconf. (kkambatl via tucu)
-
-    MAPREDUCE-5523. Added separate configuration properties for https for JHS 
-    without which even when https is enabled, it starts on http port itself.
-    (Omkar Vinit Joshi via vinodkv)
-
   OPTIMIZATIONS
-
-    MAPREDUCE-5446. TestJobHistoryEvents and TestJobHistoryParsing have race
-    conditions (jlowe via kihwal)
-
-    MAPREDUCE-5462. In map-side sort, swap entire meta entries instead of
-    indexes for better cache performance. (Sandy Ryza)
-
-    MAPREDUCE-1981. Improve getSplits performance by using listLocatedStatus
-    (Hairong Kuang and Jason Lowe via jlowe)
 
   BUG FIXES
 
-    MAPREDUCE-5385. Fixed a bug with JobContext getCacheFiles API. (Omkar Vinit
-    Joshi via vinodkv)
-
-    MAPREDUCE-5428.  HistoryFileManager doesn't stop threads when service is
-    stopped (Karthik Kambatla via jlowe)
-
-    MAPREDUCE-5251. Reducer should not implicate map attempt if it has
-    insufficient space to fetch map output (Ashwin Shankar via jlowe)
-
-    MAPREDUCE-5317. Stale files left behind for failed jobs (Ravi Prakash via
-    jlowe)
-
-    MAPREDUCE-5358. MRAppMaster throws invalid transitions for JobImpl
-    (Devaraj K via jlowe)
-
-    MAPREDUCE-3193. FileInputFormat doesn't read files recursively in the
-    input path dir (Devaraj K via jlowe)
-
-    MAPREDUCE-5440. TestCopyCommitter Fails on JDK7 (Robert Parker via jlowe)
-
-    MAPREDUCE-5367. Local jobs all use same local working directory
-    (Sandy Ryza)
-
-    MAPREDUCE-5425. Junit in TestJobHistoryServer failing in jdk 7 (Robert
-    Parker via jlowe)
-
-    MAPREDUCE-5454. TestDFSIO fails intermittently on JDK7 (Karthik Kambatla
-    via Sandy Ryza)
-
-    MAPREDUCE-5001. LocalJobRunner has race condition resulting in job
-    failures (Sandy Ryza via jlowe)
-
-    MAPREDUCE-5466. Changed MR AM to not promote history files of intermediate
-    AMs in case they are exiting because of errors and thus help history-server
-    pick up the right history file for the last successful AM. (Jian He via
-    vinodkv)
-
-    MAPREDUCE-5468. Fix MR AM recovery for map-only jobs. (vinodkv via
-    acmurthy)
-
-    MAPREDUCE-5470. LocalJobRunner does not work on Windows. (Sandy Ryza via
-    cnauroth)
-
-    MAPREDUCE-5476. Changed MR AM recovery code to cleanup staging-directory
-    only after unregistering from the RM. (Jian He via vinodkv)
-
-    MAPREDUCE-5483. revert MAPREDUCE-5357. (rkanter via tucu)
-
-    MAPREDUCE-5441. Changed MR AM to return RUNNING state if exiting when RM
-    commands to reboot, so that client can continue to track the overall job.
-    (Jian He via vinodkv)
-
-    MAPREDUCE-5475. MRClientService does not verify ACLs properly (jlowe)
-
-    MAPREDUCE-5414. TestTaskAttempt fails in JDK7 with NPE (Nemon Lou via 
-    devaraj)
-
-    MAPREDUCE-5020. Compile failure with JDK8 (Trevor Robinson via tgraves)
-
-    MAPREDUCE-5164. mapred job and queue commands omit HADOOP_CLIENT_OPTS 
-    (Nemon Lou via devaraj)
-
-    MAPREDUCE-5493. Cleanup in-memory & on-disk segments to prevent leak on
-    shuffle completion. (jlowe via acmurthy)
-
-Release 2.1.0-beta - 2013-08-22
+Release 2.1.0-beta - UNRELEASED
 
   INCOMPATIBLE CHANGES
 
@@ -330,25 +169,6 @@ Release 2.1.0-beta - 2013-08-22
     MAPREDUCE-5283. Over 10 different tests have near identical
     implementations of AppContext (Sandy Ryza via jlowe)
 
-    MAPREDUCE-5199. Removing ApplicationTokens file as it is no longer needed.
-    (Daryn Sharp via vinodkv)
-
-    MAPREDUCE-5192. Allow for alternate resolutions of TaskCompletionEvents.
-    (cdouglas via acmurthy)
-
-    MAPREDUCE-5184. Document compatibility for MapReduce applications in
-    hadoop-2 vis-a-vis hadoop-1. (Zhijie Shen via acmurthy)
-
-    MAPREDUCE-5194. Heed interrupts during Fetcher shutdown. (cdouglas)
-
-    MAPREDUCE-5326. Added version to shuffle header. (Zhijie Shen via
-    acmurthy)
-
-    MAPREDUCE-5333. Add test that verifies MRAM works correctly when sending
-    requests with non-normalized capabilities. (ywskycn via tucu)
-
-    MAPREDUCE-5398. MR changes for YARN-513 (Jian He via bikas)
-
   OPTIMIZATIONS
 
     MAPREDUCE-4974. Optimising the LineRecordReader initialize() method 
@@ -356,9 +176,6 @@ Release 2.1.0-beta - 2013-08-22
 
     MAPREDUCE-5268. Improve history server startup performance (Karthik
     Kambatla via jlowe)
-
-    MAPREDUCE-5352. Optimize node local splits generated by
-    CombineFileInputFormat. (sseth)
 
   BUG FIXES
 
@@ -572,58 +389,6 @@ Release 2.1.0-beta - 2013-08-22
     MAPREDUCE-5301. Updated MR code to work with YARN-635 changes of renaming
     YarnRemoteException to YarnException. (Siddharth Seth via vinodkv)
 
-    MAPREDUCE-5308. Shuffling to memory can get out-of-sync when fetching
-    multiple compressed map outputs (Nathan Roberts via jlowe)
-
-    MAPREDUCE-5315.  DistCp reports success even on failure. (mithun and jlowe
-    via daryn)
-
-    MAPREDUCE-5259. TestTaskLog fails on Windows because of path separators
-    missmatch. (Ivan Mitic via cnauroth)
-
-    MAPREDUCE-4019. -list-attempt-ids is not working (Ashwin Shankar,
-    Devaraj K, and B Anil Kumar via jlowe)
-
-    MAPREDUCE-5334. Fix failing unit tests - TestContainerLauncher,
-    TestContainerLauncherImpl. (Vinod Kumar Vavilapalli via sseth)
-
-    MAPREDUCE-5325. MR changes related to YARN-727. ClientRMProtocol.getAllApplications
-    should accept ApplicationType as a parameter. (Xuan Gong via hitesh)
-
-    MAPREDUCE-5291. Change MR App to use updated property names in
-    container-log4j.properties. (Zhijie Shen via sseth)
-
-    MAPREDUCE-5303. Changed MR app after moving ProtoBase to package impl.pb via
-    YARN-724. (Jian He via vinodkv)
-
-    MAPREDUCE-5312. TestRMNMInfo is failing. (sandyr via tucu)
-
-    MAPREDUCE-5304. mapreduce.Job killTask/failTask/getTaskCompletionEvents 
-    methods have incompatible signature changes. (kkambatl via tucu)
-
-    MAPREDUCE-5298. Moved MapReduce services to YARN-530 stricter lifecycle.
-    (Steve Loughran via vinodkv)
-
-    MAPREDUCE-5319. Set user.name in job.xml. (Xuan Gong via acmurthy)
-
-    MAPREDUCE-5310. MRAM should not normalize allocation request capabilities.
-    (tucu)
-
-    MAPREDUCE-5213. Re-assess TokenCache methods marked @Private. 
-    (kkambatl via tucu)
-
-    MAPREDUCE-5412. Update MR app to use multiple containers API of
-    ContainerManager after YARN-926. (Jian He via vinodkv)
-
-    MAPREDUCE-5421. Fixed TestNonExistentJob failure after YARN-873. (Junping Du
-    via vinodkv)
-
-    MAPREDUCE-5419. TestSlive is getting FileNotFound Exception (Robert Parker
-    via jlowe)
-
-    MAPREDUCE-5399. Unnecessary Configuration instantiation in IFileInputStream
-    slows down merge. (Stanislav Barton via Sandy Ryza)
-
   BREAKDOWN OF HADOOP-8562 SUBTASKS
 
     MAPREDUCE-4739. Some MapReduce tests fail to find winutils.
@@ -651,31 +416,13 @@ Release 2.1.0-beta - 2013-08-22
     MAPREDUCE-5177. Use common utils FileUtil#setReadable/Writable/Executable & 
     FileUtil#canRead/Write/Execute. (Ivan Mitic via suresh)
 
-    MAPREDUCE-5349. TestClusterMapReduceTestCase and TestJobName fail on Windows
-    in branch-2. (Chuan Liu via cnauroth)
+    MAPREDUCE-5291. Change MR App to use updated property names in
+    container-log4j.properties. (Zhijie Shen via sseth)
 
-    MAPREDUCE-5355. MiniMRYarnCluster with localFs does not work on Windows.
-    (Chuan Liu via cnauroth)
+    MAPREDUCE-5303. Changed MR app after moving ProtoBase to package impl.pb via
+    YARN-724. (Jian He via vinodkv)
 
-    MAPREDUCE-5359. JobHistory should not use File.separator to match timestamp
-    in path. (Chuan Liu via cnauroth)
-
-    MAPREDUCE-5357. Job staging directory owner checking could fail on Windows.
-    (Chuan Liu via cnauroth)
-
-    MAPREDUCE-5360. TestMRJobClient fails on Windows due to path format.
-    (Chuan Liu via cnauroth)
-
-    MAPREDUCE-5366. TestMRAsyncDiskService fails on Windows. (Chuan Liu via
-    cnauroth)
-
-    MAPREDUCE-5187. Create mapreduce command scripts on Windows. (Chuan Liu via
-    cnauroth)
-
-    MAPREDUCE-4374. Fix child task environment variable config and add support
-    for Windows. (Chuan Liu via cnauroth)
-
-Release 2.0.5-alpha - 06/06/2013
+Release 2.0.5-alpha - UNRELEASED
 
   INCOMPATIBLE CHANGES
 
@@ -1255,16 +1002,7 @@ Release 0.23.9 - UNRELEASED
 
   BUG FIXES
 
-    MAPREDUCE-5308. Shuffling to memory can get out-of-sync when fetching
-    multiple compressed map outputs (Nathan Roberts via jlowe)
-
-    MAPREDUCE-5315.  DistCp reports success even on failure. (mithun and jlowe
-    via daryn)
-
-    MAPREDUCE-4019. -list-attempt-ids is not working (Ashwin Shankar,
-    Devaraj K, and B Anil Kumar via jlowe)
-
-Release 0.23.8 - 2013-06-05
+Release 0.23.8 - UNRELEASED
 
   INCOMPATIBLE CHANGES
 
@@ -1288,7 +1026,7 @@ Release 0.23.8 - 2013-06-05
     MAPREDUCE-4927. Historyserver 500 error due to NPE when accessing specific
     counters page for failed job. (Ashwin Shankar via jlowe)
 
-Release 0.23.7 - 2013-04-18
+Release 0.23.7 - UNRELEASED
 
   INCOMPATIBLE CHANGES
 
@@ -1357,7 +1095,7 @@ Release 0.23.7 - 2013-04-18
     MAPREDUCE-5137. AM web UI: clicking on Map Task results in 500 error
     (Thomas Graves via jlowe)
 
-Release 0.23.6 - 2013-02-06
+Release 0.23.6 - UNRELEASED
 
   INCOMPATIBLE CHANGES
 

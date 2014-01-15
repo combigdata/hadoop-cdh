@@ -41,9 +41,9 @@ import org.apache.hadoop.metrics2.lib.MutableGaugeInt;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.hadoop.yarn.server.resourcemanager.resource.Resources;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttemptState;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
-import org.apache.hadoop.yarn.util.resource.Resources;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,14 +73,14 @@ public class QueueMetrics implements MetricsSource {
   @Metric("Reserved CPU in virtual cores") MutableGaugeInt reservedVCores;
   @Metric("# of reserved containers") MutableGaugeInt reservedContainers;
   @Metric("# of active users") MutableGaugeInt activeUsers;
-  @Metric("# of active applications") MutableGaugeInt activeApplications;
+  @Metric("# of active users") MutableGaugeInt activeApplications;
   private final MutableGaugeInt[] runningTime;
   private TimeBucketMetrics<ApplicationId> runBuckets;
 
   static final Logger LOG = LoggerFactory.getLogger(QueueMetrics.class);
   static final MetricsInfo RECORD_INFO = info("QueueMetrics",
       "Metrics for the resource scheduler");
-  protected static final MetricsInfo QUEUE_INFO = info("Queue", "Metrics by queue");
+  static final MetricsInfo QUEUE_INFO = info("Queue", "Metrics by queue");
   static final MetricsInfo USER_INFO = info("User", "Metrics by user");
   static final Splitter Q_SPLITTER =
       Splitter.on('.').omitEmptyStrings().trimResults();
@@ -92,7 +92,7 @@ public class QueueMetrics implements MetricsSource {
   private final Map<String, QueueMetrics> users;
   private final Configuration conf;
 
-  protected QueueMetrics(MetricsSystem ms, String queueName, Queue parent, 
+  QueueMetrics(MetricsSystem ms, String queueName, Queue parent, 
 	       boolean enableUserMetrics, Configuration conf) {
     registry = new MetricsRegistry(RECORD_INFO);
     this.queueName = queueName;
@@ -104,12 +104,12 @@ public class QueueMetrics implements MetricsSource {
     runningTime = buildBuckets(conf);
   }
 
-  protected QueueMetrics tag(MetricsInfo info, String value) {
+  QueueMetrics tag(MetricsInfo info, String value) {
     registry.tag(info, value);
     return this;
   }
 
-  protected static StringBuilder sourceName(String queueName) {
+  static StringBuilder sourceName(String queueName) {
     StringBuilder sb = new StringBuilder(RECORD_INFO.name());
     int i = 0;
     for (String node : Q_SPLITTER.split(queueName)) {
@@ -137,7 +137,7 @@ public class QueueMetrics implements MetricsSource {
   /**
    * Simple metrics cache to help prevent re-registrations.
    */
-  protected final static Map<String, QueueMetrics> queueMetrics =
+  private static Map<String, QueueMetrics> queueMetrics =
       new HashMap<String, QueueMetrics>();
   
   public synchronized 
@@ -439,7 +439,7 @@ public class QueueMetrics implements MetricsSource {
   }
   
   public Resource getAllocatedResources() {
-    return BuilderUtils.newResource(allocatedMB.value(), allocatedVCores.value());
+    return BuilderUtils.newResource(allocatedMB.value(), 0);
   }
 
   public int getAllocatedMB() {

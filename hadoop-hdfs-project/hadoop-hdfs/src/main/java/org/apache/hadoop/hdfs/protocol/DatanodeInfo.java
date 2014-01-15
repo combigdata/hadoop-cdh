@@ -17,6 +17,10 @@
  */
 package org.apache.hadoop.hdfs.protocol;
 
+import static org.apache.hadoop.hdfs.DFSUtil.percent2String;
+
+import java.util.Date;
+
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
@@ -27,10 +31,6 @@ import org.apache.hadoop.net.Node;
 import org.apache.hadoop.net.NodeBase;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.util.Time;
-
-import java.util.Date;
-
-import static org.apache.hadoop.hdfs.DFSUtil.percent2String;
 
 /** 
  * This class extends the primary identifier of a Datanode with ephemeral
@@ -47,7 +47,6 @@ public class DatanodeInfo extends DatanodeID implements Node {
   private long lastUpdate;
   private int xceiverCount;
   private String location = NetworkTopology.DEFAULT_RACK;
-  private String softwareVersion;
   
   // Datanode administrative states
   public enum AdminStates {
@@ -108,21 +107,18 @@ public class DatanodeInfo extends DatanodeID implements Node {
       final long capacity, final long dfsUsed, final long remaining,
       final long blockPoolUsed, final long lastUpdate, final int xceiverCount,
       final AdminStates adminState) {
-    this(nodeID.getIpAddr(), nodeID.getHostName(), nodeID.getStorageID(),
-        nodeID.getXferPort(), nodeID.getInfoPort(), nodeID.getInfoSecurePort(),
-        nodeID.getIpcPort(), capacity, dfsUsed, remaining, blockPoolUsed,
-        lastUpdate, xceiverCount, location, adminState);
+    this(nodeID.getIpAddr(), nodeID.getHostName(), nodeID.getStorageID(), nodeID.getXferPort(),
+        nodeID.getInfoPort(), nodeID.getIpcPort(), capacity, dfsUsed, remaining,
+        blockPoolUsed, lastUpdate, xceiverCount, location, adminState);
   }
 
   /** Constructor */
   public DatanodeInfo(final String ipAddr, final String hostName,
-      final String storageID, final int xferPort, final int infoPort,
-      final int infoSecurePort, final int ipcPort,
+      final String storageID, final int xferPort, final int infoPort, final int ipcPort,
       final long capacity, final long dfsUsed, final long remaining,
       final long blockPoolUsed, final long lastUpdate, final int xceiverCount,
       final String networkLocation, final AdminStates adminState) {
-    super(ipAddr, hostName, storageID, xferPort, infoPort,
-            infoSecurePort, ipcPort);
+    super(ipAddr, hostName, storageID, xferPort, infoPort, ipcPort);
     this.capacity = capacity;
     this.dfsUsed = dfsUsed;
     this.remaining = remaining;
@@ -331,7 +327,7 @@ public class DatanodeInfo extends DatanodeID implements Node {
    * Check if the datanode is in stale state. Here if 
    * the namenode has not received heartbeat msg from a 
    * datanode for more than staleInterval (default value is
-   * {@link DFSConfigKeys#DFS_NAMENODE_STALE_DATANODE_INTERVAL_DEFAULT}),
+   * {@link DFSConfigKeys#DFS_NAMENODE_STALE_DATANODE_INTERVAL_MILLI_DEFAULT}),
    * the datanode will be treated as stale node.
    * 
    * @param staleInterval
@@ -384,13 +380,5 @@ public class DatanodeInfo extends DatanodeID implements Node {
     // Sufficient to use super equality as datanodes are uniquely identified
     // by DatanodeID
     return (this == obj) || super.equals(obj);
-  }
-
-  public String getSoftwareVersion() {
-    return softwareVersion;
-  }
-
-  public void setSoftwareVersion(String softwareVersion) {
-    this.softwareVersion = softwareVersion;
   }
 }

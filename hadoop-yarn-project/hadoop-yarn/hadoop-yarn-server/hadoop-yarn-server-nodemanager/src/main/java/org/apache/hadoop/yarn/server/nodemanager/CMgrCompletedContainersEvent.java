@@ -24,11 +24,10 @@ import org.apache.hadoop.yarn.api.records.ContainerId;
 
 public class CMgrCompletedContainersEvent extends ContainerManagerEvent {
 
-  private final List<ContainerId> containerToCleanup;
-  private final Reason reason;
-
-  public CMgrCompletedContainersEvent(List<ContainerId> containersToCleanup,
-                                      Reason reason) {
+  private List<ContainerId> containerToCleanup;
+  private Reason reason;
+  
+  public CMgrCompletedContainersEvent(List<ContainerId> containersToCleanup, Reason reason) {
     super(ContainerManagerEventType.FINISH_CONTAINERS);
     this.containerToCleanup = containersToCleanup;
     this.reason = reason;
@@ -37,27 +36,12 @@ public class CMgrCompletedContainersEvent extends ContainerManagerEvent {
   public List<ContainerId> getContainersToCleanup() {
     return this.containerToCleanup;
   }
-
+  
   public Reason getReason() {
     return reason;
   }
-
+  
   public static enum Reason {
-    /**
-     * Container is killed as NodeManager is shutting down
-     */
-    ON_SHUTDOWN,
-
-    /**
-     * Container is killed as the Nodemanager is re-syncing with the
-     * ResourceManager
-     */
-    ON_NODEMANAGER_RESYNC,
-
-    /**
-     * Container is killed on request by the ResourceManager
-     */
-    BY_RESOURCEMANAGER
+    ON_SHUTDOWN, BY_RESOURCEMANAGER
   }
-
 }

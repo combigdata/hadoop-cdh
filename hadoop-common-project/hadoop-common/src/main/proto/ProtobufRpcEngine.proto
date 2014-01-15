@@ -17,12 +17,6 @@
  */
 
 /**
- * These .proto interfaces are private and stable.
- * Please see http://wiki.apache.org/hadoop/Compatibility
- * for what changes are allowed for a *stable* .proto interface.
- */
-
-/**
  * These are the messages used by Hadoop RPC for the Rpc Engine Protocol Buffer
  * to marshal the request and response in the RPC layer.
  * The messages are sent in addition to the normal RPC header as 
@@ -60,8 +54,8 @@ message RequestHeaderProto {
    * ProtocolInfoProto) since they reuse the connection; in this case
    * the declaringClassProtocolName field is set to the ProtocolInfoProto
    */
-  required string declaringClassProtocolName = 2;
+  required string declaringClassProtocolName = 3;
   
   /** protocol version of class declaring the called method */
-  required uint64 clientProtocolVersion = 3;
+  required uint64 clientProtocolVersion = 4;
 }

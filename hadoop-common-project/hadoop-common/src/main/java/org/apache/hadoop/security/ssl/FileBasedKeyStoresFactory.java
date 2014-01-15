@@ -53,8 +53,6 @@ public class FileBasedKeyStoresFactory implements KeyStoresFactory {
     "ssl.{0}.keystore.location";
   public static final String SSL_KEYSTORE_PASSWORD_TPL_KEY =
     "ssl.{0}.keystore.password";
-  public static final String SSL_KEYSTORE_KEYPASSWORD_TPL_KEY =
-    "ssl.{0}.keystore.keypassword";
   public static final String SSL_KEYSTORE_TYPE_TPL_KEY =
     "ssl.{0}.keystore.type";
 
@@ -138,7 +136,7 @@ public class FileBasedKeyStoresFactory implements KeyStoresFactory {
       conf.get(resolvePropertyName(mode, SSL_KEYSTORE_TYPE_TPL_KEY),
                DEFAULT_KEYSTORE_TYPE);
     KeyStore keystore = KeyStore.getInstance(keystoreType);
-    String keystoreKeyPassword = null;
+    String keystorePassword = null;
     if (requireClientCert || mode == SSLFactory.Mode.SERVER) {
       String locationProperty =
         resolvePropertyName(mode, SSL_KEYSTORE_LOCATION_TPL_KEY);
@@ -149,17 +147,11 @@ public class FileBasedKeyStoresFactory implements KeyStoresFactory {
       }
       String passwordProperty =
         resolvePropertyName(mode, SSL_KEYSTORE_PASSWORD_TPL_KEY);
-      String keystorePassword = conf.get(passwordProperty, "");
+      keystorePassword = conf.get(passwordProperty, "");
       if (keystorePassword.isEmpty()) {
         throw new GeneralSecurityException("The property '" + passwordProperty +
           "' has not been set in the ssl configuration file.");
       }
-      String keyPasswordProperty =
-        resolvePropertyName(mode, SSL_KEYSTORE_KEYPASSWORD_TPL_KEY);
-      // Key password defaults to the same value as store password for
-      // compatibility with legacy configurations that did not use a separate
-      // configuration property for key password.
-      keystoreKeyPassword = conf.get(keyPasswordProperty, keystorePassword);
       LOG.debug(mode.toString() + " KeyStore: " + keystoreLocation);
 
       InputStream is = new FileInputStream(keystoreLocation);
@@ -175,8 +167,8 @@ public class FileBasedKeyStoresFactory implements KeyStoresFactory {
     KeyManagerFactory keyMgrFactory = KeyManagerFactory
         .getInstance(SSLFactory.SSLCERTIFICATE);
       
-    keyMgrFactory.init(keystore, (keystoreKeyPassword != null) ?
-                                 keystoreKeyPassword.toCharArray() : null);
+    keyMgrFactory.init(keystore, (keystorePassword != null) ?
+                                 keystorePassword.toCharArray() : null);
     keyManagers = keyMgrFactory.getKeyManagers();
 
     //trust store

@@ -26,7 +26,6 @@ import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.security.token.block.BlockTokenIdentifier;
-import org.apache.hadoop.hdfs.server.datanode.CachingStrategy;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.DataChecksum;
 
@@ -58,15 +57,13 @@ public interface DataTransferProtocol {
    * @param length maximum number of bytes for this read.
    * @param sendChecksum if false, the DN should skip reading and sending
    *        checksums
-   * @param cachingStrategy  The caching strategy to use.
    */
   public void readBlock(final ExtendedBlock blk,
       final Token<BlockTokenIdentifier> blockToken,
       final String clientName,
       final long blockOffset,
       final long length,
-      final boolean sendChecksum,
-      final CachingStrategy cachingStrategy) throws IOException;
+      final boolean sendChecksum) throws IOException;
 
   /**
    * Write a block to a datanode pipeline.
@@ -92,8 +89,7 @@ public interface DataTransferProtocol {
       final long minBytesRcvd,
       final long maxBytesRcvd,
       final long latestGenerationStamp,
-      final DataChecksum requestedChecksum,
-      final CachingStrategy cachingStrategy) throws IOException;
+      final DataChecksum requestedChecksum) throws IOException;
 
   /**
    * Transfer a block to another datanode.

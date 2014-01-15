@@ -20,7 +20,6 @@ option java_package = "org.apache.hadoop.yarn.proto";
 option java_outer_classname = "YarnServerCommonServiceProtos";
 option java_generic_services = true;
 option java_generate_equals_and_hash = true;
-package hadoop.yarn;
 
 import "yarn_protos.proto";
 import "yarn_server_common_protos.proto";
@@ -32,27 +31,24 @@ message RegisterNodeManagerRequestProto {
 }
 
 message RegisterNodeManagerResponseProto {
-  optional MasterKeyProto container_token_master_key = 1;
-  optional MasterKeyProto nm_token_master_key = 2;
-  optional NodeActionProto nodeAction = 3;
-  optional int64 rm_identifier = 4;
-  optional string diagnostics_message = 5;
+  optional MasterKeyProto master_key = 1;
+  optional NodeActionProto nodeAction = 2;
+  optional int64 rm_identifier = 3;
+  optional string diagnostics_message = 4;
 }
 
 message NodeHeartbeatRequestProto {
   optional NodeStatusProto node_status = 1;
-  optional MasterKeyProto last_known_container_token_master_key = 2;
-  optional MasterKeyProto last_known_nm_token_master_key = 3;
+  optional MasterKeyProto last_known_master_key = 2;
 }
 
 
 message NodeHeartbeatResponseProto {
   optional int32 response_id = 1;
-  optional MasterKeyProto container_token_master_key = 2;
-  optional MasterKeyProto nm_token_master_key = 3;
-  optional NodeActionProto nodeAction = 4;
-  repeated ContainerIdProto containers_to_cleanup = 5;
-  repeated ApplicationIdProto applications_to_cleanup = 6;
-  optional int64 nextHeartBeatInterval = 7;
-  optional string diagnostics_message = 8;
+  optional MasterKeyProto master_key = 2;
+  optional NodeActionProto nodeAction = 3;
+  repeated ContainerIdProto containers_to_cleanup = 4;
+  repeated ApplicationIdProto applications_to_cleanup = 5;
+  optional int64 nextHeartBeatInterval = 6;
+  optional string diagnostics_message = 7;
 }

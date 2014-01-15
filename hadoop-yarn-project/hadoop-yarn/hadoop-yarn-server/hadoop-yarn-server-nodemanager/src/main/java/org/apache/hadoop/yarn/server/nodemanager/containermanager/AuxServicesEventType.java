@@ -20,7 +20,5 @@ package org.apache.hadoop.yarn.server.nodemanager.containermanager;
 
 public enum AuxServicesEventType {
   APPLICATION_INIT,
-  APPLICATION_STOP,
-  CONTAINER_INIT,
-  CONTAINER_STOP
+  APPLICATION_STOP
 }

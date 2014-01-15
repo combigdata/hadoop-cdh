@@ -36,6 +36,8 @@ import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.security.AccessControlException;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.authorize.AccessControlList;
+import org.apache.hadoop.yarn.Lock;
+import org.apache.hadoop.yarn.Lock.NoLock;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
@@ -51,6 +53,8 @@ import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.api.records.Token;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
+import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceCalculator;
+import org.apache.hadoop.yarn.server.resourcemanager.resource.Resources;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainerEventType;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainerState;
@@ -59,13 +63,8 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.NodeType;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.QueueMetrics;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerApp;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerNode;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerUtils;
 import org.apache.hadoop.yarn.server.resourcemanager.security.RMContainerTokenSecretManager;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
-import org.apache.hadoop.yarn.server.utils.Lock;
-import org.apache.hadoop.yarn.server.utils.Lock.NoLock;
-import org.apache.hadoop.yarn.util.resource.ResourceCalculator;
-import org.apache.hadoop.yarn.util.resource.Resources;
 
 @Private
 @Unstable
@@ -171,8 +170,9 @@ public class LeafQueue implements CSQueue {
     maxApplicationsPerUser = 
       (int)(maxApplications * (userLimit / 100.0f) * userLimitFactor);
 
-    float maxAMResourcePerQueuePercent = cs.getConfiguration()
-        .getMaximumApplicationMasterResourcePerQueuePercent(getQueuePath());
+    this.maxAMResourcePerQueuePercent = 
+        cs.getConfiguration().
+            getMaximumApplicationMasterResourcePerQueuePercent(getQueuePath());
     int maxActiveApplications = 
         CSQueueUtils.computeMaxActiveApplications(
             resourceCalculator,
@@ -201,9 +201,9 @@ public class LeafQueue implements CSQueue {
         capacity, absoluteCapacity, 
         maximumCapacity, absoluteMaxCapacity, 
         userLimit, userLimitFactor, 
-        maxApplications, maxAMResourcePerQueuePercent, maxApplicationsPerUser,
-        maxActiveApplications, maxActiveApplicationsPerUser, state, acls, cs
-            .getConfiguration().getNodeLocalityDelay());
+        maxApplications, maxApplicationsPerUser,
+        maxActiveApplications, maxActiveApplicationsPerUser,
+        state, acls, cs.getConfiguration().getNodeLocalityDelay());
 
     if(LOG.isDebugEnabled()) {
       LOG.debug("LeafQueue:" + " name=" + queueName
@@ -222,10 +222,10 @@ public class LeafQueue implements CSQueue {
       float capacity, float absoluteCapacity, 
       float maximumCapacity, float absoluteMaxCapacity,
       int userLimit, float userLimitFactor,
-      int maxApplications, float maxAMResourcePerQueuePercent,
-      int maxApplicationsPerUser, int maxActiveApplications,
-      int maxActiveApplicationsPerUser, QueueState state,
-      Map<QueueACL, AccessControlList> acls, int nodeLocalityDelay)
+      int maxApplications, int maxApplicationsPerUser,
+      int maxActiveApplications, int maxActiveApplicationsPerUser,
+      QueueState state, Map<QueueACL, AccessControlList> acls, 
+      int nodeLocalityDelay)
   {
     // Sanity check
     CSQueueUtils.checkMaxCapacity(getQueueName(), capacity, maximumCapacity);
@@ -242,7 +242,6 @@ public class LeafQueue implements CSQueue {
     this.userLimitFactor = userLimitFactor;
 
     this.maxApplications = maxApplications;
-    this.maxAMResourcePerQueuePercent = maxAMResourcePerQueuePercent;
     this.maxApplicationsPerUser = maxApplicationsPerUser;
 
     this.maxActiveApplications = maxActiveApplications;
@@ -391,14 +390,6 @@ public class LeafQueue implements CSQueue {
   @Private
   public float getMinimumAllocationFactor() {
     return minimumAllocationFactor;
-  }
-  
-  /**
-   * Used only by tests.
-   */
-  @Private
-  public float getMaxAMResourcePerQueuePercent() {
-    return maxAMResourcePerQueuePercent;
   }
 
   public int getMaxApplications() {
@@ -612,7 +603,6 @@ public class LeafQueue implements CSQueue {
         newlyParsedLeafQueue.absoluteMaxCapacity, 
         newlyParsedLeafQueue.userLimit, newlyParsedLeafQueue.userLimitFactor, 
         newlyParsedLeafQueue.maxApplications,
-        newlyParsedLeafQueue.maxAMResourcePerQueuePercent,
         newlyParsedLeafQueue.getMaxApplicationsPerUser(),
         newlyParsedLeafQueue.getMaximumActiveApplications(), 
         newlyParsedLeafQueue.getMaximumActiveApplicationsPerUser(),
@@ -644,8 +634,7 @@ public class LeafQueue implements CSQueue {
 
     // Check queue ACLs
     UserGroupInformation userUgi = UserGroupInformation.createRemoteUser(userName);
-    if (!hasAccess(QueueACL.SUBMIT_APPLICATIONS, userUgi)
-        && !hasAccess(QueueACL.ADMINISTER_QUEUE, userUgi)) {
+    if (!hasAccess(QueueACL.SUBMIT_APPLICATIONS, userUgi)) {
       throw new AccessControlException("User " + userName + " cannot submit" +
           " applications to queue " + getQueuePath());
     }
@@ -802,7 +791,7 @@ public class LeafQueue implements CSQueue {
   assignContainers(Resource clusterResource, FiCaSchedulerNode node) {
 
     if(LOG.isDebugEnabled()) {
-      LOG.debug("assignContainers: node=" + node.getNodeName()
+      LOG.debug("assignContainers: node=" + node.getHostName()
         + " #applications=" + activeApplications.size());
     }
     
@@ -811,10 +800,9 @@ public class LeafQueue implements CSQueue {
     if (reservedContainer != null) {
       FiCaSchedulerApp application = 
           getApplication(reservedContainer.getApplicationAttemptId());
-      synchronized (application) {
-        return assignReservedContainer(application, node, reservedContainer,
-          clusterResource);
-      }
+      return 
+          assignReservedContainer(application, node, reservedContainer, 
+              clusterResource); 
     }
     
     // Try to assign containers to applications in order
@@ -827,11 +815,6 @@ public class LeafQueue implements CSQueue {
       }
 
       synchronized (application) {
-        // Check if this resource is on the blacklist
-        if (FiCaSchedulerUtils.isBlacklisted(application, node, LOG)) {
-          continue;
-        }
-        
         // Schedule in priority order
         for (Priority priority : application.getPriorities()) {
           // Required resource
@@ -1131,7 +1114,7 @@ public class LeafQueue implements CSQueue {
 
     // Data-local
     ResourceRequest nodeLocalResourceRequest =
-        application.getResourceRequest(priority, node.getNodeName());
+        application.getResourceRequest(priority, node.getHostName());
     if (nodeLocalResourceRequest != null) {
       assigned = 
           assignNodeLocalContainers(clusterResource, nodeLocalResourceRequest, 
@@ -1258,7 +1241,7 @@ public class LeafQueue implements CSQueue {
     if (type == NodeType.NODE_LOCAL) {
       // Now check if we need containers on this host...
       ResourceRequest nodeLocalRequest = 
-        application.getResourceRequest(priority, node.getNodeName());
+        application.getResourceRequest(priority, node.getHostName());
       if (nodeLocalRequest != null) {
         return nodeLocalRequest.getNumContainers() > 0;
       }
@@ -1303,21 +1286,15 @@ public class LeafQueue implements CSQueue {
       FiCaSchedulerApp application, Priority priority, 
       ResourceRequest request, NodeType type, RMContainer rmContainer) {
     if (LOG.isDebugEnabled()) {
-      LOG.debug("assignContainers: node=" + node.getNodeName()
+      LOG.debug("assignContainers: node=" + node.getHostName()
         + " application=" + application.getApplicationId().getId()
         + " priority=" + priority.getPriority()
         + " request=" + request + " type=" + type);
     }
     Resource capability = request.getCapability();
-    Resource available = node.getAvailableResource();
-    Resource totalResource = node.getTotalResource();
 
-    if (!Resources.fitsIn(capability, totalResource)) {
-      LOG.warn("Node : " + node.getNodeID()
-          + " does not have sufficient resource for request : " + request
-          + " node total capability : " + node.getTotalResource());
-      return Resources.none();
-    }
+    Resource available = node.getAvailableResource();
+
     assert Resources.greaterThan(
         resourceCalculator, clusterResource, available, Resources.none());
 
@@ -1406,63 +1383,58 @@ public class LeafQueue implements CSQueue {
     node.reserveResource(application, priority, rmContainer);
   }
 
-  private boolean unreserve(FiCaSchedulerApp application, Priority priority,
+  private void unreserve(FiCaSchedulerApp application, Priority priority, 
       FiCaSchedulerNode node, RMContainer rmContainer) {
     // Done with the reservation?
-    if (application.unreserve(node, priority)) {
-      node.unreserveResource(application);
-
+    application.unreserve(node, priority);
+    node.unreserveResource(application);
+      
       // Update reserved metrics
-      getMetrics().unreserveResource(
-          application.getUser(), rmContainer.getContainer().getResource());
-      return true;
-    }
-    return false;
+    getMetrics().unreserveResource(
+        application.getUser(), rmContainer.getContainer().getResource());
   }
+
 
   @Override
   public void completedContainer(Resource clusterResource, 
       FiCaSchedulerApp application, FiCaSchedulerNode node, RMContainer rmContainer, 
-      ContainerStatus containerStatus, RMContainerEventType event, CSQueue childQueue) {
+      ContainerStatus containerStatus, RMContainerEventType event) {
     if (application != null) {
       // Careful! Locking order is important!
       synchronized (this) {
 
         Container container = rmContainer.getContainer();
-
-        boolean removed = false;
+        
         // Inform the application & the node
         // Note: It's safe to assume that all state changes to RMContainer
         // happen under scheduler's lock... 
         // So, this is, in effect, a transaction across application & node
         if (rmContainer.getState() == RMContainerState.RESERVED) {
-          removed = unreserve(application, rmContainer.getReservedPriority(),
+          unreserve(application, rmContainer.getReservedPriority(), 
               node, rmContainer);
         } else {
-          removed =
-            application.containerCompleted(rmContainer, containerStatus, event);
+          application.containerCompleted(rmContainer, containerStatus, event);
           node.releaseContainer(container);
         }
 
+
         // Book-keeping
-        if (removed) {
-          releaseResource(clusterResource,
-              application, container.getResource());
-          LOG.info("completedContainer" +
-              " container=" + container +
-              " resource=" + container.getResource() +
-              " queue=" + this +
-              " usedCapacity=" + getUsedCapacity() +
-              " absoluteUsedCapacity=" + getAbsoluteUsedCapacity() +
-              " used=" + usedResources +
-              " cluster=" + clusterResource);
-          // Inform the parent queue
-          getParent().completedContainer(clusterResource, application,
-              node, rmContainer, null, event, this);
-        }
+        releaseResource(clusterResource, 
+            application, container.getResource());
+
+        LOG.info("completedContainer" +
+            " container=" + container +
+            " resource=" + container.getResource() +
+        		" queue=" + this + 
+            " usedCapacity=" + getUsedCapacity() +
+            " absoluteUsedCapacity=" + getAbsoluteUsedCapacity() +
+            " used=" + usedResources + 
+            " cluster=" + clusterResource);
       }
 
-
+      // Inform the parent queue
+      getParent().completedContainer(clusterResource, application, 
+          node, rmContainer, null, event);
     }
   }
 
@@ -1609,22 +1581,5 @@ public class LeafQueue implements CSQueue {
     getParent().recoverContainer(clusterResource, application, container);
 
   }
-
-  /**
-   * Obtain (read-only) collection of active applications.
-   */
-  public Set<FiCaSchedulerApp> getApplications() {
-    // need to access the list of apps from the preemption monitor
-    return activeApplications;
-  }
-
-  // return a single Resource capturing the overal amount of pending resources
-  public Resource getTotalResourcePending() {
-    Resource ret = BuilderUtils.newResource(0, 0);
-    for (FiCaSchedulerApp f : activeApplications) {
-      Resources.addTo(ret, f.getTotalPendingRequests());
-    }
-    return ret;
-  }
-
+  
 }

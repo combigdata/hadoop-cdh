@@ -91,10 +91,9 @@ public class TestNetworkTopology {
       invalCluster.add(invalDataNodes[2]);
       fail("expected InvalidTopologyException");
     } catch (NetworkTopology.InvalidTopologyException e) {
-      assertTrue(e.getMessage().startsWith("Failed to add "));
-      assertTrue(e.getMessage().contains(
+      assertEquals(e.getMessage(), "Invalid network topology. " +
           "You cannot have a rack and a non-rack node at the same " +
-          "level of the network topology."));
+          "level of the network topology.");
     }
   }
 

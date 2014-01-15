@@ -20,39 +20,24 @@ package org.apache.hadoop.yarn.security.client;
 
 import javax.crypto.SecretKey;
 
-import org.apache.hadoop.classification.InterfaceAudience.Private;
-import org.apache.hadoop.classification.InterfaceAudience.Public;
-import org.apache.hadoop.classification.InterfaceStability.Evolving;
 import org.apache.hadoop.security.token.SecretManager;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 
-/**
- * A base {@link SecretManager} for AMs to extend and validate Client-RM tokens
- * issued to clients by the RM using the underlying master-key shared by RM to
- * the AMs on their launch. All the methods are called by either Hadoop RPC or
- * YARN, so this class is strictly for the purpose of inherit/extend and
- * register with Hadoop RPC.
- */
-@Public
-@Evolving
 public abstract class BaseClientToAMTokenSecretManager extends
-    SecretManager<ClientToAMTokenIdentifier> {
+    SecretManager<ClientTokenIdentifier> {
 
-  @Private
   public abstract SecretKey getMasterKey(
       ApplicationAttemptId applicationAttemptId);
 
-  @Private
   @Override
   public synchronized byte[] createPassword(
-      ClientToAMTokenIdentifier identifier) {
+      ClientTokenIdentifier identifier) {
     return createPassword(identifier.getBytes(),
       getMasterKey(identifier.getApplicationAttemptID()));
   }
 
-  @Private
   @Override
-  public byte[] retrievePassword(ClientToAMTokenIdentifier identifier)
+  public byte[] retrievePassword(ClientTokenIdentifier identifier)
       throws SecretManager.InvalidToken {
     SecretKey masterKey = getMasterKey(identifier.getApplicationAttemptID());
     if (masterKey == null) {
@@ -61,10 +46,9 @@ public abstract class BaseClientToAMTokenSecretManager extends
     return createPassword(identifier.getBytes(), masterKey);
   }
 
-  @Private
   @Override
-  public ClientToAMTokenIdentifier createIdentifier() {
-    return new ClientToAMTokenIdentifier();
+  public ClientTokenIdentifier createIdentifier() {
+    return new ClientTokenIdentifier();
   }
 
 }

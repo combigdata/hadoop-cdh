@@ -162,9 +162,8 @@ public class DistCp extends Configured implements Tool {
     job.getConfiguration().set(DistCpConstants.CONF_LABEL_DISTCP_JOB_ID, jobID);
     
     LOG.info("DistCp job-id: " + jobID);
-    if (inputOptions.shouldBlock() && !job.waitForCompletion(true)) {
-      throw new IOException("DistCp failure: Job " + jobID + " has failed: "
-          + job.getStatus().getFailureInfo());
+    if (inputOptions.shouldBlock()) {
+      job.waitForCompletion(true);
     }
     return job;
   }

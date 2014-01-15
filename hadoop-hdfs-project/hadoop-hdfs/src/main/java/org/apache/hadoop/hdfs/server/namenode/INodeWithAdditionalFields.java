@@ -22,7 +22,7 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.fs.permission.PermissionStatus;
 import org.apache.hadoop.hdfs.protocol.QuotaExceededException;
 import org.apache.hadoop.hdfs.server.namenode.snapshot.Snapshot;
-import org.apache.hadoop.util.LightWeightGSet.LinkedElement;
+import org.apache.hadoop.hdfs.util.LightWeightGSet.LinkedElement;
 
 import com.google.common.base.Preconditions;
 
@@ -33,7 +33,7 @@ import com.google.common.base.Preconditions;
 @InterfaceAudience.Private
 public abstract class INodeWithAdditionalFields extends INode
     implements LinkedElement {
-  static enum PermissionStatusFormat {
+  private static enum PermissionStatusFormat {
     MODE(0, 16),
     GROUP(MODE.OFFSET + MODE.LENGTH, 25),
     USER(GROUP.OFFSET + GROUP.LENGTH, 23);
@@ -130,7 +130,6 @@ public abstract class INodeWithAdditionalFields extends INode
   }
 
   /** Get inode id */
-  @Override
   public final long getId() {
     return this.id;
   }
@@ -198,11 +197,11 @@ public abstract class INodeWithAdditionalFields extends INode
       return getSnapshotINode(snapshot).getFsPermission();
     }
 
-    return new FsPermission(getFsPermissionShort());
+    return new FsPermission(
+        (short)PermissionStatusFormat.MODE.retrieve(permission));
   }
 
-  @Override
-  public final short getFsPermissionShort() {
+  final short getFsPermissionShort() {
     return (short)PermissionStatusFormat.MODE.retrieve(permission);
   }
   @Override
@@ -212,14 +211,9 @@ public abstract class INodeWithAdditionalFields extends INode
   }
 
   @Override
-  public long getPermissionLong() {
-    return permission;
-  }
-
-  @Override
   final long getModificationTime(Snapshot snapshot) {
     if (snapshot != null) {
-      return getSnapshotINode(snapshot).getModificationTime();
+      return getSnapshotINode(snapshot).getModificationTime(null);
     }
 
     return this.modificationTime;
@@ -227,7 +221,6 @@ public abstract class INodeWithAdditionalFields extends INode
 
 
   /** Update modification time if it is larger than the current value. */
-  @Override
   public final INode updateModificationTime(long mtime, Snapshot latest,
       final INodeMap inodeMap) throws QuotaExceededException {
     Preconditions.checkState(isDirectory());
@@ -249,7 +242,7 @@ public abstract class INodeWithAdditionalFields extends INode
   @Override
   final long getAccessTime(Snapshot snapshot) {
     if (snapshot != null) {
-      return getSnapshotINode(snapshot).getAccessTime();
+      return getSnapshotINode(snapshot).getAccessTime(null);
     }
 
     return accessTime;
@@ -258,7 +251,6 @@ public abstract class INodeWithAdditionalFields extends INode
   /**
    * Set last access time of inode.
    */
-  @Override
   public final void setAccessTime(long accessTime) {
     this.accessTime = accessTime;
   }

@@ -24,24 +24,18 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.regex.Pattern;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.service.AbstractService;
-import org.apache.hadoop.service.Service;
-import org.apache.hadoop.service.ServiceStateChangeListener;
 import org.apache.hadoop.util.ReflectionUtils;
+import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.event.EventHandler;
-import org.apache.hadoop.yarn.server.api.ApplicationTerminationContext;
-import org.apache.hadoop.yarn.server.api.AuxiliaryService;
-import org.apache.hadoop.yarn.server.api.ApplicationInitializationContext;
-import org.apache.hadoop.yarn.server.api.ContainerInitializationContext;
-import org.apache.hadoop.yarn.server.api.ContainerTerminationContext;
-
-import com.google.common.base.Preconditions;
+import org.apache.hadoop.yarn.service.AbstractService;
+import org.apache.hadoop.yarn.service.Service;
+import org.apache.hadoop.yarn.service.ServiceStateChangeListener;
 
 public class AuxServices extends AbstractService
     implements ServiceStateChangeListener, EventHandler<AuxServicesEvent> {
@@ -49,15 +43,13 @@ public class AuxServices extends AbstractService
   private static final Log LOG = LogFactory.getLog(AuxServices.class);
 
   protected final Map<String,AuxiliaryService> serviceMap;
-  protected final Map<String,ByteBuffer> serviceMetaData;
-
-  private final Pattern p = Pattern.compile("^[A-Za-z_]+[A-Za-z0-9_]*$");
+  protected final Map<String,ByteBuffer> serviceMeta;
 
   public AuxServices() {
     super(AuxServices.class.getName());
     serviceMap =
       Collections.synchronizedMap(new HashMap<String,AuxiliaryService>());
-    serviceMetaData =
+    serviceMeta =
       Collections.synchronizedMap(new HashMap<String,ByteBuffer>());
     // Obtain services from configuration in init()
   }
@@ -78,11 +70,11 @@ public class AuxServices extends AbstractService
    * If a service has not been started no metadata will be available. The key
    * is the name of the service as defined in the configuration.
    */
-  public Map<String, ByteBuffer> getMetaData() {
+  public Map<String, ByteBuffer> getMeta() {
     Map<String, ByteBuffer> metaClone = new HashMap<String, ByteBuffer>(
-        serviceMetaData.size());
-    synchronized (serviceMetaData) {
-      for (Entry<String, ByteBuffer> entry : serviceMetaData.entrySet()) {
+        serviceMeta.size());
+    synchronized (serviceMeta) {
+      for (Entry<String, ByteBuffer> entry : serviceMeta.entrySet()) {
         metaClone.put(entry.getKey(), entry.getValue().duplicate());
       }
     }
@@ -90,23 +82,16 @@ public class AuxServices extends AbstractService
   }
 
   @Override
-  public void serviceInit(Configuration conf) throws Exception {
+  public void init(Configuration conf) {
     Collection<String> auxNames = conf.getStringCollection(
         YarnConfiguration.NM_AUX_SERVICES);
     for (final String sName : auxNames) {
       try {
-        Preconditions
-            .checkArgument(
-                validateAuxServiceName(sName),
-                "The ServiceName: " + sName + " set in " +
-                YarnConfiguration.NM_AUX_SERVICES +" is invalid." +
-                "The valid service name should only contain a-zA-Z0-9_ " +
-                "and can not start with numbers");
         Class<? extends AuxiliaryService> sClass = conf.getClass(
               String.format(YarnConfiguration.NM_AUX_SERVICE_FMT, sName), null,
               AuxiliaryService.class);
         if (null == sClass) {
-          throw new RuntimeException("No class defined for " + sName);
+          throw new RuntimeException("No class defiend for " + sName);
         }
         AuxiliaryService s = ReflectionUtils.newInstance(sClass, conf);
         // TODO better use s.getName()?
@@ -125,41 +110,41 @@ public class AuxServices extends AbstractService
         throw e;
       }
     }
-    super.serviceInit(conf);
+    super.init(conf);
   }
 
   @Override
-  public void serviceStart() throws Exception {
+  public void start() {
     // TODO fork(?) services running as configured user
     //      monitor for health, shutdown/restart(?) if any should die
     for (Map.Entry<String, AuxiliaryService> entry : serviceMap.entrySet()) {
       AuxiliaryService service = entry.getValue();
       String name = entry.getKey();
       service.start();
-      service.registerServiceListener(this);
-      ByteBuffer meta = service.getMetaData();
+      service.register(this);
+      ByteBuffer meta = service.getMeta();
       if(meta != null) {
-        serviceMetaData.put(name, meta);
+        serviceMeta.put(name, meta);
       }
     }
-    super.serviceStart();
+    super.start();
   }
 
   @Override
-  public void serviceStop() throws Exception {
+  public void stop() {
     try {
       synchronized (serviceMap) {
         for (Service service : serviceMap.values()) {
           if (service.getServiceState() == Service.STATE.STARTED) {
-            service.unregisterServiceListener(this);
+            service.unregister(this);
             service.stop();
           }
         }
         serviceMap.clear();
-        serviceMetaData.clear();
+        serviceMeta.clear();
       }
     } finally {
-      super.serviceStop();
+      super.stop();
     }
   }
 
@@ -175,70 +160,39 @@ public class AuxServices extends AbstractService
     LOG.info("Got event " + event.getType() + " for appId "
         + event.getApplicationID());
     switch (event.getType()) {
-      case APPLICATION_INIT:
-        LOG.info("Got APPLICATION_INIT for service " + event.getServiceID());
-        AuxiliaryService service = null;
-        try {
-          service = serviceMap.get(event.getServiceID());
-          service
-              .initializeApplication(new ApplicationInitializationContext(event
-                  .getUser(), event.getApplicationID(), event.getServiceData()));
-        } catch (Throwable th) {
-          logWarningWhenAuxServiceThrowExceptions(service,
-              AuxServicesEventType.APPLICATION_INIT, th);
-        }
-        break;
-      case APPLICATION_STOP:
-        for (AuxiliaryService serv : serviceMap.values()) {
-          try {
-            serv.stopApplication(new ApplicationTerminationContext(event
-                .getApplicationID()));
-          } catch (Throwable th) {
-            logWarningWhenAuxServiceThrowExceptions(serv,
-                AuxServicesEventType.APPLICATION_STOP, th);
-          }
-        }
-        break;
-      case CONTAINER_INIT:
-        for (AuxiliaryService serv : serviceMap.values()) {
-          try {
-            serv.initializeContainer(new ContainerInitializationContext(
-                event.getUser(), event.getContainer().getContainerId(),
-                event.getContainer().getResource()));
-          } catch (Throwable th) {
-            logWarningWhenAuxServiceThrowExceptions(serv,
-                AuxServicesEventType.CONTAINER_INIT, th);
-          }
-        }
-        break;
-      case CONTAINER_STOP:
-        for (AuxiliaryService serv : serviceMap.values()) {
-          try {
-            serv.stopContainer(new ContainerTerminationContext(
-                event.getUser(), event.getContainer().getContainerId(),
-                event.getContainer().getResource()));
-          } catch (Throwable th) {
-            logWarningWhenAuxServiceThrowExceptions(serv,
-                AuxServicesEventType.CONTAINER_STOP, th);
-          }
-        }
-        break;
-      default:
-        throw new RuntimeException("Unknown type: " + event.getType());
+    case APPLICATION_INIT:
+      LOG.info("Got APPLICATION_INIT for service " + event.getServiceID());
+      AuxiliaryService service = serviceMap.get(event.getServiceID());
+      if (null == service) {
+        LOG.info("service is null");
+        // TODO kill all containers waiting on Application
+        return;
+      }
+      service.initApp(event.getUser(), event.getApplicationID(),
+          event.getServiceData());
+      break;
+    case APPLICATION_STOP:
+      for (AuxiliaryService serv : serviceMap.values()) {
+        serv.stopApp(event.getApplicationID());
+      }
+      break;
+    default:
+      throw new RuntimeException("Unknown type: " + event.getType());
     }
   }
 
-  private boolean validateAuxServiceName(String name) {
-    if (name == null || name.trim().isEmpty()) {
-      return false;
-    }
-    return p.matcher(name).matches();
+  public interface AuxiliaryService extends Service {
+    void initApp(String user, ApplicationId appId, ByteBuffer data);
+    void stopApp(ApplicationId appId);
+    /**
+     * Retreive metadata for this service.  This is likely going to be contact
+     * information so that applications can access the service remotely.  Ideally
+     * each service should provide a method to parse out the information to a usable
+     * class.  This will only be called after the services start method has finished.
+     * the result may be cached.
+     * @return metadata for this service that should be made avaiable to applications.
+     */
+    ByteBuffer getMeta();
   }
 
-  private void logWarningWhenAuxServiceThrowExceptions(AuxiliaryService service,
-      AuxServicesEventType eventType, Throwable th) {
-    LOG.warn((null == service ? "The auxService is null"
-        : "The auxService name is " + service.getName())
-        + " and it got an error at event: " + eventType, th);
-  }
 }

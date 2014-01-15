@@ -20,7 +20,7 @@ package org.apache.hadoop.yarn.api.records;
 
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Stable;
-import org.apache.hadoop.yarn.api.ApplicationClientProtocol;
+import org.apache.hadoop.yarn.api.ClientRMProtocol;
 
 /**
  * <p>
@@ -28,7 +28,7 @@ import org.apache.hadoop.yarn.api.ApplicationClientProtocol;
  * </p>
  * 
  * <p>
- * The ACL is one of:
+ * The ACLs are one of:
  * <ul>
  * <li>{@link #SUBMIT_APPLICATIONS} - ACL to submit applications to the
  * queue.</li>
@@ -37,7 +37,7 @@ import org.apache.hadoop.yarn.api.ApplicationClientProtocol;
  * </p>
  * 
  * @see QueueInfo
- * @see ApplicationClientProtocol#getQueueUserAcls(org.apache.hadoop.yarn.api.protocolrecords.GetQueueUserAclsInfoRequest)
+ * @see ClientRMProtocol#getQueueUserAcls(org.apache.hadoop.yarn.api.protocolrecords.GetQueueUserAclsInfoRequest)
  */
 @Public
 @Stable

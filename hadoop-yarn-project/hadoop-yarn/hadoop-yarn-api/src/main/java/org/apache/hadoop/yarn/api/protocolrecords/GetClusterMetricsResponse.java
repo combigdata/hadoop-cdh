@@ -22,7 +22,7 @@ import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Stable;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
-import org.apache.hadoop.yarn.api.ApplicationClientProtocol;
+import org.apache.hadoop.yarn.api.ClientRMProtocol;
 import org.apache.hadoop.yarn.api.records.YarnClusterMetrics;
 import org.apache.hadoop.yarn.util.Records;
 
@@ -31,14 +31,12 @@ import org.apache.hadoop.yarn.util.Records;
  * requesting cluster metrics.<p>
  * 
  * @see YarnClusterMetrics
- * @see ApplicationClientProtocol#getClusterMetrics(GetClusterMetricsRequest)
+ * @see ClientRMProtocol#getClusterMetrics(GetClusterMetricsRequest)
  */
 @Public
 @Stable
 public abstract class GetClusterMetricsResponse {
 
-  @Private
-  @Unstable
   public static GetClusterMetricsResponse
       newInstance(YarnClusterMetrics metrics) {
     GetClusterMetricsResponse response =

@@ -23,7 +23,6 @@ import java.text.NumberFormat;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Stable;
-import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.yarn.util.Records;
 
 /**
@@ -39,12 +38,9 @@ import org.apache.hadoop.yarn.util.Records;
 public abstract class ApplicationAttemptId implements
     Comparable<ApplicationAttemptId> {
 
-  @Private
-  @Unstable
   public static final String appAttemptIdStrPrefix = "appattempt_";
 
   @Private
-  @Unstable
   public static ApplicationAttemptId newInstance(ApplicationId appId,
       int attemptId) {
     ApplicationAttemptId appAttemptId =
@@ -64,19 +60,15 @@ public abstract class ApplicationAttemptId implements
   public abstract ApplicationId getApplicationId();
   
   @Private
-  @Unstable
   protected abstract void setApplicationId(ApplicationId appID);
   
   /**
    * Get the <code>attempt id</code> of the <code>Application</code>.
    * @return <code>attempt id</code> of the <code>Application</code>
    */
-  @Public
-  @Stable
   public abstract int getAttemptId();
   
   @Private
-  @Unstable
   protected abstract void setAttemptId(int attemptId);
 
   static final ThreadLocal<NumberFormat> attemptIdFormat =

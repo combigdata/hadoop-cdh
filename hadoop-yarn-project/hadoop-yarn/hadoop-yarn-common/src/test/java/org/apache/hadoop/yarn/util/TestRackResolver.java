@@ -28,7 +28,6 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.net.DNSToSwitchMapping;
-import org.apache.hadoop.net.NetworkTopology;
 import org.apache.hadoop.net.Node;
 import org.junit.Assert;
 import org.junit.Test;
@@ -36,8 +35,6 @@ import org.junit.Test;
 public class TestRackResolver {
 
   private static Log LOG = LogFactory.getLog(TestRackResolver.class);
-  private static final String invalidHost = "invalidHost";
-
 
   public static final class MyResolver implements DNSToSwitchMapping {
 
@@ -53,11 +50,6 @@ public class TestRackResolver {
       if (hostList.isEmpty()) {
         return returnList;
       }
-      if (hostList.get(0).equals(invalidHost)) {
-        // Simulate condition where resolving host returns null
-        return null; 
-      }
-        
       LOG.info("Received resolve request for "
           + hostList.get(0));
       if (hostList.get(0).equals("host1")
@@ -94,8 +86,6 @@ public class TestRackResolver {
     Assert.assertEquals("/rack1", node.getNetworkLocation());
     node = RackResolver.resolve("host1");
     Assert.assertEquals("/rack1", node.getNetworkLocation());
-    node = RackResolver.resolve(invalidHost);
-    Assert.assertEquals(NetworkTopology.DEFAULT_RACK, node.getNetworkLocation());
   }
 
 }

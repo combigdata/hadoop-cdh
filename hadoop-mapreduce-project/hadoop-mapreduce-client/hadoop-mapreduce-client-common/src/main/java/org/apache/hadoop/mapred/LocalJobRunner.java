@@ -146,9 +146,7 @@ public class LocalJobRunner implements ClientProtocol {
       this.id = jobid;
       JobConf conf = new JobConf(systemJobFile);
       this.localFs = FileSystem.getLocal(conf);
-      String user = UserGroupInformation.getCurrentUser().getShortUserName();
-      this.localJobDir = localFs.makeQualified(new Path(
-          new Path(conf.getLocalPath(jobDir), user), jobid.toString()));
+      this.localJobDir = localFs.makeQualified(conf.getLocalPath(jobDir));
       this.localJobFile = new Path(this.localJobDir, id + ".xml");
 
       // Manage the distributed cache.  If there are files to be copied,
@@ -859,11 +857,12 @@ public class LocalJobRunner implements ClientProtocol {
   }
   
   static final String TASK_CLEANUP_SUFFIX = ".cleanup";
+  static final String SUBDIR = jobDir;
   static final String JOBCACHE = "jobcache";
   
   static String getLocalTaskDir(String user, String jobid, String taskid,
       boolean isCleanupAttempt) {
-    String taskDir = jobDir + Path.SEPARATOR + user + Path.SEPARATOR + JOBCACHE
+    String taskDir = SUBDIR + Path.SEPARATOR + user + Path.SEPARATOR + JOBCACHE
       + Path.SEPARATOR + jobid + Path.SEPARATOR + taskid;
     if (isCleanupAttempt) {
       taskDir = taskDir + TASK_CLEANUP_SUFFIX;

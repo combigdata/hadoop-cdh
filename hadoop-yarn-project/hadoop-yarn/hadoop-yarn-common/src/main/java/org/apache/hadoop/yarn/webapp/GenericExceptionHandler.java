@@ -28,7 +28,6 @@ import javax.ws.rs.ext.Provider;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.ipc.RemoteException;
 import org.apache.hadoop.security.authorize.AuthorizationException;
 
@@ -38,7 +37,6 @@ import com.google.inject.Singleton;
  * Handle webservices jersey exceptions and create json or xml response
  * with the ExceptionData.
  */
-@InterfaceAudience.LimitedPrivate({"YARN", "MapReduce"})
 @Singleton
 @Provider
 public class GenericExceptionHandler implements ExceptionMapper<Exception> {

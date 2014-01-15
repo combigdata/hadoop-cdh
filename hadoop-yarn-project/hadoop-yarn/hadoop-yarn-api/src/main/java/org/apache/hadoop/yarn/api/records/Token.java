@@ -23,7 +23,6 @@ import java.nio.ByteBuffer;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Stable;
-import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.yarn.util.Records;
 
 /**
@@ -35,7 +34,6 @@ import org.apache.hadoop.yarn.util.Records;
 public abstract class Token {
 
   @Private
-  @Unstable
   public static Token newInstance(byte[] identifier, String kind, byte[] password,
       String service) {
     Token token = Records.newRecord(Token.class);
@@ -55,7 +53,7 @@ public abstract class Token {
   public abstract ByteBuffer getIdentifier();
   
   @Private
-  @Unstable
+  @Stable
   public abstract void setIdentifier(ByteBuffer identifier);
 
   /**
@@ -67,7 +65,7 @@ public abstract class Token {
   public abstract ByteBuffer getPassword();
   
   @Private
-  @Unstable
+  @Stable
   public abstract void setPassword(ByteBuffer password);
 
   /**
@@ -79,7 +77,7 @@ public abstract class Token {
   public abstract String getKind();
   
   @Private
-  @Unstable
+  @Stable
   public abstract void setKind(String kind);
 
   /**
@@ -91,7 +89,7 @@ public abstract class Token {
   public abstract String getService();
 
   @Private
-  @Unstable
+  @Stable
   public abstract void setService(String service);
 
 }

@@ -22,7 +22,6 @@ import static org.apache.hadoop.yarn.util.StringHelper.join;
 
 import java.util.List;
 
-import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.yarn.webapp.SubView;
 
 import com.google.common.collect.Lists;
@@ -32,7 +31,6 @@ import com.google.common.collect.Lists;
  * on the left, content on the right, and a footer. Works with resizable themes.
  * @see TwoColumnCssLayout
  */
-@InterfaceAudience.LimitedPrivate({"YARN", "MapReduce"})
 public class TwoColumnLayout extends HtmlPage {
 
   /*

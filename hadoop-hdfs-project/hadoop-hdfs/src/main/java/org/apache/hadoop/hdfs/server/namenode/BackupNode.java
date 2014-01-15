@@ -361,7 +361,7 @@ public class BackupNode extends NameNode {
     NamenodeRegistration nnReg = null;
     while(!isStopRequested()) {
       try {
-        nnReg = namenode.registerSubordinateNamenode(getRegistration());
+        nnReg = namenode.register(getRegistration());
         break;
       } catch(SocketTimeoutException e) {  // name-node is busy
         LOG.info("Problem connecting to name-node: " + nnRpcAddress);

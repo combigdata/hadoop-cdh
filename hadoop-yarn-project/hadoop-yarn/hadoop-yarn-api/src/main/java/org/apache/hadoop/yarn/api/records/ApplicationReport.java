@@ -22,7 +22,7 @@ import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Stable;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
-import org.apache.hadoop.yarn.api.ApplicationClientProtocol;
+import org.apache.hadoop.yarn.api.ClientRMProtocol;
 import org.apache.hadoop.yarn.util.Records;
 
 /**
@@ -40,25 +40,25 @@ import org.apache.hadoop.yarn.util.Records;
  *     <li>{@link YarnApplicationState} of the application.</li>
  *     <li>Diagnostic information in case of errors.</li>
  *     <li>Start time of the application.</li>
- *     <li>Client {@link Token} of the application (if security is enabled).</li>
+ *     <li>Client token of the application (if security is enabled).</li>
  *   </ul>
  * </p>
  *
- * @see ApplicationClientProtocol#getApplicationReport(org.apache.hadoop.yarn.api.protocolrecords.GetApplicationReportRequest)
+ * @see ClientRMProtocol#getApplicationReport(org.apache.hadoop.yarn.api.protocolrecords.GetApplicationReportRequest)
  */
 @Public
 @Stable
 public abstract class ApplicationReport {
 
   @Private
-  @Unstable
+  @Stable
   public static ApplicationReport newInstance(ApplicationId applicationId,
       ApplicationAttemptId applicationAttemptId, String user, String queue,
-      String name, String host, int rpcPort, Token clientToAMToken,
+      String name, String host, int rpcPort, Token clientToken,
       YarnApplicationState state, String diagnostics, String url,
       long startTime, long finishTime, FinalApplicationStatus finalStatus,
       ApplicationResourceUsageReport appResources, String origTrackingUrl,
-      float progress, String applicationType, Token amRmToken) {
+      float progress, String applicationType) {
     ApplicationReport report = Records.newRecord(ApplicationReport.class);
     report.setApplicationId(applicationId);
     report.setCurrentApplicationAttemptId(applicationAttemptId);
@@ -67,7 +67,7 @@ public abstract class ApplicationReport {
     report.setName(name);
     report.setHost(host);
     report.setRpcPort(rpcPort);
-    report.setClientToAMToken(clientToAMToken);
+    report.setClientToken(clientToken);
     report.setYarnApplicationState(state);
     report.setDiagnostics(diagnostics);
     report.setTrackingUrl(url);
@@ -78,7 +78,6 @@ public abstract class ApplicationReport {
     report.setOriginalTrackingUrl(origTrackingUrl);
     report.setProgress(progress);
     report.setApplicationType(applicationType);
-    report.setAMRMToken(amRmToken);
     return report;
   }
 
@@ -99,8 +98,8 @@ public abstract class ApplicationReport {
    * attempt of the application
    * @return <code>ApplicationAttemptId</code> of the attempt
    */
-  @Public
-  @Stable
+  @Private
+  @Unstable
   public abstract ApplicationAttemptId getCurrentApplicationAttemptId();
   
   @Private
@@ -173,13 +172,13 @@ public abstract class ApplicationReport {
    * Get the <em>client token</em> for communicating with the
    * <code>ApplicationMaster</code>.
    * <p>
-   * <em>ClientToAMToken</em> is the security token used by the AMs to verify
+   * <code>ClientToken</code> is the security token used by the AMs to verify
    * authenticity of any <code>client</code>.
    * </p>
    *
    * <p>
    * The <code>ResourceManager</code>, provides a secure token (via
-   * {@link ApplicationReport#getClientToAMToken()}) which is verified by the
+   * {@link ApplicationReport#getClientToken()}) which is verified by the
    * ApplicationMaster when the client directly talks to an AM.
    * </p>
    * @return <em>client token</em> for communicating with the
@@ -187,11 +186,11 @@ public abstract class ApplicationReport {
    */
   @Public
   @Stable
-  public abstract Token getClientToAMToken();
+  public abstract Token getClientToken();
 
   @Private
   @Unstable
-  public abstract void setClientToAMToken(Token clientToAMToken);
+  public abstract void setClientToken(Token clientToken);
 
   /**
    * Get the <code>YarnApplicationState</code> of the application.
@@ -320,33 +319,4 @@ public abstract class ApplicationReport {
   @Private
   @Unstable
   public abstract void setApplicationType(String applicationType);
-
-  @Private
-  @Stable
-  public abstract void setAMRMToken(Token amRmToken);
-
-  /**
-   * Get the AMRM token of the application.
-   * <p/>
-   * The AMRM token is required for AM to RM scheduling operations. For 
-   * managed Application Masters Yarn takes care of injecting it. For unmanaged
-   * Applications Masters, the token must be obtained via this method and set
-   * in the {@link org.apache.hadoop.security.UserGroupInformation} of the
-   * current user.
-   * <p/>
-   * The AMRM token will be returned only if all the following conditions are
-   * met:
-   * <li>
-   *   <ul>the requester is the owner of the ApplicationMaster</ul>
-   *   <ul>the application master is an unmanaged ApplicationMaster</ul>
-   *   <ul>the application master is in ACCEPTED state</ul>
-   * </li>
-   * Else this method returns NULL.
-   * 
-   * @return the AM to RM token if available.
-   */
-  @Public
-  @Stable
-  public abstract Token getAMRMToken();
-  
 }

@@ -34,9 +34,10 @@ import org.apache.hadoop.yarn.api.records.QueueState;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
+import org.apache.hadoop.yarn.server.resourcemanager.resource.Resources;
 import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.Queue;
-import org.apache.hadoop.yarn.util.resource.Resources;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.QueueMetrics;
 
 @Private
 @Unstable
@@ -44,7 +45,7 @@ public abstract class FSQueue extends Schedulable implements Queue {
   private final String name;
   private final QueueManager queueMgr;
   private final FairScheduler scheduler;
-  private final FSQueueMetrics metrics;
+  private final QueueMetrics metrics;
   
   protected final FSParentQueue parent;
   protected final RecordFactory recordFactory =
@@ -57,9 +58,7 @@ public abstract class FSQueue extends Schedulable implements Queue {
     this.name = name;
     this.queueMgr = queueMgr;
     this.scheduler = scheduler;
-    this.metrics = FSQueueMetrics.forQueue(getName(), parent, true, scheduler.getConf());
-    metrics.setMinShare(getMinShare());
-    metrics.setMaxShare(getMaxShare());
+    this.metrics = QueueMetrics.forQueue(getName(), parent, true, scheduler.getConf());
     this.parent = parent;
   }
   
@@ -93,11 +92,6 @@ public abstract class FSQueue extends Schedulable implements Queue {
   @Override
   public Resource getMinShare() {
     return queueMgr.getMinResources(getName());
-  }
-  
-  @Override
-  public Resource getMaxShare() {
-    return queueMgr.getMaxResources(getName());
   }
 
   @Override
@@ -142,14 +136,8 @@ public abstract class FSQueue extends Schedulable implements Queue {
   }
   
   @Override
-  public FSQueueMetrics getMetrics() {
+  public QueueMetrics getMetrics() {
     return metrics;
-  }
-  
-  @Override
-  public void setFairShare(Resource fairShare) {
-    super.setFairShare(fairShare);
-    metrics.setFairShare(fairShare);
   }
   
   public boolean hasAccess(QueueACL acl, UserGroupInformation user) {

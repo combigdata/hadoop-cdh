@@ -20,14 +20,13 @@ package org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.Iterator;
 
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.server.resourcemanager.resource.Resources;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.Schedulable;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.SchedulingPolicy;
-import org.apache.hadoop.yarn.util.resource.Resources;
 
 import com.google.common.annotations.VisibleForTesting;
 
@@ -74,18 +73,9 @@ public class FifoPolicy extends SchedulingPolicy {
   @Override
   public void computeShares(Collection<? extends Schedulable> schedulables,
       Resource totalResources) {
-    if (schedulables.isEmpty()) {
-      return;
+    for (Schedulable sched : schedulables) {
+      sched.setFairShare(Resources.createResource(0));
     }
-
-    Schedulable earliest = null;
-    for (Schedulable schedulable : schedulables) {
-      if (earliest == null ||
-          schedulable.getStartTime() < earliest.getStartTime()) {
-        earliest = schedulable;
-      }
-    }
-    earliest.setFairShare(Resources.clone(totalResources));
   }
 
   @Override

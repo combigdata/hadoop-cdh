@@ -34,7 +34,6 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.hdfs.DFSUtil;
 import org.apache.hadoop.hdfs.protocol.QuotaExceededException;
 import org.apache.hadoop.hdfs.protocol.SnapshotDiffReport;
-import org.apache.hadoop.hdfs.protocol.SnapshotException;
 import org.apache.hadoop.hdfs.protocol.SnapshotDiffReport.DiffReportEntry;
 import org.apache.hadoop.hdfs.protocol.SnapshotDiffReport.DiffType;
 import org.apache.hadoop.hdfs.server.namenode.Content;
@@ -320,23 +319,21 @@ public class INodeDirectorySnapshottable extends INodeDirectoryWithSnapshot {
           + " from path " + this.getFullPathName()
           + ": the snapshot does not exist.");
     } else {
-      final Snapshot snapshot = snapshotsByNames.get(i);
+      final Snapshot snapshot = snapshotsByNames.remove(i);
       Snapshot prior = Snapshot.findLatestSnapshot(this, snapshot);
       try {
         Quota.Counts counts = cleanSubtree(snapshot, prior, collectedBlocks,
-            removedINodes, true);
+            removedINodes);
         INodeDirectory parent = getParent();
         if (parent != null) {
           // there will not be any WithName node corresponding to the deleted 
           // snapshot, thus only update the quota usage in the current tree
           parent.addSpaceConsumed(-counts.get(Quota.NAMESPACE),
-              -counts.get(Quota.DISKSPACE), true);
+              -counts.get(Quota.DISKSPACE), true, Snapshot.INVALID_ID);
         }
       } catch(QuotaExceededException e) {
         LOG.error("BUG: removeSnapshot increases namespace usage.", e);
       }
-      // remove from snapshotsByNames after successfully cleaning the subtree
-      snapshotsByNames.remove(i);
       return snapshot;
     }
   }

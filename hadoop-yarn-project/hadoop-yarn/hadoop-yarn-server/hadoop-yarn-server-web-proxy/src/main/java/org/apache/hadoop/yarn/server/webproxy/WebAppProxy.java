@@ -25,11 +25,10 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.http.HttpServer;
 import org.apache.hadoop.security.authorize.AccessControlList;
-import org.apache.hadoop.service.AbstractService;
 import org.apache.hadoop.util.StringUtils;
+import org.apache.hadoop.yarn.YarnRuntimeException;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
-import org.apache.hadoop.yarn.webapp.util.WebAppUtils;
+import org.apache.hadoop.yarn.service.AbstractService;
 
 import org.apache.hadoop.fs.CommonConfigurationKeys;
 
@@ -52,7 +51,7 @@ public class WebAppProxy extends AbstractService {
   }
   
   @Override
-  protected void serviceInit(Configuration conf) throws Exception {
+  public void init(Configuration conf) {
     String auth =  conf.get(CommonConfigurationKeys.HADOOP_SECURITY_AUTHENTICATION);
     if (auth == null || "simple".equals(auth)) {
       isSecurityEnabled = false;
@@ -63,7 +62,7 @@ public class WebAppProxy extends AbstractService {
           CommonConfigurationKeys.HADOOP_SECURITY_AUTHENTICATION +
           " of " + auth);
     }
-    String proxy = WebAppUtils.getProxyHostAndPort(conf);
+    String proxy = YarnConfiguration.getProxyHostAndPort(conf);
     String[] proxyParts = proxy.split(":");
     proxyHost = proxyParts[0];
 
@@ -82,11 +81,11 @@ public class WebAppProxy extends AbstractService {
     }
     acl = new AccessControlList(conf.get(YarnConfiguration.YARN_ADMIN_ACL, 
         YarnConfiguration.DEFAULT_YARN_ADMIN_ACL));
-    super.serviceInit(conf);
+    super.init(conf);
   }
   
   @Override
-  protected void serviceStart() throws Exception {
+  public void start() {
     try {
       proxyServer = new HttpServer("proxy", bindAddress, port,
           port == 0, getConfig(), acl);
@@ -100,11 +99,11 @@ public class WebAppProxy extends AbstractService {
       LOG.fatal("Could not start proxy web server",e);
       throw new YarnRuntimeException("Could not start proxy web server",e);
     }
-    super.serviceStart();
+    super.start();
   }
   
   @Override
-  protected void serviceStop() throws Exception {
+  public void stop() {
     if(proxyServer != null) {
       try {
         proxyServer.stop();
@@ -113,7 +112,7 @@ public class WebAppProxy extends AbstractService {
         throw new YarnRuntimeException("Error stopping proxy web server",e);
       }
     }
-    super.serviceStop();
+    super.stop();
   }
 
   public void join() {

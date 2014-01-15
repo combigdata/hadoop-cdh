@@ -32,7 +32,7 @@ $ mvn clean install -DskipTests
 $ cd hadoop-mapreduce-project
 $ mvn clean install assembly:assembly -Pnative
 +---+
-  <<NOTE:>> You will need protoc 2.5.0 installed.
+  <<NOTE:>> You will need protoc installed of version 2.4.1 or greater.
 
   To ignore the native builds in mapreduce you can omit the <<<-Pnative>>> argument
   for maven. The tarball should be available in <<<target/>>> directory. 
@@ -140,7 +140,7 @@ Add the following configs to your <<<yarn-site.xml>>>
 
   <property>
     <name>yarn.nodemanager.aux-services</name>
-    <value>mapreduce_shuffle</value>
+    <value>mapreduce.shuffle</value>
     <description>shuffle service that needs to be set for Map Reduce to run </description>
   </property>
 +---+

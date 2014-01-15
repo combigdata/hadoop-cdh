@@ -45,7 +45,6 @@ import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.mapreduce.v2.MiniMRYarnCluster;
-import org.apache.hadoop.util.Shell;
 
 /**
  * Class to test mapred task's 
@@ -173,10 +172,10 @@ public class TestMiniMRChildTask {
   private static void checkEnv(String envName, String expValue, String mode) {
     String envValue = System.getenv(envName).trim();
     if ("append".equals(mode)) {
-      if (envValue == null || !envValue.contains(File.pathSeparator)) {
+      if (envValue == null || !envValue.contains(":")) {
         throw new RuntimeException("Missing env variable");
       } else {
-        String parts[] = envValue.split(File.pathSeparator);
+        String parts[] = envValue.split(":");
         // check if the value is appended
         if (!parts[parts.length - 1].equals(expValue)) {
           throw new RuntimeException("Wrong env variable in append mode");
@@ -226,10 +225,10 @@ public class TestMiniMRChildTask {
       // check if X=/tmp for a new env variable
       checkEnv("MY_PATH", "/tmp", "noappend");
       // check if X=$X:/tmp works for a new env var and results into :/tmp
-      checkEnv("NEW_PATH", File.pathSeparator + "/tmp", "noappend");
+      checkEnv("NEW_PATH", ":/tmp", "noappend");
       // check if X=$(tt's X var):/tmp for an old env variable inherited from 
       // the tt
-      checkEnv("PATH",  path + File.pathSeparator + "/tmp", "noappend");
+      checkEnv("PATH",  path + ":/tmp", "noappend");
 
       String jobLocalDir = job.get(MRJobConfig.JOB_LOCAL_DIR);
       assertNotNull(MRJobConfig.JOB_LOCAL_DIR + " is null",
@@ -280,10 +279,10 @@ public class TestMiniMRChildTask {
       // check if X=/tmp for a new env variable
       checkEnv("MY_PATH", "/tmp", "noappend");
       // check if X=$X:/tmp works for a new env var and results into :/tmp
-      checkEnv("NEW_PATH", File.pathSeparator + "/tmp", "noappend");
+      checkEnv("NEW_PATH", ":/tmp", "noappend");
       // check if X=$(tt's X var):/tmp for an old env variable inherited from 
       // the tt
-      checkEnv("PATH",  path + File.pathSeparator + "/tmp", "noappend");
+      checkEnv("PATH",  path + ":/tmp", "noappend");
 
     }
 
@@ -438,18 +437,12 @@ public class TestMiniMRChildTask {
       mapTaskJavaOptsKey = reduceTaskJavaOptsKey = JobConf.MAPRED_TASK_JAVA_OPTS;
       mapTaskJavaOpts = reduceTaskJavaOpts = TASK_OPTS_VAL;
     }
-    conf.set(
-        mapTaskEnvKey,
-        Shell.WINDOWS ? "MY_PATH=/tmp,LANG=en_us_8859_1,LD_LIBRARY_PATH=%LD_LIBRARY_PATH%;/tmp,"
-            + "PATH=%PATH%;/tmp,NEW_PATH=%NEW_PATH%;/tmp"
-            : "MY_PATH=/tmp,LANG=en_us_8859_1,LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/tmp,"
-                + "PATH=$PATH:/tmp,NEW_PATH=$NEW_PATH:/tmp");
-    conf.set(
-        reduceTaskEnvKey,
-        Shell.WINDOWS ? "MY_PATH=/tmp,LANG=en_us_8859_1,LD_LIBRARY_PATH=%LD_LIBRARY_PATH%;/tmp,"
-            + "PATH=%PATH%;/tmp,NEW_PATH=%NEW_PATH%;/tmp"
-            : "MY_PATH=/tmp,LANG=en_us_8859_1,LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/tmp,"
-                + "PATH=$PATH:/tmp,NEW_PATH=$NEW_PATH:/tmp");
+    conf.set(mapTaskEnvKey, 
+             "MY_PATH=/tmp,LANG=en_us_8859_1,LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/tmp," +
+             "PATH=$PATH:/tmp,NEW_PATH=$NEW_PATH:/tmp");
+    conf.set(reduceTaskEnvKey, 
+             "MY_PATH=/tmp,LANG=en_us_8859_1,LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/tmp," +
+             "PATH=$PATH:/tmp,NEW_PATH=$NEW_PATH:/tmp");
     conf.set("path", System.getenv("PATH"));
     conf.set(mapTaskJavaOptsKey, mapTaskJavaOpts);
     conf.set(reduceTaskJavaOptsKey, reduceTaskJavaOpts);

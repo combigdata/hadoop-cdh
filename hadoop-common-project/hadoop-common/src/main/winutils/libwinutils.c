@@ -707,71 +707,6 @@ CheckAccessEnd:
   return dwRtnCode;
 }
 
-
-//----------------------------------------------------------------------------
-// Function: FindFileOwnerAndPermissionByHandle
-//
-// Description:
-//	Find the owner, primary group and permissions of a file object given the
-//  the file object handle. The function will always follow symbolic links.
-//
-// Returns:
-//	ERROR_SUCCESS: on success
-//  Error code otherwise
-//
-// Notes:
-//  - Caller needs to destroy the memeory of owner and group names by calling
-//    LocalFree() function.
-//
-//  - If the user or group name does not exist, the user or group SID will be
-//    returned as the name.
-//
-DWORD FindFileOwnerAndPermissionByHandle(
-  __in HANDLE fileHandle,
-  __out_opt LPWSTR *pOwnerName,
-  __out_opt LPWSTR *pGroupName,
-  __out_opt PINT pMask)
-{
-  LPWSTR path = NULL;
-  DWORD cchPathLen = 0;
-  DWORD dwRtnCode = ERROR_SUCCESS;
-
-  DWORD ret = ERROR_SUCCESS;
-
-  dwRtnCode = GetFinalPathNameByHandle(fileHandle, path, cchPathLen, 0);
-  if (dwRtnCode == 0)
-  {
-    ret = GetLastError();
-    goto FindFileOwnerAndPermissionByHandleEnd;
-  }
-  cchPathLen = dwRtnCode;
-  path = (LPWSTR) LocalAlloc(LPTR, cchPathLen * sizeof(WCHAR));
-  if (path == NULL)
-  {
-    ret = GetLastError();
-    goto FindFileOwnerAndPermissionByHandleEnd;
-  }
-
-  dwRtnCode = GetFinalPathNameByHandle(fileHandle, path, cchPathLen, 0);
-  if (dwRtnCode != cchPathLen - 1)
-  {
-    ret = GetLastError();
-    goto FindFileOwnerAndPermissionByHandleEnd;
-  }
-
-  dwRtnCode = FindFileOwnerAndPermission(path, TRUE, pOwnerName, pGroupName, pMask);
-  if (dwRtnCode != ERROR_SUCCESS)
-  {
-    ret = dwRtnCode;
-    goto FindFileOwnerAndPermissionByHandleEnd;
-  }
-
-FindFileOwnerAndPermissionByHandleEnd:
-  LocalFree(path);
-  return ret;
-}
-
-
 //----------------------------------------------------------------------------
 // Function: FindFileOwnerAndPermission
 //
@@ -791,7 +726,6 @@ FindFileOwnerAndPermissionByHandleEnd:
 //
 DWORD FindFileOwnerAndPermission(
   __in LPCWSTR pathName,
-  __in BOOL followLink,
   __out_opt LPWSTR *pOwnerName,
   __out_opt LPWSTR *pGroupName,
   __out_opt PINT pMask)
@@ -805,9 +739,6 @@ DWORD FindFileOwnerAndPermission(
   PSID psidEveryone = NULL;
   DWORD cbSid = SECURITY_MAX_SID_SIZE;
   PACL pDacl = NULL;
-
-  BOOL isSymlink;
-  BY_HANDLE_FILE_INFORMATION fileInformation;
 
   ACCESS_MASK ownerAccessRights = 0;
   ACCESS_MASK groupAccessRights = 0;
@@ -869,28 +800,6 @@ DWORD FindFileOwnerAndPermission(
   }
 
   if (pMask == NULL) goto FindFileOwnerAndPermissionEnd;
-
-  dwRtnCode = GetFileInformationByName(pathName,
-    followLink, &fileInformation);
-  if (dwRtnCode != ERROR_SUCCESS)
-  {
-    ret = dwRtnCode;
-    goto FindFileOwnerAndPermissionEnd;
-  }
-
-  dwRtnCode = SymbolicLinkCheck(pathName, &isSymlink);
-  if (dwRtnCode != ERROR_SUCCESS)
-  {
-    ret = dwRtnCode;
-    goto FindFileOwnerAndPermissionEnd;
-  }
-
-  if (isSymlink)
-    *pMask |= UX_SYMLINK;
-  else if (IsDirFileInfo(&fileInformation))
-    *pMask |= UX_DIRECTORY;
-  else
-    *pMask |= UX_REGULAR;
 
   if ((dwRtnCode = GetEffectiveRightsForSid(pSd,
     psidOwner, &ownerAccessRights)) != ERROR_SUCCESS)
@@ -1708,52 +1617,4 @@ void ReportErrorCode(LPCWSTR func, DWORD err)
     fwprintf(stderr, L"%s error code: %d.\n", func, err);
   }
   if (msg != NULL) LocalFree(msg);
-}
-
-//----------------------------------------------------------------------------
-// Function: GetLibraryName
-//
-// Description:
-//  Given an address, get the file name of the library from which it was loaded.
-//
-// Returns:
-//  None
-//
-// Notes:
-// - The function allocates heap memory and points the filename out parameter to
-//   the newly allocated memory, which will contain the name of the file.
-//
-// - If there is any failure, then the function frees the heap memory it
-//   allocated and sets the filename out parameter to NULL.
-//
-void GetLibraryName(LPCVOID lpAddress, LPWSTR *filename)
-{
-  SIZE_T ret = 0;
-  DWORD size = MAX_PATH;
-  HMODULE mod = NULL;
-  DWORD err = ERROR_SUCCESS;
-
-  MEMORY_BASIC_INFORMATION mbi;
-  ret = VirtualQuery(lpAddress, &mbi, sizeof(mbi));
-  if (ret == 0) goto cleanup;
-  mod = mbi.AllocationBase;
-
-  do {
-    *filename = (LPWSTR) realloc(*filename, size * sizeof(WCHAR));
-    if (*filename == NULL) goto cleanup;
-    GetModuleFileName(mod, *filename, size);
-    size <<= 1;
-    err = GetLastError();
-  } while (err == ERROR_INSUFFICIENT_BUFFER);
-
-  if (err != ERROR_SUCCESS) goto cleanup;
-
-  return;
-
-cleanup:
-  if (*filename != NULL)
-  {
-    free(*filename);
-    *filename = NULL;
-  }
 }

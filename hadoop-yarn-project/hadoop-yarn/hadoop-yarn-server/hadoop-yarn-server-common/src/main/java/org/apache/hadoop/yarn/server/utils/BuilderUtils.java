@@ -27,12 +27,11 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.security.SecurityUtil;
+import org.apache.hadoop.yarn.api.protocolrecords.AllocateRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse;
-import org.apache.hadoop.yarn.api.records.AMCommand;
 import org.apache.hadoop.yarn.api.records.ApplicationAccessType;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -48,6 +47,7 @@ import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
+import org.apache.hadoop.yarn.api.records.NodeHealthStatus;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.NodeReport;
 import org.apache.hadoop.yarn.api.records.NodeState;
@@ -62,8 +62,6 @@ import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.security.ContainerTokenIdentifier;
 import org.apache.hadoop.yarn.util.ConverterUtils;
-
-import com.google.common.annotations.VisibleForTesting;
 
 /**
  * Builder utilities to construct various objects.
@@ -154,8 +152,7 @@ public class BuilderUtils {
       int port, String user, Resource r, long expiryTime, int masterKeyId,
       byte[] password, long rmIdentifier) throws IOException {
     ContainerTokenIdentifier identifier =
-        new ContainerTokenIdentifier(cId, host + ":" + port, user, r,
-            expiryTime,
+        new ContainerTokenIdentifier(cId, host, user, r, expiryTime,
             masterKeyId, rmIdentifier);
     return newContainerToken(BuilderUtils.newNodeId(host, port), password,
         identifier);
@@ -173,7 +170,7 @@ public class BuilderUtils {
   
   public static NodeReport newNodeReport(NodeId nodeId, NodeState nodeState, 
       String httpAddress, String rackName, Resource used, Resource capability,
-      int numContainers, String healthReport, long lastHealthReportTime) {
+      int numContainers, NodeHealthStatus nodeHealthStatus) {
     NodeReport nodeReport = recordFactory.newRecordInstance(NodeReport.class);
     nodeReport.setNodeId(nodeId);
     nodeReport.setNodeState(nodeState);
@@ -182,8 +179,7 @@ public class BuilderUtils {
     nodeReport.setUsed(used);
     nodeReport.setCapability(capability);
     nodeReport.setNumContainers(numContainers);
-    nodeReport.setHealthReport(healthReport);
-    nodeReport.setLastHealthReportTime(lastHealthReportTime);
+    nodeReport.setNodeHealthStatus(nodeHealthStatus);
     return nodeReport;
   }
 
@@ -226,18 +222,11 @@ public class BuilderUtils {
     return newToken(Token.class, identifier, kind, password, service);
   }
 
-  public static Token newClientToAMToken(byte[] identifier, String kind,
+  public static Token newClientToken(byte[] identifier, String kind,
       byte[] password, String service) {
     return newToken(Token.class, identifier, kind, password, service);
   }
 
-  public static Token newAMRMToken(byte[] identifier, String kind,
-                                   byte[] password, String service) {
-    return newToken(Token.class, identifier, kind, password, service);
-  }
-
-  @Private
-  @VisibleForTesting
   public static Token newContainerToken(NodeId nodeId,
       byte[] password, ContainerTokenIdentifier tokenIdentifier) {
     // RPC layer client expects ip:port as service for tokens
@@ -308,11 +297,11 @@ public class BuilderUtils {
   public static ApplicationReport newApplicationReport(
       ApplicationId applicationId, ApplicationAttemptId applicationAttemptId,
       String user, String queue, String name, String host, int rpcPort,
-      Token clientToAMToken, YarnApplicationState state, String diagnostics,
+      Token clientToken, YarnApplicationState state, String diagnostics,
       String url, long startTime, long finishTime,
       FinalApplicationStatus finalStatus,
       ApplicationResourceUsageReport appResources, String origTrackingUrl,
-      float progress, String appType, Token amRmToken) {
+      float progress, String appType) {
     ApplicationReport report = recordFactory
         .newRecordInstance(ApplicationReport.class);
     report.setApplicationId(applicationId);
@@ -322,7 +311,7 @@ public class BuilderUtils {
     report.setName(name);
     report.setHost(host);
     report.setRpcPort(rpcPort);
-    report.setClientToAMToken(clientToAMToken);
+    report.setClientToken(clientToken);
     report.setYarnApplicationState(state);
     report.setDiagnostics(diagnostics);
     report.setTrackingUrl(url);
@@ -333,7 +322,6 @@ public class BuilderUtils {
     report.setOriginalTrackingUrl(origTrackingUrl);
     report.setProgress(progress);
     report.setApplicationType(appType);
-    report.setAMRMToken(amRmToken);
     return report;
   }
   
@@ -395,11 +383,25 @@ public class BuilderUtils {
     url.setFile(file);
     return url;
   }
+
+  public static AllocateRequest newAllocateRequest(
+      ApplicationAttemptId applicationAttemptId, int responseID,
+      float appProgress, List<ResourceRequest> resourceAsk,
+      List<ContainerId> containersToBeReleased) {
+    AllocateRequest allocateRequest = recordFactory
+        .newRecordInstance(AllocateRequest.class);
+    allocateRequest.setApplicationAttemptId(applicationAttemptId);
+    allocateRequest.setResponseId(responseID);
+    allocateRequest.setProgress(appProgress);
+    allocateRequest.setAskList(resourceAsk);
+    allocateRequest.setReleaseList(containersToBeReleased);
+    return allocateRequest;
+  }
   
   public static AllocateResponse newAllocateResponse(int responseId,
       List<ContainerStatus> completedContainers,
       List<Container> allocatedContainers, List<NodeReport> updatedNodes,
-      Resource availResources, AMCommand command, int numClusterNodes,
+      Resource availResources, boolean reboot, int numClusterNodes,
       PreemptionMessage preempt) {
     AllocateResponse response = recordFactory
         .newRecordInstance(AllocateResponse.class);
@@ -409,7 +411,7 @@ public class BuilderUtils {
     response.setAllocatedContainers(allocatedContainers);
     response.setUpdatedNodes(updatedNodes);
     response.setAvailableResources(availResources);
-    response.setAMCommand(command);
+    response.setResync(reboot);
     response.setPreemptionMessage(preempt);
 
     return response;

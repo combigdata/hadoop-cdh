@@ -24,10 +24,10 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.service.AbstractService;
 import org.apache.hadoop.yarn.event.EventHandler;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttempt;
+import org.apache.hadoop.yarn.service.AbstractService;
 
 
 public class ApplicationMasterLauncher extends AbstractService implements
@@ -50,10 +50,9 @@ public class ApplicationMasterLauncher extends AbstractService implements
     this.launcherHandlingThread = new LauncherThread();
   }
   
-  @Override
-  protected void serviceStart() throws Exception {
+  public void start() {
     launcherHandlingThread.start();
-    super.serviceStart();
+    super.start();
   }
   
   protected Runnable createRunnableLauncher(RMAppAttempt application, 
@@ -70,8 +69,7 @@ public class ApplicationMasterLauncher extends AbstractService implements
   }
   
 
-  @Override
-  protected void serviceStop() throws Exception {
+  public void stop() {
     launcherHandlingThread.interrupt();
     try {
       launcherHandlingThread.join();
@@ -79,6 +77,7 @@ public class ApplicationMasterLauncher extends AbstractService implements
       LOG.info(launcherHandlingThread.getName() + " interrupted during join ", 
           ie);    }
     launcherPool.shutdown();
+    super.stop();
   }
 
   private class LauncherThread extends Thread {

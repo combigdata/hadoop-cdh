@@ -23,10 +23,8 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.PrivilegedAction;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -41,10 +39,9 @@ import org.apache.hadoop.fs.UnsupportedFileSystemException;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.Shell;
-import org.apache.hadoop.yarn.api.ContainerManagementProtocol;
-import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusesRequest;
+import org.apache.hadoop.yarn.api.ContainerManager;
+import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.StartContainerRequest;
-import org.apache.hadoop.yarn.api.protocolrecords.StartContainersRequest;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
@@ -55,6 +52,8 @@ import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.api.records.NodeId;
+import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.Token;
 import org.apache.hadoop.yarn.api.records.URL;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.event.Dispatcher;
@@ -62,9 +61,7 @@ import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.ipc.YarnRPC;
-import org.apache.hadoop.yarn.security.NMTokenIdentifier;
 import org.apache.hadoop.yarn.server.api.records.MasterKey;
-import org.apache.hadoop.yarn.server.nodemanager.containermanager.TestContainerManager;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.junit.After;
@@ -86,7 +83,6 @@ public class TestNodeManagerShutdown {
   static final String user = "nobody";
   private FileContext localFS;
   private ContainerId cId;
-  private NodeManager nm;
 
   @Before
   public void setup() throws UnsupportedFileSystemException {
@@ -102,16 +98,13 @@ public class TestNodeManagerShutdown {
   
   @After
   public void tearDown() throws IOException, InterruptedException {
-    if (nm != null) {
-      nm.stop();
-    }
     localFS.delete(new Path(basedir.getPath()), true);
   }
   
   @Test
   public void testKillContainersOnShutdown() throws IOException,
       YarnException {
-    nm = new TestNodeManager();
+    NodeManager nm = new TestNodeManager();
     nm.init(createNMConfig());
     nm.start();
     startContainer(nm, cId, localFS, tmpDir, processStartFile);
@@ -164,8 +157,7 @@ public class TestNodeManagerShutdown {
     ContainerLaunchContext containerLaunchContext =
         recordFactory.newRecordInstance(ContainerLaunchContext.class);
 
-    NodeId nodeId = BuilderUtils.newNodeId(InetAddress.getByName("localhost")
-        .getCanonicalHostName(), 12345);
+    NodeId nodeId = BuilderUtils.newNodeId("localhost", 1234);
  
     URL localResourceUri =
         ConverterUtils.getYarnUrlFromPath(localFS
@@ -184,45 +176,37 @@ public class TestNodeManagerShutdown {
     containerLaunchContext.setLocalResources(localResources);
     List<String> commands = Arrays.asList(Shell.getRunScriptCommand(scriptFile));
     containerLaunchContext.setCommands(commands);
-    final InetSocketAddress containerManagerBindAddress =
-        NetUtils.createSocketAddrForHost("127.0.0.1", 12345);
+    Resource resource = BuilderUtils.newResource(1024, 1);
+    Token containerToken =
+        BuilderUtils.newContainerToken(cId, nodeId.getHost(), nodeId.getPort(),
+          user, resource, System.currentTimeMillis() + 10000L, 123,
+          "password".getBytes(), 0);
+    StartContainerRequest startRequest =
+        recordFactory.newRecordInstance(StartContainerRequest.class);
+    startRequest.setContainerLaunchContext(containerLaunchContext);
+    startRequest.setContainerToken(containerToken);
     UserGroupInformation currentUser = UserGroupInformation
         .createRemoteUser(cId.toString());
-    org.apache.hadoop.security.token.Token<NMTokenIdentifier> nmToken =
-        ConverterUtils.convertFromYarn(
-          nm.getNMContext().getNMTokenSecretManager()
-            .createNMToken(cId.getApplicationAttemptId(), nodeId, user),
-          containerManagerBindAddress);
-    currentUser.addToken(nmToken);
 
-    ContainerManagementProtocol containerManager =
-        currentUser.doAs(new PrivilegedAction<ContainerManagementProtocol>() {
+    ContainerManager containerManager =
+        currentUser.doAs(new PrivilegedAction<ContainerManager>() {
           @Override
-          public ContainerManagementProtocol run() {
+          public ContainerManager run() {
             Configuration conf = new Configuration();
             YarnRPC rpc = YarnRPC.create(conf);
             InetSocketAddress containerManagerBindAddress =
                 NetUtils.createSocketAddrForHost("127.0.0.1", 12345);
-            return (ContainerManagementProtocol) rpc.getProxy(ContainerManagementProtocol.class,
+            return (ContainerManager) rpc.getProxy(ContainerManager.class,
               containerManagerBindAddress, conf);
           }
         });
-    StartContainerRequest scRequest =
-        StartContainerRequest.newInstance(containerLaunchContext,
-          TestContainerManager.createContainerToken(cId, 0,
-            nodeId, user, nm.getNMContext().getContainerTokenSecretManager()));
-    List<StartContainerRequest> list = new ArrayList<StartContainerRequest>();
-    list.add(scRequest);
-    StartContainersRequest allRequests =
-        StartContainersRequest.newInstance(list);
-    containerManager.startContainers(allRequests);
+    containerManager.startContainer(startRequest);
     
-    List<ContainerId> containerIds = new ArrayList<ContainerId>();
-    containerIds.add(cId);
-    GetContainerStatusesRequest request =
-        GetContainerStatusesRequest.newInstance(containerIds);
+    GetContainerStatusRequest request =
+        recordFactory.newRecordInstance(GetContainerStatusRequest.class);
+        request.setContainerId(cId);
     ContainerStatus containerStatus =
-        containerManager.getContainerStatuses(request).getContainerStatuses().get(0);
+        containerManager.getContainerStatus(request).getStatus();
     Assert.assertEquals(ContainerState.RUNNING, containerStatus.getState());
   }
   
@@ -242,7 +226,6 @@ public class TestNodeManagerShutdown {
     conf.set(YarnConfiguration.NM_LOG_DIRS, logsDir.getAbsolutePath());
     conf.set(YarnConfiguration.NM_REMOTE_APP_LOG_DIR, remoteLogsDir.getAbsolutePath());
     conf.set(YarnConfiguration.NM_LOCAL_DIRS, nmLocalDir.getAbsolutePath());
-    conf.setLong(YarnConfiguration.NM_LOG_RETAIN_SECONDS, 1);
     return conf;
   }
   

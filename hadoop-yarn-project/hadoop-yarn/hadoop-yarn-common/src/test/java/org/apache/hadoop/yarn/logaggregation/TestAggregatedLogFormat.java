@@ -206,34 +206,27 @@ public class TestAggregatedLogFormat {
       sb.append(line);
     }
     line = sb.toString();
-
-    String expectedOwner = ugi.getShortUserName();
-    if (Path.WINDOWS) {
-      final String adminsGroupString = "Administrators";
-      if (Arrays.asList(ugi.getGroupNames()).contains(adminsGroupString)) {
-        expectedOwner = adminsGroupString;
-      }
-    }
+    
     String stdoutFile1 =
         StringUtils.join(
-            File.separator,
+            Path.SEPARATOR,
             Arrays.asList(new String[] {
-                workDir.getAbsolutePath(), "srcFiles",
+                srcFileRoot.toUri().toString(),
                 testContainerId1.getApplicationAttemptId().getApplicationId()
                     .toString(), testContainerId1.toString(), stderr }));
     String message1 =
-        "Owner '" + expectedOwner + "' for path " + stdoutFile1
+        "Owner '" + ugi.getShortUserName() + "' for path " + stdoutFile1
         + " did not match expected owner '" + randomUser + "'";
     
     String stdoutFile2 =
         StringUtils.join(
-            File.separator,
+            Path.SEPARATOR,
             Arrays.asList(new String[] {
-                workDir.getAbsolutePath(), "srcFiles",
+                srcFileRoot.toUri().toString(),
                 testContainerId1.getApplicationAttemptId().getApplicationId()
                     .toString(), testContainerId1.toString(), stdout }));
     String message2 =
-        "Owner '" + expectedOwner + "' for path "
+        "Owner '" + ugi.getShortUserName() + "' for path "
             + stdoutFile2 + " did not match expected owner '"
             + ugi.getShortUserName() + "'";
     

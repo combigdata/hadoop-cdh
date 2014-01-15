@@ -45,11 +45,11 @@ import org.apache.hadoop.mapreduce.v2.app.job.TaskAttempt;
 import org.apache.hadoop.mapreduce.v2.hs.TestJobHistoryEvents.MRAppWithHistory;
 import org.apache.hadoop.mapreduce.v2.hs.TestJobHistoryParsing.MyResolver;
 import org.apache.hadoop.net.DNSToSwitchMapping;
-import org.apache.hadoop.service.Service;
-import org.apache.hadoop.service.Service.STATE;
 import org.apache.hadoop.util.ExitUtil;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
+import org.apache.hadoop.yarn.service.Service;
+import org.apache.hadoop.yarn.service.Service.STATE;
 import org.apache.hadoop.yarn.util.RackResolver;
 import org.junit.After;
 import org.junit.Test;
@@ -63,29 +63,35 @@ public class TestJobHistoryServer {
   private static RecordFactory recordFactory = RecordFactoryProvider
           .getRecordFactory(null);
 
-  JobHistoryServer historyServer=null;
 
+  
+  JobHistoryServer historyServer=null;
   // simple test init/start/stop   JobHistoryServer. Status should change.
+  
   @Test (timeout= 50000 )
   public void testStartStopServer() throws Exception {
+
     historyServer = new JobHistoryServer();
     Configuration config = new Configuration();
     historyServer.init(config);
     assertEquals(STATE.INITED, historyServer.getServiceState());
     assertEquals(3, historyServer.getServices().size());
-    HistoryClientService historyService = historyServer.getClientService();
-    assertNotNull(historyServer.getClientService());
-    assertEquals(STATE.INITED, historyService.getServiceState());
-
     historyServer.start();
     assertEquals(STATE.STARTED, historyServer.getServiceState());
-    assertEquals(STATE.STARTED, historyService.getServiceState());
     historyServer.stop();
     assertEquals(STATE.STOPPED, historyServer.getServiceState());
+    assertNotNull(historyServer.getClientService());
+    HistoryClientService historyService = historyServer.getClientService();
     assertNotNull(historyService.getClientHandler().getConnectAddress());
+
+    
+    
   }
 
+
+
   //Test reports of  JobHistoryServer. History server should get log files from  MRApp and read them
+  
   @Test (timeout= 50000 )
   public void testReports() throws Exception {
     Configuration config = new Configuration();
@@ -118,6 +124,7 @@ public class TestJobHistoryServer {
     
     assertEquals(1, jobs.size());
     assertEquals("job_0_0000",jobs.keySet().iterator().next().toString());
+    
     
     Task task = job.getTasks().values().iterator().next();
     TaskAttempt attempt = task.getAttempts().values().iterator().next();
@@ -178,14 +185,14 @@ public class TestJobHistoryServer {
     assertEquals("", diagnosticResponse.getDiagnostics(0));
 
   }
-
-  // test launch method
+ // test main method
   @Test (timeout =60000)
-  public void testLaunch() throws Exception {
+  public void testMainMethod() throws Exception {
 
     ExitUtil.disableSystemExit();
     try {
-      historyServer = JobHistoryServer.launchJobHistoryServer(new String[0]);
+      JobHistoryServer.main(new String[0]);
+
     } catch (ExitUtil.ExitException e) {
       assertEquals(0,e.status);
       ExitUtil.resetFirstExitException();
@@ -195,7 +202,7 @@ public class TestJobHistoryServer {
   
   @After
   public void stop(){
-    if(historyServer != null) {
+    if(historyServer !=null && !STATE.STOPPED.equals(historyServer.getServiceState())){
       historyServer.stop();
     }
   }

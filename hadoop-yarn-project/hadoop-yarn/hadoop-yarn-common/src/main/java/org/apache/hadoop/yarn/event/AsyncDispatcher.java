@@ -27,21 +27,17 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.classification.InterfaceAudience.Public;
-import org.apache.hadoop.classification.InterfaceStability.Evolving;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.service.AbstractService;
 import org.apache.hadoop.util.ShutdownHookManager;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
+import org.apache.hadoop.yarn.YarnRuntimeException;
+import org.apache.hadoop.yarn.service.AbstractService;
 
 /**
- * Dispatches {@link Event}s in a separate thread. Currently only single thread
- * does that. Potentially there could be multiple channels for each event type
+ * Dispatches events in a separate thread. Currently only single thread does
+ * that. Potentially there could be multiple channels for each event type
  * class and a thread pool can be used to dispatch the events.
  */
 @SuppressWarnings("rawtypes")
-@Public
-@Evolving
 public class AsyncDispatcher extends AbstractService implements Dispatcher {
 
   private static final Log LOG = LogFactory.getLog(AsyncDispatcher.class);
@@ -86,24 +82,24 @@ public class AsyncDispatcher extends AbstractService implements Dispatcher {
   }
 
   @Override
-  protected void serviceInit(Configuration conf) throws Exception {
+  public synchronized void init(Configuration conf) {
     this.exitOnDispatchException =
         conf.getBoolean(Dispatcher.DISPATCHER_EXIT_ON_ERROR_KEY,
           Dispatcher.DEFAULT_DISPATCHER_EXIT_ON_ERROR);
-    super.serviceInit(conf);
+    super.init(conf);
   }
 
   @Override
-  protected void serviceStart() throws Exception {
+  public void start() {
     //start all the components
-    super.serviceStart();
+    super.start();
     eventHandlingThread = new Thread(createThread());
     eventHandlingThread.setName("AsyncDispatcher event handler");
     eventHandlingThread.start();
   }
 
   @Override
-  protected void serviceStop() throws Exception {
+  public void stop() {
     stopped = true;
     if (eventHandlingThread != null) {
       eventHandlingThread.interrupt();
@@ -115,7 +111,7 @@ public class AsyncDispatcher extends AbstractService implements Dispatcher {
     }
 
     // stop all the components
-    super.serviceStop();
+    super.stop();
   }
 
   @SuppressWarnings("unchecked")

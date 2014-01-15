@@ -27,10 +27,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.security.PrivilegedExceptionAction;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
-import java.util.List;
 import java.util.Random;
 
 import org.apache.commons.lang.ArrayUtils;
@@ -45,11 +43,9 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileChecksum;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.MD5MD5CRC32FileChecksum;
 import org.apache.hadoop.fs.Options.ChecksumOpt;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.fs.VolumeId;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.web.WebHdfsFileSystem;
@@ -84,19 +80,6 @@ public class TestDistributedFileSystem {
     conf.setLong(DFSConfigKeys.DFS_NAMENODE_MIN_BLOCK_SIZE_KEY, 0);
 
     return conf;
-  }
-
-  @Test
-  public void testEmptyDelegationToken() throws IOException {
-    Configuration conf = getTestConfiguration();
-    MiniDFSCluster cluster = null;
-    try {
-      cluster = new MiniDFSCluster.Builder(conf).numDataNodes(1).build();
-      FileSystem fileSys = cluster.getFileSystem();
-      fileSys.getDelegationToken("");
-    } finally {
-      cluster.shutdown();
-    }
   }
 
   @Test
@@ -204,7 +187,7 @@ public class TestDistributedFileSystem {
       final long millis = Time.now();
 
       {
-        final DistributedFileSystem dfs = cluster.getFileSystem();
+        DistributedFileSystem dfs = (DistributedFileSystem)cluster.getFileSystem();
         dfs.dfs.getLeaseRenewer().setGraceSleepPeriod(grace);
         assertFalse(dfs.dfs.getLeaseRenewer().isRunning());
   
@@ -304,7 +287,7 @@ public class TestDistributedFileSystem {
       }
 
       {
-        final DistributedFileSystem dfs = cluster.getFileSystem();
+        DistributedFileSystem dfs = (DistributedFileSystem)cluster.getFileSystem();
         assertFalse(dfs.dfs.getLeaseRenewer().isRunning());
 
         //open and check the file
@@ -813,25 +796,4 @@ public class TestDistributedFileSystem {
     }
   }
   
-  @Test(timeout=60000)
-  public void testListFiles() throws IOException {
-    Configuration conf = new HdfsConfiguration();
-    MiniDFSCluster cluster = new MiniDFSCluster.Builder(conf).build();
-    
-    try {
-      DistributedFileSystem fs = cluster.getFileSystem();
-  
-      final Path relative = new Path("relative");
-      fs.create(new Path(relative, "foo")).close();
-  
-      final List<LocatedFileStatus> retVal = new ArrayList<LocatedFileStatus>();
-      final RemoteIterator<LocatedFileStatus> iter = fs.listFiles(relative, true);
-      while (iter.hasNext()) {
-        retVal.add(iter.next());
-      }
-      System.out.println("retVal = " + retVal);
-    } finally {
-      cluster.shutdown();
-    }
-  }
 }

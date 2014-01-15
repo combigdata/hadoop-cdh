@@ -35,8 +35,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.net.NetworkTopology;
 import org.apache.hadoop.yarn.api.protocolrecords.StartContainerRequest;
-import org.apache.hadoop.yarn.api.protocolrecords.StartContainersRequest;
-import org.apache.hadoop.yarn.api.protocolrecords.StopContainersRequest;
+import org.apache.hadoop.yarn.api.protocolrecords.StopContainerRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.SubmitApplicationRequest;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -51,8 +50,8 @@ import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.server.resourcemanager.Task.State;
+import org.apache.hadoop.yarn.server.resourcemanager.resource.Resources;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.NodeType;
-import org.apache.hadoop.yarn.util.resource.Resources;
 
 @Private
 public class Application {
@@ -213,11 +212,9 @@ public class Application {
     NodeManager nodeManager = task.getNodeManager();
     ContainerId containerId = task.getContainerId();
     task.stop();
-    List<ContainerId> containerIds = new ArrayList<ContainerId>();
-    containerIds.add(containerId);
-    StopContainersRequest stopRequest =
-        StopContainersRequest.newInstance(containerIds);
-    nodeManager.stopContainers(stopRequest);
+    StopContainerRequest stopRequest = recordFactory.newRecordInstance(StopContainerRequest.class);
+    stopRequest.setContainerId(containerId);
+    nodeManager.stopContainer(stopRequest);
     
     Resources.subtractFrom(used, requestSpec.get(task.getPriority()));
     
@@ -268,7 +265,7 @@ public class Application {
     
     // Get resources from the ResourceManager
     resourceManager.getResourceScheduler().allocate(applicationAttemptId,
-        new ArrayList<ResourceRequest>(ask), new ArrayList<ContainerId>(), null, null);
+        new ArrayList<ResourceRequest>(ask), new ArrayList<ContainerId>());
     System.out.println("-=======" + applicationAttemptId);
     System.out.println("----------" + resourceManager.getRMContext().getRMApps()
         .get(applicationId).getRMAppAttempt(applicationAttemptId));
@@ -342,15 +339,10 @@ public class Application {
             updateResourceRequests(requests.get(priority), type, task);
 
             // Launch the container
-            StartContainerRequest scRequest =
-                StartContainerRequest.newInstance(createCLC(),
-                  container.getContainerToken());
-            List<StartContainerRequest> list =
-                new ArrayList<StartContainerRequest>();
-            list.add(scRequest);
-            StartContainersRequest allRequests =
-                StartContainersRequest.newInstance(list);
-            nodeManager.startContainers(allRequests);
+            StartContainerRequest startRequest = recordFactory.newRecordInstance(StartContainerRequest.class);
+            startRequest.setContainerLaunchContext(createCLC());
+            startRequest.setContainerToken(container.getContainerToken());
+            nodeManager.startContainer(startRequest);
             break;
           }
         }

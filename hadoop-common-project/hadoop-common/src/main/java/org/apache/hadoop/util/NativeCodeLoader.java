@@ -79,8 +79,6 @@ public class NativeCodeLoader {
    */
   public static native boolean buildSupportsSnappy();
 
-  public static native String getLibraryName();
-
   /**
    * Return if native hadoop libraries, if present, can be used for this job.
    * @param conf configuration

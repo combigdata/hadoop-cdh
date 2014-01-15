@@ -32,7 +32,6 @@ import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.NodeId;
-import org.apache.hadoop.yarn.api.records.NodeState;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.event.Dispatcher;
@@ -60,7 +59,7 @@ public class TestResourceTrackerService {
    * Test RM read NM next heartBeat Interval correctly from Configuration file,
    * and NM get next heartBeat Interval from RM correctly
    */
-  @Test (timeout = 50000)
+  @Test (timeout = 5000)
   public void testGetNextHeartBeatInterval() throws Exception {
     Configuration conf = new Configuration();
     conf.set(YarnConfiguration.RM_NM_HEARTBEAT_INTERVAL_MS, "4000");
@@ -392,15 +391,15 @@ public class TestResourceTrackerService {
       int count) throws Exception {
     
     int waitCount = 0;
-    while((rm.getRMContext().getRMNodes().get(nm1.getNodeId())
-        .getState() != NodeState.UNHEALTHY) == health
+    while(rm.getRMContext().getRMNodes().get(nm1.getNodeId())
+        .getNodeHealthStatus().getIsNodeHealthy() == health
         && waitCount++ < 20) {
       synchronized (this) {
         wait(100);
       }
     }
-    Assert.assertFalse((rm.getRMContext().getRMNodes().get(nm1.getNodeId())
-        .getState() != NodeState.UNHEALTHY) == health);
+    Assert.assertFalse(rm.getRMContext().getRMNodes().get(nm1.getNodeId())
+        .getNodeHealthStatus().getIsNodeHealthy() == health);
     Assert.assertEquals("Unhealthy metrics not incremented", count,
         ClusterMetrics.getMetrics().getUnhealthyNMs());
   }
@@ -452,14 +451,6 @@ public class TestResourceTrackerService {
     dispatcher.await();
     Assert.assertEquals(expectedNMs, ClusterMetrics.getMetrics().getNumActiveNMs());
     checkUnealthyNMCount(rm, nm2, true, 1);
-    
-    // unhealthy node changed back to healthy
-    nm2 = rm.registerNode("host2:5678", 5120);
-    dispatcher.await();
-    response = nm2.nodeHeartbeat(true);
-    response = nm2.nodeHeartbeat(true);
-    dispatcher.await();
-    Assert.assertEquals(5120 + 5120, metrics.getAvailableMB());
 
     // reconnect of node with changed capability
     nm1 = rm.registerNode("host2:5678", 10240);

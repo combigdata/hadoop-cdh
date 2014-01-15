@@ -21,7 +21,6 @@ import org.apache.hadoop.security.authentication.util.KerberosUtil;
 import org.ietf.jgss.GSSContext;
 import org.ietf.jgss.GSSCredential;
 import org.ietf.jgss.GSSManager;
-import org.ietf.jgss.Oid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,8 +43,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-
-import static org.apache.hadoop.util.PlatformName.IBM_JAVA;
 
 /**
  * The {@link KerberosAuthenticationHandler} implements the Kerberos SPNEGO authentication mechanism for HTTP.
@@ -80,33 +77,18 @@ public class KerberosAuthenticationHandler implements AuthenticationHandler {
     @Override
     public AppConfigurationEntry[] getAppConfigurationEntry(String name) {
       Map<String, String> options = new HashMap<String, String>();
-      if (IBM_JAVA) {
-        options.put("useKeytab",
-            keytab.startsWith("file://") ? keytab : "file://" + keytab);
-        options.put("principal", principal);
-        options.put("credsType", "acceptor");
-      } else {
-        options.put("keyTab", keytab);
-        options.put("principal", principal);
-        options.put("useKeyTab", "true");
-        options.put("storeKey", "true");
-        options.put("doNotPrompt", "true");
-        options.put("useTicketCache", "true");
-        options.put("renewTGT", "true");
-        options.put("isInitiator", "false");
-      }
+      options.put("keyTab", keytab);
+      options.put("principal", principal);
+      options.put("useKeyTab", "true");
+      options.put("storeKey", "true");
+      options.put("doNotPrompt", "true");
+      options.put("useTicketCache", "true");
+      options.put("renewTGT", "true");
       options.put("refreshKrb5Config", "true");
+      options.put("isInitiator", "false");
       String ticketCache = System.getenv("KRB5CCNAME");
       if (ticketCache != null) {
-        if (IBM_JAVA) {
-          options.put("useDefaultCcache", "true");
-          // The first value searched when "useDefaultCcache" is used.
-          System.setProperty("KRB5CCNAME", ticketCache);
-          options.put("renewTGT", "true");
-          options.put("credsType", "both");
-        } else {
-          options.put("ticketCache", ticketCache);
-        }
+        options.put("ticketCache", ticketCache);
       }
       if (LOG.isDebugEnabled()) {
         options.put("debug", "true");
@@ -312,18 +294,8 @@ public class KerberosAuthenticationHandler implements AuthenticationHandler {
           public AuthenticationToken run() throws Exception {
             AuthenticationToken token = null;
             GSSContext gssContext = null;
-            GSSCredential gssCreds = null;
             try {
-              if (IBM_JAVA) {
-                // IBM JDK needs non-null credentials to be passed to createContext here, with
-                // SPNEGO mechanism specified, otherwise JGSS will use its default mechanism
-                // only, which is Kerberos V5.
-                gssCreds = gssManager.createCredential(null, GSSCredential.INDEFINITE_LIFETIME,
-                    new Oid[]{KerberosUtil.getOidInstance("GSS_SPNEGO_MECH_OID"),
-                        KerberosUtil.getOidInstance("GSS_KRB5_MECH_OID")},
-                    GSSCredential.ACCEPT_ONLY);
-              }
-              gssContext = gssManager.createContext(gssCreds);
+              gssContext = gssManager.createContext((GSSCredential) null);
               byte[] serverToken = gssContext.acceptSecContext(clientToken, 0, clientToken.length);
               if (serverToken != null && serverToken.length > 0) {
                 String authenticate = base64.encodeToString(serverToken);
@@ -344,9 +316,6 @@ public class KerberosAuthenticationHandler implements AuthenticationHandler {
             } finally {
               if (gssContext != null) {
                 gssContext.dispose();
-              }
-              if (gssCreds != null) {
-                gssCreds.dispose();
               }
             }
             return token;

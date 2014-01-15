@@ -24,17 +24,9 @@ import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.classification.InterfaceAudience.Public;
-import org.apache.hadoop.classification.InterfaceStability.Evolving;
-import org.apache.hadoop.service.AbstractService;
+import org.apache.hadoop.yarn.Clock;
+import org.apache.hadoop.yarn.service.AbstractService;
 
-/**
- * A simple liveliness monitor with which clients can register, trust the
- * component to monitor liveliness, get a call-back on expiry and then finally
- * unregister.
- */
-@Public
-@Evolving
 public abstract class AbstractLivelinessMonitor<O> extends AbstractService {
 
   private static final Log LOG = LogFactory.getLog(AbstractLivelinessMonitor.class);
@@ -57,21 +49,21 @@ public abstract class AbstractLivelinessMonitor<O> extends AbstractService {
   }
 
   @Override
-  protected void serviceStart() throws Exception {
+  public void start() {
     assert !stopped : "starting when already stopped";
     checkerThread = new Thread(new PingChecker());
     checkerThread.setName("Ping Checker");
     checkerThread.start();
-    super.serviceStart();
+    super.start();
   }
 
   @Override
-  protected void serviceStop() throws Exception {
+  public void stop() {
     stopped = true;
     if (checkerThread != null) {
       checkerThread.interrupt();
     }
-    super.serviceStop();
+    super.stop();
   }
 
   protected abstract void expire(O ob);

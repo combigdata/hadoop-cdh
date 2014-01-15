@@ -18,7 +18,6 @@
 
 package org.apache.hadoop.yarn.server.api.impl.pb.client;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
@@ -42,7 +41,7 @@ import org.apache.hadoop.yarn.server.api.protocolrecords.impl.pb.RegisterNodeMan
 
 import com.google.protobuf.ServiceException;
 
-public class ResourceTrackerPBClientImpl implements ResourceTracker, Closeable {
+public class ResourceTrackerPBClientImpl implements ResourceTracker {
 
 private ResourceTrackerPB proxy;
   
@@ -51,14 +50,7 @@ private ResourceTrackerPB proxy;
     proxy = (ResourceTrackerPB)RPC.getProxy(
         ResourceTrackerPB.class, clientVersion, addr, conf);
   }
-
-  @Override
-  public void close() {
-    if(this.proxy != null) {
-      RPC.stopProxy(this.proxy);
-    }
-  }
-
+  
   @Override
   public RegisterNodeManagerResponse registerNodeManager(
       RegisterNodeManagerRequest request) throws YarnException,

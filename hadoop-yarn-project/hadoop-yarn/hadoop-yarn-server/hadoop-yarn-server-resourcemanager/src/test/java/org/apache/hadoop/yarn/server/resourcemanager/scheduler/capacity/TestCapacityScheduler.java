@@ -19,30 +19,19 @@
 package org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import junit.framework.Assert;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.net.NetworkTopology;
-import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.QueueInfo;
 import org.apache.hadoop.yarn.api.records.QueueUserACLInfo;
@@ -51,29 +40,19 @@ import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.event.AsyncDispatcher;
 import org.apache.hadoop.yarn.exceptions.YarnException;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.server.resourcemanager.Application;
 import org.apache.hadoop.yarn.server.resourcemanager.MockNodes;
-import org.apache.hadoop.yarn.server.resourcemanager.MockRM;
-import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContextImpl;
 import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
 import org.apache.hadoop.yarn.server.resourcemanager.Task;
+import org.apache.hadoop.yarn.server.resourcemanager.resource.Resources;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ActiveUsersManager;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.Queue;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerApplication;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerApp;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.AppAddedSchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeAddedSchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeRemovedSchedulerEvent;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.SchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.security.ClientToAMTokenSecretManagerInRM;
-import org.apache.hadoop.yarn.server.resourcemanager.security.NMTokenSecretManagerInRM;
 import org.apache.hadoop.yarn.server.resourcemanager.security.RMContainerTokenSecretManager;
-import org.apache.hadoop.yarn.server.utils.BuilderUtils;
-import org.apache.hadoop.yarn.util.resource.Resources;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -118,40 +97,7 @@ public class TestCapacityScheduler {
   public void tearDown() throws Exception {
     resourceManager.stop();
   }
-
-
-  @Test (timeout = 30000)
-  public void testConfValidation() throws Exception {
-    ResourceScheduler scheduler = new CapacityScheduler();
-    Configuration conf = new YarnConfiguration();
-    conf.setInt(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB, 2048);
-    conf.setInt(YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_MB, 1024);
-    try {
-      scheduler.reinitialize(conf, null);
-      fail("Exception is expected because the min memory allocation is" +
-        " larger than the max memory allocation.");
-    } catch (YarnRuntimeException e) {
-      // Exception is expected.
-      assertTrue("The thrown exception is not the expected one.",
-        e.getMessage().startsWith(
-          "Invalid resource scheduler memory"));
-    }
-
-    conf = new YarnConfiguration();
-    conf.setInt(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_VCORES, 2);
-    conf.setInt(YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES, 1);
-    try {
-      scheduler.reinitialize(conf, null);
-      fail("Exception is expected because the min vcores allocation is" +
-        " larger than the max vcores allocation.");
-    } catch (YarnRuntimeException e) {
-      // Exception is expected.
-      assertTrue("The thrown exception is not the expected one.",
-        e.getMessage().startsWith(
-          "Invalid resource scheduler vcores"));
-    }
-  }
-
+  
   private org.apache.hadoop.yarn.server.resourcemanager.NodeManager
       registerNode(String hostName, int containerManagerPort, int httpPort,
           String rackName, Resource capability)
@@ -326,7 +272,6 @@ public class TestCapacityScheduler {
     cs.setConf(new YarnConfiguration());
     cs.reinitialize(conf, new RMContextImpl(null, null, null, null, null,
       null, new RMContainerTokenSecretManager(conf),
-      new NMTokenSecretManagerInRM(conf),
       new ClientToAMTokenSecretManagerInRM()));
     checkQueueCapacities(cs, A_CAPACITY, B_CAPACITY);
 
@@ -425,7 +370,6 @@ public class TestCapacityScheduler {
 
     cs.reinitialize(conf, new RMContextImpl(null, null, null, null, null,
       null, new RMContainerTokenSecretManager(conf),
-      new NMTokenSecretManagerInRM(conf),
       new ClientToAMTokenSecretManagerInRM()));
   }
 
@@ -438,7 +382,6 @@ public class TestCapacityScheduler {
     cs.setConf(new YarnConfiguration());
     cs.reinitialize(csConf, new RMContextImpl(null, null, null, null,
       null, null, new RMContainerTokenSecretManager(csConf),
-      new NMTokenSecretManagerInRM(csConf),
       new ClientToAMTokenSecretManagerInRM()));
 
     RMNode n1 = MockNodes.newNodeInfo(0, MockNodes.newResource(4 * GB), 1);
@@ -465,7 +408,6 @@ public class TestCapacityScheduler {
     cs.setConf(new YarnConfiguration());
     cs.reinitialize(conf, new RMContextImpl(null, null, null, null, null,
       null, new RMContainerTokenSecretManager(conf),
-      new NMTokenSecretManagerInRM(conf),
       new ClientToAMTokenSecretManagerInRM()));
     checkQueueCapacities(cs, A_CAPACITY, B_CAPACITY);
 
@@ -518,41 +460,8 @@ public class TestCapacityScheduler {
     }
     return result;
   }
-
-  @SuppressWarnings("resource")
-  @Test
-  public void testBlackListNodes() throws Exception {
-    Configuration conf = new Configuration();
-    conf.setClass(YarnConfiguration.RM_SCHEDULER, CapacityScheduler.class,
-        ResourceScheduler.class);
-    MockRM rm = new MockRM(conf);
-    rm.start();
-    CapacityScheduler cs = (CapacityScheduler) rm.getResourceScheduler();
-
-    String host = "127.0.0.1";
-    RMNode node =
-        MockNodes.newNodeInfo(0, MockNodes.newResource(4 * GB), 1, host);
-    cs.handle(new NodeAddedSchedulerEvent(node));
-
-    ApplicationId appId = BuilderUtils.newApplicationId(100, 1);
-    ApplicationAttemptId appAttemptId = BuilderUtils.newApplicationAttemptId(
-        appId, 1);
-    SchedulerEvent event = new AppAddedSchedulerEvent(appAttemptId, "default",
-        "user");
-    cs.handle(event);
-
-    // Verify the blacklist can be updated independent of requesting containers
-    cs.allocate(appAttemptId, Collections.<ResourceRequest>emptyList(),
-        Collections.<ContainerId>emptyList(),
-        Collections.singletonList(host), null);
-    Assert.assertTrue(cs.getApplication(appAttemptId).isBlacklisted(host));
-    cs.allocate(appAttemptId, Collections.<ResourceRequest>emptyList(),
-        Collections.<ContainerId>emptyList(), null,
-        Collections.singletonList(host));
-    Assert.assertFalse(cs.getApplication(appAttemptId).isBlacklisted(host));
-    rm.stop();
-  }
-
+  
+    
     @Test (timeout = 5000)
     public void testApplicationComparator()
     {
@@ -572,65 +481,6 @@ public class TestCapacityScheduler {
       //different clusterId
       assertTrue(appComparator.compare(app1, app3) < 0);
       assertTrue(appComparator.compare(app2, app3) < 0);
-    }
-
-    @Test
-    public void testConcurrentAccessOnApplications() throws Exception {
-      CapacityScheduler cs = new CapacityScheduler();
-      verifyConcurrentAccessOnApplications(
-          cs.applications, FiCaSchedulerApp.class);
-    }
-
-    public static <T extends SchedulerApplication>
-        void verifyConcurrentAccessOnApplications(
-            final Map<ApplicationAttemptId, T> applications, Class<T> clazz)
-                throws Exception {
-      final int size = 10000;
-      final ApplicationId appId = ApplicationId.newInstance(0, 0);
-      final Constructor<T> ctor = clazz.getDeclaredConstructor(
-          ApplicationAttemptId.class, String.class, Queue.class,
-          ActiveUsersManager.class, RMContext.class);
-
-      ApplicationAttemptId appAttemptId0
-          = ApplicationAttemptId.newInstance(appId, 0);
-      applications.put(appAttemptId0, ctor.newInstance(
-              appAttemptId0, null, mock(Queue.class), null, null));
-      assertNotNull(applications.get(appAttemptId0));
-
-      // Imitating the thread of scheduler that will add and remove apps
-      final AtomicBoolean finished = new AtomicBoolean(false);
-      final AtomicBoolean failed = new AtomicBoolean(false);
-      Thread t = new Thread() {
-
-        @Override
-        public void run() {
-          for (int i = 1; i <= size; ++i) {
-            ApplicationAttemptId appAttemptId
-                = ApplicationAttemptId.newInstance(appId, i);
-            try {
-              applications.put(appAttemptId, ctor.newInstance(
-                  appAttemptId, null, mock(Queue.class), null, null));
-            } catch (Exception e) {
-              failed.set(true);
-              finished.set(true);
-              return;
-            }
-          }
-          for (int i = 1; i <= size; ++i) {
-            ApplicationAttemptId appAttemptId
-                = ApplicationAttemptId.newInstance(appId, i);
-            applications.remove(appAttemptId);
-          }
-          finished.set(true);
-        }
-      };
-      t.start();
-
-      // Imitating the thread of rmappattempt that will get the app
-      while (!finished.get()) {
-        assertNotNull(applications.get(appAttemptId0));
-      }
-      assertFalse(failed.get());
     }
 
 }

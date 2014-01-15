@@ -24,7 +24,6 @@ import org.apache.hadoop.hdfs.protocol.QuotaExceededException;
 import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeDescriptor;
 import org.apache.hadoop.hdfs.server.namenode.INode;
 import org.apache.hadoop.hdfs.server.namenode.INodeFile;
-import org.apache.hadoop.hdfs.server.namenode.INodeFileAttributes;
 import org.apache.hadoop.hdfs.server.namenode.INodeMap;
 import org.apache.hadoop.hdfs.server.namenode.Quota;
 
@@ -67,7 +66,7 @@ public class INodeFileWithSnapshot extends INodeFile
   }
 
   @Override
-  public INodeFileAttributes getSnapshotINode(Snapshot snapshot) {
+  public INodeFile getSnapshotINode(Snapshot snapshot) {
     return diffs.getSnapshotINode(snapshot, this);
   }
 
@@ -92,8 +91,7 @@ public class INodeFileWithSnapshot extends INodeFile
 
   @Override
   public Quota.Counts cleanSubtree(final Snapshot snapshot, Snapshot prior,
-      final BlocksMapUpdateInfo collectedBlocks,
-      final List<INode> removedINodes, final boolean countDiffChange) 
+      final BlocksMapUpdateInfo collectedBlocks, final List<INode> removedINodes)
       throws QuotaExceededException {
     if (snapshot == null) { // delete the current file
       recordModification(prior, null);
@@ -103,7 +101,7 @@ public class INodeFileWithSnapshot extends INodeFile
     } else { // delete a snapshot
       prior = getDiffs().updatePrior(snapshot, prior);
       return diffs.deleteSnapshotDiff(snapshot, prior, this, collectedBlocks,
-          removedINodes, countDiffChange);
+          removedINodes);
     }
   }
 

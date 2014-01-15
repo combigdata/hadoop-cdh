@@ -18,17 +18,11 @@
 
 package org.apache.hadoop.yarn.state;
 
-import org.apache.hadoop.classification.InterfaceAudience.Public;
-import org.apache.hadoop.classification.InterfaceStability.Evolving;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
+import org.apache.hadoop.yarn.YarnRuntimeException;
 
-@Public
-@Evolving
 public class InvalidStateTransitonException extends YarnRuntimeException {
 
-  private static final long serialVersionUID = 8610511635996283691L;
-
-  private Enum<?> currentState;
+ private Enum<?> currentState;
   private Enum<?> event;
 
   public InvalidStateTransitonException(Enum<?> currentState, Enum<?> event) {

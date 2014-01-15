@@ -19,13 +19,7 @@
 package org.apache.hadoop.yarn.server.resourcemanager.webapp;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 
 import javax.servlet.http.HttpServletRequest;
@@ -38,42 +32,37 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.records.ApplicationAccessType;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.NodeState;
-import org.apache.hadoop.yarn.api.records.QueueACL;
-import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
-import org.apache.hadoop.yarn.server.resourcemanager.RMServerUtils;
 import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMApp;
+import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppState;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttempt;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CSQueue;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacityScheduler;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FairScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fifo.FifoScheduler;
-import org.apache.hadoop.yarn.server.resourcemanager.security.QueueACLsManager;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.AppAttemptInfo;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.AppAttemptsInfo;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.AppInfo;
-import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.ApplicationStatisticsInfo;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.AppsInfo;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.CapacitySchedulerInfo;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.ClusterInfo;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.ClusterMetricsInfo;
-import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.FairSchedulerInfo;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.FifoSchedulerInfo;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.NodeInfo;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.NodesInfo;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.SchedulerInfo;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.SchedulerTypeInfo;
-import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.StatisticsItemInfo;
 import org.apache.hadoop.yarn.server.security.ApplicationACLsManager;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.webapp.BadRequestException;
@@ -86,22 +75,19 @@ import com.google.inject.Singleton;
 @Path("/ws/v1/cluster")
 public class RMWebServices {
   private static final String EMPTY = "";
-  private static final String ANY = "*";
+  private static final Log LOG = LogFactory.getLog(RMWebServices.class);
   private final ResourceManager rm;
   private static RecordFactory recordFactory = RecordFactoryProvider
       .getRecordFactory(null);
   private final ApplicationACLsManager aclsManager;
-  private final QueueACLsManager queueACLsManager;
 
   private @Context HttpServletResponse response;
 
   @Inject
   public RMWebServices(final ResourceManager rm,
-      final ApplicationACLsManager aclsManager,
-      final QueueACLsManager queueACLsManager) {
+      final ApplicationACLsManager aclsManager) {
     this.rm = rm;
     this.aclsManager = aclsManager;
-    this.queueACLsManager = queueACLsManager;
   }
 
   protected Boolean hasAccess(RMApp app, HttpServletRequest hsr) {
@@ -112,10 +98,9 @@ public class RMWebServices {
       callerUGI = UserGroupInformation.createRemoteUser(remoteUser);
     }
     if (callerUGI != null
-        && !(this.aclsManager.checkAccess(callerUGI,
+        && !this.aclsManager.checkAccess(callerUGI,
             ApplicationAccessType.VIEW_APP, app.getUser(),
-            app.getApplicationId()) || this.queueACLsManager.checkAccess(
-            callerUGI, QueueACL.ADMINISTER_QUEUE, app.getQueue()))) {
+            app.getApplicationId())) {
       return false;
     }
     return true;
@@ -159,9 +144,6 @@ public class RMWebServices {
       CapacityScheduler cs = (CapacityScheduler) rs;
       CSQueue root = cs.getRootQueue();
       sinfo = new CapacitySchedulerInfo(root);
-    } else if (rs instanceof FairScheduler) {
-      FairScheduler fs = (FairScheduler) rs;
-      sinfo = new FairSchedulerInfo(fs);
     } else if (rs instanceof FifoScheduler) {
       sinfo = new FifoSchedulerInfo(this.rm);
     } else {
@@ -170,43 +152,60 @@ public class RMWebServices {
     return new SchedulerTypeInfo(sinfo);
   }
 
-  /**
-   * Returns all nodes in the cluster. If the states param is given, returns
-   * all nodes that are in the comma-separated list of states.
-   */
   @GET
   @Path("/nodes")
   @Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
-  public NodesInfo getNodes(@QueryParam("states") String states) {
+  public NodesInfo getNodes(@QueryParam("state") String filterState,
+      @QueryParam("healthy") String healthState) {
     init();
     ResourceScheduler sched = this.rm.getResourceScheduler();
     if (sched == null) {
       throw new NotFoundException("Null ResourceScheduler instance");
     }
-    
-    EnumSet<NodeState> acceptedStates;
-    if (states == null) {
-      acceptedStates = EnumSet.allOf(NodeState.class);
-    } else {
-      acceptedStates = EnumSet.noneOf(NodeState.class);
-      for (String stateStr : states.split(",")) {
-        acceptedStates.add(NodeState.valueOf(stateStr.toUpperCase()));
+    Collection<RMNode> rmNodes = this.rm.getRMContext().getRMNodes().values();
+    boolean isInactive = false;
+    if (filterState != null && !filterState.isEmpty()) {
+      NodeState nodeState = NodeState.valueOf(filterState.toUpperCase());
+      switch (nodeState) {
+      case DECOMMISSIONED:
+      case LOST:
+      case REBOOTED:
+        rmNodes = this.rm.getRMContext().getInactiveRMNodes().values();
+        isInactive = true;
+        break;
       }
     }
-    
-    Collection<RMNode> rmNodes = RMServerUtils.queryRMNodes(this.rm.getRMContext(),
-        acceptedStates);
-    NodesInfo nodesInfo = new NodesInfo();
-    for (RMNode rmNode : rmNodes) {
-      NodeInfo nodeInfo = new NodeInfo(rmNode, sched);
-      if (EnumSet.of(NodeState.LOST, NodeState.DECOMMISSIONED, NodeState.REBOOTED)
-          .contains(rmNode.getState())) {
+    NodesInfo allNodes = new NodesInfo();
+    for (RMNode ni : rmNodes) {
+      NodeInfo nodeInfo = new NodeInfo(ni, sched);
+      if (filterState != null) {
+        if (!(nodeInfo.getState().equalsIgnoreCase(filterState))) {
+          continue;
+        }
+      } else {
+        // No filter. User is asking for all nodes. Make sure you skip the
+        // unhealthy nodes.
+        if (ni.getState() == NodeState.UNHEALTHY) {
+          continue;
+        }
+      }
+      if ((healthState != null) && (!healthState.isEmpty())) {
+        LOG.info("heatlh state is : " + healthState);
+        if (!healthState.equalsIgnoreCase("true")
+            && !healthState.equalsIgnoreCase("false")) {
+          String msg = "Error: You must specify either true or false to query on health";
+          throw new BadRequestException(msg);
+        }
+        if (nodeInfo.isHealthy() != Boolean.parseBoolean(healthState)) {
+          continue;
+        }
+      }
+      if (isInactive) {
         nodeInfo.setNodeHTTPAddress(EMPTY);
       }
-      nodesInfo.add(nodeInfo);
+      allNodes.add(nodeInfo);
     }
-    
-    return nodesInfo;
+    return allNodes;
   }
 
   @GET
@@ -243,7 +242,6 @@ public class RMWebServices {
   @Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
   public AppsInfo getApps(@Context HttpServletRequest hsr,
       @QueryParam("state") String stateQuery,
-      @QueryParam("states") Set<String> statesQuery,
       @QueryParam("finalStatus") String finalStatusQuery,
       @QueryParam("user") String userQuery,
       @QueryParam("queue") String queueQuery,
@@ -251,14 +249,11 @@ public class RMWebServices {
       @QueryParam("startedTimeBegin") String startedBegin,
       @QueryParam("startedTimeEnd") String startedEnd,
       @QueryParam("finishedTimeBegin") String finishBegin,
-      @QueryParam("finishedTimeEnd") String finishEnd,
-      @QueryParam("applicationTypes") Set<String> applicationTypes) {
+      @QueryParam("finishedTimeEnd") String finishEnd) {
     long num = 0;
     boolean checkCount = false;
     boolean checkStart = false;
     boolean checkEnd = false;
-    boolean checkAppTypes = false;
-    boolean checkAppStates = false;
     long countNum = 0;
 
     // set values suitable in case both of begin/end not specified
@@ -314,20 +309,6 @@ public class RMWebServices {
           "finishTimeEnd must be greater than finishTimeBegin");
     }
 
-    Set<String> appTypes = parseQueries(applicationTypes, false);
-    if (!appTypes.isEmpty()) {
-      checkAppTypes = true;
-    }
-
-    // stateQuery is deprecated.
-    if (stateQuery != null && !stateQuery.isEmpty()) {
-      statesQuery.add(stateQuery);
-    }
-    Set<String> appStates = parseQueries(statesQuery, true);
-    if (!appStates.isEmpty()) {
-      checkAppStates = true;
-    }
-
     final ConcurrentMap<ApplicationId, RMApp> apps = rm.getRMContext()
         .getRMApps();
     AppsInfo allApps = new AppsInfo();
@@ -336,10 +317,11 @@ public class RMWebServices {
       if (checkCount && num == countNum) {
         break;
       }
-
-      if (checkAppStates && !appStates.contains(
-          rmapp.createApplicationState().toString().toLowerCase())) {
-        continue;
+      if (stateQuery != null && !stateQuery.isEmpty()) {
+        RMAppState.valueOf(stateQuery);
+        if (!rmapp.getState().toString().equalsIgnoreCase(stateQuery)) {
+          continue;
+        }
       }
       if (finalStatusQuery != null && !finalStatusQuery.isEmpty()) {
         FinalApplicationStatus.valueOf(finalStatusQuery);
@@ -368,10 +350,6 @@ public class RMWebServices {
           continue;
         }
       }
-      if (checkAppTypes && !appTypes.contains(
-          rmapp.getApplicationType().trim().toLowerCase())) {
-        continue;
-      }
 
       if (checkStart
           && (rmapp.getStartTime() < sBegin || rmapp.getStartTime() > sEnd)) {
@@ -387,122 +365,6 @@ public class RMWebServices {
       num++;
     }
     return allApps;
-  }
-
-  @GET
-  @Path("/appstatistics")
-  @Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
-  public ApplicationStatisticsInfo getAppStatistics(
-      @Context HttpServletRequest hsr,
-      @QueryParam("states") Set<String> stateQueries,
-      @QueryParam("applicationTypes") Set<String> typeQueries) {
-    init();
-
-    // parse the params and build the scoreboard
-    // converting state/type name to lowercase
-    Set<String> states = parseQueries(stateQueries, true);
-    Set<String> types = parseQueries(typeQueries, false);
-    // if no types, counts the applications of any types
-    if (types.size() == 0) {
-      types.add(ANY);
-    } else if (types.size() != 1) {
-      throw new BadRequestException("# of applicationTypes = " + types.size()
-          + ", we temporarily support at most one applicationType");
-    }
-    // if no states, returns the counts of all RMAppStates
-    if (states.size() == 0) {
-      for (YarnApplicationState state : YarnApplicationState.values()) {
-        states.add(state.toString().toLowerCase());
-      }
-    }
-    // in case we extend to multiple applicationTypes in the future
-    Map<YarnApplicationState, Map<String, Long>> scoreboard =
-        buildScoreboard(states, types);
-
-    // go through the apps in RM to count the numbers, ignoring the case of
-    // the state/type name
-    ConcurrentMap<ApplicationId, RMApp> apps = rm.getRMContext().getRMApps();
-    for (RMApp rmapp : apps.values()) {
-      YarnApplicationState state = rmapp.createApplicationState();
-      String type = rmapp.getApplicationType().trim().toLowerCase();
-      if (states.contains(state.toString().toLowerCase())) {
-        if (types.contains(ANY)) {
-          countApp(scoreboard, state, ANY);
-        } else if (types.contains(type)) {
-          countApp(scoreboard, state, type);
-        }
-      }
-    }
-
-    // fill the response object
-    ApplicationStatisticsInfo appStatInfo = new ApplicationStatisticsInfo();
-    for (Map.Entry<YarnApplicationState, Map<String, Long>> partScoreboard
-        : scoreboard.entrySet()) {
-      for (Map.Entry<String, Long> statEntry
-          : partScoreboard.getValue().entrySet()) {
-        StatisticsItemInfo statItem = new StatisticsItemInfo(
-            partScoreboard.getKey(), statEntry.getKey(), statEntry.getValue());
-        appStatInfo.add(statItem);
-      }
-    }
-    return appStatInfo;
-  }
-
-  private static Set<String> parseQueries(
-      Set<String> queries, boolean isState) {
-    Set<String> params = new HashSet<String>();
-    if (!queries.isEmpty()) {
-      for (String query : queries) {
-        if (query != null && !query.trim().isEmpty()) {
-          String[] paramStrs = query.split(",");
-          for (String paramStr : paramStrs) {
-            if (paramStr != null && !paramStr.trim().isEmpty()) {
-              if (isState) {
-                try {
-                  // enum string is in the uppercase
-                  YarnApplicationState.valueOf(paramStr.trim().toUpperCase());
-                } catch (RuntimeException e) {
-                  YarnApplicationState[] stateArray =
-                      YarnApplicationState.values();
-                  String allAppStates = Arrays.toString(stateArray);
-                  throw new BadRequestException(
-                      "Invalid application-state " + paramStr.trim()
-                      + " specified. It should be one of " + allAppStates);
-                }
-              }
-              params.add(paramStr.trim().toLowerCase());
-            }
-          }
-        }
-      }
-    }
-    return params;
-  }
-
-  private static Map<YarnApplicationState, Map<String, Long>> buildScoreboard(
-     Set<String> states, Set<String> types) {
-    Map<YarnApplicationState, Map<String, Long>> scoreboard
-        = new HashMap<YarnApplicationState, Map<String, Long>>();
-    // default states will result in enumerating all YarnApplicationStates
-    assert !states.isEmpty();
-    for (String state : states) {
-      Map<String, Long> partScoreboard = new HashMap<String, Long>();
-      scoreboard.put(
-          YarnApplicationState.valueOf(state.toUpperCase()), partScoreboard);
-      // types is verified no to be empty
-      for (String type : types) {
-        partScoreboard.put(type, 0L);
-      }
-    }
-    return scoreboard;
-  }
-
-  private static void countApp(
-      Map<YarnApplicationState, Map<String, Long>> scoreboard,
-      YarnApplicationState state, String type) {
-    Map<String, Long> partScoreboard = scoreboard.get(state);
-    Long count = partScoreboard.get(type);
-    partScoreboard.put(type, count + 1L);
   }
 
   @GET

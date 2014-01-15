@@ -20,12 +20,12 @@ package org.apache.hadoop.yarn.api.records;
 
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Stable;
-import org.apache.hadoop.yarn.api.ApplicationClientProtocol;
+import org.apache.hadoop.yarn.api.ClientRMProtocol;
 
 /**
  * <p>State of a Queue.</p>
  * 
- * <p>A queue is in one of:
+ * <p>A queue is one of:
  *   <ul>
  *     <li>{@link #RUNNING} - normal state.</li> 
  *     <li>{@link #STOPPED} - not accepting new application submissions.
@@ -33,7 +33,7 @@ import org.apache.hadoop.yarn.api.ApplicationClientProtocol;
  * </p>
  * 
  * @see QueueInfo
- * @see ApplicationClientProtocol#getQueueInfo(org.apache.hadoop.yarn.api.protocolrecords.GetQueueInfoRequest)
+ * @see ClientRMProtocol#getQueueInfo(org.apache.hadoop.yarn.api.protocolrecords.GetQueueInfoRequest)
  */
 @Public
 @Stable

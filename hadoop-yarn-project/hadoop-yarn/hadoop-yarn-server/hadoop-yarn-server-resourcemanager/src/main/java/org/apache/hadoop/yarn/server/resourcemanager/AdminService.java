@@ -32,31 +32,31 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.authorize.AccessControlList;
 import org.apache.hadoop.security.authorize.PolicyProvider;
 import org.apache.hadoop.security.authorize.ProxyUsers;
-import org.apache.hadoop.service.AbstractService;
+import org.apache.hadoop.yarn.api.RMAdminProtocol;
+import org.apache.hadoop.yarn.api.protocolrecords.RefreshAdminAclsRequest;
+import org.apache.hadoop.yarn.api.protocolrecords.RefreshAdminAclsResponse;
+import org.apache.hadoop.yarn.api.protocolrecords.RefreshNodesRequest;
+import org.apache.hadoop.yarn.api.protocolrecords.RefreshNodesResponse;
+import org.apache.hadoop.yarn.api.protocolrecords.RefreshQueuesRequest;
+import org.apache.hadoop.yarn.api.protocolrecords.RefreshQueuesResponse;
+import org.apache.hadoop.yarn.api.protocolrecords.RefreshServiceAclsRequest;
+import org.apache.hadoop.yarn.api.protocolrecords.RefreshServiceAclsResponse;
+import org.apache.hadoop.yarn.api.protocolrecords.RefreshSuperUserGroupsConfigurationRequest;
+import org.apache.hadoop.yarn.api.protocolrecords.RefreshSuperUserGroupsConfigurationResponse;
+import org.apache.hadoop.yarn.api.protocolrecords.RefreshUserToGroupsMappingsRequest;
+import org.apache.hadoop.yarn.api.protocolrecords.RefreshUserToGroupsMappingsResponse;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.ipc.RPCUtil;
 import org.apache.hadoop.yarn.ipc.YarnRPC;
-import org.apache.hadoop.yarn.server.api.ResourceManagerAdministrationProtocol;
-import org.apache.hadoop.yarn.server.api.protocolrecords.RefreshAdminAclsRequest;
-import org.apache.hadoop.yarn.server.api.protocolrecords.RefreshAdminAclsResponse;
-import org.apache.hadoop.yarn.server.api.protocolrecords.RefreshNodesRequest;
-import org.apache.hadoop.yarn.server.api.protocolrecords.RefreshNodesResponse;
-import org.apache.hadoop.yarn.server.api.protocolrecords.RefreshQueuesRequest;
-import org.apache.hadoop.yarn.server.api.protocolrecords.RefreshQueuesResponse;
-import org.apache.hadoop.yarn.server.api.protocolrecords.RefreshServiceAclsRequest;
-import org.apache.hadoop.yarn.server.api.protocolrecords.RefreshServiceAclsResponse;
-import org.apache.hadoop.yarn.server.api.protocolrecords.RefreshSuperUserGroupsConfigurationRequest;
-import org.apache.hadoop.yarn.server.api.protocolrecords.RefreshSuperUserGroupsConfigurationResponse;
-import org.apache.hadoop.yarn.server.api.protocolrecords.RefreshUserToGroupsMappingsRequest;
-import org.apache.hadoop.yarn.server.api.protocolrecords.RefreshUserToGroupsMappingsResponse;
 import org.apache.hadoop.yarn.server.resourcemanager.RMAuditLogger.AuditConstants;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.security.authorize.RMPolicyProvider;
+import org.apache.hadoop.yarn.service.AbstractService;
 
-public class AdminService extends AbstractService implements ResourceManagerAdministrationProtocol {
+public class AdminService extends AbstractService implements RMAdminProtocol {
 
   private static final Log LOG = LogFactory.getLog(AdminService.class);
 
@@ -92,7 +92,8 @@ public class AdminService extends AbstractService implements ResourceManagerAdmi
   }
 
   @Override
-  public void serviceInit(Configuration conf) throws Exception {
+  public void init(Configuration conf) {
+    super.init(conf);
     masterServiceAddress = conf.getSocketAddr(
         YarnConfiguration.RM_ADMIN_ADDRESS,
         YarnConfiguration.DEFAULT_RM_ADMIN_ADDRESS,
@@ -100,15 +101,13 @@ public class AdminService extends AbstractService implements ResourceManagerAdmi
     adminAcl = new AccessControlList(conf.get(
         YarnConfiguration.YARN_ADMIN_ACL,
         YarnConfiguration.DEFAULT_YARN_ADMIN_ACL));
-    super.serviceInit(conf);
   }
 
-  @Override
-  protected void serviceStart() throws Exception {
+  public void start() {
     Configuration conf = getConfig();
     YarnRPC rpc = YarnRPC.create(conf);
     this.server =
-      rpc.getServer(ResourceManagerAdministrationProtocol.class, this, masterServiceAddress,
+      rpc.getServer(RMAdminProtocol.class, this, masterServiceAddress,
           conf, null,
           conf.getInt(YarnConfiguration.RM_ADMIN_CLIENT_THREAD_COUNT, 
               YarnConfiguration.DEFAULT_RM_ADMIN_CLIENT_THREAD_COUNT));
@@ -123,15 +122,15 @@ public class AdminService extends AbstractService implements ResourceManagerAdmi
     this.server.start();
     conf.updateConnectAddr(YarnConfiguration.RM_ADMIN_ADDRESS,
                            server.getListenerAddress());
-    super.serviceStart();
+    super.start();
   }
 
   @Override
-  protected void serviceStop() throws Exception {
+  public void stop() {
     if (this.server != null) {
       this.server.stop();
     }
-    super.serviceStop();
+    super.stop();
   }
 
   private UserGroupInformation checkAcls(String method) throws YarnException {

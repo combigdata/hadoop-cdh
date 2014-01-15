@@ -34,10 +34,9 @@ import org.apache.hadoop.mapred.ResourceMgrDelegate;
 import org.apache.hadoop.mapred.YARNRunner;
 import org.apache.hadoop.mapreduce.protocol.ClientProtocol;
 import org.apache.hadoop.security.token.Token;
-import org.apache.hadoop.yarn.api.ApplicationClientProtocol;
+import org.apache.hadoop.yarn.api.ClientRMProtocol;
 import org.apache.hadoop.yarn.api.protocolrecords.GetDelegationTokenRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.GetDelegationTokenResponse;
-import org.apache.hadoop.yarn.client.api.impl.YarnClientImpl;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
@@ -105,15 +104,14 @@ public class TestYarnClientProtocolProvider extends TestCase {
       rmDTToken.setPassword(ByteBuffer.wrap("testcluster".getBytes()));
       rmDTToken.setService("0.0.0.0:8032");
       getDTResponse.setRMDelegationToken(rmDTToken);
-      final ApplicationClientProtocol cRMProtocol = mock(ApplicationClientProtocol.class);
+      final ClientRMProtocol cRMProtocol = mock(ClientRMProtocol.class);
       when(cRMProtocol.getDelegationToken(any(
           GetDelegationTokenRequest.class))).thenReturn(getDTResponse);
       ResourceMgrDelegate rmgrDelegate = new ResourceMgrDelegate(
           new YarnConfiguration(conf)) {
         @Override
-        protected void serviceStart() throws Exception {
-          assertTrue(this.client instanceof YarnClientImpl);
-          ((YarnClientImpl) this.client).setRMClient(cRMProtocol);
+        public synchronized void start() {
+          this.rmClient = cRMProtocol;
         }
       };
       yrunner.setResourceMgrDelegate(rmgrDelegate);

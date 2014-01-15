@@ -31,7 +31,7 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.records.QueueACL;
 import org.apache.hadoop.yarn.api.records.QueueUserACLInfo;
 import org.apache.hadoop.yarn.api.records.Resource;
-import org.apache.hadoop.yarn.util.resource.Resources;
+import org.apache.hadoop.yarn.server.resourcemanager.resource.Resources;
 
 @Private
 @Unstable
@@ -58,7 +58,7 @@ public class FSParentQueue extends FSQueue {
   public void recomputeShares() {
     policy.computeShares(childQueues, getFairShare());
     for (FSQueue childQueue : childQueues) {
-      childQueue.getMetrics().setFairShare(childQueue.getFairShare());
+      childQueue.getMetrics().setAvailableResourcesToQueue(childQueue.getFairShare());
       childQueue.recomputeShares();
     }
   }

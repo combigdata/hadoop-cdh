@@ -51,9 +51,6 @@ import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.nativeio.NativeIO;
 import org.apache.hadoop.util.Daemon;
 import org.apache.hadoop.util.DataChecksum;
-import org.apache.hadoop.util.StringUtils;
-
-import com.google.common.annotations.VisibleForTesting;
 
 /** A class that receives a block and writes to its own disk, meanwhile
  * may copies it to another site. If a throttler is provided,
@@ -63,8 +60,7 @@ class BlockReceiver implements Closeable {
   public static final Log LOG = DataNode.LOG;
   static final Log ClientTraceLog = DataNode.ClientTraceLog;
 
-  @VisibleForTesting
-  static long CACHE_DROP_LAG_BYTES = 8 * 1024 * 1024;
+  private static final long CACHE_DROP_LAG_BYTES = 8 * 1024 * 1024;
   
   private DataInputStream in = null; // from where data are read
   private DataChecksum clientChecksum; // checksum used by client
@@ -100,8 +96,8 @@ class BlockReceiver implements Closeable {
 
   // Cache management state
   private boolean dropCacheBehindWrites;
-  private long lastCacheManagementOffset = 0;
   private boolean syncBehindWrites;
+  private long lastCacheDropOffset = 0;
 
   /** The client name.  It is empty if a datanode is the client */
   private final String clientname;
@@ -123,8 +119,8 @@ class BlockReceiver implements Closeable {
       final BlockConstructionStage stage, 
       final long newGs, final long minBytesRcvd, final long maxBytesRcvd, 
       final String clientname, final DatanodeInfo srcDataNode,
-      final DataNode datanode, DataChecksum requestedChecksum,
-      CachingStrategy cachingStrategy) throws IOException {
+      final DataNode datanode, DataChecksum requestedChecksum)
+      throws IOException {
     try{
       this.block = block;
       this.in = in;
@@ -149,7 +145,6 @@ class BlockReceiver implements Closeable {
             + "\n  isClient  =" + isClient + ", clientname=" + clientname
             + "\n  isDatanode=" + isDatanode + ", srcDataNode=" + srcDataNode
             + "\n  inAddr=" + inAddr + ", myAddr=" + myAddr
-            + "\n  cachingStrategy = " + cachingStrategy
             );
       }
 
@@ -196,9 +191,7 @@ class BlockReceiver implements Closeable {
               " while receiving block " + block + " from " + inAddr);
         }
       }
-      this.dropCacheBehindWrites = (cachingStrategy.getDropBehind() == null) ?
-        datanode.getDnConf().dropCacheBehindWrites :
-          cachingStrategy.getDropBehind();
+      this.dropCacheBehindWrites = datanode.getDnConf().dropCacheBehindWrites;
       this.syncBehindWrites = datanode.getDnConf().syncBehindWrites;
       
       final boolean isCreate = isDatanode || isTransfer 
@@ -604,7 +597,7 @@ class BlockReceiver implements Closeable {
 
           datanode.metrics.incrBytesWritten(len);
 
-          manageWriterOsCache(offsetInBlock);
+          dropOsCacheBehindWriter(offsetInBlock);
         }
       } catch (IOException iex) {
         datanode.checkDiskError(iex);
@@ -626,44 +619,25 @@ class BlockReceiver implements Closeable {
     return lastPacketInBlock?-1:len;
   }
 
-  private void manageWriterOsCache(long offsetInBlock) {
+  private void dropOsCacheBehindWriter(long offsetInBlock) {
     try {
       if (outFd != null &&
-          offsetInBlock > lastCacheManagementOffset + CACHE_DROP_LAG_BYTES) {
-        //
-        // For SYNC_FILE_RANGE_WRITE, we want to sync from
-        // lastCacheManagementOffset to a position "two windows ago"
-        //
-        //                         <========= sync ===========>
-        // +-----------------------O--------------------------X
-        // start                  last                      curPos
-        // of file                 
-        //
+          offsetInBlock > lastCacheDropOffset + CACHE_DROP_LAG_BYTES) {
+        long twoWindowsAgo = lastCacheDropOffset - CACHE_DROP_LAG_BYTES;
+        if (twoWindowsAgo > 0 && dropCacheBehindWrites) {
+          NativeIO.POSIX.posixFadviseIfPossible(outFd, 0, lastCacheDropOffset,
+              NativeIO.POSIX.POSIX_FADV_DONTNEED);
+        }
+        
         if (syncBehindWrites) {
-          NativeIO.POSIX.syncFileRangeIfPossible(outFd,
-              lastCacheManagementOffset,
-              offsetInBlock - lastCacheManagementOffset,
+          NativeIO.POSIX.syncFileRangeIfPossible(outFd, lastCacheDropOffset, CACHE_DROP_LAG_BYTES,
               NativeIO.POSIX.SYNC_FILE_RANGE_WRITE);
         }
-        //
-        // For POSIX_FADV_DONTNEED, we want to drop from the beginning 
-        // of the file to a position prior to the current position.
-        //
-        // <=== drop =====> 
-        //                 <---W--->
-        // +--------------+--------O--------------------------X
-        // start        dropPos   last                      curPos
-        // of file             
-        //                     
-        long dropPos = lastCacheManagementOffset - CACHE_DROP_LAG_BYTES;
-        if (dropPos > 0 && dropCacheBehindWrites) {
-          NativeIO.POSIX.posixFadviseIfPossible(block.getBlockName(),
-              outFd, 0, dropPos, NativeIO.POSIX.POSIX_FADV_DONTNEED);
-        }
-        lastCacheManagementOffset = offsetInBlock;
+        
+        lastCacheDropOffset += CACHE_DROP_LAG_BYTES;
       }
     } catch (Throwable t) {
-      LOG.warn("Error managing cache for writer of block " + block, t);
+      LOG.warn("Couldn't drop os cache behind writer for " + block, t);
     }
   }
 
@@ -732,13 +706,7 @@ class BlockReceiver implements Closeable {
       }
       if (responder != null) {
         try {
-          responder.join(datanode.getDnConf().getXceiverStopTimeout());
-          if (responder.isAlive()) {
-            String msg = "Join on responder thread " + responder
-                + " timed out";
-            LOG.warn(msg + "\n" + StringUtils.getStackTrace(responder));
-            throw new IOException(msg);
-          }
+          responder.join();
         } catch (InterruptedException e) {
           responder.interrupt();
           throw new IOException("Interrupted receiveBlock");

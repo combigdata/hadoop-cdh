@@ -18,7 +18,6 @@
 
 package org.apache.hadoop.yarn.webapp.example;
 
-import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.yarn.webapp.Controller;
 import org.apache.hadoop.yarn.webapp.WebApps;
 import org.apache.hadoop.yarn.webapp.view.HtmlPage;
@@ -32,7 +31,6 @@ import org.apache.hadoop.yarn.webapp.view.HtmlPage;
  * <br>http://localhost:8888/hello/html
  * <br>http://localhost:8888/hello/json
  */
-@InterfaceAudience.LimitedPrivate({"YARN", "MapReduce"})
 public class HelloWorld {
   public static class Hello extends Controller {
     @Override public void index() { renderText("Hello world!"); }

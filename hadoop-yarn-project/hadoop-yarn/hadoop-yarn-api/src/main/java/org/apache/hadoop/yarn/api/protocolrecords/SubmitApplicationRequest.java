@@ -20,7 +20,7 @@ package org.apache.hadoop.yarn.api.protocolrecords;
 
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Stable;
-import org.apache.hadoop.yarn.api.ApplicationClientProtocol;
+import org.apache.hadoop.yarn.api.ClientRMProtocol;
 import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.Resource;
@@ -36,14 +36,12 @@ import org.apache.hadoop.yarn.util.Records;
  * {@link ContainerLaunchContext} for launching the 
  * <code>ApplicationMaster</code> etc.
  * 
- * @see ApplicationClientProtocol#submitApplication(SubmitApplicationRequest)
+ * @see ClientRMProtocol#submitApplication(SubmitApplicationRequest)
  */
 @Public
 @Stable
 public abstract class SubmitApplicationRequest {
 
-  @Public
-  @Stable
   public static SubmitApplicationRequest newInstance(
       ApplicationSubmissionContext context) {
     SubmitApplicationRequest request =

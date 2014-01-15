@@ -41,16 +41,15 @@ import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContextImpl;
+import org.apache.hadoop.yarn.server.resourcemanager.resource.Resources;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.ContainerAllocationExpirer;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerApp;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerNode;
-import org.apache.hadoop.yarn.server.resourcemanager.security.AMRMTokenSecretManager;
+import org.apache.hadoop.yarn.server.resourcemanager.security.ApplicationTokenSecretManager;
 import org.apache.hadoop.yarn.server.resourcemanager.security.ClientToAMTokenSecretManagerInRM;
 import org.apache.hadoop.yarn.server.resourcemanager.security.RMContainerTokenSecretManager;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
-import org.apache.hadoop.yarn.server.resourcemanager.security.NMTokenSecretManagerInRM;
-import org.apache.hadoop.yarn.util.resource.Resources;
 
 public class TestUtils {
   private static final Log LOG = LogFactory.getLog(TestUtils.class);
@@ -86,9 +85,8 @@ public class TestUtils {
     Configuration conf = new Configuration();
     RMContext rmContext =
         new RMContextImpl(nullDispatcher, cae, null, null, null,
-          new AMRMTokenSecretManager(conf),
+          new ApplicationTokenSecretManager(conf),
           new RMContainerTokenSecretManager(conf),
-          new NMTokenSecretManagerInRM(conf),
           new ClientToAMTokenSecretManagerInRM());
     
     return rmContext;
@@ -160,7 +158,7 @@ public class TestUtils {
     when(rmNode.getHostName()).thenReturn(host);
     when(rmNode.getRackName()).thenReturn(rack);
     
-    FiCaSchedulerNode node = spy(new FiCaSchedulerNode(rmNode, false));
+    FiCaSchedulerNode node = spy(new FiCaSchedulerNode(rmNode));
     LOG.info("node = " + host + " avail=" + node.getAvailableResource());
     return node;
   }

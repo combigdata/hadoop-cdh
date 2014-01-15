@@ -20,7 +20,6 @@ package org.apache.hadoop.ha;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.fs.CommonConfigurationKeys;
-import org.apache.hadoop.io.retry.Idempotent;
 import org.apache.hadoop.security.AccessControlException;
 import org.apache.hadoop.security.KerberosInfo;
 
@@ -43,15 +42,13 @@ public interface HAServiceProtocol {
   public static final long versionID = 1L;
 
   /**
-   * An HA service may be in active or standby state. During startup, it is in
-   * an unknown INITIALIZING state. During shutdown, it is in the STOPPING state
-   * and can no longer return to active/standby states.
+   * An HA service may be in active or standby state. During
+   * startup, it is in an unknown INITIALIZING state.
    */
   public enum HAServiceState {
     INITIALIZING("initializing"),
     ACTIVE("active"),
-    STANDBY("standby"),
-    STOPPING("stopping");
+    STANDBY("standby");
 
     private String name;
 
@@ -109,7 +106,6 @@ public interface HAServiceProtocol {
    * @throws IOException
    *           if other errors happen
    */
-  @Idempotent
   public void monitorHealth() throws HealthCheckFailedException,
                                      AccessControlException,
                                      IOException;
@@ -125,7 +121,6 @@ public interface HAServiceProtocol {
    * @throws IOException
    *           if other errors happen
    */
-  @Idempotent
   public void transitionToActive(StateChangeRequestInfo reqInfo)
                                    throws ServiceFailedException,
                                           AccessControlException,
@@ -142,7 +137,6 @@ public interface HAServiceProtocol {
    * @throws IOException
    *           if other errors happen
    */
-  @Idempotent
   public void transitionToStandby(StateChangeRequestInfo reqInfo)
                                     throws ServiceFailedException,
                                            AccessControlException,
@@ -158,7 +152,6 @@ public interface HAServiceProtocol {
    * @throws IOException
    *           if other errors happen
    */
-  @Idempotent
   public HAServiceStatus getServiceStatus() throws AccessControlException,
                                                    IOException;
 }

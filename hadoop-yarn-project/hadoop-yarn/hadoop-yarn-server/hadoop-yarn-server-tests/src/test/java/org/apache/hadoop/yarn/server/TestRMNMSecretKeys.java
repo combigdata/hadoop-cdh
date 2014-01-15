@@ -32,6 +32,7 @@ import org.apache.hadoop.yarn.server.api.protocolrecords.RegisterNodeManagerResp
 import org.apache.hadoop.yarn.server.api.records.MasterKey;
 import org.apache.hadoop.yarn.server.resourcemanager.MockNM;
 import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
+import org.apache.hadoop.yarn.server.resourcemanager.security.RMContainerTokenSecretManager;
 import org.junit.Test;
 
 public class TestRMNMSecretKeys {
@@ -68,94 +69,59 @@ public class TestRMNMSecretKeys {
     rm.init(conf);
     rm.start();
 
-    // Testing ContainerToken and NMToken
-    String containerToken = "Container Token : ";
-    String nmToken = "NM Token : ";
-    
     MockNM nm = new MockNM("host:1234", 3072, rm.getResourceTrackerService());
     RegisterNodeManagerResponse registrationResponse = nm.registerNode();
-    
-    MasterKey containerTokenMasterKey =
-        registrationResponse.getContainerTokenMasterKey();
-    Assert.assertNotNull(containerToken
-        + "Registration should cause a key-update!", containerTokenMasterKey);
-    MasterKey nmTokenMasterKey = registrationResponse.getNMTokenMasterKey();
-    Assert.assertNotNull(nmToken
-        + "Registration should cause a key-update!", nmTokenMasterKey);
-    
+    MasterKey masterKey = registrationResponse.getMasterKey();
+    Assert.assertNotNull("Registration should cause a key-update!", masterKey);
     dispatcher.await();
 
     NodeHeartbeatResponse response = nm.nodeHeartbeat(true);
-    Assert.assertNull(containerToken +
+    Assert.assertNull(
         "First heartbeat after registration shouldn't get any key updates!",
-        response.getContainerTokenMasterKey());
-    Assert.assertNull(nmToken +
-        "First heartbeat after registration shouldn't get any key updates!",
-        response.getNMTokenMasterKey());
+        response.getMasterKey());
     dispatcher.await();
 
     response = nm.nodeHeartbeat(true);
-    Assert.assertNull(containerToken +
-        "Even second heartbeat after registration shouldn't get any key updates!",
-        response.getContainerTokenMasterKey());
-    Assert.assertNull(nmToken +
-        "Even second heartbeat after registration shouldn't get any key updates!",
-        response.getContainerTokenMasterKey());
-    
+    Assert
+        .assertNull(
+            "Even second heartbeat after registration shouldn't get any key updates!",
+            response.getMasterKey());
     dispatcher.await();
 
     // Let's force a roll-over
-    rm.getRMContainerTokenSecretManager().rollMasterKey();
-    rm.getRMNMTokenSecretManager().rollMasterKey();
+    RMContainerTokenSecretManager secretManager =
+        rm.getRMContainerTokenSecretManager();
+    secretManager.rollMasterKey();
 
     // Heartbeats after roll-over and before activation should be fine.
     response = nm.nodeHeartbeat(true);
-    Assert.assertNotNull(containerToken +
+    Assert.assertNotNull(
         "Heartbeats after roll-over and before activation should not err out.",
-        response.getContainerTokenMasterKey());
-    Assert.assertNotNull(nmToken +
-        "Heartbeats after roll-over and before activation should not err out.",
-        response.getNMTokenMasterKey());
-    
-    Assert.assertEquals(containerToken +
+        response.getMasterKey());
+    Assert.assertEquals(
         "Roll-over should have incremented the key-id only by one!",
-        containerTokenMasterKey.getKeyId() + 1,
-        response.getContainerTokenMasterKey().getKeyId());
-    Assert.assertEquals(nmToken +
-        "Roll-over should have incremented the key-id only by one!",
-        nmTokenMasterKey.getKeyId() + 1,
-        response.getNMTokenMasterKey().getKeyId());
+        masterKey.getKeyId() + 1, response.getMasterKey().getKeyId());
     dispatcher.await();
 
     response = nm.nodeHeartbeat(true);
-    Assert.assertNull(containerToken +
+    Assert.assertNull(
         "Second heartbeat after roll-over shouldn't get any key updates!",
-        response.getContainerTokenMasterKey());
-    Assert.assertNull(nmToken +
-        "Second heartbeat after roll-over shouldn't get any key updates!",
-        response.getNMTokenMasterKey());
+        response.getMasterKey());
     dispatcher.await();
 
     // Let's force activation
-    rm.getRMContainerTokenSecretManager().activateNextMasterKey();
-    rm.getRMNMTokenSecretManager().activateNextMasterKey();
+    secretManager.activateNextMasterKey();
 
     response = nm.nodeHeartbeat(true);
-    Assert.assertNull(containerToken
-        + "Activation shouldn't cause any key updates!",
-        response.getContainerTokenMasterKey());
-    Assert.assertNull(nmToken
-        + "Activation shouldn't cause any key updates!",
-        response.getNMTokenMasterKey());
+    Assert.assertNull("Activation shouldn't cause any key updates!",
+        response.getMasterKey());
     dispatcher.await();
 
     response = nm.nodeHeartbeat(true);
-    Assert.assertNull(containerToken +
-        "Even second heartbeat after activation shouldn't get any key updates!",
-        response.getContainerTokenMasterKey());
-    Assert.assertNull(nmToken +
-        "Even second heartbeat after activation shouldn't get any key updates!",
-        response.getNMTokenMasterKey());
+    Assert
+        .assertNull(
+            "Even second heartbeat after activation shouldn't get any key updates!",
+            response.getMasterKey());
     dispatcher.await();
 
     rm.stop();

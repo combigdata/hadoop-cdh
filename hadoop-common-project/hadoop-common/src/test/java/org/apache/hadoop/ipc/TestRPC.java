@@ -94,13 +94,12 @@ public class TestRPC {
 
   int datasize = 1024*100;
   int numThreads = 50;
-
+	
   public interface TestProtocol extends VersionedProtocol {
     public static final long versionID = 1L;
     
     void ping() throws IOException;
     void slowPing(boolean shouldSlow) throws IOException;
-    void sleep(long delay) throws IOException, InterruptedException;
     String echo(String value) throws IOException;
     String[] echo(String[] value) throws IOException;
     Writable echo(Writable value) throws IOException;
@@ -144,11 +143,6 @@ public class TestRPC {
         fastPingCounter++;
         notify();
       }
-    }
-    
-    @Override
-    public void sleep(long delay) throws InterruptedException {
-      Thread.sleep(delay);
     }
     
     @Override
@@ -329,7 +323,7 @@ public class TestRPC {
   }
   
   @Test
-  public void testConfRpc() throws IOException {
+  public void testConfRpc() throws Exception {
     Server server = new RPC.Builder(conf).setProtocol(TestProtocol.class)
         .setInstance(new TestImpl()).setBindAddress(ADDRESS).setPort(0)
         .setNumHandlers(1).setVerbose(false).build();
@@ -356,7 +350,7 @@ public class TestRPC {
   }
 
   @Test
-  public void testProxyAddress() throws IOException {
+  public void testProxyAddress() throws Exception {
     Server server = new RPC.Builder(conf).setProtocol(TestProtocol.class)
         .setInstance(new TestImpl()).setBindAddress(ADDRESS).setPort(0).build();
     TestProtocol proxy = null;
@@ -366,7 +360,8 @@ public class TestRPC {
       InetSocketAddress addr = NetUtils.getConnectAddress(server);
 
       // create a client
-      proxy = RPC.getProxy(TestProtocol.class, TestProtocol.versionID, addr, conf);
+      proxy = (TestProtocol)RPC.getProxy(
+          TestProtocol.class, TestProtocol.versionID, addr, conf);
       
       assertEquals(addr, RPC.getServerAddress(proxy));
     } finally {
@@ -378,7 +373,7 @@ public class TestRPC {
   }
 
   @Test
-  public void testSlowRpc() throws IOException {
+  public void testSlowRpc() throws Exception {
     System.out.println("Testing Slow RPC");
     // create a server with two handlers
     Server server = new RPC.Builder(conf).setProtocol(TestProtocol.class)
@@ -393,7 +388,8 @@ public class TestRPC {
     InetSocketAddress addr = NetUtils.getConnectAddress(server);
 
     // create a client
-    proxy = RPC.getProxy(TestProtocol.class, TestProtocol.versionID, addr, conf);
+    proxy = (TestProtocol)RPC.getProxy(
+        TestProtocol.class, TestProtocol.versionID, addr, conf);
 
     SlowRPC slowrpc = new SlowRPC(proxy);
     Thread thread = new Thread(slowrpc, "SlowRPC");
@@ -424,11 +420,11 @@ public class TestRPC {
   }
   
   @Test
-  public void testCalls() throws IOException {
+  public void testCalls() throws Exception {
     testCallsInternal(conf);
   }
   
-  private void testCallsInternal(Configuration conf) throws IOException {
+  private void testCallsInternal(Configuration conf) throws Exception {
     Server server = new RPC.Builder(conf).setProtocol(TestProtocol.class)
         .setInstance(new TestImpl()).setBindAddress(ADDRESS).setPort(0).build();
     TestProtocol proxy = null;
@@ -436,7 +432,8 @@ public class TestRPC {
     server.start();
 
     InetSocketAddress addr = NetUtils.getConnectAddress(server);
-    proxy = RPC.getProxy(TestProtocol.class, TestProtocol.versionID, addr, conf);
+    proxy = (TestProtocol)RPC.getProxy(
+        TestProtocol.class, TestProtocol.versionID, addr, conf);
       
     proxy.ping();
 
@@ -546,7 +543,7 @@ public class TestRPC {
     
   }
   
-  private void doRPCs(Configuration conf, boolean expectFailure) throws IOException {
+  private void doRPCs(Configuration conf, boolean expectFailure) throws Exception {
     Server server = new RPC.Builder(conf).setProtocol(TestProtocol.class)
         .setInstance(new TestImpl()).setBindAddress(ADDRESS).setPort(0)
         .setNumHandlers(5).setVerbose(true).build();
@@ -560,7 +557,8 @@ public class TestRPC {
     InetSocketAddress addr = NetUtils.getConnectAddress(server);
     
     try {
-      proxy = RPC.getProxy(TestProtocol.class, TestProtocol.versionID, addr, conf);
+      proxy = (TestProtocol)RPC.getProxy(
+          TestProtocol.class, TestProtocol.versionID, addr, conf);
       proxy.ping();
 
       if (expectFailure) {
@@ -605,7 +603,7 @@ public class TestRPC {
   }
   
   @Test
-  public void testAuthorization() throws IOException {
+  public void testAuthorization() throws Exception {
     Configuration conf = new Configuration();
     conf.setBoolean(CommonConfigurationKeys.HADOOP_SECURITY_AUTHORIZATION,
         true);
@@ -632,7 +630,7 @@ public class TestRPC {
    * Switch off setting socketTimeout values on RPC sockets.
    * Verify that RPC calls still work ok.
    */
-  public void testNoPings() throws IOException {
+  public void testNoPings() throws Exception {
     Configuration conf = new Configuration();
     
     conf.setBoolean("ipc.client.ping", false);
@@ -644,10 +642,10 @@ public class TestRPC {
 
   /**
    * Test stopping a non-registered proxy
-   * @throws IOException
+   * @throws Exception
    */
   @Test(expected=HadoopIllegalArgumentException.class)
-  public void testStopNonRegisteredProxy() throws IOException {
+  public void testStopNonRegisteredProxy() throws Exception {
     RPC.stopProxy(null);
   }
 
@@ -656,13 +654,13 @@ public class TestRPC {
    * be stopped without error.
    */
   @Test
-  public void testStopMockObject() throws IOException {
+  public void testStopMockObject() throws Exception {
     RPC.stopProxy(MockitoUtil.mockProtocol(TestProtocol.class)); 
   }
   
   @Test
   public void testStopProxy() throws IOException {
-    StoppedProtocol proxy = RPC.getProxy(StoppedProtocol.class,
+    StoppedProtocol proxy = (StoppedProtocol) RPC.getProxy(StoppedProtocol.class,
         StoppedProtocol.versionID, null, conf);
     StoppedInvocationHandler invocationHandler = (StoppedInvocationHandler)
         Proxy.getInvocationHandler(proxy);
@@ -673,7 +671,7 @@ public class TestRPC {
   
   @Test
   public void testWrappedStopProxy() throws IOException {
-    StoppedProtocol wrappedProxy = RPC.getProxy(StoppedProtocol.class,
+    StoppedProtocol wrappedProxy = (StoppedProtocol) RPC.getProxy(StoppedProtocol.class,
         StoppedProtocol.versionID, null, conf);
     StoppedInvocationHandler invocationHandler = (StoppedInvocationHandler)
         Proxy.getInvocationHandler(wrappedProxy);
@@ -687,7 +685,7 @@ public class TestRPC {
   }
   
   @Test
-  public void testErrorMsgForInsecureClient() throws IOException {
+  public void testErrorMsgForInsecureClient() throws Exception {
     Configuration serverConf = new Configuration(conf);
     SecurityUtil.setAuthenticationMethod(AuthenticationMethod.KERBEROS,
                                          serverConf);
@@ -703,7 +701,8 @@ public class TestRPC {
     final InetSocketAddress addr = NetUtils.getConnectAddress(server);
     TestProtocol proxy = null;
     try {
-      proxy = RPC.getProxy(TestProtocol.class, TestProtocol.versionID, addr, conf);
+      proxy = (TestProtocol) RPC.getProxy(TestProtocol.class,
+          TestProtocol.versionID, addr, conf);
       proxy.echo("");
     } catch (RemoteException e) {
       LOG.info("LOGGING MESSAGE: " + e.getLocalizedMessage());
@@ -731,7 +730,7 @@ public class TestRPC {
     proxy = null;
     try {
       UserGroupInformation.setConfiguration(conf);
-      proxy = RPC.getProxy(TestProtocol.class,
+      proxy = (TestProtocol) RPC.getProxy(TestProtocol.class,
           TestProtocol.versionID, mulitServerAddr, conf);
       proxy.echo("");
     } catch (RemoteException e) {
@@ -772,7 +771,7 @@ public class TestRPC {
    * Test that server.stop() properly stops all threads
    */
   @Test
-  public void testStopsAllThreads() throws IOException, InterruptedException {
+  public void testStopsAllThreads() throws Exception {
     int threadsBefore = countThreads("Server$Listener$Reader");
     assertEquals("Expect no Reader threads running before test",
       0, threadsBefore);
@@ -782,17 +781,7 @@ public class TestRPC {
         .setNumHandlers(5).setVerbose(true).build();
     server.start();
     try {
-      // Wait for at least one reader thread to start
-      int threadsRunning = 0;
-      long totalSleepTime = 0;
-      do {
-        totalSleepTime += 10;
-        Thread.sleep(10);
-        threadsRunning = countThreads("Server$Listener$Reader");
-      } while (threadsRunning == 0 && totalSleepTime < 5000);
-
-      // Validate that at least one thread started (we didn't timeout)
-      threadsRunning = countThreads("Server$Listener$Reader");
+      int threadsRunning = countThreads("Server$Listener$Reader");
       assertTrue(threadsRunning > 0);
     } finally {
       server.stop();
@@ -803,7 +792,7 @@ public class TestRPC {
   }
   
   @Test
-  public void testRPCBuilder() throws IOException {
+  public void testRPCBuilder() throws Exception {
     // Test mandatory field conf
     try {
       new RPC.Builder(null).setProtocol(TestProtocol.class)
@@ -839,17 +828,15 @@ public class TestRPC {
   }
   
   @Test(timeout=90000)
-  public void testRPCInterruptedSimple() throws IOException {
+  public void testRPCInterruptedSimple() throws Exception {
     final Configuration conf = new Configuration();
-    Server server = new RPC.Builder(conf).setProtocol(TestProtocol.class)
-        .setInstance(new TestImpl()).setBindAddress(ADDRESS)
-        .setPort(0).setNumHandlers(5).setVerbose(true)
-        .setSecretManager(null).build();
-    
+    Server server = RPC.getServer(
+      TestProtocol.class, new TestImpl(), ADDRESS, 0, 5, true, conf, null
+    );
     server.start();
     InetSocketAddress addr = NetUtils.getConnectAddress(server);
 
-    final TestProtocol proxy = RPC.getProxy(
+    final TestProtocol proxy = (TestProtocol) RPC.getProxy(
         TestProtocol.class, TestProtocol.versionID, addr, conf);
     // Connect to the server
     proxy.ping();
@@ -870,10 +857,9 @@ public class TestRPC {
   @Test(timeout=30000)
   public void testRPCInterrupted() throws IOException, InterruptedException {
     final Configuration conf = new Configuration();
-    Server server = new RPC.Builder(conf).setProtocol(TestProtocol.class)
-        .setInstance(new TestImpl()).setBindAddress(ADDRESS)
-        .setPort(0).setNumHandlers(5).setVerbose(true)
-        .setSecretManager(null).build();
+    Server server = RPC.getServer(
+      TestProtocol.class, new TestImpl(), ADDRESS, 0, 5, true, conf, null
+    );
 
     server.start();
 
@@ -887,7 +873,7 @@ public class TestRPC {
     
     for (int i = 0; i < numConcurrentRPC; i++) {
       final int num = i;
-      final TestProtocol proxy = RPC.getProxy(
+      final TestProtocol proxy = (TestProtocol) RPC.getProxy(
       TestProtocol.class, TestProtocol.versionID, addr, conf);
       Thread rpcThread = new Thread(new Runnable() {
         @Override
@@ -931,29 +917,7 @@ public class TestRPC {
     assertTrue("rpc got exception " + error.get(), error.get() == null);
   }
 
-  @Test
-  public void testConnectionPing() throws Exception {
-    Configuration conf = new Configuration();
-    int pingInterval = 50;
-    conf.setBoolean(CommonConfigurationKeys.IPC_CLIENT_PING_KEY, true);
-    conf.setInt(CommonConfigurationKeys.IPC_PING_INTERVAL_KEY, pingInterval);
-    final Server server = new RPC.Builder(conf)
-        .setProtocol(TestProtocol.class).setInstance(new TestImpl())
-        .setBindAddress(ADDRESS).setPort(0).setNumHandlers(5).setVerbose(true)
-        .build();
-    server.start();
-
-    final TestProtocol proxy = RPC.getProxy(TestProtocol.class,
-        TestProtocol.versionID, server.getListenerAddress(), conf);
-    try {
-      // this call will throw exception if server couldn't decode the ping
-      proxy.sleep(pingInterval*4);
-    } finally {
-      if (proxy != null) RPC.stopProxy(proxy);
-    }
-  }
-
-  public static void main(String[] args) throws IOException {
+  public static void main(String[] args) throws Exception {
     new TestRPC().testCallsInternal(conf);
 
   }

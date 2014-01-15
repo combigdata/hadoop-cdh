@@ -23,7 +23,6 @@ import java.net.InetSocketAddress;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.ha.HAServiceProtocol.HAServiceState;
-import org.apache.hadoop.util.Shell;
 import org.apache.hadoop.util.StringUtils;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -36,7 +35,7 @@ public class TestShellCommandFencer {
   private ShellCommandFencer fencer = createFencer();
   private static final HAServiceTarget TEST_TARGET =
       new DummyHAService(HAServiceState.ACTIVE,
-          new InetSocketAddress("dummyhost", 1234));
+          new InetSocketAddress("host", 1234));
   
   @BeforeClass
   public static void setupLogSpy() {
@@ -111,9 +110,9 @@ public class TestShellCommandFencer {
    */
   @Test
   public void testStderrLogging() {
-    assertTrue(fencer.tryFence(TEST_TARGET, "echo hello>&2"));
+    assertTrue(fencer.tryFence(TEST_TARGET, "echo hello >&2"));
     Mockito.verify(ShellCommandFencer.LOG).warn(
-        Mockito.endsWith("echo hello>&2: hello"));
+        Mockito.endsWith("echo hello >&2: hello"));
   }
 
   /**
@@ -122,15 +121,9 @@ public class TestShellCommandFencer {
    */
   @Test
   public void testConfAsEnvironment() {
-    if (!Shell.WINDOWS) {
-      fencer.tryFence(TEST_TARGET, "echo $in_fencing_tests");
-      Mockito.verify(ShellCommandFencer.LOG).info(
-          Mockito.endsWith("echo $in...ing_tests: yessir"));
-    } else {
-      fencer.tryFence(TEST_TARGET, "echo %in_fencing_tests%");
-      Mockito.verify(ShellCommandFencer.LOG).info(
-          Mockito.endsWith("echo %in...ng_tests%: yessir"));
-    }
+    fencer.tryFence(TEST_TARGET, "echo $in_fencing_tests");
+    Mockito.verify(ShellCommandFencer.LOG).info(
+        Mockito.endsWith("echo $in...ing_tests: yessir"));
   }
   
   /**
@@ -139,15 +132,9 @@ public class TestShellCommandFencer {
    */
   @Test
   public void testTargetAsEnvironment() {
-    if (!Shell.WINDOWS) {
-      fencer.tryFence(TEST_TARGET, "echo $target_host $target_port");
-      Mockito.verify(ShellCommandFencer.LOG).info(
-          Mockito.endsWith("echo $ta...rget_port: dummyhost 1234"));
-    } else {
-      fencer.tryFence(TEST_TARGET, "echo %target_host% %target_port%");
-      Mockito.verify(ShellCommandFencer.LOG).info(
-          Mockito.endsWith("echo %ta...get_port%: dummyhost 1234"));
-    }
+    fencer.tryFence(TEST_TARGET, "echo $target_host $target_port $target_address");
+    Mockito.verify(ShellCommandFencer.LOG).info(
+        Mockito.endsWith("echo $ta...t_address: host 1234 host:1234"));
   }
 
 

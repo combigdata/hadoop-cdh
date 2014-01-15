@@ -31,9 +31,9 @@ import org.apache.hadoop.mapreduce.v2.api.records.TaskAttemptId;
 import org.apache.hadoop.mapreduce.v2.app.job.event.TaskAttemptDiagnosticsUpdateEvent;
 import org.apache.hadoop.mapreduce.v2.app.job.event.TaskAttemptEvent;
 import org.apache.hadoop.mapreduce.v2.app.job.event.TaskAttemptEventType;
-import org.apache.hadoop.service.AbstractService;
+import org.apache.hadoop.yarn.Clock;
 import org.apache.hadoop.yarn.event.EventHandler;
-import org.apache.hadoop.yarn.util.Clock;
+import org.apache.hadoop.yarn.service.AbstractService;
 
 
 /**
@@ -85,28 +85,26 @@ public class TaskHeartbeatHandler extends AbstractService {
   }
 
   @Override
-  protected void serviceInit(Configuration conf) throws Exception {
-    super.serviceInit(conf);
+  public void init(Configuration conf) {
+    super.init(conf);
     taskTimeOut = conf.getInt(MRJobConfig.TASK_TIMEOUT, 5 * 60 * 1000);
     taskTimeOutCheckInterval =
         conf.getInt(MRJobConfig.TASK_TIMEOUT_CHECK_INTERVAL_MS, 30 * 1000);
   }
 
   @Override
-  protected void serviceStart() throws Exception {
+  public void start() {
     lostTaskCheckerThread = new Thread(new PingChecker());
     lostTaskCheckerThread.setName("TaskHeartbeatHandler PingChecker");
     lostTaskCheckerThread.start();
-    super.serviceStart();
+    super.start();
   }
 
   @Override
-  protected void serviceStop() throws Exception {
+  public void stop() {
     stopped = true;
-    if (lostTaskCheckerThread != null) {
-      lostTaskCheckerThread.interrupt();
-    }
-    super.serviceStop();
+    lostTaskCheckerThread.interrupt();
+    super.stop();
   }
 
   public void progressing(TaskAttemptId attemptID) {

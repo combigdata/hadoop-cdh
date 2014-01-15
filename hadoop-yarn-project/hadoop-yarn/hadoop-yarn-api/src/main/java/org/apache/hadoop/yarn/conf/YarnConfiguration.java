@@ -23,17 +23,16 @@ import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 
-import org.apache.hadoop.classification.InterfaceAudience.Public;
-import org.apache.hadoop.classification.InterfaceStability.Evolving;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 
-@Public
-@Evolving
+import com.google.common.base.Joiner;
+
 public class YarnConfiguration extends Configuration {
+
+  private static final Joiner JOINER = Joiner.on("");
 
   private static final String YARN_DEFAULT_XML_FILE = "yarn-default.xml";
   private static final String YARN_SITE_XML_FILE = "yarn-site.xml";
@@ -129,27 +128,6 @@ public class YarnConfiguration extends Configuration {
     RM_PREFIX + "scheduler.client.thread-count";
   public static final int DEFAULT_RM_SCHEDULER_CLIENT_THREAD_COUNT = 50;
 
-  /** If the port should be included or not in the node name. The node name
-   * is used by the scheduler for resource requests allocation location 
-   * matching. Typically this is just the hostname, using the port is needed
-   * when using minicluster and specific NM are required.*/
-  public static final String RM_SCHEDULER_INCLUDE_PORT_IN_NODE_NAME =
-      YARN_PREFIX + "scheduler.include-port-in-node-name";
-  public static final boolean DEFAULT_RM_SCHEDULER_USE_PORT_FOR_NODE_NAME = 
-      false;
-
-  /**
-   * Enable periodic monitor threads.
-   * @see #RM_SCHEDULER_MONITOR_POLICIES
-   */
-  public static final String RM_SCHEDULER_ENABLE_MONITORS =
-    RM_PREFIX + "scheduler.monitor.enable";
-  public static final boolean DEFAULT_RM_SCHEDULER_ENABLE_MONITORS = false;
-
-  /** List of SchedulingEditPolicy classes affecting the scheduler. */
-  public static final String RM_SCHEDULER_MONITOR_POLICIES =
-    RM_PREFIX + "scheduler.monitor.policies";
-
   /** The address of the RM web application.*/
   public static final String RM_WEBAPP_ADDRESS = 
     RM_PREFIX + "webapp.address";
@@ -157,14 +135,6 @@ public class YarnConfiguration extends Configuration {
   public static final int DEFAULT_RM_WEBAPP_PORT = 8088;
   public static final String DEFAULT_RM_WEBAPP_ADDRESS = "0.0.0.0:" +
     DEFAULT_RM_WEBAPP_PORT;
-  
-  /** The https address of the RM web application.*/
-  public static final String RM_WEBAPP_HTTPS_ADDRESS =
-      RM_PREFIX + "webapp.https.address";
-  
-  public static final int DEFAULT_RM_WEBAPP_HTTPS_PORT = 8090;
-  public static final String DEFAULT_RM_WEBAPP_HTTPS_ADDRESS = "0.0.0.0:"
-      + DEFAULT_RM_WEBAPP_HTTPS_PORT;
   
   public static final String RM_RESOURCE_TRACKER_ADDRESS =
     RM_PREFIX + "resource-tracker.address";
@@ -218,14 +188,6 @@ public class YarnConfiguration extends Configuration {
   /** The keytab for the resource manager.*/
   public static final String RM_KEYTAB = 
     RM_PREFIX + "keytab";
-
-  /**The kerberos principal to be used for spnego filter for RM.*/
-  public static final String RM_WEBAPP_SPNEGO_USER_NAME_KEY =
-      RM_PREFIX + "webapp.spnego-principal";
-  
-  /**The kerberos keytab to be used for spnego filter for RM.*/
-  public static final String RM_WEBAPP_SPNEGO_KEYTAB_FILE_KEY =
-      RM_PREFIX + "webapp.spnego-keytab-file";
 
   /** How long to wait until a container is considered dead.*/
   public static final String RM_CONTAINER_ALLOC_EXPIRY_INTERVAL_MS = 
@@ -281,7 +243,7 @@ public class YarnConfiguration extends Configuration {
   
   /** URI for FileSystemRMStateStore */
   public static final String FS_RM_STATE_STORE_URI =
-                                           RM_PREFIX + "fs.state-store.uri";
+                                           RM_PREFIX + "fs.rm-state-store.uri";
 
   /** The maximum number of completed applications RM keeps. */ 
   public static final String RM_MAX_COMPLETED_APPLICATIONS =
@@ -312,10 +274,10 @@ public class YarnConfiguration extends Configuration {
   public static final String DEFAULT_RM_METRICS_RUNTIME_BUCKETS = 
     "60,300,1440";
 
-  public static final String RM_AMRM_TOKEN_MASTER_KEY_ROLLING_INTERVAL_SECS = RM_PREFIX
-      + "am-rm-tokens.master-key-rolling-interval-secs";
+  public static final String RM_APP_TOKEN_MASTER_KEY_ROLLING_INTERVAL_SECS = RM_PREFIX
+      + "application-tokens.master-key-rolling-interval-secs";
 
-  public static final long DEFAULT_RM_AMRM_TOKEN_MASTER_KEY_ROLLING_INTERVAL_SECS =
+  public static final long DEFAULT_RM_APP_TOKEN_MASTER_KEY_ROLLING_INTERVAL_SECS =
       24 * 60 * 60;
 
   public static final String RM_CONTAINER_TOKEN_MASTER_KEY_ROLLING_INTERVAL_SECS =
@@ -324,11 +286,6 @@ public class YarnConfiguration extends Configuration {
   public static final long DEFAULT_RM_CONTAINER_TOKEN_MASTER_KEY_ROLLING_INTERVAL_SECS =
       24 * 60 * 60;
 
-  public static final String RM_NMTOKEN_MASTER_KEY_ROLLING_INTERVAL_SECS =
-      RM_PREFIX + "nm-tokens.master-key-rolling-interval-secs";
-  
-  public static final long DEFAULT_RM_NMTOKEN_MASTER_KEY_ROLLING_INTERVAL_SECS =
-      24 * 60 * 60;
   ////////////////////////////////
   // Node Manager Configs
   ////////////////////////////////
@@ -508,22 +465,20 @@ public class YarnConfiguration extends Configuration {
     NM_PREFIX + "vmem-pmem-ratio";
   public static final float DEFAULT_NM_VMEM_PMEM_RATIO = 2.1f;
   
-  /** Number of Virtual CPU Cores which can be allocated for containers.*/
-  public static final String NM_VCORES = NM_PREFIX + "resource.cpu-vcores";
+  /** Number of Physical CPU Cores which can be allocated for containers.*/
+  public static final String NM_VCORES = NM_PREFIX + "resource.cpu-cores";
   public static final int DEFAULT_NM_VCORES = 8;
+
+  /** Conversion ratio for physical cores to virtual cores. */
+  public static final String NM_VCORES_PCORES_RATIO =
+      NM_PREFIX + "vcores-pcores-ratio";
+  public static final float DEFAULT_NM_VCORES_PCORES_RATIO = 2.0f;
   
   /** NM Webapp address.**/
   public static final String NM_WEBAPP_ADDRESS = NM_PREFIX + "webapp.address";
   public static final int DEFAULT_NM_WEBAPP_PORT = 8042;
   public static final String DEFAULT_NM_WEBAPP_ADDRESS = "0.0.0.0:" +
     DEFAULT_NM_WEBAPP_PORT;
-  
-  /** NM Webapp https address.**/
-  public static final String NM_WEBAPP_HTTPS_ADDRESS = NM_PREFIX
-      + "webapp.https.address";
-  public static final int DEFAULT_NM_WEBAPP_HTTPS_PORT = 8044;
-  public static final String DEFAULT_NM_WEBAPP_HTTPS_ADDRESS = "0.0.0.0:"
-      + DEFAULT_NM_WEBAPP_HTTPS_PORT; 
   
   /** How often to monitor containers.*/
   public final static String NM_CONTAINER_MON_INTERVAL_MS =
@@ -628,15 +583,7 @@ public class YarnConfiguration extends Configuration {
 
   public static final String NM_USER_HOME_DIR =
       NM_PREFIX + "user-home-dir";
-  
-  /**The kerberos principal to be used for spnego filter for NM.*/
-  public static final String NM_WEBAPP_SPNEGO_USER_NAME_KEY =
-      NM_PREFIX + "webapp.spnego-principal";
-  
-  /**The kerberos keytab to be used for spnego filter for NM.*/
-  public static final String NM_WEBAPP_SPNEGO_KEYTAB_FILE_KEY =
-      NM_PREFIX + "webapp.spnego-keytab-file";
-  
+
   public static final String DEFAULT_NM_USER_HOME_DIR= "/home/";
 
   ////////////////////////////////
@@ -659,21 +606,21 @@ public class YarnConfiguration extends Configuration {
    * YARN Service Level Authorization
    */
   public static final String 
-  YARN_SECURITY_SERVICE_AUTHORIZATION_RESOURCETRACKER_PROTOCOL =
+  YARN_SECURITY_SERVICE_AUTHORIZATION_RESOURCETRACKER =
       "security.resourcetracker.protocol.acl";
   public static final String 
-  YARN_SECURITY_SERVICE_AUTHORIZATION_APPLICATIONCLIENT_PROTOCOL =
-      "security.applicationclient.protocol.acl";
+  YARN_SECURITY_SERVICE_AUTHORIZATION_CLIENT_RESOURCEMANAGER =
+      "security.client.resourcemanager.protocol.acl";
   public static final String 
-  YARN_SECURITY_SERVICE_AUTHORIZATION_RESOURCEMANAGER_ADMINISTRATION_PROTOCOL =
-      "security.resourcemanager-administration.protocol.acl";
+  YARN_SECURITY_SERVICE_AUTHORIZATION_ADMIN =
+      "security.admin.protocol.acl";
   public static final String 
-  YARN_SECURITY_SERVICE_AUTHORIZATION_APPLICATIONMASTER_PROTOCOL =
-      "security.applicationmaster.protocol.acl";
+  YARN_SECURITY_SERVICE_AUTHORIZATION_APPLICATIONMASTER_RESOURCEMANAGER =
+      "security.applicationmaster.resourcemanager.protocol.acl";
 
   public static final String 
-  YARN_SECURITY_SERVICE_AUTHORIZATION_CONTAINER_MANAGEMENT_PROTOCOL =
-      "security.containermanagement.protocol.acl";
+  YARN_SECURITY_SERVICE_AUTHORIZATION_CONTAINER_MANAGER =
+      "security.containermanager.protocol.acl";
   public static final String 
   YARN_SECURITY_SERVICE_AUTHORIZATION_RESOURCE_LOCALIZER =
       "security.resourcelocalizer.protocol.acl";
@@ -692,17 +639,19 @@ public class YarnConfiguration extends Configuration {
   public static final long DEFAULT_NM_PROCESS_KILL_WAIT_MS =
       2000;
 
-  /** Max time to wait to establish a connection to RM */
-  public static final String RESOURCEMANAGER_CONNECT_MAX_WAIT_MS =
-      RM_PREFIX + "connect.max-wait.ms";
-  public static final int DEFAULT_RESOURCEMANAGER_CONNECT_MAX_WAIT_MS =
-      15 * 60 * 1000;
+  /** Max time to wait to establish a connection to RM when NM starts
+   */
+  public static final String RESOURCEMANAGER_CONNECT_WAIT_SECS =
+      NM_PREFIX + "resourcemanager.connect.wait.secs";
+  public static final int DEFAULT_RESOURCEMANAGER_CONNECT_WAIT_SECS =
+      15*60;
 
-  /** Time interval between each attempt to connect to RM */
-  public static final String RESOURCEMANAGER_CONNECT_RETRY_INTERVAL_MS =
-      RM_PREFIX + "connect.retry-interval.ms";
-  public static final long DEFAULT_RESOURCEMANAGER_CONNECT_RETRY_INTERVAL_MS
-      = 30 * 1000;
+  /** Time interval between each NM attempt to connect to RM
+   */
+  public static final String RESOURCEMANAGER_CONNECT_RETRY_INTERVAL_SECS =
+      NM_PREFIX + "resourcemanager.connect.retry_interval.secs";
+  public static final long DEFAULT_RESOURCEMANAGER_CONNECT_RETRY_INTERVAL_SECS
+      = 30;
 
   /**
    * CLASSPATH for YARN applications. A comma-separated list of CLASSPATH
@@ -746,14 +695,6 @@ public class YarnConfiguration extends Configuration {
    */
   public static boolean DEFAULT_YARN_MINICLUSTER_FIXED_PORTS = false;
 
-  /**
-   * Whether users are explicitly trying to control resource monitoring
-   * configuration for the MiniYARNCluster. Disabled by default.
-   */
-  public static final String YARN_MINICLUSTER_CONTROL_RESOURCE_MONITORING =
-      YARN_PREFIX + "minicluster.control-resource-monitoring";
-  public static final boolean
-      DEFAULT_YARN_MINICLUSTER_CONTROL_RESOURCE_MONITORING = false;
 
   /** The log directory for the containers */
   public static final String YARN_APP_CONTAINER_LOG_DIR =
@@ -783,28 +724,6 @@ public class YarnConfiguration extends Configuration {
       YARN_PREFIX + "client.nodemanager-client-async.thread-pool-max-size";
   public static final int DEFAULT_NM_CLIENT_ASYNC_THREAD_POOL_MAX_SIZE = 500;
 
-  /**
-   * Maximum number of proxy connections for node manager. It should always be
-   * more than 1. NMClient and MRAppMaster will use this to cache connection
-   * with node manager. There will be at max one connection per node manager.
-   * Ex. configuring it to a value of 5 will make sure that client will at
-   * max have 5 connections cached with 5 different node managers. These
-   * connections will be timed out if idle for more than system wide idle
-   * timeout period. The token if used for authentication then it will be used
-   * only at connection creation time. If new token is received then earlier
-   * connection should be closed in order to use newer token.
-   * Note: {@link YarnConfiguration#NM_CLIENT_ASYNC_THREAD_POOL_MAX_SIZE}
-   * are related to each other.
-   */
-  public static final String NM_CLIENT_MAX_NM_PROXIES =
-      YARN_PREFIX + "client.max-nodemanagers-proxies";
-  public static final int DEFAULT_NM_CLIENT_MAX_NM_PROXIES = 500;
-
-  public static final String YARN_HTTP_POLICY_KEY =
-          YARN_PREFIX + "http.policy";
-  public static final String YARN_HTTP_POLICY_DEFAULT =
-          CommonConfigurationKeysPublic.HTTP_POLICY_HTTP_ONLY;
-
   public YarnConfiguration() {
     super();
   }
@@ -815,4 +734,41 @@ public class YarnConfiguration extends Configuration {
       this.reloadConfiguration();
     }
   }
+
+  public static String getProxyHostAndPort(Configuration conf) {
+    String addr = conf.get(PROXY_ADDRESS);
+    if(addr == null || addr.isEmpty()) {
+      addr = getRMWebAppHostAndPort(conf);
+    }
+    return addr;
+  }
+  
+  public static String getRMWebAppHostAndPort(Configuration conf) {
+    InetSocketAddress address = conf.getSocketAddr(
+        YarnConfiguration.RM_WEBAPP_ADDRESS,
+        YarnConfiguration.DEFAULT_RM_WEBAPP_ADDRESS,
+        YarnConfiguration.DEFAULT_RM_WEBAPP_PORT);
+    address = NetUtils.getConnectAddress(address);
+    StringBuffer sb = new StringBuffer();
+    InetAddress resolved = address.getAddress();
+    if (resolved == null || resolved.isAnyLocalAddress() || 
+        resolved.isLoopbackAddress()) {
+      String lh = address.getHostName();
+      try {
+        lh = InetAddress.getLocalHost().getCanonicalHostName();
+      } catch (UnknownHostException e) {
+        //Ignore and fallback.
+      }
+      sb.append(lh);
+    } else {
+      sb.append(address.getHostName());
+    }
+    sb.append(":").append(address.getPort());
+    return sb.toString();
+  }
+  
+  public static String getRMWebAppURL(Configuration conf) {
+    return JOINER.join("http://", getRMWebAppHostAndPort(conf));
+  }
+  
 }

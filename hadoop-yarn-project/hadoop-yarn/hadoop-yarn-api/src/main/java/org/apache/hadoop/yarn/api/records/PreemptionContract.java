@@ -34,12 +34,8 @@ import org.apache.hadoop.yarn.util.Records;
  * the platform.
  * @see PreemptionMessage
  */
-@Public
-@Evolving
 public abstract class PreemptionContract {
 
-  @Private
-  @Unstable
   public static PreemptionContract newInstance(
       List<PreemptionResourceRequest> req, Set<PreemptionContainer> containers) {
     PreemptionContract contract = Records.newRecord(PreemptionContract.class);

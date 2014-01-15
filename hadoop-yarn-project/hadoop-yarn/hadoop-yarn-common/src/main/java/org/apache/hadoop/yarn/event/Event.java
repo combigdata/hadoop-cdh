@@ -18,15 +18,10 @@
 
 package org.apache.hadoop.yarn.event;
 
-import org.apache.hadoop.classification.InterfaceAudience.Public;
-import org.apache.hadoop.classification.InterfaceStability.Evolving;
-
 /**
  * Interface defining events api.
  *
  */
-@Public
-@Evolving
 public interface Event<TYPE extends Enum<TYPE>> {
 
   TYPE getType();

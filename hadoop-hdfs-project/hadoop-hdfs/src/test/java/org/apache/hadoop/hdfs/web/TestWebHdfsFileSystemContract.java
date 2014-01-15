@@ -21,7 +21,6 @@ package org.apache.hadoop.hdfs.web;
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -46,11 +45,8 @@ import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.hdfs.web.resources.DoAsParam;
 import org.apache.hadoop.hdfs.web.resources.GetOpParam;
 import org.apache.hadoop.hdfs.web.resources.HttpOpParam;
-import org.apache.hadoop.hdfs.web.resources.LengthParam;
 import org.apache.hadoop.hdfs.web.resources.NamenodeRpcAddressParam;
-import org.apache.hadoop.hdfs.web.resources.OffsetParam;
 import org.apache.hadoop.hdfs.web.resources.PutOpParam;
-import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.security.AccessControlException;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.junit.Assert;
@@ -292,104 +288,6 @@ public class TestWebHdfsFileSystemContract extends FileSystemContractBaseTest {
     }
   }
 
-  /**
-   * Test get with length parameter greater than actual file length.
-   */
-  public void testLengthParamLongerThanFile() throws IOException {
-    WebHdfsFileSystem webhdfs = (WebHdfsFileSystem)fs;
-    Path dir = new Path("/test");
-    assertTrue(webhdfs.mkdirs(dir));
-
-    // Create a file with some content.
-    Path testFile = new Path("/test/testLengthParamLongerThanFile");
-    String content = "testLengthParamLongerThanFile";
-    FSDataOutputStream testFileOut = webhdfs.create(testFile);
-    try {
-      testFileOut.write(content.getBytes("US-ASCII"));
-    } finally {
-      IOUtils.closeStream(testFileOut);
-    }
-
-    // Open the file, but request length longer than actual file length by 1.
-    HttpOpParam.Op op = GetOpParam.Op.OPEN;
-    URL url = webhdfs.toUrl(op, testFile, new LengthParam(Long.valueOf(
-      content.length() + 1)));
-    HttpURLConnection conn = null;
-    InputStream is = null;
-    try {
-      conn = (HttpURLConnection)url.openConnection();
-      conn.setRequestMethod(op.getType().toString());
-      conn.setDoOutput(op.getDoOutput());
-      conn.setInstanceFollowRedirects(true);
-
-      // Expect OK response and Content-Length header equal to actual length.
-      assertEquals(HttpServletResponse.SC_OK, conn.getResponseCode());
-      assertEquals(String.valueOf(content.length()), conn.getHeaderField(
-        "Content-Length"));
-
-      // Check content matches.
-      byte[] respBody = new byte[content.length()];
-      is = conn.getInputStream();
-      IOUtils.readFully(is, respBody, 0, content.length());
-      assertEquals(content, new String(respBody, "US-ASCII"));
-    } finally {
-      IOUtils.closeStream(is);
-      if (conn != null) {
-        conn.disconnect();
-      }
-    }
-  }
-
-  /**
-   * Test get with offset and length parameters that combine to request a length
-   * greater than actual file length.
-   */
-  public void testOffsetPlusLengthParamsLongerThanFile() throws IOException {
-    WebHdfsFileSystem webhdfs = (WebHdfsFileSystem)fs;
-    Path dir = new Path("/test");
-    assertTrue(webhdfs.mkdirs(dir));
-
-    // Create a file with some content.
-    Path testFile = new Path("/test/testOffsetPlusLengthParamsLongerThanFile");
-    String content = "testOffsetPlusLengthParamsLongerThanFile";
-    FSDataOutputStream testFileOut = webhdfs.create(testFile);
-    try {
-      testFileOut.write(content.getBytes("US-ASCII"));
-    } finally {
-      IOUtils.closeStream(testFileOut);
-    }
-
-    // Open the file, but request offset starting at 1 and length equal to file
-    // length.  Considering the offset, this is longer than the actual content.
-    HttpOpParam.Op op = GetOpParam.Op.OPEN;
-    URL url = webhdfs.toUrl(op, testFile, new LengthParam(Long.valueOf(
-      content.length())), new OffsetParam(1L));
-    HttpURLConnection conn = null;
-    InputStream is = null;
-    try {
-      conn = (HttpURLConnection)url.openConnection();
-      conn.setRequestMethod(op.getType().toString());
-      conn.setDoOutput(op.getDoOutput());
-      conn.setInstanceFollowRedirects(true);
-
-      // Expect OK response and Content-Length header equal to actual length.
-      assertEquals(HttpServletResponse.SC_OK, conn.getResponseCode());
-      assertEquals(String.valueOf(content.length() - 1), conn.getHeaderField(
-        "Content-Length"));
-
-      // Check content matches.
-      byte[] respBody = new byte[content.length() - 1];
-      is = conn.getInputStream();
-      IOUtils.readFully(is, respBody, 0, content.length() - 1);
-      assertEquals(content.substring(1), new String(respBody, "US-ASCII"));
-    } finally {
-      IOUtils.closeStream(is);
-      if (conn != null) {
-        conn.disconnect();
-      }
-    }
-  }
-
   public void testResponseCode() throws IOException {
     final WebHdfsFileSystem webhdfs = (WebHdfsFileSystem)fs;
     final Path root = new Path("/");
@@ -505,35 +403,6 @@ public class TestWebHdfsFileSystemContract extends FileSystemContractBaseTest {
         WebHdfsFileSystem.LOG.info("GOOD", ioe);
       }
       conn.disconnect();
-    }
-
-    {//test create with path containing spaces
-      HttpOpParam.Op op = PutOpParam.Op.CREATE;
-      Path path = new Path("/test/path%20with%20spaces");
-      URL url = webhdfs.toUrl(op, path);
-      HttpURLConnection conn = (HttpURLConnection)url.openConnection();
-      conn.setRequestMethod(op.getType().toString());
-      conn.setDoOutput(false);
-      conn.setInstanceFollowRedirects(false);
-      final String redirect;
-      try {
-        conn.connect();
-        assertEquals(HttpServletResponse.SC_TEMPORARY_REDIRECT,
-          conn.getResponseCode());
-        redirect = conn.getHeaderField("Location");
-      } finally {
-        conn.disconnect();
-      }
-
-      conn = (HttpURLConnection)new URL(redirect).openConnection();
-      conn.setRequestMethod(op.getType().toString());
-      conn.setDoOutput(op.getDoOutput());
-      try {
-        conn.connect();
-        assertEquals(HttpServletResponse.SC_CREATED, conn.getResponseCode());
-      } finally {
-        conn.disconnect();
-      }
     }
   }
 }

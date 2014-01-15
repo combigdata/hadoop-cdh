@@ -123,7 +123,7 @@ public class Hdfs extends AbstractFileSystem {
       throws IOException, UnresolvedLinkException {
     HdfsFileStatus fi = dfs.getFileInfo(getUriPath(f));
     if (fi != null) {
-      return fi.makeQualified(getUri(), f);
+      return makeQualified(fi, f);
     } else {
       throw new FileNotFoundException("File does not exist: " + f.toString());
     }
@@ -134,10 +134,33 @@ public class Hdfs extends AbstractFileSystem {
       throws IOException, UnresolvedLinkException {
     HdfsFileStatus fi = dfs.getFileLinkInfo(getUriPath(f));
     if (fi != null) {
-      return fi.makeQualified(getUri(), f);
+      return makeQualified(fi, f);
     } else {
       throw new FileNotFoundException("File does not exist: " + f);
     }
+  }  
+
+  private FileStatus makeQualified(HdfsFileStatus f, Path parent) {
+    // NB: symlink is made fully-qualified in FileContext. 
+    return new FileStatus(f.getLen(), f.isDir(), f.getReplication(),
+        f.getBlockSize(), f.getModificationTime(),
+        f.getAccessTime(),
+        f.getPermission(), f.getOwner(), f.getGroup(),
+        f.isSymlink() ? new Path(f.getSymlink()) : null,
+        (f.getFullPath(parent)).makeQualified(
+            getUri(), null)); // fully-qualify path
+  }
+
+  private LocatedFileStatus makeQualifiedLocated(
+      HdfsLocatedFileStatus f, Path parent) {
+    return new LocatedFileStatus(f.getLen(), f.isDir(), f.getReplication(),
+        f.getBlockSize(), f.getModificationTime(),
+        f.getAccessTime(),
+        f.getPermission(), f.getOwner(), f.getGroup(),
+        f.isSymlink() ? new Path(f.getSymlink()) : null,
+        (f.getFullPath(parent)).makeQualified(
+            getUri(), null), // fully-qualify path
+        DFSUtil.locatedBlocks2Locations(f.getBlockLocations()));
   }
 
   @Override
@@ -158,8 +181,7 @@ public class Hdfs extends AbstractFileSystem {
 
       @Override
       public LocatedFileStatus next() throws IOException {
-        return ((HdfsLocatedFileStatus)getNext()).makeQualifiedLocated(
-            getUri(), p);
+        return makeQualifiedLocated((HdfsLocatedFileStatus)getNext(), p);
       }
     };
   }
@@ -172,7 +194,7 @@ public class Hdfs extends AbstractFileSystem {
 
       @Override
       public FileStatus next() throws IOException {
-        return getNext().makeQualified(getUri(), f);
+        return makeQualified(getNext(), f);
       }
     };
   }
@@ -256,7 +278,7 @@ public class Hdfs extends AbstractFileSystem {
     if (!thisListing.hasMore()) { // got all entries of the directory
       FileStatus[] stats = new FileStatus[partialListing.length];
       for (int i = 0; i < partialListing.length; i++) {
-        stats[i] = partialListing[i].makeQualified(getUri(), f);
+        stats[i] = makeQualified(partialListing[i], f);
       }
       return stats;
     }
@@ -269,7 +291,7 @@ public class Hdfs extends AbstractFileSystem {
       new ArrayList<FileStatus>(totalNumEntries);
     // add the first batch of entries to the array list
     for (HdfsFileStatus fileStatus : partialListing) {
-      listing.add(fileStatus.makeQualified(getUri(), f));
+      listing.add(makeQualified(fileStatus, f));
     }
  
     // now fetch more entries
@@ -283,7 +305,7 @@ public class Hdfs extends AbstractFileSystem {
  
       partialListing = thisListing.getPartialListing();
       for (HdfsFileStatus fileStatus : partialListing) {
-        listing.add(fileStatus.makeQualified(getUri(), f));
+        listing.add(makeQualified(fileStatus, f));
       }
     } while (thisListing.hasMore());
  

@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.logging.Log;
@@ -39,14 +38,13 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.UserGroupInformation.AuthenticationMethod;
 import org.apache.hadoop.security.authorize.PolicyProvider;
 import org.apache.hadoop.security.token.Token;
-import org.apache.hadoop.service.AbstractService;
-import org.apache.hadoop.yarn.api.ApplicationClientProtocol;
+import org.apache.hadoop.yarn.api.ClientRMProtocol;
 import org.apache.hadoop.yarn.api.protocolrecords.CancelDelegationTokenRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.CancelDelegationTokenResponse;
+import org.apache.hadoop.yarn.api.protocolrecords.GetAllApplicationsRequest;
+import org.apache.hadoop.yarn.api.protocolrecords.GetAllApplicationsResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.GetApplicationReportRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.GetApplicationReportResponse;
-import org.apache.hadoop.yarn.api.protocolrecords.GetApplicationsRequest;
-import org.apache.hadoop.yarn.api.protocolrecords.GetApplicationsResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.GetClusterMetricsRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.GetClusterMetricsResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.GetClusterNodesRequest;
@@ -70,14 +68,10 @@ import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
 import org.apache.hadoop.yarn.api.records.NodeReport;
-import org.apache.hadoop.yarn.api.records.NodeState;
-import org.apache.hadoop.yarn.api.records.QueueACL;
 import org.apache.hadoop.yarn.api.records.QueueInfo;
 import org.apache.hadoop.yarn.api.records.Resource;
-import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.api.records.YarnClusterMetrics;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.exceptions.ApplicationNotFoundException;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
@@ -91,11 +85,11 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppEventType;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerNodeReport;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.YarnScheduler;
-import org.apache.hadoop.yarn.server.resourcemanager.security.QueueACLsManager;
 import org.apache.hadoop.yarn.server.resourcemanager.security.RMDelegationTokenSecretManager;
 import org.apache.hadoop.yarn.server.resourcemanager.security.authorize.RMPolicyProvider;
 import org.apache.hadoop.yarn.server.security.ApplicationACLsManager;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
+import org.apache.hadoop.yarn.service.AbstractService;
 import org.apache.hadoop.yarn.util.Records;
 
 
@@ -104,7 +98,7 @@ import org.apache.hadoop.yarn.util.Records;
  * interfaces to the resource manager from the client.
  */
 public class ClientRMService extends AbstractService implements
-    ApplicationClientProtocol {
+    ClientRMProtocol {
   private static final ArrayList<ApplicationReport> EMPTY_APPS_REPORT = new ArrayList<ApplicationReport>();
 
   private static final Log LOG = LogFactory.getLog(ClientRMService.class);
@@ -121,33 +115,30 @@ public class ClientRMService extends AbstractService implements
   InetSocketAddress clientBindAddress;
 
   private final ApplicationACLsManager applicationsACLsManager;
-  private final QueueACLsManager queueACLsManager;
 
   public ClientRMService(RMContext rmContext, YarnScheduler scheduler,
       RMAppManager rmAppManager, ApplicationACLsManager applicationACLsManager,
-      QueueACLsManager queueACLsManager,
       RMDelegationTokenSecretManager rmDTSecretManager) {
     super(ClientRMService.class.getName());
     this.scheduler = scheduler;
     this.rmContext = rmContext;
     this.rmAppManager = rmAppManager;
     this.applicationsACLsManager = applicationACLsManager;
-    this.queueACLsManager = queueACLsManager;
     this.rmDTSecretManager = rmDTSecretManager;
   }
 
   @Override
-  protected void serviceInit(Configuration conf) throws Exception {
+  public void init(Configuration conf) {
     clientBindAddress = getBindAddress(conf);
-    super.serviceInit(conf);
+    super.init(conf);
   }
 
   @Override
-  protected void serviceStart() throws Exception {
+  public void start() {
     Configuration conf = getConfig();
     YarnRPC rpc = YarnRPC.create(conf);
     this.server =   
-      rpc.getServer(ApplicationClientProtocol.class, this,
+      rpc.getServer(ClientRMProtocol.class, this,
             clientBindAddress,
             conf, this.rmDTSecretManager,
             conf.getInt(YarnConfiguration.RM_CLIENT_THREAD_COUNT, 
@@ -163,15 +154,19 @@ public class ClientRMService extends AbstractService implements
     this.server.start();
     clientBindAddress = conf.updateConnectAddr(YarnConfiguration.RM_ADDRESS,
                                                server.getListenerAddress());
-    super.serviceStart();
+    // enable RM to short-circuit token operations directly to itself
+    RMDelegationTokenIdentifier.Renewer.setSecretManager(
+        rmDTSecretManager, clientBindAddress);
+    
+    super.start();
   }
 
   @Override
-  protected void serviceStop() throws Exception {
+  public void stop() {
     if (this.server != null) {
         this.server.stop();
     }
-    super.serviceStop();
+    super.stop();
   }
 
   InetSocketAddress getBindAddress(Configuration conf) {
@@ -190,16 +185,13 @@ public class ClientRMService extends AbstractService implements
    * @param callerUGI
    * @param owner
    * @param operationPerformed
-   * @param application
+   * @param applicationId
    * @return
    */
   private boolean checkAccess(UserGroupInformation callerUGI, String owner,
-      ApplicationAccessType operationPerformed,
-      RMApp application) {
+      ApplicationAccessType operationPerformed, ApplicationId applicationId) {
     return applicationsACLsManager.checkAccess(callerUGI, operationPerformed,
-        owner, application.getApplicationId())
-        || queueACLsManager.checkAccess(callerUGI, QueueACL.ADMINISTER_QUEUE,
-            application.getQueue());
+        owner, applicationId);
   }
 
   ApplicationId getNewApplicationId() {
@@ -217,6 +209,8 @@ public class ClientRMService extends AbstractService implements
         .newRecordInstance(GetNewApplicationResponse.class);
     response.setApplicationId(getNewApplicationId());
     // Pick up min/max resource from scheduler...
+    response.setMinimumResourceCapability(scheduler
+        .getMinimumResourceCapability());
     response.setMaximumResourceCapability(scheduler
         .getMaximumResourceCapability());       
     
@@ -225,7 +219,7 @@ public class ClientRMService extends AbstractService implements
   
   /**
    * It gives response which includes application report if the application
-   * present otherwise throws ApplicationNotFoundException.
+   * present otherwise gives response with application report as null.
    */
   @Override
   public GetApplicationReportResponse getApplicationReport(
@@ -242,17 +236,16 @@ public class ClientRMService extends AbstractService implements
 
     RMApp application = this.rmContext.getRMApps().get(applicationId);
     if (application == null) {
-      // If the RM doesn't have the application, throw
-      // ApplicationNotFoundException and let client to handle.
-      throw new ApplicationNotFoundException("Application with id '"
-          + applicationId + "' doesn't exist in RM.");
+      // If the RM doesn't have the application, provide the response with
+      // application report as null and let the clients to handle.
+      return recordFactory
+          .newRecordInstance(GetApplicationReportResponse.class);
     }
 
     boolean allowAccess = checkAccess(callerUGI, application.getUser(),
-        ApplicationAccessType.VIEW_APP, application);
+        ApplicationAccessType.VIEW_APP, applicationId);
     ApplicationReport report =
-        application.createAndGetApplicationReport(callerUGI.getUserName(),
-            allowAccess);
+        application.createAndGetApplicationReport(allowAccess);
 
     GetApplicationReportResponse response = recordFactory
         .newRecordInstance(GetApplicationReportResponse.class);
@@ -360,12 +353,13 @@ public class ClientRMService extends AbstractService implements
       RMAuditLogger.logFailure(callerUGI.getUserName(),
           AuditConstants.KILL_APP_REQUEST, "UNKNOWN", "ClientRMService",
           "Trying to kill an absent application", applicationId);
-      throw new ApplicationNotFoundException("Trying to kill an absent"
-          + " application " + applicationId);
+      throw RPCUtil
+          .getRemoteException("Trying to kill an absent application "
+              + applicationId);
     }
 
     if (!checkAccess(callerUGI, application.getUser(),
-        ApplicationAccessType.MODIFY_APP, application)) {
+        ApplicationAccessType.MODIFY_APP, applicationId)) {
       RMAuditLogger.logFailure(callerUGI.getShortUserName(),
           AuditConstants.KILL_APP_REQUEST,
           "User doesn't have permissions to "
@@ -399,8 +393,9 @@ public class ClientRMService extends AbstractService implements
   }
   
   @Override
-  public GetApplicationsResponse getApplications(
-      GetApplicationsRequest request) throws YarnException {
+  public GetAllApplicationsResponse getAllApplications(
+      GetAllApplicationsRequest request) throws YarnException {
+
     UserGroupInformation callerUGI;
     try {
       callerUGI = UserGroupInformation.getCurrentUser();
@@ -409,32 +404,15 @@ public class ClientRMService extends AbstractService implements
       throw RPCUtil.getRemoteException(ie);
     }
 
-    Set<String> applicationTypes = request.getApplicationTypes();
-    EnumSet<YarnApplicationState> applicationStates =
-        request.getApplicationStates();
-
     List<ApplicationReport> reports = new ArrayList<ApplicationReport>();
     for (RMApp application : this.rmContext.getRMApps().values()) {
-      if (applicationTypes != null && !applicationTypes.isEmpty()) {
-        if (!applicationTypes.contains(application.getApplicationType())) {
-          continue;
-        }
-      }
-
-      if (applicationStates != null && !applicationStates.isEmpty()) {
-        if (!applicationStates.contains(application
-            .createApplicationState())) {
-          continue;
-        }
-      }
       boolean allowAccess = checkAccess(callerUGI, application.getUser(),
-          ApplicationAccessType.VIEW_APP, application);
-      reports.add(application.createAndGetApplicationReport(
-          callerUGI.getUserName(), allowAccess));
+          ApplicationAccessType.VIEW_APP, application.getApplicationId());
+      reports.add(application.createAndGetApplicationReport(allowAccess));
     }
 
-    GetApplicationsResponse response =
-      recordFactory.newRecordInstance(GetApplicationsResponse.class);
+    GetAllApplicationsResponse response = 
+      recordFactory.newRecordInstance(GetAllApplicationsResponse.class);
     response.setApplicationList(reports);
     return response;
   }
@@ -444,13 +422,7 @@ public class ClientRMService extends AbstractService implements
       throws YarnException {
     GetClusterNodesResponse response = 
       recordFactory.newRecordInstance(GetClusterNodesResponse.class);
-    EnumSet<NodeState> nodeStates = request.getNodeStates();
-    if (nodeStates == null || nodeStates.isEmpty()) {
-      nodeStates = EnumSet.allOf(NodeState.class);
-    }
-    Collection<RMNode> nodes = RMServerUtils.queryRMNodes(rmContext,
-        nodeStates);
-    
+    Collection<RMNode> nodes = this.rmContext.getRMNodes().values();
     List<NodeReport> nodeReports = new ArrayList<NodeReport>(nodes.size());
     for (RMNode nodeInfo : nodes) {
       nodeReports.add(createNodeReports(nodeInfo));
@@ -476,7 +448,7 @@ public class ClientRMService extends AbstractService implements
             apps.size());
         for (RMApp app : apps) {
           if (app.getQueue().equals(queueInfo.getQueueName())) {
-            appReports.add(app.createAndGetApplicationReport(null, true));
+            appReports.add(app.createAndGetApplicationReport(true));
           }
         }
       }
@@ -503,8 +475,7 @@ public class ClientRMService extends AbstractService implements
         rmNode.getState(),
         rmNode.getHttpAddress(), rmNode.getRackName(), used,
         rmNode.getTotalCapability(), numContainers,
-        rmNode.getHealthReport(),
-        rmNode.getLastHealthReportTime());
+        rmNode.getNodeHealthStatus());
 
     return report;
   }

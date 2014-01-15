@@ -640,12 +640,9 @@ public class TestDFSUtil {
   @Test (timeout=15000)
   public void testIsValidName() {
     assertFalse(DFSUtil.isValidName("/foo/../bar"));
-    assertFalse(DFSUtil.isValidName("/foo/./bar"));
     assertFalse(DFSUtil.isValidName("/foo//bar"));
     assertTrue(DFSUtil.isValidName("/"));
     assertTrue(DFSUtil.isValidName("/bar/"));
-    assertFalse(DFSUtil.isValidName("/foo/:/bar"));
-    assertFalse(DFSUtil.isValidName("/foo:bar"));
   }
   
   @Test(timeout=5000)

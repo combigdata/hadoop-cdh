@@ -27,14 +27,11 @@ public enum RMAppEventType {
   // Source: RMAppAttempt
   APP_REJECTED,
   APP_ACCEPTED,
+  APP_SAVED,
   ATTEMPT_REGISTERED,
-  ATTEMPT_UNREGISTERED,
+  ATTEMPT_FINISHING,
   ATTEMPT_FINISHED, // Will send the final state
   ATTEMPT_FAILED,
   ATTEMPT_KILLED,
-  NODE_UPDATE,
-
-  // Source: RMStateStore
-  APP_SAVED,
-  APP_REMOVED
+  NODE_UPDATE
 }

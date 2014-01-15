@@ -18,10 +18,8 @@
 
 package org.apache.hadoop.yarn.webapp;
 
-import org.apache.hadoop.classification.InterfaceAudience;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
+import org.apache.hadoop.yarn.YarnRuntimeException;
 
-@InterfaceAudience.LimitedPrivate({"YARN", "MapReduce"})
 public class WebAppException extends YarnRuntimeException {
 
   private static final long serialVersionUID = 1L;

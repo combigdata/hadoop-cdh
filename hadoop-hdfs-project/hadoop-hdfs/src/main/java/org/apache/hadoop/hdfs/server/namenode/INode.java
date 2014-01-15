@@ -50,7 +50,7 @@ import com.google.common.base.Preconditions;
  * directory inodes.
  */
 @InterfaceAudience.Private
-public abstract class INode implements INodeAttributes, Diff.Element<byte[]> {
+public abstract class INode implements Diff.Element<byte[]> {
   public static final Log LOG = LogFactory.getLog(INode.class);
 
   /** parent is either an {@link INodeDirectory} or an {@link INodeReference}.*/
@@ -87,7 +87,6 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]> {
   abstract String getUserName(Snapshot snapshot);
 
   /** The same as getUserName(null). */
-  @Override
   public final String getUserName() {
     return getUserName(null);
   }
@@ -111,7 +110,6 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]> {
   abstract String getGroupName(Snapshot snapshot);
 
   /** The same as getGroupName(null). */
-  @Override
   public final String getGroupName() {
     return getGroupName(null);
   }
@@ -136,7 +134,6 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]> {
   abstract FsPermission getFsPermission(Snapshot snapshot);
   
   /** The same as getFsPermission(null). */
-  @Override
   public final FsPermission getFsPermission() {
     return getFsPermission(null);
   }
@@ -156,7 +153,7 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]> {
    * @return if the given snapshot is null, return this;
    *     otherwise return the corresponding snapshot inode.
    */
-  public INodeAttributes getSnapshotINode(final Snapshot snapshot) {
+  public INode getSnapshotINode(final Snapshot snapshot) {
     return this;
   }
 
@@ -345,13 +342,12 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]> {
    *          deletion/update will be added to the given map.
    * @param removedINodes
    *          INodes collected from the descents for further cleaning up of 
-   *          inodeMap
+   *          inodeMap         
    * @return quota usage delta when deleting a snapshot
    */
   public abstract Quota.Counts cleanSubtree(final Snapshot snapshot,
       Snapshot prior, BlocksMapUpdateInfo collectedBlocks,
-      List<INode> removedINodes, boolean countDiffChange)
-      throws QuotaExceededException;
+      List<INode> removedINodes) throws QuotaExceededException;
   
   /**
    * Destroy self and clear everything! If the INode is a file, this method
@@ -392,10 +388,17 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]> {
    * Check and add namespace/diskspace consumed to itself and the ancestors.
    * @throws QuotaExceededException if quote is violated.
    */
-  public void addSpaceConsumed(long nsDelta, long dsDelta, boolean verify) 
-      throws QuotaExceededException {
+  public void addSpaceConsumed(long nsDelta, long dsDelta, boolean verify,
+      int snapshotId) throws QuotaExceededException {
     if (parent != null) {
-      parent.addSpaceConsumed(nsDelta, dsDelta, verify);
+      parent.addSpaceConsumed(nsDelta, dsDelta, verify, snapshotId);
+    }
+  }
+
+  public void addSpaceConsumedToRenameSrc(long nsDelta, long dsDelta,
+      boolean verify, int snapshotId) throws QuotaExceededException {
+    if (parent != null) {
+      parent.addSpaceConsumedToRenameSrc(nsDelta, dsDelta, verify, snapshotId);
     }
   }
 
@@ -466,6 +469,12 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]> {
     final byte[] name = getLocalNameBytes();
     return name == null? null: DFSUtil.bytes2String(name);
   }
+
+  /**
+   * @return null if the local name is null;
+   *         otherwise, return the local name byte array.
+   */
+  public abstract byte[] getLocalNameBytes();
 
   @Override
   public final byte[] getKey() {
@@ -552,7 +561,6 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]> {
   abstract long getModificationTime(Snapshot snapshot);
 
   /** The same as getModificationTime(null). */
-  @Override
   public final long getModificationTime() {
     return getModificationTime(null);
   }
@@ -581,7 +589,6 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]> {
   abstract long getAccessTime(Snapshot snapshot);
 
   /** The same as getAccessTime(null). */
-  @Override
   public final long getAccessTime() {
     return getAccessTime(null);
   }

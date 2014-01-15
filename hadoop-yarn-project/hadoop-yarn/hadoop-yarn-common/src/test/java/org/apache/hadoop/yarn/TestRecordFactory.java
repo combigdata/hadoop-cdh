@@ -20,7 +20,6 @@ package org.apache.hadoop.yarn;
 
 import junit.framework.Assert;
 
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factories.impl.pb.RecordFactoryPBImpl;
 import org.apache.hadoop.yarn.api.protocolrecords.AllocateRequest;

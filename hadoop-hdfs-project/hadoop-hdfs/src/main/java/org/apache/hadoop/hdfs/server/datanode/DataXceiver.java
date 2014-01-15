@@ -299,8 +299,7 @@ class DataXceiver extends Receiver implements Runnable {
       final String clientName,
       final long blockOffset,
       final long length,
-      final boolean sendChecksum,
-      final CachingStrategy cachingStrategy) throws IOException {
+      final boolean sendChecksum) throws IOException {
     previousOpClientName = clientName;
 
     OutputStream baseStream = getOutputStream();
@@ -325,8 +324,7 @@ class DataXceiver extends Receiver implements Runnable {
     try {
       try {
         blockSender = new BlockSender(block, blockOffset, length,
-            true, false, sendChecksum, datanode, clientTraceFmt,
-            cachingStrategy);
+            true, false, sendChecksum, datanode, clientTraceFmt);
       } catch(IOException e) {
         String msg = "opReadBlock " + block + " received exception " + e; 
         LOG.info(msg);
@@ -395,8 +393,7 @@ class DataXceiver extends Receiver implements Runnable {
       final long minBytesRcvd,
       final long maxBytesRcvd,
       final long latestGenerationStamp,
-      DataChecksum requestedChecksum,
-      CachingStrategy cachingStrategy) throws IOException {
+      DataChecksum requestedChecksum) throws IOException {
     previousOpClientName = clientname;
     updateCurrentThreadName("Receiving block " + block);
     final boolean isDatanode = clientname.length() == 0;
@@ -455,8 +452,7 @@ class DataXceiver extends Receiver implements Runnable {
             peer.getRemoteAddressString(),
             peer.getLocalAddressString(),
             stage, latestGenerationStamp, minBytesRcvd, maxBytesRcvd,
-            clientname, srcDataNode, datanode, requestedChecksum,
-            cachingStrategy);
+            clientname, srcDataNode, datanode, requestedChecksum);
       } else {
         datanode.data.recoverClose(block, latestGenerationStamp, minBytesRcvd);
       }
@@ -501,8 +497,7 @@ class DataXceiver extends Receiver implements Runnable {
 
           new Sender(mirrorOut).writeBlock(originalBlock, blockToken,
               clientname, targets, srcDataNode, stage, pipelineSize,
-              minBytesRcvd, maxBytesRcvd, latestGenerationStamp, requestedChecksum,
-              cachingStrategy);
+              minBytesRcvd, maxBytesRcvd, latestGenerationStamp, requestedChecksum);
 
           mirrorOut.flush();
 
@@ -720,7 +715,7 @@ class DataXceiver extends Receiver implements Runnable {
     try {
       // check if the block exists or not
       blockSender = new BlockSender(block, 0, -1, false, false, true, datanode, 
-          null, CachingStrategy.newDropBehind());
+          null);
 
       // set up response stream
       OutputStream baseStream = getOutputStream();
@@ -851,8 +846,7 @@ class DataXceiver extends Receiver implements Runnable {
       blockReceiver = new BlockReceiver(
           block, proxyReply, proxySock.getRemoteSocketAddress().toString(),
           proxySock.getLocalSocketAddress().toString(),
-          null, 0, 0, 0, "", null, datanode, remoteChecksum,
-          CachingStrategy.newDropBehind());
+          null, 0, 0, 0, "", null, datanode, remoteChecksum);
 
       // receive a block
       blockReceiver.receiveBlock(null, null, null, null, 

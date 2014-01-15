@@ -173,12 +173,7 @@ public class JobClient extends CLI {
      * job completes.)
      */
     public NetworkedJob(JobStatus status, Cluster cluster) throws IOException {
-      this(status, cluster, new JobConf(status.getJobFile()));
-    }
-    
-    private NetworkedJob(JobStatus status, Cluster cluster, JobConf conf)
-        throws IOException {
-      this(Job.getInstance(cluster, status, conf));
+      job = Job.getInstance(cluster, status, new JobConf(status.getJobFile()));
     }
 
     public NetworkedJob(Job job) throws IOException {
@@ -597,8 +592,7 @@ public class JobClient extends CLI {
       if (job != null) {
         JobStatus status = JobStatus.downgrade(job.getStatus());
         if (status != null) {
-          return new NetworkedJob(status, cluster,
-              new JobConf(job.getConfiguration()));
+          return new NetworkedJob(status, cluster);
         } 
       }
     } catch (InterruptedException ie) {

@@ -51,7 +51,6 @@ import org.apache.hadoop.hdfs.protocol.LocatedBlock;
 import org.apache.hadoop.hdfs.protocol.LocatedBlocks;
 import org.apache.hadoop.hdfs.server.blockmanagement.BlockPlacementPolicy;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants;
-import org.apache.hadoop.hdfs.server.datanode.CachingStrategy;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.net.NetworkTopology;
 import org.apache.hadoop.net.NodeBase;
@@ -142,7 +141,7 @@ public class NamenodeFsck {
   /**
    * Filesystem checker.
    * @param conf configuration (namenode config)
-   * @param namenode namenode that this fsck is going to use
+   * @param nn namenode that this fsck is going to use
    * @param pmap key=value[] map passed to the http servlet as url parameters
    * @param out output stream to write the fsck output
    * @param totalDatanodes number of live datanodes
@@ -292,23 +291,11 @@ public class NamenodeFsck {
       } while (thisListing.hasMore());
       return;
     }
-    if (file.isSymlink()) {
-      if (showFiles) {
-        out.println(path + " <symlink>");
-      }
-      res.totalSymlinks++;
-      return;
-    }
     long fileLen = file.getLen();
     // Get block locations without updating the file access time 
     // and without block access tokens
-    LocatedBlocks blocks;
-    try {
-      blocks = namenode.getNamesystem().getBlockLocations(path, 0,
-          fileLen, false, false, false);
-    } catch (FileNotFoundException fnfe) {
-      blocks = null;
-    }
+    LocatedBlocks blocks = namenode.getNamesystem().getBlockLocations(path, 0,
+        fileLen, false, false, false);
     if (blocks == null) { // the file is deleted
       return;
     }
@@ -572,11 +559,11 @@ public class NamenodeFsck {
         
         String file = BlockReaderFactory.getFileName(targetAddr, block.getBlockPoolId(),
             block.getBlockId());
-        blockReader = BlockReaderFactory.newBlockReader(dfs.getConf(),
-            file, block, lblock.getBlockToken(), 0, -1, true, "fsck",
+        blockReader = BlockReaderFactory.newBlockReader(
+            conf, file, block, lblock.getBlockToken(), 0, -1, true, "fsck",
             TcpPeerServer.peerFromSocketAndKey(s, namenode.getRpcServer().
-                getDataEncryptionKey()), chosenNode, null, null, null, 
-                false, CachingStrategy.newDropBehind());
+                getDataEncryptionKey()),
+            chosenNode, null, null, null, false);
         
       }  catch (IOException ex) {
         // Put chosen node into dead list, continue
@@ -684,7 +671,6 @@ public class NamenodeFsck {
     long totalFiles = 0L;
     long totalOpenFiles = 0L;
     long totalDirs = 0L;
-    long totalSymlinks = 0L;
     long totalSize = 0L;
     long totalOpenFilesSize = 0L;
     long totalReplicas = 0L;
@@ -727,7 +713,6 @@ public class NamenodeFsck {
       }
       res.append("\n Total dirs:\t").append(totalDirs).append(
           "\n Total files:\t").append(totalFiles);
-      res.append("\n Total symlinks:\t\t").append(totalSymlinks);
       if (totalOpenFiles != 0) {
         res.append(" (Files currently being written: ").append(totalOpenFiles)
             .append(")");

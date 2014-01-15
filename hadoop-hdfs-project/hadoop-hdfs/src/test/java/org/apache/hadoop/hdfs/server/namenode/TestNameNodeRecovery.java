@@ -30,6 +30,8 @@ import java.io.RandomAccessFile;
 import java.util.HashSet;
 import java.util.Set;
 
+import junit.framework.Assert;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -72,7 +74,7 @@ public class TestNameNodeRecovery {
     EditLogFileOutputStream elfos = null;
     EditLogFileInputStream elfis = null;
     try {
-      elfos = new EditLogFileOutputStream(new Configuration(), TEST_LOG_NAME, 0);
+      elfos = new EditLogFileOutputStream(TEST_LOG_NAME, 0);
       elfos.create();
 
       elts.addTransactionsToLog(elfos, cache);
@@ -271,7 +273,7 @@ public class TestNameNodeRecovery {
     } 
     
     public int getMaxOpSize() {
-      return 36;
+      return 30;
     }
   }
 

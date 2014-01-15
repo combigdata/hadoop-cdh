@@ -147,8 +147,7 @@ public class LinuxContainerExecutor extends ContainerExecutor {
       shExec.execute();
     } catch (ExitCodeException e) {
       int exitCode = shExec.getExitCode();
-      LOG.warn("Exit code from container executor initialization is : "
-          + exitCode, e);
+      LOG.warn("Exit code from container is : " + exitCode);
       logOutput(shExec.getOutput());
       throw new IOException("Linux container executor not configured properly"
           + " (error=" + exitCode + ")", e);
@@ -205,11 +204,10 @@ public class LinuxContainerExecutor extends ContainerExecutor {
       }
     } catch (ExitCodeException e) {
       int exitCode = shExec.getExitCode();
-      LOG.warn("Exit code from container " + locId + " startLocalizer is : "
-          + exitCode, e);
+      LOG.warn("Exit code from container is : " + exitCode);
       logOutput(shExec.getOutput());
-      throw new IOException("Application " + appId + " initialization failed" +
-      		" (exitCode=" + exitCode + ") with output: " + shExec.getOutput(), e);
+      throw new IOException("App initialization failed (" + exitCode + 
+          ") with output: " + shExec.getOutput(), e);
     }
   }
 
@@ -258,18 +256,19 @@ public class LinuxContainerExecutor extends ContainerExecutor {
         return ExitCode.TERMINATED.getExitCode();
       }
     } catch (ExitCodeException e) {
+
       if (null == shExec) {
         return -1;
       }
+
       int exitCode = shExec.getExitCode();
-      LOG.warn("Exit code from container " + containerId + " is : " + exitCode);
+      LOG.warn("Exit code from container is : " + exitCode);
       // 143 (SIGTERM) and 137 (SIGKILL) exit codes means the container was
       // terminated/killed forcefully. In all other cases, log the
       // container-executor's output
       if (exitCode != ExitCode.FORCE_KILLED.getExitCode()
           && exitCode != ExitCode.TERMINATED.getExitCode()) {
-        LOG.warn("Exception from container-launch with container ID: "
-            + containerId + " and exit code: " + exitCode , e);
+        LOG.warn("Exception from container-launch : ", e);
         logOutput(shExec.getOutput());
         String diagnostics = "Exception from container-launch: \n"
             + StringUtils.stringifyException(e) + "\n" + shExec.getOutput();
@@ -311,12 +310,9 @@ public class LinuxContainerExecutor extends ContainerExecutor {
       if (ret_code == ResultCode.INVALID_CONTAINER_PID.getValue()) {
         return false;
       }
-      LOG.warn("Error in signalling container " + pid + " with " + signal
-          + "; exit = " + ret_code, e);
       logOutput(shExec.getOutput());
-      throw new IOException("Problem signalling container " + pid + " with "
-          + signal + "; output: " + shExec.getOutput() + " and exitCode: "
-          + ret_code, e);
+      throw new IOException("Problem signalling container " + pid + " with " +
+                            signal + "; exit = " + ret_code);
     }
     return true;
   }
@@ -350,10 +346,13 @@ public class LinuxContainerExecutor extends ContainerExecutor {
       }
     } catch (IOException e) {
       int exitCode = shExec.getExitCode();
-      LOG.error("DeleteAsUser for " + dir.toUri().getPath()
-          + " returned with exit code: " + exitCode, e);
-      LOG.error("Output from LinuxContainerExecutor's deleteAsUser follows:");
-      logOutput(shExec.getOutput());
+      LOG.warn("Exit code from container is : " + exitCode);
+      if (exitCode != 0) {
+        LOG.error("DeleteAsUser for " + dir.toUri().getPath()
+            + " returned with non-zero exit code" + exitCode);
+        LOG.error("Output from LinuxContainerExecutor's deleteAsUser follows:");
+        logOutput(shExec.getOutput());
+      }
     }
   }
   
@@ -374,10 +373,9 @@ public class LinuxContainerExecutor extends ContainerExecutor {
         shExec.execute();
     } catch (IOException e) {
         int ret_code = shExec.getExitCode();
-        LOG.warn("Exception in LinuxContainerExecutor mountCgroups ", e);
         logOutput(shExec.getOutput());
         throw new IOException("Problem mounting cgroups " + cgroupKVs + 
-          "; exit code = " + ret_code + " and output: " + shExec.getOutput(), e);
+                  "; exit code = " + ret_code, e);
     }
   }  
 }

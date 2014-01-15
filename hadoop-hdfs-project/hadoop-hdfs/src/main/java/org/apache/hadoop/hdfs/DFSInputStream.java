@@ -36,8 +36,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.fs.ByteBufferReadable;
-import org.apache.hadoop.fs.CanSetDropBehind;
-import org.apache.hadoop.fs.CanSetReadahead;
 import org.apache.hadoop.fs.ChecksumException;
 import org.apache.hadoop.fs.FSInputStream;
 import org.apache.hadoop.fs.UnresolvedLinkException;
@@ -52,7 +50,6 @@ import org.apache.hadoop.hdfs.protocol.LocatedBlocks;
 import org.apache.hadoop.hdfs.protocol.datatransfer.InvalidEncryptionKeyException;
 import org.apache.hadoop.hdfs.security.token.block.BlockTokenIdentifier;
 import org.apache.hadoop.hdfs.security.token.block.InvalidBlockTokenException;
-import org.apache.hadoop.hdfs.server.datanode.CachingStrategy;
 import org.apache.hadoop.hdfs.server.datanode.ReplicaNotFoundException;
 import org.apache.hadoop.ipc.RPC;
 import org.apache.hadoop.ipc.RemoteException;
@@ -68,14 +65,14 @@ import com.google.common.annotations.VisibleForTesting;
  * negotiation of the namenode and various datanodes as necessary.
  ****************************************************************/
 @InterfaceAudience.Private
-public class DFSInputStream extends FSInputStream
-implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead {
+public class DFSInputStream extends FSInputStream implements ByteBufferReadable {
   @VisibleForTesting
   static boolean tcpReadsDisabledForTesting = false;
   private final PeerCache peerCache;
   private final DFSClient dfsClient;
   private boolean closed = false;
   private final String src;
+  private final long prefetchSize;
   private BlockReader blockReader = null;
   private final boolean verifyChecksum;
   private LocatedBlocks locatedBlocks = null;
@@ -84,7 +81,6 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead {
   private LocatedBlock currentLocatedBlock = null;
   private long pos = 0;
   private long blockEnd = -1;
-  private CachingStrategy cachingStrategy;
   private final ReadStatistics readStatistics = new ReadStatistics();
 
   public static class ReadStatistics {
@@ -167,6 +163,7 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead {
    * capped at maxBlockAcquireFailures
    */
   private int failures = 0;
+  private final int timeWindow;
 
   /* XXX Use of CocurrentHashMap is temp fix. Need to fix 
    * parallel accesses to DFSInputStream (through ptreads) properly */
@@ -175,6 +172,8 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead {
   private int buffersize = 1;
   
   private final byte[] oneByteBuf = new byte[1]; // used for 'int read()'
+
+  private final int nCachedConnRetry;
 
   void addToDeadNodes(DatanodeInfo dnInfo) {
     deadNodes.put(dnInfo, dnInfo);
@@ -188,10 +187,15 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead {
     this.src = src;
     this.peerCache = dfsClient.peerCache;
     this.fileInputStreamCache = new FileInputStreamCache(
-        dfsClient.getConf().shortCircuitStreamsCacheSize,
-        dfsClient.getConf().shortCircuitStreamsCacheExpiryMs);
-    this.cachingStrategy =
-        dfsClient.getDefaultReadCachingStrategy().duplicate();
+      dfsClient.conf.getInt(DFSConfigKeys.
+        DFS_CLIENT_READ_SHORTCIRCUIT_STREAMS_CACHE_SIZE_KEY,
+        DFSConfigKeys.DFS_CLIENT_READ_SHORTCIRCUIT_STREAMS_CACHE_SIZE_DEFAULT),
+      dfsClient.conf.getLong(DFSConfigKeys.
+        DFS_CLIENT_READ_SHORTCIRCUIT_STREAMS_CACHE_EXPIRY_MS_KEY,
+        DFSConfigKeys.DFS_CLIENT_READ_SHORTCIRCUIT_STREAMS_CACHE_EXPIRY_MS_DEFAULT));
+    prefetchSize = dfsClient.getConf().prefetchSize;
+    timeWindow = dfsClient.getConf().timeWindow;
+    nCachedConnRetry = dfsClient.getConf().nCachedConnRetry;
     openInfo();
   }
 
@@ -232,7 +236,7 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead {
   }
 
   private long fetchLocatedBlocksAndGetLastBlockLength() throws IOException {
-    final LocatedBlocks newInfo = dfsClient.getLocatedBlocks(src, 0);
+    LocatedBlocks newInfo = dfsClient.getLocatedBlocks(src, 0, prefetchSize);
     if (DFSClient.LOG.isDebugEnabled()) {
       DFSClient.LOG.debug("newInfo = " + newInfo);
     }
@@ -276,8 +280,8 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead {
       ClientDatanodeProtocol cdp = null;
       
       try {
-        cdp = DFSUtil.createClientDatanodeProtocolProxy(datanode,
-            dfsClient.getConfiguration(), dfsClient.getConf().socketTimeout,
+        cdp = DFSUtil.createClientDatanodeProtocolProxy(
+            datanode, dfsClient.conf, dfsClient.getConf().socketTimeout,
             dfsClient.getConf().connectToDnViaHostname, locatedblock);
         
         final long n = cdp.getReplicaVisibleLength(locatedblock.getBlock());
@@ -385,7 +389,8 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead {
       if (targetBlockIdx < 0) { // block is not cached
         targetBlockIdx = LocatedBlocks.getInsertIndex(targetBlockIdx);
         // fetch more blocks
-        final LocatedBlocks newBlocks = dfsClient.getLocatedBlocks(src, offset);
+        LocatedBlocks newBlocks;
+        newBlocks = dfsClient.getLocatedBlocks(src, offset, prefetchSize);
         assert (newBlocks != null) : "Could not find target position " + offset;
         locatedBlocks.insertRange(targetBlockIdx, newBlocks.getLocatedBlocks());
       }
@@ -408,7 +413,8 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead {
       targetBlockIdx = LocatedBlocks.getInsertIndex(targetBlockIdx);
     }
     // fetch blocks
-    final LocatedBlocks newBlocks = dfsClient.getLocatedBlocks(src, offset);
+    LocatedBlocks newBlocks;
+    newBlocks = dfsClient.getLocatedBlocks(src, offset, prefetchSize);
     if (newBlocks == null) {
       throw new IOException("Could not find target position " + offset);
     }
@@ -826,7 +832,7 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead {
       try {
         DatanodeInfo chosenNode = bestNode(nodes, deadNodes);
         final String dnAddr =
-            chosenNode.getXferAddr(dfsClient.getConf().connectToDnViaHostname);
+            chosenNode.getXferAddr(dfsClient.connectToDnViaHostname());
         if (DFSClient.LOG.isDebugEnabled()) {
           DFSClient.LOG.debug("Connecting to datanode " + dnAddr);
         }
@@ -855,7 +861,6 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead {
           // alleviating the request rate from the server. Similarly the 3rd retry
           // will wait 6000ms grace period before retry and the waiting window is
           // expanded to 9000ms. 
-          final int timeWindow = dfsClient.getConf().timeWindow;
           double waitTime = timeWindow * failures +       // grace period for the last round of attempt
             timeWindow * (failures + 1) * DFSUtil.getRandom().nextDouble(); // expanding time window for each failure
           DFSClient.LOG.warn("DFS chooseDataNode: got # " + (failures + 1) + " IOException, will wait for " + waitTime + " msec.");
@@ -1006,7 +1011,7 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead {
         DFSClient.LOG.debug("got FileInputStreams for " + block + " from " +
             "the FileInputStreamCache.");
       }
-      return new BlockReaderLocal(dfsClient.getConf(), file,
+      return new BlockReaderLocal(dfsClient.conf, file,
         block, startOffset, len, fis[0], fis[1], chosenNode, verifyChecksum,
         fileInputStreamCache);
     }
@@ -1018,8 +1023,9 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead {
         DFSClient.isLocalAddress(dnAddr) &&
         (!shortCircuitForbidden())) {
       try {
-        return BlockReaderFactory.getLegacyBlockReaderLocal(dfsClient,
-            clientName, block, blockToken, chosenNode, startOffset);
+        return BlockReaderFactory.getLegacyBlockReaderLocal(dfsClient.ugi,
+            dfsClient.conf, clientName, block, blockToken, chosenNode,
+            dfsClient.hdfsTimeout, startOffset,dfsClient.connectToDnViaHostname());
       } catch (IOException e) {
         DFSClient.LOG.warn("error creating legacy BlockReaderLocal.  " +
             "Disabling legacy local reads.", e);
@@ -1031,7 +1037,6 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead {
     int cacheTries = 0;
     DomainSocketFactory dsFactory = dfsClient.getDomainSocketFactory();
     BlockReader reader = null;
-    final int nCachedConnRetry = dfsClient.getConf().nCachedConnRetry;
     for (; cacheTries < nCachedConnRetry; ++cacheTries) {
       Peer peer = peerCache.get(chosenNode, true);
       if (peer == null) break;
@@ -1039,10 +1044,10 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead {
         boolean allowShortCircuitLocalReads = dfsClient.getConf().
             shortCircuitLocalReads && (!shortCircuitForbidden());
         reader = BlockReaderFactory.newBlockReader(
-            dfsClient.getConf(), file, block, blockToken, startOffset,
+            dfsClient.conf, file, block, blockToken, startOffset,
             len, verifyChecksum, clientName, peer, chosenNode, 
             dsFactory, peerCache, fileInputStreamCache,
-            allowShortCircuitLocalReads, cachingStrategy);
+            allowShortCircuitLocalReads);
         return reader;
       } catch (IOException ex) {
         DFSClient.LOG.debug("Error making BlockReader with DomainSocket. " +
@@ -1062,10 +1067,10 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead {
         boolean allowShortCircuitLocalReads = dfsClient.getConf().
             shortCircuitLocalReads && (!shortCircuitForbidden());
         reader = BlockReaderFactory.newBlockReader(
-            dfsClient.getConf(), file, block, blockToken, startOffset,
+            dfsClient.conf, file, block, blockToken, startOffset,
             len, verifyChecksum, clientName, peer, chosenNode,
             dsFactory, peerCache, fileInputStreamCache,
-            allowShortCircuitLocalReads, cachingStrategy);
+            allowShortCircuitLocalReads);
         return reader;
       } catch (IOException e) {
         DFSClient.LOG.warn("failed to connect to " + domSock, e);
@@ -1086,10 +1091,9 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead {
       if (peer == null) break;
       try {
         reader = BlockReaderFactory.newBlockReader(
-            dfsClient.getConf(), file, block, blockToken, startOffset,
+            dfsClient.conf, file, block, blockToken, startOffset,
             len, verifyChecksum, clientName, peer, chosenNode, 
-            dsFactory, peerCache, fileInputStreamCache, false,
-            cachingStrategy);
+            dsFactory, peerCache, fileInputStreamCache, false);
         return reader;
       } catch (IOException ex) {
         DFSClient.LOG.debug("Error making BlockReader. Closing stale " +
@@ -1106,10 +1110,9 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead {
     // Try to create a new remote peer.
     Peer peer = newTcpPeer(dnAddr);
     return BlockReaderFactory.newBlockReader(
-        dfsClient.getConf(), file, block, blockToken, startOffset,
+        dfsClient.conf, file, block, blockToken, startOffset,
         len, verifyChecksum, clientName, peer, chosenNode, 
-        dsFactory, peerCache, fileInputStreamCache, false,
-        cachingStrategy);
+        dsFactory, peerCache, fileInputStreamCache, false);
   }
 
 
@@ -1366,31 +1369,5 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead {
    */
   public synchronized ReadStatistics getReadStatistics() {
     return new ReadStatistics(readStatistics);
-  }
-
-  private synchronized void closeCurrentBlockReader() {
-    if (blockReader == null) return;
-    // Close the current block reader so that the new caching settings can 
-    // take effect immediately.
-    try {
-      blockReader.close();
-    } catch (IOException e) {
-      DFSClient.LOG.error("error closing blockReader", e);
-    }
-    blockReader = null;
-  }
-
-  @Override
-  public synchronized void setReadahead(Long readahead)
-      throws IOException {
-    this.cachingStrategy.setReadahead(readahead);
-    closeCurrentBlockReader();
-  }
-
-  @Override
-  public synchronized void setDropBehind(Boolean dropBehind)
-      throws IOException {
-    this.cachingStrategy.setDropBehind(dropBehind);
-    closeCurrentBlockReader();
   }
 }

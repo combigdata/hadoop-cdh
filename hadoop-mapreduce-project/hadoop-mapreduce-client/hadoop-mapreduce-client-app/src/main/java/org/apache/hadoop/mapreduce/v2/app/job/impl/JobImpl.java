@@ -30,9 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -115,18 +112,18 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.authorize.AccessControlList;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.StringUtils;
+import org.apache.hadoop.yarn.Clock;
+import org.apache.hadoop.yarn.YarnRuntimeException;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.NodeReport;
 import org.apache.hadoop.yarn.api.records.NodeState;
 import org.apache.hadoop.yarn.event.EventHandler;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.state.InvalidStateTransitonException;
 import org.apache.hadoop.yarn.state.MultipleArcTransition;
 import org.apache.hadoop.yarn.state.SingleArcTransition;
 import org.apache.hadoop.yarn.state.StateMachine;
 import org.apache.hadoop.yarn.state.StateMachineFactory;
-import org.apache.hadoop.yarn.util.Clock;
 
 /** Implementation of Job interface. Maintains the state machines of Job.
  * The read and write calls use ReadWriteLock for concurrency.
@@ -316,8 +313,7 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
           .addTransition
               (JobStateInternal.RUNNING,
               EnumSet.of(JobStateInternal.RUNNING,
-                  JobStateInternal.COMMITTING, JobStateInternal.FAIL_WAIT,
-                  JobStateInternal.FAIL_ABORT),
+                  JobStateInternal.COMMITTING, JobStateInternal.FAIL_ABORT),
               JobEventType.JOB_TASK_COMPLETED,
               new TaskCompletedTransition())
           .addTransition
@@ -424,41 +420,9 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
               EnumSet.of(JobEventType.JOB_KILL, 
                   JobEventType.JOB_UPDATED_NODES,
                   JobEventType.JOB_TASK_ATTEMPT_FETCH_FAILURE,
-                  JobEventType.JOB_AM_REBOOT,
-                  JobEventType.JOB_TASK_ATTEMPT_COMPLETED,
-                  JobEventType.JOB_MAP_TASK_RESCHEDULED))
-
-          // Transitions from FAIL_WAIT state
-          .addTransition(JobStateInternal.FAIL_WAIT,
-              JobStateInternal.FAIL_WAIT,
-              JobEventType.JOB_DIAGNOSTIC_UPDATE,
-              DIAGNOSTIC_UPDATE_TRANSITION)
-          .addTransition(JobStateInternal.FAIL_WAIT,
-              JobStateInternal.FAIL_WAIT,
-              JobEventType.JOB_COUNTER_UPDATE, COUNTER_UPDATE_TRANSITION)
-          .addTransition(JobStateInternal.FAIL_WAIT,
-              EnumSet.of(JobStateInternal.FAIL_WAIT, JobStateInternal.FAIL_ABORT),
-              JobEventType.JOB_TASK_COMPLETED, 
-              new JobFailWaitTransition())
-          .addTransition(JobStateInternal.FAIL_WAIT,
-              JobStateInternal.FAIL_ABORT, JobEventType.JOB_FAIL_WAIT_TIMEDOUT, 
-              new JobFailWaitTimedOutTransition())
-          .addTransition(JobStateInternal.FAIL_WAIT, JobStateInternal.KILLED,
-              JobEventType.JOB_KILL,
-              new KilledDuringAbortTransition())
-          .addTransition(JobStateInternal.FAIL_WAIT,
-              JobStateInternal.ERROR, JobEventType.INTERNAL_ERROR,
-              INTERNAL_ERROR_TRANSITION)
-          // Ignore-able events
-          .addTransition(JobStateInternal.FAIL_WAIT,
-              JobStateInternal.FAIL_WAIT,
-              EnumSet.of(JobEventType.JOB_UPDATED_NODES,
-                  JobEventType.JOB_TASK_ATTEMPT_COMPLETED,
-                  JobEventType.JOB_MAP_TASK_RESCHEDULED,
-                  JobEventType.JOB_TASK_ATTEMPT_FETCH_FAILURE,
                   JobEventType.JOB_AM_REBOOT))
 
-          //Transitions from FAIL_ABORT state
+          // Transitions from FAIL_ABORT state
           .addTransition(JobStateInternal.FAIL_ABORT,
               JobStateInternal.FAIL_ABORT,
               JobEventType.JOB_DIAGNOSTIC_UPDATE,
@@ -485,8 +449,7 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
                   JobEventType.JOB_TASK_ATTEMPT_FETCH_FAILURE,
                   JobEventType.JOB_COMMIT_COMPLETED,
                   JobEventType.JOB_COMMIT_FAILED,
-                  JobEventType.JOB_AM_REBOOT,
-                  JobEventType.JOB_FAIL_WAIT_TIMEDOUT))
+                  JobEventType.JOB_AM_REBOOT))
 
           // Transitions from KILL_ABORT state
           .addTransition(JobStateInternal.KILL_ABORT,
@@ -631,23 +594,17 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
   private float cleanupProgress;
   private boolean isUber = false;
 
-  private Credentials jobCredentials;
+  private Credentials fsTokens;
   private Token<JobTokenIdentifier> jobToken;
   private JobTokenSecretManager jobTokenSecretManager;
   
   private JobStateInternal forcedState = null;
 
-  //Executor used for running future tasks. Setting thread pool size to 1
-  private ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
-  private ScheduledFuture failWaitTriggerScheduledFuture;
-
-  private JobState lastNonFinalState = JobState.NEW;
-
   public JobImpl(JobId jobId, ApplicationAttemptId applicationAttemptId,
       Configuration conf, EventHandler eventHandler,
       TaskAttemptListener taskAttemptListener,
       JobTokenSecretManager jobTokenSecretManager,
-      Credentials jobCredentials, Clock clock,
+      Credentials fsTokenCredentials, Clock clock,
       Map<TaskId, TaskInfo> completedTasksFromPreviousRun, MRAppMetrics metrics,
       OutputCommitter committer, boolean newApiCommitter, String userName,
       long appSubmitTime, List<AMInfo> amInfos, AppContext appContext,
@@ -674,7 +631,7 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
     this.readLock = readWriteLock.readLock();
     this.writeLock = readWriteLock.writeLock();
 
-    this.jobCredentials = jobCredentials;
+    this.fsTokens = fsTokenCredentials;
     this.jobTokenSecretManager = jobTokenSecretManager;
 
     this.aclsManager = new JobACLsManager(conf);
@@ -930,14 +887,7 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
   public JobState getState() {
     readLock.lock();
     try {
-      JobState state = getExternalState(getInternalState());
-      if (!appContext.hasSuccessfullyUnregistered()
-          && (state == JobState.SUCCEEDED || state == JobState.FAILED
-          || state == JobState.KILLED || state == JobState.ERROR)) {
-        return lastNonFinalState;
-      } else {
-        return state;
-      }
+      return getExternalState(getInternalState());
     } finally {
       readLock.unlock();
     }
@@ -981,21 +931,11 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
       if (oldState != getInternalState()) {
         LOG.info(jobId + "Job Transitioned from " + oldState + " to "
                  + getInternalState());
-        rememberLastNonFinalState(oldState);
       }
     }
     
     finally {
       writeLock.unlock();
-    }
-  }
-
-  private void rememberLastNonFinalState(JobStateInternal stateInternal) {
-    JobState state = getExternalState(stateInternal);
-    // if state is not the final state, set lastNonFinalState
-    if (state != JobState.SUCCEEDED && state != JobState.FAILED
-        && state != JobState.KILLED && state != JobState.ERROR) {
-      lastNonFinalState = state;
     }
   }
 
@@ -1012,7 +952,7 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
     }
   }
   
-  private JobState getExternalState(JobStateInternal smState) {
+  private static JobState getExternalState(JobStateInternal smState) {
     switch (smState) {
     case KILL_WAIT:
     case KILL_ABORT:
@@ -1020,17 +960,10 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
     case SETUP:
     case COMMITTING:
       return JobState.RUNNING;
-    case FAIL_WAIT:
     case FAIL_ABORT:
       return JobState.FAILED;
     case REBOOT:
-      if (appContext.isLastAMRetry()) {
-        return JobState.ERROR;
-      } else {
-        // In case of not last retry, return the external state as RUNNING since
-        // otherwise JobClient will exit when it polls the AM for job state
-        return JobState.RUNNING;
-      }
+      return JobState.ERROR;
     default:
       return JobState.valueOf(smState.name());
     }
@@ -1481,11 +1414,11 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
 
       // If the job client did not setup the shuffle secret then reuse
       // the job token secret for the shuffle.
-      if (TokenCache.getShuffleSecretKey(job.jobCredentials) == null) {
+      if (TokenCache.getShuffleSecretKey(job.fsTokens) == null) {
         LOG.warn("Shuffle secret key missing from job credentials."
             + " Using job token secret as shuffle secret.");
         TokenCache.setShuffleSecretKey(job.jobToken.getPassword(),
-            job.jobCredentials);
+            job.fsTokens);
       }
     }
 
@@ -1498,7 +1431,7 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
                 job.remoteJobConfFile, 
                 job.conf, splits[i], 
                 job.taskAttemptListener, 
-                job.jobToken, job.jobCredentials,
+                job.jobToken, job.fsTokens,
                 job.clock,
                 job.applicationAttemptId.getAttemptId(),
                 job.metrics, job.appContext);
@@ -1516,7 +1449,7 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
                 job.remoteJobConfFile, 
                 job.conf, job.numMapTasks, 
                 job.taskAttemptListener, job.jobToken,
-                job.jobCredentials, job.clock,
+                job.fsTokens, job.clock,
                 job.applicationAttemptId.getAttemptId(),
                 job.metrics, job.appContext);
         job.addTask(task);
@@ -1630,43 +1563,7 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
       job.unsuccessfulFinish(finalState);
     }
   }
-
-  //This transition happens when a job is to be failed. It waits for all the
-  //tasks to finish / be killed.
-  private static class JobFailWaitTransition
-  implements MultipleArcTransition<JobImpl, JobEvent, JobStateInternal> {
-    @Override
-    public JobStateInternal transition(JobImpl job, JobEvent event) {
-      if(!job.failWaitTriggerScheduledFuture.isCancelled()) {
-        for(Task task: job.tasks.values()) {
-          if(!task.isFinished()) {
-            return JobStateInternal.FAIL_WAIT;
-          }
-        }
-      }
-      //Finished waiting. All tasks finished / were killed
-      job.failWaitTriggerScheduledFuture.cancel(false);
-      job.eventHandler.handle(new CommitterJobAbortEvent(job.jobId,
-        job.jobContext, org.apache.hadoop.mapreduce.JobStatus.State.FAILED));
-      return JobStateInternal.FAIL_ABORT;
-    }
-  }
-
-  //This transition happens when a job to be failed times out while waiting on
-  //tasks that had been sent the KILL signal. It is triggered by a
-  //ScheduledFuture task queued in the executor.
-  private static class JobFailWaitTimedOutTransition
-  implements SingleArcTransition<JobImpl, JobEvent> {
-    @Override
-    public void transition(JobImpl job, JobEvent event) {
-      LOG.info("Timeout expired in FAIL_WAIT waiting for tasks to get killed."
-        + " Going to fail job anyway");
-      job.failWaitTriggerScheduledFuture.cancel(false);
-      job.eventHandler.handle(new CommitterJobAbortEvent(job.jobId,
-        job.jobContext, org.apache.hadoop.mapreduce.JobStatus.State.FAILED));
-    }
-  }
-
+    
   // JobFinishedEvent triggers the move of the history file out of the staging
   // area. May need to create a new event type for this if JobFinished should 
   // not be generated for KilledJobs, etc.
@@ -1899,23 +1796,6 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
       return checkJobAfterTaskCompletion(job);
     }
 
-    //This class is used to queue a ScheduledFuture to send an event to a job
-    //after some delay. This can be used to wait for maximum amount of time
-    //before proceeding anyway. e.g. When a job is waiting in FAIL_WAIT for
-    //all tasks to be killed.
-    static class TriggerScheduledFuture implements Runnable {
-      JobEvent toSend;
-      JobImpl job;
-      TriggerScheduledFuture(JobImpl job, JobEvent toSend) {
-        this.toSend = toSend;
-        this.job = job;
-      }
-      public void run() {
-        LOG.info("Sending event " + toSend + " to " + job.getID());
-        job.getEventHandler().handle(toSend);
-      }
-    }
-
     protected JobStateInternal checkJobAfterTaskCompletion(JobImpl job) {
       //check for Job failure
       if (job.failedMapTaskCount*100 > 
@@ -1929,33 +1809,10 @@ public class JobImpl implements org.apache.hadoop.mapreduce.v2.app.job.Job,
             " failedReduces:" + job.failedReduceTaskCount;
         LOG.info(diagnosticMsg);
         job.addDiagnostic(diagnosticMsg);
-
-        //Send kill signal to all unfinished tasks here.
-        boolean allDone = true;
-        for (Task task : job.tasks.values()) {
-          if(!task.isFinished()) {
-            allDone = false;
-            job.eventHandler.handle(
-              new TaskEvent(task.getID(), TaskEventType.T_KILL));
-          }
-        }
-
-        //If all tasks are already done, we should go directly to FAIL_ABORT
-        if(allDone) {
-          job.eventHandler.handle(new CommitterJobAbortEvent(job.jobId,
-            job.jobContext, org.apache.hadoop.mapreduce.JobStatus.State.FAILED)
-          );
-          return JobStateInternal.FAIL_ABORT;
-        }
-
-        //Set max timeout to wait for the tasks to get killed
-        job.failWaitTriggerScheduledFuture = job.executor.schedule(
-          new TriggerScheduledFuture(job, new JobEvent(job.getID(),
-            JobEventType.JOB_FAIL_WAIT_TIMEDOUT)), job.conf.getInt(
-                MRJobConfig.MR_AM_COMMITTER_CANCEL_TIMEOUT_MS,
-                MRJobConfig.DEFAULT_MR_AM_COMMITTER_CANCEL_TIMEOUT_MS),
-                TimeUnit.MILLISECONDS);
-        return JobStateInternal.FAIL_WAIT;
+        job.eventHandler.handle(new CommitterJobAbortEvent(job.jobId,
+            job.jobContext,
+            org.apache.hadoop.mapreduce.JobStatus.State.FAILED));
+        return JobStateInternal.FAIL_ABORT;
       }
       
       return job.checkReadyForCommit();

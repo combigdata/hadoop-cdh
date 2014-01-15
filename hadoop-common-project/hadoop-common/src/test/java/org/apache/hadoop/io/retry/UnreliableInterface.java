@@ -26,8 +26,6 @@ import org.apache.hadoop.ipc.StandbyException;
 public interface UnreliableInterface {
   
   public static class UnreliableException extends Exception {
-    private static final long serialVersionUID = 1L;
-
     private String identifier;
     
     public UnreliableException() {
@@ -45,7 +43,6 @@ public interface UnreliableInterface {
   }
   
   public static class FatalException extends UnreliableException {
-    private static final long serialVersionUID = 1L;
     // no body
   }
   

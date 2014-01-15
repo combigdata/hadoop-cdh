@@ -18,10 +18,6 @@
 
 package org.apache.hadoop.yarn.server.resourcemanager;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.security.PrivilegedExceptionAction;
@@ -36,9 +32,8 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.authorize.AccessControlList;
-import org.apache.hadoop.service.Service.STATE;
-import org.apache.hadoop.yarn.api.ApplicationClientProtocol;
-import org.apache.hadoop.yarn.api.protocolrecords.GetApplicationsRequest;
+import org.apache.hadoop.yarn.api.ClientRMProtocol;
+import org.apache.hadoop.yarn.api.protocolrecords.GetAllApplicationsRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.GetApplicationReportRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.KillApplicationRequest;
@@ -49,7 +44,6 @@ import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ApplicationResourceUsageReport;
 import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
-import org.apache.hadoop.yarn.api.records.QueueACL;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
@@ -59,21 +53,17 @@ import org.apache.hadoop.yarn.ipc.YarnRPC;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStoreFactory;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppState;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
-import org.apache.hadoop.yarn.server.resourcemanager.security.QueueACLsManager;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
+import org.apache.hadoop.yarn.service.Service.STATE;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 public class TestApplicationACLs {
 
   private static final String APP_OWNER = "owner";
   private static final String FRIEND = "friend";
   private static final String ENEMY = "enemy";
-  private static final String QUEUE_ADMIN_USER = "queue-admin-user";
   private static final String SUPER_USER = "superUser";
   private static final String FRIENDLY_GROUP = "friendly-group";
   private static final String SUPER_GROUP = "superGroup";
@@ -88,12 +78,10 @@ public class TestApplicationACLs {
       YarnConfiguration.RM_ADDRESS,
       YarnConfiguration.DEFAULT_RM_ADDRESS,
       YarnConfiguration.DEFAULT_RM_PORT);
-  private static ApplicationClientProtocol rmClient;
+  private static ClientRMProtocol rmClient;
 
   private static RecordFactory recordFactory = RecordFactoryProvider
       .getRecordFactory(conf);
-
-  private static boolean isQueueUser = false;
 
   @BeforeClass
   public static void setup() throws InterruptedException, IOException {
@@ -103,25 +91,9 @@ public class TestApplicationACLs {
     adminACL.addGroup(SUPER_GROUP);
     conf.set(YarnConfiguration.YARN_ADMIN_ACL, adminACL.getAclString());
     resourceManager = new MockRM(conf) {
-
-      @Override
-      protected QueueACLsManager createQueueACLsManager(
-          ResourceScheduler scheduler,
-          Configuration conf) {
-        QueueACLsManager mockQueueACLsManager = mock(QueueACLsManager.class);
-        when(mockQueueACLsManager.checkAccess(any(UserGroupInformation.class),
-            any(QueueACL.class), anyString())).thenAnswer(new Answer() {
-          public Object answer(InvocationOnMock invocation) {
-            return isQueueUser;
-          }
-        });
-        return mockQueueACLsManager;
-      }
-
       protected ClientRMService createClientRMService() {
         return new ClientRMService(getRMContext(), this.scheduler,
-            this.rmAppManager, this.applicationACLsManager,
-            this.queueACLsManager, null);
+            this.rmAppManager, this.applicationACLsManager, null);
       };
     };
     new Thread() {
@@ -149,10 +121,10 @@ public class TestApplicationACLs {
 
     UserGroupInformation owner = UserGroupInformation
         .createRemoteUser(APP_OWNER);
-    rmClient = owner.doAs(new PrivilegedExceptionAction<ApplicationClientProtocol>() {
+    rmClient = owner.doAs(new PrivilegedExceptionAction<ClientRMProtocol>() {
       @Override
-      public ApplicationClientProtocol run() throws Exception {
-        return (ApplicationClientProtocol) rpc.getProxy(ApplicationClientProtocol.class,
+      public ClientRMProtocol run() throws Exception {
+        return (ClientRMProtocol) rpc.getProxy(ClientRMProtocol.class,
             rmAddress, conf);
       }
     });
@@ -175,8 +147,6 @@ public class TestApplicationACLs {
     verifyFriendAccess();
 
     verifyEnemyAccess();
-
-    verifyAdministerQueueUserAccess();
   }
 
   private ApplicationId submitAppAndGetAppId(AccessControlList viewACL,
@@ -208,15 +178,15 @@ public class TestApplicationACLs {
     return applicationId;
   }
 
-  private ApplicationClientProtocol getRMClientForUser(String user)
+  private ClientRMProtocol getRMClientForUser(String user)
       throws IOException, InterruptedException {
     UserGroupInformation userUGI = UserGroupInformation
         .createRemoteUser(user);
-    ApplicationClientProtocol userClient = userUGI
-        .doAs(new PrivilegedExceptionAction<ApplicationClientProtocol>() {
+    ClientRMProtocol userClient = userUGI
+        .doAs(new PrivilegedExceptionAction<ClientRMProtocol>() {
           @Override
-          public ApplicationClientProtocol run() throws Exception {
-            return (ApplicationClientProtocol) rpc.getProxy(ApplicationClientProtocol.class,
+          public ClientRMProtocol run() throws Exception {
+            return (ClientRMProtocol) rpc.getProxy(ClientRMProtocol.class,
                 rmAddress, conf);
           }
         });
@@ -243,8 +213,8 @@ public class TestApplicationACLs {
 
     // List apps as owner
     Assert.assertEquals("App view by owner should list the apps!!", 1,
-        rmClient.getApplications(
-            recordFactory.newRecordInstance(GetApplicationsRequest.class))
+        rmClient.getAllApplications(
+            recordFactory.newRecordInstance(GetAllApplicationsRequest.class))
             .getApplicationList().size());
 
     // Kill app as owner
@@ -267,15 +237,15 @@ public class TestApplicationACLs {
         .newRecordInstance(KillApplicationRequest.class);
     finishAppRequest.setApplicationId(applicationId);
 
-    ApplicationClientProtocol superUserClient = getRMClientForUser(SUPER_USER);
+    ClientRMProtocol superUserClient = getRMClientForUser(SUPER_USER);
 
     // View as the superUser
     superUserClient.getApplicationReport(appReportRequest);
 
     // List apps as superUser
     Assert.assertEquals("App view by super-user should list the apps!!", 2,
-        superUserClient.getApplications(
-            recordFactory.newRecordInstance(GetApplicationsRequest.class))
+        superUserClient.getAllApplications(
+            recordFactory.newRecordInstance(GetAllApplicationsRequest.class))
             .getApplicationList().size());
 
     // Kill app as the superUser
@@ -298,15 +268,15 @@ public class TestApplicationACLs {
         .newRecordInstance(KillApplicationRequest.class);
     finishAppRequest.setApplicationId(applicationId);
 
-    ApplicationClientProtocol friendClient = getRMClientForUser(FRIEND);
+    ClientRMProtocol friendClient = getRMClientForUser(FRIEND);
 
     // View as the friend
     friendClient.getApplicationReport(appReportRequest);
 
     // List apps as friend
     Assert.assertEquals("App view by a friend should list the apps!!", 3,
-        friendClient.getApplications(
-            recordFactory.newRecordInstance(GetApplicationsRequest.class))
+        friendClient.getAllApplications(
+            recordFactory.newRecordInstance(GetAllApplicationsRequest.class))
             .getApplicationList().size());
 
     // Kill app as the friend
@@ -329,7 +299,7 @@ public class TestApplicationACLs {
         .newRecordInstance(KillApplicationRequest.class);
     finishAppRequest.setApplicationId(applicationId);
 
-    ApplicationClientProtocol enemyRmClient = getRMClientForUser(ENEMY);
+    ClientRMProtocol enemyRmClient = getRMClientForUser(ENEMY);
 
     // View as the enemy
     ApplicationReport appReport = enemyRmClient.getApplicationReport(
@@ -338,8 +308,8 @@ public class TestApplicationACLs {
 
     // List apps as enemy
     List<ApplicationReport> appReports = enemyRmClient
-        .getApplications(recordFactory
-            .newRecordInstance(GetApplicationsRequest.class))
+        .getAllApplications(recordFactory
+            .newRecordInstance(GetAllApplicationsRequest.class))
         .getApplicationList();
     Assert.assertEquals("App view by enemy should list the apps!!", 4,
         appReports.size());
@@ -368,7 +338,7 @@ public class TestApplicationACLs {
     Assert.assertEquals("Enemy should not see app rpc port!",
         -1, appReport.getRpcPort());
     Assert.assertEquals("Enemy should not see app client token!",
-        null, appReport.getClientToAMToken());
+        null, appReport.getClientToken());
     Assert.assertEquals("Enemy should not see app diagnostics!",
         UNAVAILABLE, appReport.getDiagnostics());
     Assert.assertEquals("Enemy should not see app tracking url!",
@@ -387,37 +357,5 @@ public class TestApplicationACLs {
         -1, usageReport.getReservedResources().getMemory());
     Assert.assertEquals("Enemy should not see app needed resources",
         -1, usageReport.getNeededResources().getMemory());
-  }
-
-  private void verifyAdministerQueueUserAccess() throws Exception {
-    isQueueUser = true;
-    AccessControlList viewACL = new AccessControlList("");
-    viewACL.addGroup(FRIENDLY_GROUP);
-    AccessControlList modifyACL = new AccessControlList("");
-    modifyACL.addUser(FRIEND);
-    ApplicationId applicationId = submitAppAndGetAppId(viewACL, modifyACL);
-
-    final GetApplicationReportRequest appReportRequest = recordFactory
-        .newRecordInstance(GetApplicationReportRequest.class);
-    appReportRequest.setApplicationId(applicationId);
-    final KillApplicationRequest finishAppRequest = recordFactory
-        .newRecordInstance(KillApplicationRequest.class);
-    finishAppRequest.setApplicationId(applicationId);
-
-    ApplicationClientProtocol administerQueueUserRmClient =
-        getRMClientForUser(QUEUE_ADMIN_USER);
-
-    // View as the administerQueueUserRmClient
-    administerQueueUserRmClient.getApplicationReport(appReportRequest);
-
-    // List apps as administerQueueUserRmClient
-    Assert.assertEquals("App view by queue-admin-user should list the apps!!",
-        5, administerQueueUserRmClient.getApplications(
-               recordFactory.newRecordInstance(GetApplicationsRequest.class))
-               .getApplicationList().size());
-
-    // Kill app as the administerQueueUserRmClient
-    administerQueueUserRmClient.forceKillApplication(finishAppRequest);
-    resourceManager.waitForState(applicationId, RMAppState.KILLED);
   }
 }

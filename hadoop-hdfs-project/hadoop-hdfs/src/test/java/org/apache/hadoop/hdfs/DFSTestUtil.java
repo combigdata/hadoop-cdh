@@ -18,20 +18,55 @@
 
 package org.apache.hadoop.hdfs;
 
-import com.google.common.base.Charsets;
-import com.google.common.base.Joiner;
+import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_NAMENODE_RPC_ADDRESS_KEY;
+import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_NAMENODE_SERVICE_RPC_ADDRESS_KEY;
+import static org.junit.Assert.assertEquals;
+
+import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.net.URL;
+import java.net.URLConnection;
+import java.security.PrivilegedExceptionAction;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
+import java.util.concurrent.TimeoutException;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.*;
+import org.apache.hadoop.fs.BlockLocation;
+import org.apache.hadoop.fs.CommonConfigurationKeys;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileSystem.Statistics;
-import org.apache.hadoop.fs.Options.Rename;
-import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.MiniDFSCluster.NameNodeInfo;
 import org.apache.hadoop.hdfs.client.HdfsDataInputStream;
-import org.apache.hadoop.hdfs.protocol.*;
+import org.apache.hadoop.hdfs.protocol.DatanodeID;
+import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
 import org.apache.hadoop.hdfs.protocol.DatanodeInfo.AdminStates;
+import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
+import org.apache.hadoop.hdfs.protocol.HdfsConstants;
+import org.apache.hadoop.hdfs.protocol.LocatedBlock;
+import org.apache.hadoop.hdfs.protocol.LocatedBlocks;
 import org.apache.hadoop.hdfs.protocol.datatransfer.Sender;
 import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.BlockOpResponseProto;
 import org.apache.hadoop.hdfs.security.token.block.BlockTokenIdentifier;
@@ -53,15 +88,8 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.VersionInfo;
 
-import java.io.*;
-import java.net.*;
-import java.security.PrivilegedExceptionAction;
-import java.util.*;
-import java.util.concurrent.TimeoutException;
-
-import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_NAMENODE_RPC_ADDRESS_KEY;
-import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_NAMENODE_SERVICE_RPC_ADDRESS_KEY;
-import static org.junit.Assert.assertEquals;
+import com.google.common.base.Charsets;
+import com.google.common.base.Joiner;
 
 /** Utilities for HDFS tests */
 public class DFSTestUtil {
@@ -81,10 +109,10 @@ public class DFSTestUtil {
   
   /** Creates a new instance of DFSTestUtil
    *
+   * @param testName Name of the test from where this utility is used
    * @param nFiles Number of files to be created
    * @param maxLevels Maximum number of directory levels
    * @param maxSize Maximum size for file
-   * @param minSize Minimum size for file
    */
   private DFSTestUtil(int nFiles, int maxLevels, int maxSize, int minSize) {
     this.nFiles = nFiles;
@@ -110,7 +138,7 @@ public class DFSTestUtil {
   }
   
   /**
-   * when formatting a namenode - we must provide clusterid.
+   * when formating a namenode - we must provide clusterid.
    * @param conf
    * @throws IOException
    */
@@ -209,39 +237,6 @@ public class DFSTestUtil {
       out = null;
     } finally {
       IOUtils.closeStream(out);
-    }
-  }
-
-  public static void createFile(FileSystem fs, Path fileName, int bufferLen,
-                                long fileLen, long blockSize, short replFactor, long seed)
-      throws IOException {
-    assert bufferLen > 0;
-    if (!fs.mkdirs(fileName.getParent())) {
-      throw new IOException("Mkdirs failed to create " +
-                            fileName.getParent().toString());
-    }
-    FSDataOutputStream out = null;
-    try {
-      out = fs.create(fileName, true, fs.getConf()
-                                        .getInt(CommonConfigurationKeys.IO_FILE_BUFFER_SIZE_KEY, 4096),
-                      replFactor, blockSize);
-      if (fileLen > 0) {
-        byte[] toWrite = new byte[bufferLen];
-        Random rb = new Random(seed);
-        long bytesToWrite = fileLen;
-        while (bytesToWrite>0) {
-          rb.nextBytes(toWrite);
-          int bytesToWriteNext = (bufferLen < bytesToWrite) ? bufferLen
-              : (int) bytesToWrite;
-
-          out.write(toWrite, 0, bytesToWriteNext);
-          bytesToWrite -= bytesToWriteNext;
-        }
-      }
-    } finally {
-      if (out != null) {
-        out.close();
-      }
     }
   }
   
@@ -557,7 +552,7 @@ public class DFSTestUtil {
   }
   
   public static ExtendedBlock getFirstBlock(FileSystem fs, Path path) throws IOException {
-    HdfsDataInputStream in = (HdfsDataInputStream) fs.open(path);
+    HdfsDataInputStream in = (HdfsDataInputStream)((DistributedFileSystem)fs).open(path);
     in.readByte();
     return in.getCurrentBlock();
   }  
@@ -565,12 +560,6 @@ public class DFSTestUtil {
   public static List<LocatedBlock> getAllBlocks(FSDataInputStream in)
       throws IOException {
     return ((HdfsDataInputStream) in).getAllBlocks();
-  }
-
-  public static List<LocatedBlock> getAllBlocks(FileSystem fs, Path path)
-      throws IOException {
-    HdfsDataInputStream in = (HdfsDataInputStream) fs.open(path);
-    return in.getAllBlocks();
   }
 
   public static Token<BlockTokenIdentifier> getBlockToken(
@@ -793,7 +782,6 @@ public class DFSTestUtil {
     return new DatanodeID(ipAddr, "localhost", "",
         DFSConfigKeys.DFS_DATANODE_DEFAULT_PORT,
         DFSConfigKeys.DFS_DATANODE_HTTP_DEFAULT_PORT,
-        DFSConfigKeys.DFS_DATANODE_HTTPS_DEFAULT_PORT,
         DFSConfigKeys.DFS_DATANODE_IPC_DEFAULT_PORT);
   }
 
@@ -803,7 +791,7 @@ public class DFSTestUtil {
 
   public static DatanodeID getLocalDatanodeID(int port) {
     return new DatanodeID("127.0.0.1", "localhost", "",
-        port, port, port, port);
+        port, port, port);
   }
 
   public static DatanodeDescriptor getLocalDatanodeDescriptor() {
@@ -826,7 +814,6 @@ public class DFSTestUtil {
       String host, int port) {
     return new DatanodeInfo(new DatanodeID(ipAddr, host, "",
         port, DFSConfigKeys.DFS_DATANODE_HTTP_DEFAULT_PORT,
-        DFSConfigKeys.DFS_DATANODE_HTTPS_DEFAULT_PORT,
         DFSConfigKeys.DFS_DATANODE_IPC_DEFAULT_PORT));
   }
 
@@ -835,7 +822,6 @@ public class DFSTestUtil {
     return new DatanodeInfo(ipAddr, hostname, "",
         DFSConfigKeys.DFS_DATANODE_DEFAULT_PORT,
         DFSConfigKeys.DFS_DATANODE_HTTP_DEFAULT_PORT,
-        DFSConfigKeys.DFS_DATANODE_HTTPS_DEFAULT_PORT,
         DFSConfigKeys.DFS_DATANODE_IPC_DEFAULT_PORT,
         1, 2, 3, 4, 5, 6, "local", adminState);
   }
@@ -850,7 +836,6 @@ public class DFSTestUtil {
       int port, String rackLocation) {
     DatanodeID dnId = new DatanodeID(ipAddr, "host", "", port,
         DFSConfigKeys.DFS_DATANODE_HTTP_DEFAULT_PORT,
-        DFSConfigKeys.DFS_DATANODE_HTTPS_DEFAULT_PORT,
         DFSConfigKeys.DFS_DATANODE_IPC_DEFAULT_PORT);
     return new DatanodeDescriptor(dnId, rackLocation);
   }
@@ -858,25 +843,6 @@ public class DFSTestUtil {
   public static DatanodeRegistration getLocalDatanodeRegistration() {
     return new DatanodeRegistration(getLocalDatanodeID(),
         new StorageInfo(), new ExportedBlockKeys(), VersionInfo.getVersion());
-  }
-  
-  /** Copy one file's contents into the other **/
-  public static void copyFile(File src, File dest) throws IOException {
-    InputStream in = null;
-    OutputStream out = null;
-    
-    try {
-      in = new FileInputStream(src);
-      out = new FileOutputStream(dest);
-
-      byte [] b = new byte[1024];
-      while( in.read(b)  > 0 ) {
-        out.write(b);
-      }
-    } finally {
-      if(in != null) in.close();
-      if(out != null) out.close();
-    }
   }
 
   public static class Builder {
@@ -915,103 +881,5 @@ public class DFSTestUtil {
     public DFSTestUtil build() {
       return new DFSTestUtil(nFiles, maxLevels, maxSize, minSize);
     }
-  }
-  
-  /**
-   * Run a set of operations and generate all edit logs
-   */
-  public static void runOperations(MiniDFSCluster cluster,
-      DistributedFileSystem filesystem, Configuration conf, long blockSize, 
-      int nnIndex) throws IOException {
-    // create FileContext for rename2
-    FileContext fc = FileContext.getFileContext(cluster.getURI(0), conf);
-    
-    // OP_ADD 0
-    final Path pathFileCreate = new Path("/file_create");
-    FSDataOutputStream s = filesystem.create(pathFileCreate);
-    // OP_CLOSE 9
-    s.close();
-    // OP_RENAME_OLD 1
-    final Path pathFileMoved = new Path("/file_moved");
-    filesystem.rename(pathFileCreate, pathFileMoved);
-    // OP_DELETE 2
-    filesystem.delete(pathFileMoved, false);
-    // OP_MKDIR 3
-    Path pathDirectoryMkdir = new Path("/directory_mkdir");
-    filesystem.mkdirs(pathDirectoryMkdir);
-    // OP_ALLOW_SNAPSHOT 29
-    filesystem.allowSnapshot(pathDirectoryMkdir);
-    // OP_DISALLOW_SNAPSHOT 30
-    filesystem.disallowSnapshot(pathDirectoryMkdir);
-    // OP_CREATE_SNAPSHOT 26
-    String ssName = "snapshot1";
-    filesystem.allowSnapshot(pathDirectoryMkdir);
-    filesystem.createSnapshot(pathDirectoryMkdir, ssName);
-    // OP_RENAME_SNAPSHOT 28
-    String ssNewName = "snapshot2";
-    filesystem.renameSnapshot(pathDirectoryMkdir, ssName, ssNewName);
-    // OP_DELETE_SNAPSHOT 27
-    filesystem.deleteSnapshot(pathDirectoryMkdir, ssNewName);
-    // OP_SET_REPLICATION 4
-    s = filesystem.create(pathFileCreate);
-    s.close();
-    filesystem.setReplication(pathFileCreate, (short)1);
-    // OP_SET_PERMISSIONS 7
-    Short permission = 0777;
-    filesystem.setPermission(pathFileCreate, new FsPermission(permission));
-    // OP_SET_OWNER 8
-    filesystem.setOwner(pathFileCreate, new String("newOwner"), null);
-    // OP_CLOSE 9 see above
-    // OP_SET_GENSTAMP 10 see above
-    // OP_SET_NS_QUOTA 11 obsolete
-    // OP_CLEAR_NS_QUOTA 12 obsolete
-    // OP_TIMES 13
-    long mtime = 1285195527000L; // Wed, 22 Sep 2010 22:45:27 GMT
-    long atime = mtime;
-    filesystem.setTimes(pathFileCreate, mtime, atime);
-    // OP_SET_QUOTA 14
-    filesystem.setQuota(pathDirectoryMkdir, 1000L, 
-        HdfsConstants.QUOTA_DONT_SET);
-    // OP_RENAME 15
-    fc.rename(pathFileCreate, pathFileMoved, Rename.NONE);
-    // OP_CONCAT_DELETE 16
-    Path   pathConcatTarget = new Path("/file_concat_target");
-    Path[] pathConcatFiles  = new Path[2];
-    pathConcatFiles[0]      = new Path("/file_concat_0");
-    pathConcatFiles[1]      = new Path("/file_concat_1");
-
-    long length = blockSize * 3; // multiple of blocksize for concat
-    short replication = 1;
-    long seed = 1;
-    DFSTestUtil.createFile(filesystem, pathConcatTarget, length, replication,
-        seed);
-    DFSTestUtil.createFile(filesystem, pathConcatFiles[0], length, replication,
-        seed);
-    DFSTestUtil.createFile(filesystem, pathConcatFiles[1], length, replication,
-        seed);
-    filesystem.concat(pathConcatTarget, pathConcatFiles);
-    
-    // OP_SYMLINK 17
-    Path pathSymlink = new Path("/file_symlink");
-    fc.createSymlink(pathConcatTarget, pathSymlink, false);
-    
-    // OP_REASSIGN_LEASE 22
-    String filePath = "/hard-lease-recovery-test";
-    byte[] bytes = "foo-bar-baz".getBytes();
-    DFSClientAdapter.stopLeaseRenewer(filesystem);
-    FSDataOutputStream leaseRecoveryPath = filesystem.create(new Path(filePath));
-    leaseRecoveryPath.write(bytes);
-    leaseRecoveryPath.hflush();
-    // Set the hard lease timeout to 1 second.
-    cluster.setLeasePeriod(60 * 1000, 1000, nnIndex);
-    // wait for lease recovery to complete
-    LocatedBlocks locatedBlocks;
-    do {
-      try {
-        Thread.sleep(1000);
-      } catch (InterruptedException e) {}
-      locatedBlocks = DFSClientAdapter.callGetBlockLocations(
-          cluster.getNameNodeRpc(nnIndex), filePath, 0L, bytes.length);
-    } while (locatedBlocks.isUnderConstruction());
   }
 }

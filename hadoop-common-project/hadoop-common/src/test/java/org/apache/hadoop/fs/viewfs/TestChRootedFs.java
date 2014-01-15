@@ -25,7 +25,6 @@ import java.util.EnumSet;
 import static org.apache.hadoop.fs.FileContextTestHelper.*;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.AbstractFileSystem;
 import org.apache.hadoop.fs.CreateFlag;
 import org.apache.hadoop.fs.FileContext;
 import org.apache.hadoop.fs.FileContextTestHelper;
@@ -37,7 +36,6 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 public class TestChRootedFs {
   FileContextTestHelper fileContextTestHelper = new FileContextTestHelper();
@@ -310,21 +308,4 @@ public class TestChRootedFs {
       fc.getDefaultFileSystem().resolvePath(new Path("/nonExisting"));
   }
  
-  @Test
-  public void testIsValidNameValidInBaseFs() throws Exception {
-    AbstractFileSystem baseFs = Mockito.spy(fc.getDefaultFileSystem());
-    ChRootedFs chRootedFs = new ChRootedFs(baseFs, new Path("/chroot"));
-    Mockito.doReturn(true).when(baseFs).isValidName(Mockito.anyString());
-    Assert.assertTrue(chRootedFs.isValidName("/test"));
-    Mockito.verify(baseFs).isValidName("/chroot/test");
-  }
-
-  @Test
-  public void testIsValidNameInvalidInBaseFs() throws Exception {
-    AbstractFileSystem baseFs = Mockito.spy(fc.getDefaultFileSystem());
-    ChRootedFs chRootedFs = new ChRootedFs(baseFs, new Path("/chroot"));
-    Mockito.doReturn(false).when(baseFs).isValidName(Mockito.anyString());
-    Assert.assertFalse(chRootedFs.isValidName("/test"));
-    Mockito.verify(baseFs).isValidName("/chroot/test");
-  }
 }

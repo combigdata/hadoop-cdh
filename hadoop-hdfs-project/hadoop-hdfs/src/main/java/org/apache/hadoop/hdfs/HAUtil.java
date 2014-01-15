@@ -17,9 +17,15 @@
  */
 package org.apache.hadoop.hdfs;
 
-import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
+import static org.apache.hadoop.hdfs.DFSConfigKeys.*;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Map;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.HadoopIllegalArgumentException;
@@ -35,17 +41,11 @@ import org.apache.hadoop.ipc.RPC;
 import org.apache.hadoop.security.SecurityUtil;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
-
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Map;
-
-import static org.apache.hadoop.hdfs.DFSConfigKeys.*;
 import static org.apache.hadoop.hdfs.protocol.HdfsConstants.HA_DT_SERVICE_PREFIX;
+
+import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 
 public class HAUtil {
   
@@ -265,15 +265,10 @@ public class HAUtil {
         tokenSelector.selectToken(haService, ugi.getTokens());
     if (haToken != null) {
       for (InetSocketAddress singleNNAddr : nnAddrs) {
-        // this is a minor hack to prevent physical HA tokens from being
-        // exposed to the user via UGI.getCredentials(), otherwise these
-        // cloned tokens may be inadvertently propagated to jobs
         Token<DelegationTokenIdentifier> specificToken =
-            new Token.PrivateToken<DelegationTokenIdentifier>(haToken);
+            new Token<DelegationTokenIdentifier>(haToken);
         SecurityUtil.setTokenService(specificToken, singleNNAddr);
-        Text alias =
-            new Text(HA_DT_SERVICE_PREFIX + "//" + specificToken.getService());
-        ugi.addToken(alias, specificToken);
+        ugi.addToken(specificToken);
         LOG.debug("Mapped HA service delegation token for logical URI " +
             haUri + " to namenode " + singleNNAddr);
       }

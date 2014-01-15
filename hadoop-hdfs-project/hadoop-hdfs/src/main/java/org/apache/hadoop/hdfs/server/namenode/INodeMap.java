@@ -24,8 +24,8 @@ import org.apache.hadoop.fs.permission.PermissionStatus;
 import org.apache.hadoop.hdfs.protocol.QuotaExceededException;
 import org.apache.hadoop.hdfs.server.namenode.Quota.Counts;
 import org.apache.hadoop.hdfs.server.namenode.snapshot.Snapshot;
-import org.apache.hadoop.util.GSet;
-import org.apache.hadoop.util.LightWeightGSet;
+import org.apache.hadoop.hdfs.util.GSet;
+import org.apache.hadoop.hdfs.util.LightWeightGSet;
 
 import com.google.common.base.Preconditions;
 
@@ -45,7 +45,7 @@ public class INodeMap {
   }
   
   /** Synchronized by external lock. */
-  private final GSet<INode, INodeWithAdditionalFields> map;
+  private GSet<INode, INodeWithAdditionalFields> map;
   
   private INodeMap(GSet<INode, INodeWithAdditionalFields> map) {
     Preconditions.checkArgument(map != null);
@@ -113,8 +113,8 @@ public class INodeMap {
       
       @Override
       public Counts cleanSubtree(Snapshot snapshot, Snapshot prior,
-          BlocksMapUpdateInfo collectedBlocks, List<INode> removedINodes,
-          boolean countDiffChange) throws QuotaExceededException {
+          BlocksMapUpdateInfo collectedBlocks, List<INode> removedINodes)
+          throws QuotaExceededException {
         return null;
       }
     };

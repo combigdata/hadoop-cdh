@@ -189,7 +189,7 @@ public class MiniRPCBenchmark {
     MiniProtocol client = null;
     try {
       long start = Time.now();
-      client = RPC.getProxy(MiniProtocol.class,
+      client = (MiniProtocol) RPC.getProxy(MiniProtocol.class,
           MiniProtocol.versionID, addr, conf);
       long end = Time.now();
       return end - start;
@@ -211,7 +211,7 @@ public class MiniRPCBenchmark {
         client =  proxyUserUgi.doAs(new PrivilegedExceptionAction<MiniProtocol>() {
           @Override
           public MiniProtocol run() throws IOException {
-            MiniProtocol p = RPC.getProxy(MiniProtocol.class,
+            MiniProtocol p = (MiniProtocol) RPC.getProxy(MiniProtocol.class,
                 MiniProtocol.versionID, addr, conf);
             Token<TestDelegationTokenIdentifier> token;
             token = p.getDelegationToken(new Text(RENEWER));
@@ -239,7 +239,7 @@ public class MiniRPCBenchmark {
         client = currentUgi.doAs(new PrivilegedExceptionAction<MiniProtocol>() {
           @Override
           public MiniProtocol run() throws IOException {
-            return RPC.getProxy(MiniProtocol.class,
+            return (MiniProtocol) RPC.getProxy(MiniProtocol.class,
                 MiniProtocol.versionID, addr, conf);
           }
         });

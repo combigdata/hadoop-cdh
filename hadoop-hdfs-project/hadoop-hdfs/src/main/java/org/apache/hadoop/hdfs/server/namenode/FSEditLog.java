@@ -60,6 +60,7 @@ import org.apache.hadoop.hdfs.server.namenode.FSEditLogOp.RenameOldOp;
 import org.apache.hadoop.hdfs.server.namenode.FSEditLogOp.RenameOp;
 import org.apache.hadoop.hdfs.server.namenode.FSEditLogOp.RenameSnapshotOp;
 import org.apache.hadoop.hdfs.server.namenode.FSEditLogOp.RenewDelegationTokenOp;
+import org.apache.hadoop.hdfs.server.namenode.FSEditLogOp.SetGenstampOp;
 import org.apache.hadoop.hdfs.server.namenode.FSEditLogOp.SetOwnerOp;
 import org.apache.hadoop.hdfs.server.namenode.FSEditLogOp.SetPermissionsOp;
 import org.apache.hadoop.hdfs.server.namenode.FSEditLogOp.SetQuotaOp;
@@ -68,9 +69,6 @@ import org.apache.hadoop.hdfs.server.namenode.FSEditLogOp.SymlinkOp;
 import org.apache.hadoop.hdfs.server.namenode.FSEditLogOp.TimesOp;
 import org.apache.hadoop.hdfs.server.namenode.FSEditLogOp.UpdateBlocksOp;
 import org.apache.hadoop.hdfs.server.namenode.FSEditLogOp.UpdateMasterKeyOp;
-import org.apache.hadoop.hdfs.server.namenode.FSEditLogOp.AllocateBlockIdOp;
-import org.apache.hadoop.hdfs.server.namenode.FSEditLogOp.SetGenstampV1Op;
-import org.apache.hadoop.hdfs.server.namenode.FSEditLogOp.SetGenstampV2Op;
 import org.apache.hadoop.hdfs.server.namenode.JournalSet.JournalAndStream;
 import org.apache.hadoop.hdfs.server.namenode.NNStorage.NameNodeDirType;
 import org.apache.hadoop.hdfs.server.namenode.metrics.NameNodeMetrics;
@@ -78,7 +76,6 @@ import org.apache.hadoop.hdfs.server.protocol.NamenodeRegistration;
 import org.apache.hadoop.hdfs.server.protocol.NamespaceInfo;
 import org.apache.hadoop.hdfs.server.protocol.RemoteEditLogManifest;
 import org.apache.hadoop.io.IOUtils;
-import org.apache.hadoop.ipc.Server;
 import org.apache.hadoop.security.token.delegation.DelegationKey;
 import org.apache.hadoop.conf.Configuration;
 
@@ -249,7 +246,7 @@ public class FSEditLog implements LogsPurgeable {
       if (u.getScheme().equals(NNStorage.LOCAL_URI_SCHEME)) {
         StorageDirectory sd = storage.getStorageDirectory(u);
         if (sd != null) {
-          journalSet.add(new FileJournalManager(conf, sd, storage), required);
+          journalSet.add(new FileJournalManager(sd, storage), required);
         }
       } else {
         journalSet.add(createJournal(u), required);
@@ -352,7 +349,7 @@ public class FSEditLog implements LogsPurgeable {
    * File-based journals are skipped, since they are formatted by the
    * Storage format code.
    */
-  synchronized void formatNonFileJournals(NamespaceInfo nsInfo) throws IOException {
+  void formatNonFileJournals(NamespaceInfo nsInfo) throws IOException {
     Preconditions.checkState(state == State.BETWEEN_LOG_SEGMENTS,
         "Bad state: %s", state);
     
@@ -363,7 +360,7 @@ public class FSEditLog implements LogsPurgeable {
     }
   }
   
-  synchronized List<FormatConfirmable> getFormatConfirmables() {
+  List<FormatConfirmable> getFormatConfirmables() {
     Preconditions.checkState(state == State.BETWEEN_LOG_SEGMENTS,
         "Bad state: %s", state);
 
@@ -663,20 +660,11 @@ public class FSEditLog implements LogsPurgeable {
     LOG.info(buf);
   }
 
-  /** Record the RPC IDs if necessary */
-  private void logRpcIds(FSEditLogOp op, boolean toLogRpcIds) {
-    if (toLogRpcIds) {
-      op.setRpcClientId(Server.getClientId());
-      op.setRpcCallId(Server.getCallId());
-    }
-  }
-  
   /** 
    * Add open lease record to edit log. 
    * Records the block locations of the last block.
    */
-  public void logOpenFile(String path, INodeFileUnderConstruction newNode,
-      boolean toLogRpcIds) {
+  public void logOpenFile(String path, INodeFileUnderConstruction newNode) {
     AddOp op = AddOp.getInstance(cache.get())
       .setInodeId(newNode.getId())
       .setPath(path)
@@ -688,8 +676,8 @@ public class FSEditLog implements LogsPurgeable {
       .setPermissionStatus(newNode.getPermissionStatus())
       .setClientName(newNode.getClientName())
       .setClientMachine(newNode.getClientMachine());
-    logRpcIds(op, toLogRpcIds);
-    logEdit(op);
+    
+      logEdit(op);
   }
 
   /** 
@@ -708,12 +696,10 @@ public class FSEditLog implements LogsPurgeable {
     logEdit(op);
   }
   
-  public void logUpdateBlocks(String path, INodeFileUnderConstruction file,
-      boolean toLogRpcIds) {
+  public void logUpdateBlocks(String path, INodeFileUnderConstruction file) {
     UpdateBlocksOp op = UpdateBlocksOp.getInstance(cache.get())
       .setPath(path)
       .setBlocks(file.getBlocks());
-    logRpcIds(op, toLogRpcIds);
     logEdit(op);
   }
   
@@ -733,26 +719,23 @@ public class FSEditLog implements LogsPurgeable {
    * Add rename record to edit log
    * TODO: use String parameters until just before writing to disk
    */
-  void logRename(String src, String dst, long timestamp, boolean toLogRpcIds) {
+  void logRename(String src, String dst, long timestamp) {
     RenameOldOp op = RenameOldOp.getInstance(cache.get())
       .setSource(src)
       .setDestination(dst)
       .setTimestamp(timestamp);
-    logRpcIds(op, toLogRpcIds);
     logEdit(op);
   }
   
   /** 
    * Add rename record to edit log
    */
-  void logRename(String src, String dst, long timestamp, boolean toLogRpcIds,
-      Options.Rename... options) {
+  void logRename(String src, String dst, long timestamp, Options.Rename... options) {
     RenameOp op = RenameOp.getInstance(cache.get())
       .setSource(src)
       .setDestination(dst)
       .setTimestamp(timestamp)
       .setOptions(options);
-    logRpcIds(op, toLogRpcIds);
     logEdit(op);
   }
   
@@ -799,50 +782,30 @@ public class FSEditLog implements LogsPurgeable {
   /**
    * concat(trg,src..) log
    */
-  void logConcat(String trg, String[] srcs, long timestamp, boolean toLogRpcIds) {
+  void logConcat(String trg, String [] srcs, long timestamp) {
     ConcatDeleteOp op = ConcatDeleteOp.getInstance(cache.get())
       .setTarget(trg)
       .setSources(srcs)
       .setTimestamp(timestamp);
-    logRpcIds(op, toLogRpcIds);
     logEdit(op);
   }
   
   /** 
    * Add delete file record to edit log
    */
-  void logDelete(String src, long timestamp, boolean toLogRpcIds) {
+  void logDelete(String src, long timestamp) {
     DeleteOp op = DeleteOp.getInstance(cache.get())
       .setPath(src)
       .setTimestamp(timestamp);
-    logRpcIds(op, toLogRpcIds);
     logEdit(op);
   }
 
-  /**
-   * Add legacy block generation stamp record to edit log
-   */
-  void logGenerationStampV1(long genstamp) {
-    SetGenstampV1Op op = SetGenstampV1Op.getInstance(cache.get())
-        .setGenerationStamp(genstamp);
-    logEdit(op);
-  }
-
-  /**
+  /** 
    * Add generation stamp record to edit log
    */
-  void logGenerationStampV2(long genstamp) {
-    SetGenstampV2Op op = SetGenstampV2Op.getInstance(cache.get())
-        .setGenerationStamp(genstamp);
-    logEdit(op);
-  }
-
-  /**
-   * Record a newly allocated block ID in the edit log
-   */
-  void logAllocateBlockId(long blockId) {
-    AllocateBlockIdOp op = AllocateBlockIdOp.getInstance(cache.get())
-      .setBlockId(blockId);
+  void logGenerationStamp(long genstamp) {
+    SetGenstampOp op = SetGenstampOp.getInstance(cache.get())
+      .setGenerationStamp(genstamp);
     logEdit(op);
   }
 
@@ -860,8 +823,8 @@ public class FSEditLog implements LogsPurgeable {
   /** 
    * Add a create symlink record.
    */
-  void logSymlink(String path, String value, long mtime, long atime,
-      INodeSymlink node, boolean toLogRpcIds) {
+  void logSymlink(String path, String value, long mtime, 
+                  long atime, INodeSymlink node) {
     SymlinkOp op = SymlinkOp.getInstance(cache.get())
       .setId(node.getId())
       .setPath(path)
@@ -869,7 +832,6 @@ public class FSEditLog implements LogsPurgeable {
       .setModificationTime(mtime)
       .setAccessTime(atime)
       .setPermissionStatus(node.getPermissionStatus());
-    logRpcIds(op, toLogRpcIds);
     logEdit(op);
   }
   
@@ -914,26 +876,22 @@ public class FSEditLog implements LogsPurgeable {
     logEdit(op);
   }
   
-  void logCreateSnapshot(String snapRoot, String snapName, boolean toLogRpcIds) {
+  void logCreateSnapshot(String snapRoot, String snapName) {
     CreateSnapshotOp op = CreateSnapshotOp.getInstance(cache.get())
         .setSnapshotRoot(snapRoot).setSnapshotName(snapName);
-    logRpcIds(op, toLogRpcIds);
     logEdit(op);
   }
   
-  void logDeleteSnapshot(String snapRoot, String snapName, boolean toLogRpcIds) {
+  void logDeleteSnapshot(String snapRoot, String snapName) {
     DeleteSnapshotOp op = DeleteSnapshotOp.getInstance(cache.get())
         .setSnapshotRoot(snapRoot).setSnapshotName(snapName);
-    logRpcIds(op, toLogRpcIds);
     logEdit(op);
   }
   
-  void logRenameSnapshot(String path, String snapOldName, String snapNewName,
-      boolean toLogRpcIds) {
+  void logRenameSnapshot(String path, String snapOldName, String snapNewName) {
     RenameSnapshotOp op = RenameSnapshotOp.getInstance(cache.get())
         .setSnapshotRoot(path).setSnapshotOldName(snapOldName)
         .setSnapshotNewName(snapNewName);
-    logRpcIds(op, toLogRpcIds);
     logEdit(op);
   }
   
@@ -1231,7 +1189,6 @@ public class FSEditLog implements LogsPurgeable {
     }
   }
   
-  @Override
   public void selectInputStreams(Collection<EditLogInputStream> streams,
       long fromTxId, boolean inProgressOk, boolean forReading) throws IOException {
     journalSet.selectInputStreams(streams, fromTxId, inProgressOk, forReading);
@@ -1242,27 +1199,18 @@ public class FSEditLog implements LogsPurgeable {
     return selectInputStreams(fromTxId, toAtLeastTxId, null, true);
   }
 
-  /** Select a list of input streams to load */
-  public Collection<EditLogInputStream> selectInputStreams(
-      long fromTxId, long toAtLeastTxId, MetaRecoveryContext recovery,
-      boolean inProgressOk) throws IOException {
-    return selectInputStreams(fromTxId, toAtLeastTxId, recovery, inProgressOk,
-        true);
-  }
-  
   /**
-   * Select a list of input streams.
+   * Select a list of input streams to load.
    * 
    * @param fromTxId first transaction in the selected streams
    * @param toAtLeast the selected streams must contain this transaction
    * @param inProgessOk set to true if in-progress streams are OK
-   * @param forReading whether or not to use the streams to load the edit log
    */
   public synchronized Collection<EditLogInputStream> selectInputStreams(
       long fromTxId, long toAtLeastTxId, MetaRecoveryContext recovery,
-      boolean inProgressOk, boolean forReading) throws IOException {
+      boolean inProgressOk) throws IOException {
     List<EditLogInputStream> streams = new ArrayList<EditLogInputStream>();
-    selectInputStreams(streams, fromTxId, inProgressOk, forReading);
+    selectInputStreams(streams, fromTxId, inProgressOk, true);
 
     try {
       checkForGaps(streams, fromTxId, toAtLeastTxId, inProgressOk);

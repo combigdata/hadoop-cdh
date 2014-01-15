@@ -51,10 +51,6 @@ public class TestFSMainOperationsWebHdfs extends FSMainOperationsBaseTest {
   private static Path defaultWorkingDirectory;
   private static FileSystem fileSystem;
   
-  public TestFSMainOperationsWebHdfs() {
-    super("/tmp/TestFSMainOperationsWebHdfs");
-  }
-
   @Override
   protected FileSystem createFileSystem() throws Exception {
     return fileSystem;

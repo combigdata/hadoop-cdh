@@ -55,7 +55,6 @@ import org.apache.hadoop.mapreduce.v2.api.records.TaskAttemptState;
 import org.apache.hadoop.mapreduce.v2.api.records.TaskReport;
 import org.apache.hadoop.mapreduce.v2.api.records.TaskState;
 import org.apache.hadoop.mapreduce.v2.app.client.ClientService;
-import org.apache.hadoop.mapreduce.v2.app.client.MRClientService;
 import org.apache.hadoop.mapreduce.v2.app.commit.CommitterEvent;
 import org.apache.hadoop.mapreduce.v2.app.commit.CommitterEventHandler;
 import org.apache.hadoop.mapreduce.v2.app.job.Job;
@@ -85,7 +84,10 @@ import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.SecurityUtil;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.service.Service;
+import org.apache.hadoop.yarn.Clock;
+import org.apache.hadoop.yarn.ClusterInfo;
+import org.apache.hadoop.yarn.SystemClock;
+import org.apache.hadoop.yarn.YarnRuntimeException;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.Container;
@@ -94,12 +96,10 @@ import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.Token;
 import org.apache.hadoop.yarn.event.EventHandler;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.security.ContainerTokenIdentifier;
+import org.apache.hadoop.yarn.service.Service;
 import org.apache.hadoop.yarn.state.StateMachine;
 import org.apache.hadoop.yarn.state.StateMachineFactory;
-import org.apache.hadoop.yarn.util.Clock;
-import org.apache.hadoop.yarn.util.SystemClock;
 
 
 /**
@@ -136,23 +136,12 @@ public class MRApp extends MRAppMaster {
   }
 
   public MRApp(int maps, int reduces, boolean autoComplete, String testName,
-      boolean cleanOnStart, Clock clock, boolean unregistered) {
-    this(maps, reduces, autoComplete, testName, cleanOnStart, 1, clock,
-        unregistered);
-  }
-
-  public MRApp(int maps, int reduces, boolean autoComplete, String testName,
       boolean cleanOnStart) {
     this(maps, reduces, autoComplete, testName, cleanOnStart, 1);
   }
-
-  public MRApp(int maps, int reduces, boolean autoComplete, String testName,
-      boolean cleanOnStart, boolean unregistered) {
-    this(maps, reduces, autoComplete, testName, cleanOnStart, 1, unregistered);
-  }
-
+  
   @Override
-  protected void initJobCredentialsAndUGI(Configuration conf) {
+  protected void downloadTokensAndSetupUGI(Configuration conf) {
     // Fake a shuffle secret that normally is provided by the job client.
     String shuffleSecret = "fake-shuffle-secret";
     TokenCache.setShuffleSecretKey(shuffleSecret.getBytes(), getCredentials());
@@ -181,42 +170,22 @@ public class MRApp extends MRAppMaster {
   }
 
   public MRApp(int maps, int reduces, boolean autoComplete, String testName,
-      boolean cleanOnStart, int startCount, boolean unregistered) {
-    this(maps, reduces, autoComplete, testName, cleanOnStart, startCount,
-        new SystemClock(), unregistered);
-  }
-
-  public MRApp(int maps, int reduces, boolean autoComplete, String testName,
-      boolean cleanOnStart, int startCount, Clock clock, boolean unregistered) {
-    this(getApplicationAttemptId(applicationId, startCount), getContainerId(
-      applicationId, startCount), maps, reduces, autoComplete, testName,
-      cleanOnStart, startCount, clock, unregistered);
-  }
-
-  public MRApp(int maps, int reduces, boolean autoComplete, String testName,
       boolean cleanOnStart, int startCount, Clock clock) {
     this(getApplicationAttemptId(applicationId, startCount), getContainerId(
       applicationId, startCount), maps, reduces, autoComplete, testName,
-      cleanOnStart, startCount, clock, true);
-  }
-
-  public MRApp(ApplicationAttemptId appAttemptId, ContainerId amContainerId,
-      int maps, int reduces, boolean autoComplete, String testName,
-      boolean cleanOnStart, int startCount, boolean unregistered) {
-    this(appAttemptId, amContainerId, maps, reduces, autoComplete, testName,
-        cleanOnStart, startCount, new SystemClock(), unregistered);
+      cleanOnStart, startCount, clock);
   }
 
   public MRApp(ApplicationAttemptId appAttemptId, ContainerId amContainerId,
       int maps, int reduces, boolean autoComplete, String testName,
       boolean cleanOnStart, int startCount) {
     this(appAttemptId, amContainerId, maps, reduces, autoComplete, testName,
-        cleanOnStart, startCount, new SystemClock(), true);
+        cleanOnStart, startCount, new SystemClock());
   }
 
   public MRApp(ApplicationAttemptId appAttemptId, ContainerId amContainerId,
       int maps, int reduces, boolean autoComplete, String testName,
-      boolean cleanOnStart, int startCount, Clock clock, boolean unregistered) {
+      boolean cleanOnStart, int startCount, Clock clock) {
     super(appAttemptId, amContainerId, NM_HOST, NM_PORT, NM_HTTP_PORT, clock, System
         .currentTimeMillis(), MRJobConfig.DEFAULT_MR_AM_MAX_ATTEMPTS);
     this.testWorkDir = new File("target", testName);
@@ -235,13 +204,10 @@ public class MRApp extends MRAppMaster {
     this.maps = maps;
     this.reduces = reduces;
     this.autoComplete = autoComplete;
-    // If safeToReportTerminationToUser is set to true, we can verify whether
-    // the job can reaches the final state when MRAppMaster shuts down.
-    this.successfullyUnregistered.set(unregistered);
   }
 
   @Override
-  protected void serviceInit(Configuration conf) throws Exception {
+  public void init(Configuration conf) {
     try {
       //Create the staging directory if it does not exist
       String user = UserGroupInformation.getCurrentUser().getShortUserName();
@@ -252,33 +218,31 @@ public class MRApp extends MRAppMaster {
       throw new YarnRuntimeException("Error creating staging dir", e);
     }
     
-    super.serviceInit(conf);
+    super.init(conf);
     if (this.clusterInfo != null) {
+      getContext().getClusterInfo().setMinContainerCapability(
+          this.clusterInfo.getMinContainerCapability());
       getContext().getClusterInfo().setMaxContainerCapability(
           this.clusterInfo.getMaxContainerCapability());
     } else {
+      getContext().getClusterInfo().setMinContainerCapability(
+          Resource.newInstance(1024, 1));
       getContext().getClusterInfo().setMaxContainerCapability(
           Resource.newInstance(10240, 1));
     }
   }
 
   public Job submit(Configuration conf) throws Exception {
-    //TODO: fix the bug where the speculator gets events with 
-    //not-fully-constructed objects. For now, disable speculative exec
-    return submit(conf, false, false);
-  }
-
-  public Job submit(Configuration conf, boolean mapSpeculative,
-      boolean reduceSpeculative) throws Exception {
     String user = conf.get(MRJobConfig.USER_NAME, UserGroupInformation
-        .getCurrentUser().getShortUserName());
+      .getCurrentUser().getShortUserName());
     conf.set(MRJobConfig.USER_NAME, user);
     conf.set(MRJobConfig.MR_AM_STAGING_DIR, testAbsPath.toString());
     conf.setBoolean(MRJobConfig.MR_AM_CREATE_JH_INTERMEDIATE_BASE_DIR, true);
-    // TODO: fix the bug where the speculator gets events with
-    // not-fully-constructed objects. For now, disable speculative exec
-    conf.setBoolean(MRJobConfig.MAP_SPECULATIVE, mapSpeculative);
-    conf.setBoolean(MRJobConfig.REDUCE_SPECULATIVE, reduceSpeculative);
+    //TODO: fix the bug where the speculator gets events with 
+    //not-fully-constructed objects. For now, disable speculative exec
+    LOG.info("****DISABLING SPECULATIVE EXECUTION*****");
+    conf.setBoolean(MRJobConfig.MAP_SPECULATIVE, false);
+    conf.setBoolean(MRJobConfig.REDUCE_SPECULATIVE, false);
 
     init(conf);
     start();
@@ -287,7 +251,7 @@ public class MRApp extends MRAppMaster {
 
     // Write job.xml
     String jobFile = MRApps.getJobFile(conf, user,
-        TypeConverter.fromYarn(job.getID()));
+      TypeConverter.fromYarn(job.getID()));
     LOG.info("Writing job conf to " + jobFile);
     new File(jobFile).getParentFile().mkdirs();
     conf.writeXml(new FileOutputStream(jobFile));
@@ -398,20 +362,15 @@ public class MRApp extends MRAppMaster {
   }
 
   public void waitForState(Service.STATE finalState) throws Exception {
-    if (finalState == Service.STATE.STOPPED) {
-       Assert.assertTrue("Timeout while waiting for MRApp to stop",
-           waitForServiceToStop(20 * 1000));
-    } else {
-      int timeoutSecs = 0;
-      while (!finalState.equals(getServiceState()) && timeoutSecs++ < 20) {
-        System.out.println("MRApp State is : " + getServiceState()
-            + " Waiting for state : " + finalState);
-        Thread.sleep(500);
-      }
-      System.out.println("MRApp State is : " + getServiceState());
-      Assert.assertEquals("MRApp state is not correct (timedout)", finalState,
-          getServiceState());
+    int timeoutSecs = 0;
+    while (!finalState.equals(getServiceState()) && timeoutSecs++ < 20) {
+      System.out.println("MRApp State is : " + getServiceState()
+          + " Waiting for state : " + finalState);
+      Thread.sleep(500);
     }
+    System.out.println("MRApp State is : " + getServiceState());
+    Assert.assertEquals("MRApp state is not correct (timedout)", finalState,
+        getServiceState());
   }
 
   public void verifyCompleted() {
@@ -644,7 +603,7 @@ public class MRApp extends MRAppMaster {
 
   @Override
   protected ClientService createClientService(AppContext context) {
-    return new MRClientService(context) {
+    return new ClientService(){
       @Override
       public InetSocketAddress getBindAddress() {
         return NetUtils.createSocketAddr("localhost:9876");

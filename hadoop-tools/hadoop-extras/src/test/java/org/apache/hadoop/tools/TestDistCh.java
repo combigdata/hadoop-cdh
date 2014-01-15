@@ -113,8 +113,6 @@ public class TestDistCh extends junit.framework.TestCase {
   }
 
   static class ChPermissionStatus extends PermissionStatus {
-    private final boolean defaultPerm;
-    
     ChPermissionStatus(FileStatus filestatus) {
       this(filestatus, "", "", "");
     }
@@ -123,7 +121,6 @@ public class TestDistCh extends junit.framework.TestCase {
       super("".equals(owner)? filestatus.getOwner(): owner, 
           "".equals(group)? filestatus.getGroup(): group,
           "".equals(permission)? filestatus.getPermission(): new FsPermission(Short.parseShort(permission, 8)));
-      defaultPerm = permission == null || "".equals(permission);
     }
   }
   
@@ -144,7 +141,7 @@ public class TestDistCh extends junit.framework.TestCase {
       runLsr(shell, tree.root, 0);
 
       final String[] args = new String[NUN_SUBS];
-      final ChPermissionStatus[] newstatus = new ChPermissionStatus[NUN_SUBS];
+      final PermissionStatus[] newstatus = new PermissionStatus[NUN_SUBS];
 
       
       args[0]="/test/testDistCh/sub0:sub1::";
@@ -188,11 +185,13 @@ public class TestDistCh extends junit.framework.TestCase {
     }
   }
 
-  static void checkFileStatus(ChPermissionStatus expected, FileStatus actual) {
+ 
+
+  static void checkFileStatus(PermissionStatus expected, FileStatus actual) {
     assertEquals(expected.getUserName(), actual.getOwner());
     assertEquals(expected.getGroupName(), actual.getGroup());
-    FsPermission perm = expected.getPermission();
-    if (actual.isFile() && expected.defaultPerm) {
+    FsPermission perm = expected.getPermission(); 
+    if (actual.isFile()) {
       perm = perm.applyUMask(UMASK);
     }
     assertEquals(perm, actual.getPermission());

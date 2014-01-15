@@ -675,20 +675,13 @@ public class Job extends JobContextImpl implements JobContext {
    * Get events indicating completion (success/failure) of component tasks.
    *  
    * @param startFrom index to start fetching events from
-   * @return an array of {@link org.apache.hadoop.mapred.TaskCompletionEvent}s
+   * @return an array of {@link TaskCompletionEvent}s
    * @throws IOException
    */
-  public org.apache.hadoop.mapred.TaskCompletionEvent[]
-    getTaskCompletionEvents(final int startFrom) throws IOException {
+  public TaskCompletionEvent[] getTaskCompletionEvents(final int startFrom) 
+      throws IOException {
     try {
-      TaskCompletionEvent[] events = getTaskCompletionEvents(startFrom, 10);
-      org.apache.hadoop.mapred.TaskCompletionEvent[] retEvents =
-          new org.apache.hadoop.mapred.TaskCompletionEvent[events.length];
-      for (int i = 0; i < events.length; i++) {
-        retEvents[i] = org.apache.hadoop.mapred.TaskCompletionEvent.downgrade
-            (events[i]);
-      }
-      return retEvents;
+      return getTaskCompletionEvents(startFrom, 10);
     } catch (InterruptedException ie) {
       throw new IOException(ie);
     }
@@ -696,19 +689,17 @@ public class Job extends JobContextImpl implements JobContext {
 
   /**
    * Kill indicated task attempt.
-   * @param taskId the id of the task to kill.
-   * @param shouldFail if <code>true</code> the task is failed and added
-   *                   to failed tasks list, otherwise it is just killed,
-   *                   w/o affecting job failure status.
+   * 
+   * @param taskId the id of the task to be terminated.
+   * @throws IOException
    */
-  @Private
-  public boolean killTask(final TaskAttemptID taskId,
-                          final boolean shouldFail) throws IOException {
+  public boolean killTask(final TaskAttemptID taskId) 
+      throws IOException {
     ensureState(JobState.RUNNING);
     try {
       return ugi.doAs(new PrivilegedExceptionAction<Boolean>() {
         public Boolean run() throws IOException, InterruptedException {
-          return cluster.getClient().killTask(taskId, shouldFail);
+          return cluster.getClient().killTask(taskId, false);
         }
       });
     }
@@ -718,25 +709,25 @@ public class Job extends JobContextImpl implements JobContext {
   }
 
   /**
-   * Kill indicated task attempt.
-   * 
-   * @param taskId the id of the task to be terminated.
-   * @throws IOException
-   */
-  public void killTask(final TaskAttemptID taskId)
-      throws IOException {
-    killTask(taskId, false);
-  }
-
-  /**
    * Fail indicated task attempt.
    * 
    * @param taskId the id of the task to be terminated.
    * @throws IOException
    */
-  public void failTask(final TaskAttemptID taskId)
+  public boolean failTask(final TaskAttemptID taskId) 
       throws IOException {
-    killTask(taskId, true);
+    ensureState(JobState.RUNNING);
+    try {
+      return ugi.doAs(new PrivilegedExceptionAction<Boolean>() {
+        @Override
+        public Boolean run() throws IOException, InterruptedException {
+          return cluster.getClient().killTask(taskId, true);
+        }
+      });
+    }
+    catch (InterruptedException ie) {
+      throw new IOException(ie);
+    }
   }
 
   /**

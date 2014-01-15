@@ -48,15 +48,14 @@ import org.apache.hadoop.mapreduce.v2.api.records.TaskAttemptId;
 import org.apache.hadoop.mapreduce.v2.api.records.TaskAttemptState;
 import org.apache.hadoop.mapreduce.v2.api.records.TaskId;
 import org.apache.hadoop.mapreduce.v2.api.records.TaskType;
-import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.yarn.ContainerLogAppender;
+import org.apache.hadoop.yarn.YarnRuntimeException;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.util.ApplicationClassLoader;
 import org.apache.hadoop.yarn.util.Apps;
 import org.apache.hadoop.yarn.util.ConverterUtils;
@@ -151,8 +150,7 @@ public class MRApps extends Apps {
     }
     for (String c : conf.getStrings(
         MRJobConfig.MAPREDUCE_APPLICATION_CLASSPATH,
-        StringUtils.getStrings(
-            MRJobConfig.DEFAULT_MAPREDUCE_APPLICATION_CLASSPATH))){
+        MRJobConfig.DEFAULT_MAPREDUCE_APPLICATION_CLASSPATH)) {
       Apps.addToEnvironment(environment, Environment.CLASSPATH.name(), c
           .trim());
     }

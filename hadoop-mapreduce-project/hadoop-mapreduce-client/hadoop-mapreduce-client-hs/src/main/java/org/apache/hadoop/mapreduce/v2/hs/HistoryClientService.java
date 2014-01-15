@@ -75,15 +75,14 @@ import org.apache.hadoop.mapreduce.v2.app.job.Task;
 import org.apache.hadoop.mapreduce.v2.app.security.authorize.ClientHSPolicyProvider;
 import org.apache.hadoop.mapreduce.v2.hs.webapp.HsWebApp;
 import org.apache.hadoop.mapreduce.v2.jobhistory.JHAdminConfig;
-import org.apache.hadoop.mapreduce.v2.util.MRWebAppUtil;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.UserGroupInformation.AuthenticationMethod;
 import org.apache.hadoop.security.token.Token;
-import org.apache.hadoop.service.AbstractService;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.ipc.YarnRPC;
+import org.apache.hadoop.yarn.service.AbstractService;
 import org.apache.hadoop.yarn.util.Records;
 import org.apache.hadoop.yarn.webapp.WebApp;
 import org.apache.hadoop.yarn.webapp.WebApps;
@@ -112,7 +111,7 @@ public class HistoryClientService extends AbstractService {
     this.jhsDTSecretManager = jhsDTSecretManager;
   }
 
-  protected void serviceStart() throws Exception {
+  public void start() {
     Configuration conf = getConfig();
     YarnRPC rpc = YarnRPC.create(conf);
     initializeWebApp(conf);
@@ -139,35 +138,31 @@ public class HistoryClientService extends AbstractService {
                                               server.getListenerAddress());
     LOG.info("Instantiated MRClientService at " + this.bindAddress);
 
-    super.serviceStart();
+    super.start();
   }
 
   private void initializeWebApp(Configuration conf) {
     webApp = new HsWebApp(history);
-    InetSocketAddress bindAddress = MRWebAppUtil.getJHSWebBindAddress(conf);
+    InetSocketAddress bindAddress = conf.getSocketAddr(
+        JHAdminConfig.MR_HISTORY_WEBAPP_ADDRESS,
+        JHAdminConfig.DEFAULT_MR_HISTORY_WEBAPP_ADDRESS,
+        JHAdminConfig.DEFAULT_MR_HISTORY_WEBAPP_PORT);
     // NOTE: there should be a .at(InetSocketAddress)
-    WebApps
-        .$for("jobhistory", HistoryClientService.class, this, "ws")
-        .with(conf)
-        .withHttpSpnegoKeytabKey(
-            JHAdminConfig.MR_WEBAPP_SPNEGO_KEYTAB_FILE_KEY)
-        .withHttpSpnegoPrincipalKey(
-            JHAdminConfig.MR_WEBAPP_SPNEGO_USER_NAME_KEY)
-        .at(NetUtils.getHostPortString(bindAddress)).start(webApp);
-    
-    MRWebAppUtil.setJHSWebappURLWithoutScheme(conf,
-        NetUtils.getHostPortString(webApp.getListenerAddress()));
+    WebApps.$for("jobhistory", HistoryClientService.class, this, "ws")
+        .with(conf).at(NetUtils.getHostPortString(bindAddress)).start(webApp);
+    conf.updateConnectAddr(JHAdminConfig.MR_HISTORY_WEBAPP_ADDRESS,
+                           webApp.getListenerAddress());
   }
 
   @Override
-  protected void serviceStop() throws Exception {
+  public void stop() {
     if (server != null) {
       server.stop();
     }
     if (webApp != null) {
       webApp.stop();
     }
-    super.serviceStop();
+    super.stop();
   }
 
   @Private

@@ -25,10 +25,8 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collections;
@@ -50,12 +48,9 @@ import org.apache.hadoop.security.token.SecretManager.InvalidToken;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenRenewer;
 import org.apache.hadoop.security.token.delegation.DelegationKey;
-import org.apache.hadoop.service.Service.STATE;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.server.resourcemanager.ClientRMService;
-import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
 import org.junit.After;
 import org.junit.Before;
@@ -146,13 +141,6 @@ public class TestDelegationTokenRenewer {
     Renewer.reset();
     delegationTokenRenewer = new DelegationTokenRenewer();
     delegationTokenRenewer.init(conf);
-    RMContext mockContext = mock(RMContext.class);
-    ClientRMService mockClientRMService = mock(ClientRMService.class);
-    when(mockContext.getClientRMService()).thenReturn(mockClientRMService);
-    InetSocketAddress sockAddr =
-        InetSocketAddress.createUnresolved("localhost", 1234);
-    when(mockClientRMService.getBindAddress()).thenReturn(sockAddr);
-    delegationTokenRenewer.setRMContext(mockContext);
     delegationTokenRenewer.start();
   }
   
@@ -466,13 +454,6 @@ public class TestDelegationTokenRenewer {
         YarnConfiguration.RM_DELAYED_DELEGATION_TOKEN_REMOVAL_INTERVAL_MS,
         1000l);
     localDtr.init(lconf);
-    RMContext mockContext = mock(RMContext.class);
-    ClientRMService mockClientRMService = mock(ClientRMService.class);
-    when(mockContext.getClientRMService()).thenReturn(mockClientRMService);
-    InetSocketAddress sockAddr =
-        InetSocketAddress.createUnresolved("localhost", 1234);
-    when(mockClientRMService.getBindAddress()).thenReturn(sockAddr);
-    localDtr.setRMContext(mockContext);
     localDtr.start();
     
     MyFS dfs = (MyFS)FileSystem.get(lconf);
@@ -530,13 +511,6 @@ public class TestDelegationTokenRenewer {
         YarnConfiguration.RM_DELAYED_DELEGATION_TOKEN_REMOVAL_INTERVAL_MS,
         1000l);
     localDtr.init(lconf);
-    RMContext mockContext = mock(RMContext.class);
-    ClientRMService mockClientRMService = mock(ClientRMService.class);
-    when(mockContext.getClientRMService()).thenReturn(mockClientRMService);
-    InetSocketAddress sockAddr =
-        InetSocketAddress.createUnresolved("localhost", 1234);
-    when(mockClientRMService.getBindAddress()).thenReturn(sockAddr);
-    localDtr.setRMContext(mockContext);
     localDtr.start();
     
     MyFS dfs = (MyFS)FileSystem.get(lconf);
@@ -576,7 +550,7 @@ public class TestDelegationTokenRenewer {
     } catch (InvalidToken ite) {}
   }
   
-  @Test(timeout=20000)
+  @Test(timeout=2000)
   public void testConncurrentAddApplication()
       throws IOException, InterruptedException, BrokenBarrierException {
     final CyclicBarrier startBarrier = new CyclicBarrier(2);
@@ -605,13 +579,6 @@ public class TestDelegationTokenRenewer {
     // fire up the renewer
     final DelegationTokenRenewer dtr = new DelegationTokenRenewer();
     dtr.init(conf);
-    RMContext mockContext = mock(RMContext.class);
-    ClientRMService mockClientRMService = mock(ClientRMService.class);
-    when(mockContext.getClientRMService()).thenReturn(mockClientRMService);
-    InetSocketAddress sockAddr =
-        InetSocketAddress.createUnresolved("localhost", 1234);
-    when(mockClientRMService.getBindAddress()).thenReturn(sockAddr);
-    dtr.setRMContext(mockContext);
     dtr.start();
     
     // submit a job that blocks during renewal

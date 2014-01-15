@@ -40,9 +40,8 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.UnsupportedFileSystemException;
-import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusesRequest;
+import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.StartContainerRequest;
-import org.apache.hadoop.yarn.api.protocolrecords.StartContainersRequest;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
@@ -58,7 +57,6 @@ import org.apache.hadoop.yarn.api.records.URL;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.event.AsyncDispatcher;
 import org.apache.hadoop.yarn.exceptions.YarnException;
-import org.apache.hadoop.yarn.security.ContainerTokenIdentifier;
 import org.apache.hadoop.yarn.server.nodemanager.ContainerExecutor;
 import org.apache.hadoop.yarn.server.nodemanager.ContainerExecutor.ExitCode;
 import org.apache.hadoop.yarn.server.nodemanager.ContainerExecutor.Signal;
@@ -228,22 +226,16 @@ public class TestContainersMonitor extends BaseContainerManagerTest {
     commands.add(scriptFile.getAbsolutePath());
     containerLaunchContext.setCommands(commands);
     Resource r = BuilderUtils.newResource(8 * 1024 * 1024, 1);
-    ContainerTokenIdentifier containerIdentifier =
-        new ContainerTokenIdentifier(cId, context.getNodeId().toString(), user,
-          r, System.currentTimeMillis() + 120000, 123, DUMMY_RM_IDENTIFIER);
+    StartContainerRequest startRequest =
+        recordFactory.newRecordInstance(StartContainerRequest.class);
+    startRequest.setContainerLaunchContext(containerLaunchContext);
     Token containerToken =
-        BuilderUtils.newContainerToken(context.getNodeId(),
-          containerManager.getContext().getContainerTokenSecretManager()
-            .createPassword(containerIdentifier), containerIdentifier);
-    StartContainerRequest scRequest =
-        StartContainerRequest.newInstance(containerLaunchContext,
-          containerToken);
-    List<StartContainerRequest> list = new ArrayList<StartContainerRequest>();
-    list.add(scRequest);
-    StartContainersRequest allRequests =
-        StartContainersRequest.newInstance(list);
-    containerManager.startContainers(allRequests);
-    
+        BuilderUtils.newContainerToken(cId, context.getNodeId().getHost(),
+          port, user, r, System.currentTimeMillis() + 10000L, 123,
+          "password".getBytes(), super.DUMMY_RM_IDENTIFIER);
+    startRequest.setContainerToken(containerToken);
+    containerManager.startContainer(startRequest);
+
     int timeoutSecs = 0;
     while (!processStartFile.exists() && timeoutSecs++ < 20) {
       Thread.sleep(1000);
@@ -264,12 +256,11 @@ public class TestContainersMonitor extends BaseContainerManagerTest {
     BaseContainerManagerTest.waitForContainerState(containerManager, cId,
         ContainerState.COMPLETE, 60);
 
-    List<ContainerId> containerIds = new ArrayList<ContainerId>();
-    containerIds.add(cId);
-    GetContainerStatusesRequest gcsRequest =
-        GetContainerStatusesRequest.newInstance(containerIds);
+    GetContainerStatusRequest gcsRequest =
+        recordFactory.newRecordInstance(GetContainerStatusRequest.class);
+    gcsRequest.setContainerId(cId);
     ContainerStatus containerStatus =
-        containerManager.getContainerStatuses(gcsRequest).getContainerStatuses().get(0);
+        containerManager.getContainerStatus(gcsRequest).getStatus();
     Assert.assertEquals(ExitCode.TERMINATED.getExitCode(),
         containerStatus.getExitStatus());
     String expectedMsgPattern =

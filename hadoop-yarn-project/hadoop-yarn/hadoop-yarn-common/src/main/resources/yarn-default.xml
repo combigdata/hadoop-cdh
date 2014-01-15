@@ -100,26 +100,9 @@
   </property>
 
   <property>
-      <description>
-        This configures the HTTP endpoint for Yarn Daemons.The following
-        values are supported:
-        - HTTP_ONLY : Service is provided only on http
-        - HTTPS_ONLY : Service is provided only on https
-      </description>
-      <name>yarn.http.policy</name>
-      <value>HTTP_ONLY</value>
-  </property>
-
-  <property>
-    <description>The http address of the RM web application.</description>
+    <description>The address of the RM web application.</description>
     <name>yarn.resourcemanager.webapp.address</name>
     <value>${yarn.resourcemanager.hostname}:8088</value>
-  </property>
-
-  <property>
-    <description>The https adddress of the RM web application.</description>
-    <name>yarn.resourcemanager.webapp.https.address</name>
-    <value>${yarn.resourcemanager.hostname}:8090</value>
   </property>
 
   <property>
@@ -155,20 +138,6 @@
     <description>How often should the RM check that the AM is still alive.</description>
     <name>yarn.resourcemanager.amliveliness-monitor.interval-ms</name>
     <value>1000</value>
-  </property>
-
-  <property>
-    <description>Maximum time to wait to establish connection to
-    ResourceManager.</description>
-    <name>yarn.resourcemanager.connect.max-wait.ms</name>
-    <value>900000</value>
-  </property>
-
-  <property>
-    <description>How often to try connecting to the
-    ResourceManager.</description>
-    <name>yarn.resourcemanager.connect.retry-interval.ms</name>
-    <value>30000</value>
   </property>
 
   <property>
@@ -280,7 +249,7 @@
     RM state will be stored. This must be supplied when using
     org.apache.hadoop.yarn.server.resourcemanager.recovery.FileSystemRMStateStore
     as the value for yarn.resourcemanager.store.class</description>
-    <name>yarn.resourcemanager.fs.state-store.uri</name>
+    <name>yarn.resourcemanager.fs.rm-state-store.uri</name>
     <value>${hadoop.tmp.dir}/yarn/system/rmstore</value>
     <!--value>hdfs://localhost:9000/rmstore</value-->
   </property>
@@ -320,22 +289,6 @@
     <description>The heart-beat interval in milliseconds for every NodeManager in the cluster.</description>
     <name>yarn.resourcemanager.nodemanagers.heartbeat-interval-ms</name>
     <value>1000</value>
-  </property>
-
-  <property>
-    <description>Enable a set of periodic monitors (specified in
-        yarn.resourcemanager.scheduler.monitor.policies) that affect the
-        scheduler.</description>
-    <name>yarn.resourcemanager.scheduler.monitor.enable</name>
-    <value>false</value>
-  </property>
-
-  <property>
-    <description>The list of SchedulingEditPolicy classes that interact with
-        the scheduler. A particular module may be incompatible with the
-        scheduler, other policies, or a configuration of either.</description>
-    <name>yarn.resourcemanager.scheduler.monitor.policies</name>
-    <value>org.apache.hadoop.yarn.server.resourcemanager.monitor.capacity.ProportionalCapacityPreemptionPolicy</value>
   </property>
 
   <!-- Node Manager Configs -->
@@ -557,8 +510,16 @@
   <property>
     <description>Number of CPU cores that can be allocated 
     for containers.</description>
-    <name>yarn.nodemanager.resource.cpu-vcores</name>
+    <name>yarn.nodemanager.resource.cpu-cores</name>
     <value>8</value>
+  </property>
+
+  <property>
+    <description>Ratio between virtual cores to physical cores when
+    allocating CPU resources to containers. 
+    </description>
+    <name>yarn.nodemanager.vcores-pcores-ratio</name>
+    <value>2</value>
   </property>
 
   <property>
@@ -669,10 +630,9 @@
   </property>
 
   <property>
-    <description>the valid service name should only contain a-zA-Z0-9_ and can not start with numbers</description>
     <name>yarn.nodemanager.aux-services</name>
     <value></value>
-    <!--<value>mapreduce_shuffle</value>-->
+    <!-- <value>mapreduce.shuffle</value> -->
   </property>
 
   <property>
@@ -707,28 +667,10 @@
     <name>yarn.client.nodemanager-client-async.thread-pool-max-size</name>
     <value>500</value>
   </property>
-  
-  <property>
-  	<description>
-  	  Maximum number of proxy connections for node manager. It should always be
-      more than 1. NMClient and MRAppMaster will use this to cache connection
-      with node manager. There will be at max one connection per node manager.
-      Ex. configuring it to a value of 5 will make sure that client will at
-      max have 5 connections cached with 5 different node managers. These
-      connections will be timed out if idle for more than system wide idle
-      timeout period. The token if used for authentication then it will be used
-      only at connection creation time. If new token is received then earlier
-      connection should be closed in order to use newer token. This and
-      (yarn.client.nodemanager-client-async.thread-pool-max-size) are related
-      and should be sync (no need for them to be equal).
-  	</description>
-  	<name>yarn.client.max-nodemanagers-proxies</name>
-  	<value>500</value>
-  </property>
-  
+
   <!--Map Reduce configuration-->
   <property>
-    <name>yarn.nodemanager.aux-services.mapreduce_shuffle.class</name>
+    <name>yarn.nodemanager.aux-services.mapreduce.shuffle.class</name>
     <value>org.apache.hadoop.mapred.ShuffleHandler</value>
   </property>
 

@@ -23,12 +23,12 @@ import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.Collection;
 
+import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.ipc.Server;
-import org.apache.hadoop.mapreduce.JobACL;
 import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.TypeConverter;
 import org.apache.hadoop.mapreduce.v2.api.MRClientProtocol;
@@ -79,13 +79,14 @@ import org.apache.hadoop.mapreduce.v2.app.job.event.TaskEventType;
 import org.apache.hadoop.mapreduce.v2.app.security.authorize.MRAMPolicyProvider;
 import org.apache.hadoop.mapreduce.v2.app.webapp.AMWebApp;
 import org.apache.hadoop.net.NetUtils;
-import org.apache.hadoop.security.AccessControlException;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.authorize.PolicyProvider;
-import org.apache.hadoop.service.AbstractService;
+import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.ipc.YarnRPC;
+import org.apache.hadoop.yarn.security.client.ClientToAMTokenSecretManager;
+import org.apache.hadoop.yarn.service.AbstractService;
 import org.apache.hadoop.yarn.webapp.WebApp;
 import org.apache.hadoop.yarn.webapp.WebApps;
 
@@ -94,7 +95,8 @@ import org.apache.hadoop.yarn.webapp.WebApps;
  * jobclient (user facing).
  *
  */
-public class MRClientService extends AbstractService implements ClientService {
+public class MRClientService extends AbstractService 
+    implements ClientService {
 
   static final Log LOG = LogFactory.getLog(MRClientService.class);
   
@@ -105,19 +107,29 @@ public class MRClientService extends AbstractService implements ClientService {
   private AppContext appContext;
 
   public MRClientService(AppContext appContext) {
-    super(MRClientService.class.getName());
+    super("MRClientService");
     this.appContext = appContext;
     this.protocolHandler = new MRClientProtocolHandler();
   }
 
-  protected void serviceStart() throws Exception {
+  public void start() {
     Configuration conf = getConfig();
     YarnRPC rpc = YarnRPC.create(conf);
     InetSocketAddress address = new InetSocketAddress(0);
 
+    ClientToAMTokenSecretManager secretManager = null;
+    if (UserGroupInformation.isSecurityEnabled()) {
+      String secretKeyStr =
+          System
+              .getenv(ApplicationConstants.APPLICATION_CLIENT_SECRET_ENV_NAME);
+      byte[] bytes = Base64.decodeBase64(secretKeyStr);
+      secretManager =
+          new ClientToAMTokenSecretManager(
+            this.appContext.getApplicationAttemptId(), bytes);
+    }
     server =
         rpc.getServer(MRClientProtocol.class, protocolHandler, address,
-            conf, appContext.getClientToAMTokenSecretManager(),
+            conf, secretManager,
             conf.getInt(MRJobConfig.MR_AM_JOB_CLIENT_THREAD_COUNT, 
                 MRJobConfig.DEFAULT_MR_AM_JOB_CLIENT_THREAD_COUNT),
                 MRJobConfig.MR_AM_JOB_CLIENT_PORT_RANGE);
@@ -138,7 +150,7 @@ public class MRClientService extends AbstractService implements ClientService {
     } catch (Exception e) {
       LOG.error("Webapps failed to start. Ignoring for now:", e);
     }
-    super.serviceStart();
+    super.start();
   }
 
   void refreshServiceAcls(Configuration configuration, 
@@ -146,15 +158,12 @@ public class MRClientService extends AbstractService implements ClientService {
     this.server.refreshServiceAcl(configuration, policyProvider);
   }
 
-  @Override
-  protected void serviceStop() throws Exception {
-    if (server != null) {
-      server.stop();
-    }
+  public void stop() {
+    server.stop();
     if (webApp != null) {
       webApp.stop();
     }
-    super.serviceStop();
+    super.stop();
   }
 
   @Override
@@ -177,22 +186,16 @@ public class MRClientService extends AbstractService implements ClientService {
       return getBindAddress();
     }
     
-    private Job verifyAndGetJob(JobId jobID,
-        JobACL accessType) throws IOException {
+    private Job verifyAndGetJob(JobId jobID, 
+        boolean modifyAccess) throws IOException {
       Job job = appContext.getJob(jobID);
-      UserGroupInformation ugi = UserGroupInformation.getCurrentUser();
-      if (!job.checkAccess(ugi, accessType)) {
-        throw new AccessControlException("User " + ugi.getShortUserName()
-            + " cannot perform operation " + accessType.name() + " on "
-            + jobID);
-      }
       return job;
     }
  
     private Task verifyAndGetTask(TaskId taskID, 
-        JobACL accessType) throws IOException {
+        boolean modifyAccess) throws IOException {
       Task task = verifyAndGetJob(taskID.getJobId(), 
-          accessType).getTask(taskID);
+          modifyAccess).getTask(taskID);
       if (task == null) {
         throw new IOException("Unknown Task " + taskID);
       }
@@ -200,9 +203,9 @@ public class MRClientService extends AbstractService implements ClientService {
     }
 
     private TaskAttempt verifyAndGetAttempt(TaskAttemptId attemptID, 
-        JobACL accessType) throws IOException {
+        boolean modifyAccess) throws IOException {
       TaskAttempt attempt = verifyAndGetTask(attemptID.getTaskId(), 
-          accessType).getAttempt(attemptID);
+          modifyAccess).getAttempt(attemptID);
       if (attempt == null) {
         throw new IOException("Unknown TaskAttempt " + attemptID);
       }
@@ -213,7 +216,7 @@ public class MRClientService extends AbstractService implements ClientService {
     public GetCountersResponse getCounters(GetCountersRequest request) 
       throws IOException {
       JobId jobId = request.getJobId();
-      Job job = verifyAndGetJob(jobId, JobACL.VIEW_JOB);
+      Job job = verifyAndGetJob(jobId, false);
       GetCountersResponse response =
         recordFactory.newRecordInstance(GetCountersResponse.class);
       response.setCounters(TypeConverter.toYarn(job.getAllCounters()));
@@ -224,7 +227,7 @@ public class MRClientService extends AbstractService implements ClientService {
     public GetJobReportResponse getJobReport(GetJobReportRequest request) 
       throws IOException {
       JobId jobId = request.getJobId();
-      Job job = verifyAndGetJob(jobId, JobACL.VIEW_JOB);
+      Job job = verifyAndGetJob(jobId, false);
       GetJobReportResponse response = 
         recordFactory.newRecordInstance(GetJobReportResponse.class);
       if (job != null) {
@@ -243,7 +246,7 @@ public class MRClientService extends AbstractService implements ClientService {
       GetTaskAttemptReportResponse response =
         recordFactory.newRecordInstance(GetTaskAttemptReportResponse.class);
       response.setTaskAttemptReport(
-          verifyAndGetAttempt(taskAttemptId, JobACL.VIEW_JOB).getReport());
+          verifyAndGetAttempt(taskAttemptId, false).getReport());
       return response;
     }
 
@@ -253,8 +256,7 @@ public class MRClientService extends AbstractService implements ClientService {
       TaskId taskId = request.getTaskId();
       GetTaskReportResponse response = 
         recordFactory.newRecordInstance(GetTaskReportResponse.class);
-      response.setTaskReport(
-          verifyAndGetTask(taskId, JobACL.VIEW_JOB).getReport());
+      response.setTaskReport(verifyAndGetTask(taskId, false).getReport());
       return response;
     }
 
@@ -265,7 +267,7 @@ public class MRClientService extends AbstractService implements ClientService {
       JobId jobId = request.getJobId();
       int fromEventId = request.getFromEventId();
       int maxEvents = request.getMaxEvents();
-      Job job = verifyAndGetJob(jobId, JobACL.VIEW_JOB);
+      Job job = verifyAndGetJob(jobId, false);
       
       GetTaskAttemptCompletionEventsResponse response = 
         recordFactory.newRecordInstance(GetTaskAttemptCompletionEventsResponse.class);
@@ -279,11 +281,9 @@ public class MRClientService extends AbstractService implements ClientService {
     public KillJobResponse killJob(KillJobRequest request) 
       throws IOException {
       JobId jobId = request.getJobId();
-      UserGroupInformation callerUGI = UserGroupInformation.getCurrentUser();
-      String message = "Kill job " + jobId + " received from " + callerUGI
-          + " at " + Server.getRemoteAddress();
+      String message = "Kill Job received from client " + jobId;
       LOG.info(message);
-      verifyAndGetJob(jobId, JobACL.MODIFY_JOB);
+  	  verifyAndGetJob(jobId, true);
       appContext.getEventHandler().handle(
           new JobDiagnosticsUpdateEvent(jobId, message));
       appContext.getEventHandler().handle(
@@ -298,11 +298,9 @@ public class MRClientService extends AbstractService implements ClientService {
     public KillTaskResponse killTask(KillTaskRequest request) 
       throws IOException {
       TaskId taskId = request.getTaskId();
-      UserGroupInformation callerUGI = UserGroupInformation.getCurrentUser();
-      String message = "Kill task " + taskId + " received from " + callerUGI
-          + " at " + Server.getRemoteAddress();
+      String message = "Kill task received from client " + taskId;
       LOG.info(message);
-      verifyAndGetTask(taskId, JobACL.MODIFY_JOB);
+      verifyAndGetTask(taskId, true);
       appContext.getEventHandler().handle(
           new TaskEvent(taskId, TaskEventType.T_KILL));
       KillTaskResponse response = 
@@ -315,12 +313,9 @@ public class MRClientService extends AbstractService implements ClientService {
     public KillTaskAttemptResponse killTaskAttempt(
         KillTaskAttemptRequest request) throws IOException {
       TaskAttemptId taskAttemptId = request.getTaskAttemptId();
-      UserGroupInformation callerUGI = UserGroupInformation.getCurrentUser();
-      String message = "Kill task attempt " + taskAttemptId
-          + " received from " + callerUGI + " at "
-          + Server.getRemoteAddress();
+      String message = "Kill task attempt received from client " + taskAttemptId;
       LOG.info(message);
-      verifyAndGetAttempt(taskAttemptId, JobACL.MODIFY_JOB);
+      verifyAndGetAttempt(taskAttemptId, true);
       appContext.getEventHandler().handle(
           new TaskAttemptDiagnosticsUpdateEvent(taskAttemptId, message));
       appContext.getEventHandler().handle(
@@ -338,8 +333,8 @@ public class MRClientService extends AbstractService implements ClientService {
       
       GetDiagnosticsResponse response = 
         recordFactory.newRecordInstance(GetDiagnosticsResponse.class);
-      response.addAllDiagnostics(verifyAndGetAttempt(taskAttemptId,
-          JobACL.VIEW_JOB).getDiagnostics());
+      response.addAllDiagnostics(
+          verifyAndGetAttempt(taskAttemptId, false).getDiagnostics());
       return response;
     }
 
@@ -348,12 +343,9 @@ public class MRClientService extends AbstractService implements ClientService {
     public FailTaskAttemptResponse failTaskAttempt(
         FailTaskAttemptRequest request) throws IOException {
       TaskAttemptId taskAttemptId = request.getTaskAttemptId();
-      UserGroupInformation callerUGI = UserGroupInformation.getCurrentUser();
-      String message = "Fail task attempt " + taskAttemptId
-          + " received from " + callerUGI + " at "
-          + Server.getRemoteAddress();
+      String message = "Fail task attempt received from client " + taskAttemptId;
       LOG.info(message);
-      verifyAndGetAttempt(taskAttemptId, JobACL.MODIFY_JOB);
+      verifyAndGetAttempt(taskAttemptId, true);
       appContext.getEventHandler().handle(
           new TaskAttemptDiagnosticsUpdateEvent(taskAttemptId, message));
       appContext.getEventHandler().handle(
@@ -375,7 +367,7 @@ public class MRClientService extends AbstractService implements ClientService {
       GetTaskReportsResponse response = 
         recordFactory.newRecordInstance(GetTaskReportsResponse.class);
       
-      Job job = verifyAndGetJob(jobId, JobACL.VIEW_JOB);
+      Job job = verifyAndGetJob(jobId, false);
       Collection<Task> tasks = job.getTasks(taskType).values();
       LOG.info("Getting task report for " + taskType + "   " + jobId
           + ". Report-size will be " + tasks.size());

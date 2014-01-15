@@ -31,9 +31,9 @@ import org.apache.hadoop.hdfs.server.blockmanagement.BlockCollection;
 import org.apache.hadoop.hdfs.server.blockmanagement.BlockInfo;
 import org.apache.hadoop.hdfs.server.blockmanagement.BlockInfoUnderConstruction;
 import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeDescriptor;
+import org.apache.hadoop.hdfs.server.namenode.snapshot.FileDiffList;
 import org.apache.hadoop.hdfs.server.namenode.snapshot.FileWithSnapshot;
 import org.apache.hadoop.hdfs.server.namenode.snapshot.FileWithSnapshot.FileDiff;
-import org.apache.hadoop.hdfs.server.namenode.snapshot.FileWithSnapshot.FileDiffList;
 import org.apache.hadoop.hdfs.server.namenode.snapshot.FileWithSnapshot.Util;
 import org.apache.hadoop.hdfs.server.namenode.snapshot.INodeFileWithSnapshot;
 import org.apache.hadoop.hdfs.server.namenode.snapshot.Snapshot;
@@ -43,8 +43,7 @@ import com.google.common.base.Preconditions;
 
 /** I-node for closed file. */
 @InterfaceAudience.Private
-public class INodeFile extends INodeWithAdditionalFields
-    implements INodeFileAttributes, BlockCollection {
+public class INodeFile extends INodeWithAdditionalFields implements BlockCollection {
   /** The same as valueOf(inode, path, false). */
   public static INodeFile valueOf(INode inode, String path
       ) throws FileNotFoundException {
@@ -67,8 +66,11 @@ public class INodeFile extends INodeWithAdditionalFields
     return inode.asFile();
   }
 
+  static final FsPermission UMASK = FsPermission.createImmutable((short)0111);
+
+
   /** Format: [16 bits for replication][48 bits for PreferredBlockSize] */
-  static class HeaderFormat {
+  private static class HeaderFormat {
     /** Number of bits for Block size */
     static final int BLOCKBITS = 48;
     /** Header mask 64-bit representation */
@@ -126,6 +128,16 @@ public class INodeFile extends INodeWithAdditionalFields
     return true;
   }
 
+  /**
+   * Set the {@link FsPermission} of this {@link INodeFile}.
+   * Since this is a file,
+   * the {@link FsAction#EXECUTE} action, if any, is ignored.
+   */
+  @Override
+  void setPermission(FsPermission permission) {
+    super.setPermission(permission.applyUMask(UMASK));
+  }
+
   /** @return this object. */
   @Override
   public final INodeFile asFile() {
@@ -149,7 +161,7 @@ public class INodeFile extends INodeWithAdditionalFields
   }
 
   @Override
-  public INodeFileAttributes getSnapshotINode(final Snapshot snapshot) {
+  public INodeFile getSnapshotINode(final Snapshot snapshot) {
     return this;
   }
 
@@ -176,7 +188,6 @@ public class INodeFile extends INodeWithAdditionalFields
   }
 
   /** The same as getFileReplication(null). */
-  @Override
   public final short getFileReplication() {
     return getFileReplication(null);
   }
@@ -205,11 +216,6 @@ public class INodeFile extends INodeWithAdditionalFields
   @Override
   public long getPreferredBlockSize() {
     return HeaderFormat.getPreferredBlockSize(header);
-  }
-
-  @Override
-  public long getHeaderLong() {
-    return header;
   }
 
   /** @return the diskspace required for a full block. */
@@ -280,8 +286,7 @@ public class INodeFile extends INodeWithAdditionalFields
 
   @Override
   public Quota.Counts cleanSubtree(final Snapshot snapshot, Snapshot prior,
-      final BlocksMapUpdateInfo collectedBlocks,
-      final List<INode> removedINodes, final boolean countDiffChange)
+      final BlocksMapUpdateInfo collectedBlocks, final List<INode> removedINodes)
       throws QuotaExceededException {
     Quota.Counts counts = Quota.Counts.newInstance();
     if (snapshot == null && prior == null) {   

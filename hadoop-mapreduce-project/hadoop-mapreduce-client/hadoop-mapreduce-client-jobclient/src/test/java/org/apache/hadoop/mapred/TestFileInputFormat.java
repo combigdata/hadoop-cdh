@@ -190,7 +190,7 @@ public class TestFileInputFormat extends TestCase {
         + "directory with directories inside.", exceptionThrown);
 
     // Enable multi-level/recursive inputs
-    job.setBoolean(FileInputFormat.INPUT_DIR_RECURSIVE, true);
+    job.setBoolean("mapred.input.dir.recursive", true);
     InputSplit[] splits = inFormat.getSplits(job, 1);
     assertEquals(splits.length, 2);
   }

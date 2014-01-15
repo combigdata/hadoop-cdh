@@ -86,7 +86,7 @@ import com.google.common.collect.Sets;
 public class BlockManager {
 
   static final Log LOG = LogFactory.getLog(BlockManager.class);
-  public static final Log blockLog = NameNode.blockStateChangeLog;
+  static final Log blockLog = NameNode.blockStateChangeLog;
 
   /** Default load factor of map */
   public static final float DEFAULT_MAP_LOAD_FACTOR = 0.75f;
@@ -227,9 +227,6 @@ public class BlockManager {
 
   /** for block replicas placement */
   private BlockPlacementPolicy blockplacement;
-
-  /** Check whether name system is running before terminating */
-  private boolean checkNSRunning = true;
   
   public BlockManager(final Namesystem namesystem, final FSClusterStats stats,
       final Configuration conf) throws IOException {
@@ -359,12 +356,6 @@ public class BlockManager {
     return blockTokenSecretManager;
   }
 
-  /** Allow silent termination of replication monitor for testing */
-  @VisibleForTesting
-  void enableRMTerminationForTesting() {
-    checkNSRunning = false;
-  }
-
   private boolean isBlockTokenEnabled() {
     return blockTokenSecretManager != null;
   }
@@ -467,8 +458,7 @@ public class BlockManager {
                          numReplicas.decommissionedReplicas();
     
     if (block instanceof BlockInfo) {
-      BlockCollection bc = ((BlockInfo) block).getBlockCollection();
-      String fileName = (bc == null) ? "[orphaned]" : bc.getName();
+      String fileName = ((BlockInfo)block).getBlockCollection().getName();
       out.print(fileName + ": ");
     }
     // l: == live:, d: == decommissioned c: == corrupt e: == excess
@@ -691,7 +681,7 @@ public class BlockManager {
     }
     return machineSet;
   }
-  
+
   private List<LocatedBlock> createLocatedBlockList(final BlockInfo[] blocks,
       final long offset, final long length, final int nrBlocksToReturn,
       final AccessMode mode) throws IOException {
@@ -722,22 +712,6 @@ public class BlockManager {
     return results;
   }
 
-  private LocatedBlock createLocatedBlock(final BlockInfo[] blocks,
-      final long endPos, final AccessMode mode) throws IOException {
-    int curBlk = 0;
-    long curPos = 0;
-    int nrBlocks = (blocks[0].getNumBytes() == 0) ? 0 : blocks.length;
-    for (curBlk = 0; curBlk < nrBlocks; curBlk++) {
-      long blkSize = blocks[curBlk].getNumBytes();
-      if (curPos + blkSize >= endPos) {
-        break;
-      }
-      curPos += blkSize;
-    }
-    
-    return createLocatedBlock(blocks[curBlk], curPos, mode);
-  }
-  
   private LocatedBlock createLocatedBlock(final BlockInfo blk, final long pos,
     final BlockTokenSecretManager.AccessMode mode) throws IOException {
     final LocatedBlock lb = createLocatedBlock(blk, pos);
@@ -798,9 +772,9 @@ public class BlockManager {
   /** Create a LocatedBlocks. */
   public LocatedBlocks createLocatedBlocks(final BlockInfo[] blocks,
       final long fileSizeExcludeBlocksUnderConstruction,
-      final boolean isFileUnderConstruction, final long offset,
-      final long length, final boolean needBlockToken, final boolean inSnapshot)
-      throws IOException {
+      final boolean isFileUnderConstruction,
+      final long offset, final long length, final boolean needBlockToken
+      ) throws IOException {
     assert namesystem.hasReadOrWriteLock();
     if (blocks == null) {
       return null;
@@ -815,23 +789,14 @@ public class BlockManager {
       final List<LocatedBlock> locatedblocks = createLocatedBlockList(
           blocks, offset, length, Integer.MAX_VALUE, mode);
 
-      final LocatedBlock lastlb;
-      final boolean isComplete;
-      if (!inSnapshot) {
-        final BlockInfo last = blocks[blocks.length - 1];
-        final long lastPos = last.isComplete()?
-            fileSizeExcludeBlocksUnderConstruction - last.getNumBytes()
-            : fileSizeExcludeBlocksUnderConstruction;
-        lastlb = createLocatedBlock(last, lastPos, mode);
-        isComplete = last.isComplete();
-      } else {
-        lastlb = createLocatedBlock(blocks,
-            fileSizeExcludeBlocksUnderConstruction, mode);
-        isComplete = true;
-      }
+      final BlockInfo last = blocks[blocks.length - 1];
+      final long lastPos = last.isComplete()?
+          fileSizeExcludeBlocksUnderConstruction - last.getNumBytes()
+          : fileSizeExcludeBlocksUnderConstruction;
+      final LocatedBlock lastlb = createLocatedBlock(last, lastPos, mode);
       return new LocatedBlocks(
           fileSizeExcludeBlocksUnderConstruction, isFileUnderConstruction,
-          locatedblocks, lastlb, isComplete);
+          locatedblocks, lastlb, last.isComplete());
     }
   }
 
@@ -845,10 +810,8 @@ public class BlockManager {
   public void setBlockToken(final LocatedBlock b,
       final BlockTokenSecretManager.AccessMode mode) throws IOException {
     if (isBlockTokenEnabled()) {
-      // Use cached UGI if serving RPC calls.
-      b.setBlockToken(blockTokenSecretManager.generateToken(
-          NameNode.getRemoteUser().getShortUserName(),
-          b.getBlock(), EnumSet.of(mode)));
+      b.setBlockToken(blockTokenSecretManager.generateToken(b.getBlock(), 
+          EnumSet.of(mode)));
     }    
   }
 
@@ -1321,7 +1284,7 @@ public class BlockManager {
           // Move the block-replication into a "pending" state.
           // The reason we use 'pending' is so we can retry
           // replications that fail after an appropriate amount of time.
-          pendingReplications.increment(block, targets);
+          pendingReplications.increment(block, targets.length);
           if(blockLog.isDebugEnabled()) {
             blockLog.debug(
                 "BLOCK* block " + block
@@ -1737,7 +1700,7 @@ public class BlockManager {
       ReplicaState reportedState = itBR.getCurrentReplicaState();
       
       if (shouldPostponeBlocksFromFuture &&
-          namesystem.isGenStampInFuture(iblk)) {
+          namesystem.isGenStampInFuture(iblk.getGenerationStamp())) {
         queueReportedBlock(node, iblk, reportedState,
             QUEUE_REASON_FUTURE_GENSTAMP);
         continue;
@@ -1859,7 +1822,7 @@ public class BlockManager {
     }
   
     if (shouldPostponeBlocksFromFuture &&
-        namesystem.isGenStampInFuture(block)) {
+        namesystem.isGenStampInFuture(block.getGenerationStamp())) {
       queueReportedBlock(dn, block, reportedState,
           QUEUE_REASON_FUTURE_GENSTAMP);
       return null;
@@ -2192,7 +2155,7 @@ assert storedBlock.findDatanode(dn) < 0 : "Block " + block
       return storedBlock;
     }
 
-    // do not try to handle over/under-replicated blocks during first safe mode
+    // do not try to handle over/under-replicated blocks during safe mode
     if (!namesystem.isPopulatingReplQueues()) {
       return storedBlock;
     }
@@ -2601,8 +2564,6 @@ assert storedBlock.findDatanode(dn) < 0 : "Block " + block
   void addBlock(DatanodeDescriptor node, Block block, String delHint)
       throws IOException {
     // decrement number of blocks scheduled to this datanode.
-    // for a retry request (of DatanodeProtocol#blockReceivedAndDeleted with 
-    // RECEIVED_BLOCK), we currently also decrease the approximate number. 
     node.decBlocksScheduled();
 
     // get the deletion hint node
@@ -2618,7 +2579,7 @@ assert storedBlock.findDatanode(dn) < 0 : "Block " + block
     //
     // Modify the blocks->datanode map and node's map.
     //
-    pendingReplications.decrement(block, node);
+    pendingReplications.decrement(block);
     processAndHandleReportedBlock(node, block, ReplicaState.FINALIZED,
         delHintNode);
   }
@@ -2659,58 +2620,64 @@ assert storedBlock.findDatanode(dn) < 0 : "Block " + block
    * The given node is reporting incremental information about some blocks.
    * This includes blocks that are starting to be received, completed being
    * received, or deleted.
-   * 
-   * This method must be called with FSNamesystem lock held.
    */
-  public void processIncrementalBlockReport(final DatanodeID nodeID,
-      final String poolId, final ReceivedDeletedBlockInfo blockInfos[])
-      throws IOException {
-    assert namesystem.hasWriteLock();
+  public void processIncrementalBlockReport(final DatanodeID nodeID, 
+     final String poolId, 
+     final ReceivedDeletedBlockInfo blockInfos[]
+  ) throws IOException {
+    namesystem.writeLock();
     int received = 0;
     int deleted = 0;
     int receiving = 0;
-    final DatanodeDescriptor node = datanodeManager.getDatanode(nodeID);
-    if (node == null || !node.isAlive) {
-      blockLog
-          .warn("BLOCK* processIncrementalBlockReport"
-              + " is received from dead or unregistered node "
-              + nodeID);
-      throw new IOException(
-          "Got incremental block report from unregistered or dead node");
-    }
+    try {
+      final DatanodeDescriptor node = datanodeManager.getDatanode(nodeID);
+      if (node == null || !node.isAlive) {
+        blockLog
+            .warn("BLOCK* processIncrementalBlockReport"
+                + " is received from dead or unregistered node "
+                + nodeID);
+        throw new IOException(
+            "Got incremental block report from unregistered or dead node");
+      }
 
-    for (ReceivedDeletedBlockInfo rdbi : blockInfos) {
-      switch (rdbi.getStatus()) {
-      case DELETED_BLOCK:
-        removeStoredBlock(rdbi.getBlock(), node);
-        deleted++;
-        break;
-      case RECEIVED_BLOCK:
-        addBlock(node, rdbi.getBlock(), rdbi.getDelHints());
-        received++;
-        break;
-      case RECEIVING_BLOCK:
-        receiving++;
-        processAndHandleReportedBlock(node, rdbi.getBlock(),
-            ReplicaState.RBW, null);
-        break;
-      default:
-        String msg = 
-          "Unknown block status code reported by " + nodeID +
-          ": " + rdbi;
-        blockLog.warn(msg);
-        assert false : msg; // if assertions are enabled, throw.
-        break;
+      for (ReceivedDeletedBlockInfo rdbi : blockInfos) {
+        switch (rdbi.getStatus()) {
+        case DELETED_BLOCK:
+          removeStoredBlock(rdbi.getBlock(), node);
+          deleted++;
+          break;
+        case RECEIVED_BLOCK:
+          addBlock(node, rdbi.getBlock(), rdbi.getDelHints());
+          received++;
+          break;
+        case RECEIVING_BLOCK:
+          receiving++;
+          processAndHandleReportedBlock(node, rdbi.getBlock(),
+              ReplicaState.RBW, null);
+          break;
+        default:
+          String msg = 
+            "Unknown block status code reported by " + nodeID +
+            ": " + rdbi;
+          blockLog.warn(msg);
+          assert false : msg; // if assertions are enabled, throw.
+          break;
+        }
+        if (blockLog.isDebugEnabled()) {
+          blockLog.debug("BLOCK* block "
+              + (rdbi.getStatus()) + ": " + rdbi.getBlock()
+              + " is received from " + nodeID);
+        }
       }
-      if (blockLog.isDebugEnabled()) {
-        blockLog.debug("BLOCK* block "
-            + (rdbi.getStatus()) + ": " + rdbi.getBlock()
-            + " is received from " + nodeID);
-      }
+    } finally {
+      namesystem.writeUnlock();
+      blockLog
+          .debug("*BLOCK* NameNode.processIncrementalBlockReport: " + "from "
+              + nodeID
+              +  " receiving: " + receiving + ", "
+              + " received: " + received + ", "
+              + " deleted: " + deleted);
     }
-    blockLog.debug("*BLOCK* NameNode.processIncrementalBlockReport: " + "from "
-        + nodeID + " receiving: " + receiving + ", " + " received: " + received
-        + ", " + " deleted: " + deleted);
   }
 
   /**
@@ -2901,9 +2868,8 @@ assert storedBlock.findDatanode(dn) < 0 : "Block " + block
     addToInvalidates(block);
     corruptReplicas.removeFromCorruptReplicasMap(block);
     blocksMap.removeBlock(block);
-    // Remove the block from pendingReplications and neededReplications
+    // Remove the block from pendingReplications
     pendingReplications.remove(block);
-    neededReplications.remove(block, UnderReplicatedBlocks.LEVEL);
     if (postponedMisreplicatedBlocks.remove(block)) {
       postponedMisreplicatedBlocksCount.decrementAndGet();
     }
@@ -3119,9 +3085,6 @@ assert storedBlock.findDatanode(dn) < 0 : "Block " + block
               LOG.info("ReplicationMonitor received an exception"
                   + " while shutting down.", t);
             }
-            break;
-          } else if (!checkNSRunning && t instanceof InterruptedException) {
-            LOG.info("Stopping ReplicationMonitor for testing.");
             break;
           }
           LOG.fatal("ReplicationMonitor thread received Runtime exception. ", t);

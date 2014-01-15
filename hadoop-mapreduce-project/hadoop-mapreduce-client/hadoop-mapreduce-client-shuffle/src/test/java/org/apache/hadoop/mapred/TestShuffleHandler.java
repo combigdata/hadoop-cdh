@@ -64,7 +64,6 @@ import org.apache.hadoop.util.PureJavaCrc32;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.server.api.ApplicationInitializationContext;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.localizer.ContainerLocalizer;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
@@ -180,10 +179,6 @@ public class TestShuffleHandler {
       + shuffleHandler.getConfig().get(ShuffleHandler.SHUFFLE_PORT_CONFIG_KEY)
       + "/mapOutput?job=job_12345_1&reduce=1&map=attempt_12345_1_m_1_0");
     HttpURLConnection conn = (HttpURLConnection)url.openConnection();
-    conn.setRequestProperty(ShuffleHeader.HTTP_HEADER_NAME,
-        ShuffleHeader.DEFAULT_HTTP_HEADER_NAME);
-    conn.setRequestProperty(ShuffleHeader.HTTP_HEADER_VERSION,
-        ShuffleHeader.DEFAULT_HTTP_HEADER_VERSION);
     conn.connect();
     DataInputStream input = new DataInputStream(conn.getInputStream());
     Assert.assertEquals(HttpURLConnection.HTTP_OK, conn.getResponseCode());
@@ -194,35 +189,6 @@ public class TestShuffleHandler {
     shuffleHandler.stop();
     Assert.assertTrue("sendError called when client closed connection",
         failures.size() == 0);
-  }
-
-  @Test (timeout = 10000)
-  public void testIncompatibleShuffleVersion() throws Exception {
-    final int failureNum = 3;
-    Configuration conf = new Configuration();
-    conf.setInt(ShuffleHandler.SHUFFLE_PORT_CONFIG_KEY, 0);
-    ShuffleHandler shuffleHandler = new ShuffleHandler();
-    shuffleHandler.init(conf);
-    shuffleHandler.start();
-
-    // simulate a reducer that closes early by reading a single shuffle header
-    // then closing the connection
-    URL url = new URL("http://127.0.0.1:"
-      + shuffleHandler.getConfig().get(ShuffleHandler.SHUFFLE_PORT_CONFIG_KEY)
-      + "/mapOutput?job=job_12345_1&reduce=1&map=attempt_12345_1_m_1_0");
-    for (int i = 0; i < failureNum; ++i) {
-      HttpURLConnection conn = (HttpURLConnection)url.openConnection();
-      conn.setRequestProperty(ShuffleHeader.HTTP_HEADER_NAME,
-          i == 0 ? "mapreduce" : "other");
-      conn.setRequestProperty(ShuffleHeader.HTTP_HEADER_VERSION,
-          i == 1 ? "1.0.0" : "1.0.1");
-      conn.connect();
-      Assert.assertEquals(
-          HttpURLConnection.HTTP_BAD_REQUEST, conn.getResponseCode());
-    }
-
-    shuffleHandler.stop();
-    shuffleHandler.close();
   }
   
   @Test (timeout = 10000)
@@ -275,10 +241,6 @@ public class TestShuffleHandler {
            + i + "_0";
       URL url = new URL(URLstring);
       conns[i] = (HttpURLConnection)url.openConnection();
-      conns[i].setRequestProperty(ShuffleHeader.HTTP_HEADER_NAME,
-          ShuffleHeader.DEFAULT_HTTP_HEADER_NAME);
-      conns[i].setRequestProperty(ShuffleHeader.HTTP_HEADER_VERSION,
-          ShuffleHeader.DEFAULT_HTTP_HEADER_VERSION);
     }
 
     // Try to open numerous connections
@@ -355,10 +317,8 @@ public class TestShuffleHandler {
           new Token<JobTokenIdentifier>("identifier".getBytes(),
               "password".getBytes(), new Text(user), new Text("shuffleService"));
       jt.write(outputBuffer);
-      shuffleHandler
-        .initializeApplication(new ApplicationInitializationContext(user,
-          appId, ByteBuffer.wrap(outputBuffer.getData(), 0,
-            outputBuffer.getLength())));
+      shuffleHandler.initApp(user, appId,
+          ByteBuffer.wrap(outputBuffer.getData(), 0, outputBuffer.getLength()));
       URL url =
           new URL(
               "http://127.0.0.1:"
@@ -367,10 +327,6 @@ public class TestShuffleHandler {
                   + "/mapOutput?job=job_12345_0001&reduce=" + reducerId
                   + "&map=attempt_12345_1_m_1_0");
       HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-      conn.setRequestProperty(ShuffleHeader.HTTP_HEADER_NAME,
-          ShuffleHeader.DEFAULT_HTTP_HEADER_NAME);
-      conn.setRequestProperty(ShuffleHeader.HTTP_HEADER_VERSION,
-          ShuffleHeader.DEFAULT_HTTP_HEADER_VERSION);
       conn.connect();
       byte[] byteArr = new byte[10000];
       try {

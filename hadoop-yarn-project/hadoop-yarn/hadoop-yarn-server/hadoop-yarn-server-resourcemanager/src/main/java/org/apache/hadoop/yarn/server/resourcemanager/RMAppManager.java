@@ -34,7 +34,6 @@ import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.event.EventHandler;
-import org.apache.hadoop.yarn.exceptions.InvalidResourceRequestException;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.ipc.RPCUtil;
 import org.apache.hadoop.yarn.server.resourcemanager.RMAuditLogger.AuditConstants;
@@ -49,6 +48,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppImpl;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppRejectedEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttempt;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttemptImpl;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.InvalidResourceRequestException;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerUtils;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.YarnScheduler;
 import org.apache.hadoop.yarn.server.security.ApplicationACLsManager;
@@ -151,8 +151,7 @@ public class RMAppManager implements EventHandler<RMAppManagerEvent>,
           .add("trackingUrl", trackingUrl)
           .add("appMasterHost", host)
           .add("startTime", app.getStartTime())
-          .add("finishTime", app.getFinishTime())
-          .add("finalStatus", app.getFinalApplicationStatus());
+          .add("finishTime", app.getFinishTime());
       return summary;
     }
 
@@ -187,6 +186,10 @@ public class RMAppManager implements EventHandler<RMAppManagerEvent>,
       
       completedApps.add(applicationId);  
       writeAuditLog(applicationId);
+      
+      // application completely done. Remove from state
+      RMStateStore store = rmContext.getStateStore();
+      store.removeApplication(rmContext.getRMApps().get(applicationId));
     }
   }
 
@@ -255,7 +258,7 @@ public class RMAppManager implements EventHandler<RMAppManagerEvent>,
       } catch (InvalidResourceRequestException e) {
         LOG.warn("RM app submission failed in validating AM resource request"
             + " for application " + applicationId, e);
-        throw e;
+        throw RPCUtil.getRemoteException(e);
       }
     }
 

@@ -23,7 +23,7 @@ import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
-import org.apache.hadoop.yarn.util.resource.Resources;
+import org.apache.hadoop.yarn.server.resourcemanager.resource.Resources;
 
 /**
  * A Schedulable represents an entity that can launch tasks, such as a job
@@ -79,8 +79,6 @@ public abstract class Schedulable {
   /** Minimum Resource share assigned to the schedulable. */
   public abstract Resource getMinShare();
 
-  /** Maximum Resource share assigned to the schedulable. */
-  public abstract Resource getMaxShare();
 
   /** Job/queue weight in fair sharing. */
   public abstract ResourceWeights getWeights();

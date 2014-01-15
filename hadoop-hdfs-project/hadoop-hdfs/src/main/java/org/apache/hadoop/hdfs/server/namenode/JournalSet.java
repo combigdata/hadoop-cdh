@@ -17,8 +17,6 @@
  */
 package org.apache.hadoop.hdfs.server.namenode;
 
-import static org.apache.hadoop.util.ExitUtil.terminate;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -39,6 +37,7 @@ import org.apache.hadoop.hdfs.server.protocol.RemoteEditLogManifest;
 
 import static org.apache.hadoop.util.ExitUtil.terminate;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.ImmutableList;
@@ -256,12 +255,13 @@ public class JournalSet implements JournalManager {
             ". Skipping.", ioe);
       }
     }
-    chainAndMakeRedundantStreams(streams, allStreams, fromTxId);
+    chainAndMakeRedundantStreams(streams, allStreams, fromTxId, inProgressOk);
   }
   
   public static void chainAndMakeRedundantStreams(
       Collection<EditLogInputStream> outStreams,
-      PriorityQueue<EditLogInputStream> allStreams, long fromTxId) {
+      PriorityQueue<EditLogInputStream> allStreams,
+      long fromTxId, boolean inProgressOk) {
     // We want to group together all the streams that start on the same start
     // transaction ID.  To do this, we maintain an accumulator (acc) of all
     // the streams we've seen at a given start transaction ID.  When we see a
@@ -596,7 +596,7 @@ public class JournalSet implements JournalManager {
       if (j.getManager() instanceof FileJournalManager) {
         FileJournalManager fjm = (FileJournalManager)j.getManager();
         try {
-          allLogs.addAll(fjm.getRemoteEditLogs(fromTxId, forReading, false));
+          allLogs.addAll(fjm.getRemoteEditLogs(fromTxId, forReading));
         } catch (Throwable t) {
           LOG.warn("Cannot list edit logs in " + fjm, t);
         }

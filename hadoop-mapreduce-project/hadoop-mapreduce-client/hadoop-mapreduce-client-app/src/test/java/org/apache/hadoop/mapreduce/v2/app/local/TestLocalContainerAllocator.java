@@ -27,17 +27,17 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.v2.api.records.JobId;
 import org.apache.hadoop.mapreduce.v2.app.AppContext;
-import org.apache.hadoop.mapreduce.v2.app.ClusterInfo;
 import org.apache.hadoop.mapreduce.v2.app.client.ClientService;
 import org.apache.hadoop.mapreduce.v2.app.job.Job;
-import org.apache.hadoop.yarn.api.ApplicationMasterProtocol;
+import org.apache.hadoop.yarn.ClusterInfo;
+import org.apache.hadoop.yarn.YarnRuntimeException;
+import org.apache.hadoop.yarn.api.AMRMProtocol;
 import org.apache.hadoop.yarn.api.protocolrecords.AllocateRequest;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.event.EventHandler;
 import org.apache.hadoop.yarn.exceptions.YarnException;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.ipc.RPCUtil;
 import org.junit.Assert;
 import org.junit.Test;
@@ -89,17 +89,13 @@ public class TestLocalContainerAllocator {
     }
 
     @Override
-    protected void unregister() {
-    }
-
-    @Override
     protected void startAllocatorThread() {
       allocatorThread = new Thread();
     }
 
     @Override
-    protected ApplicationMasterProtocol createSchedulerProxy() {
-      ApplicationMasterProtocol scheduler = mock(ApplicationMasterProtocol.class);
+    protected AMRMProtocol createSchedulerProxy() {
+      AMRMProtocol scheduler = mock(AMRMProtocol.class);
       try {
         when(scheduler.allocate(isA(AllocateRequest.class)))
           .thenThrow(RPCUtil.getRemoteException(new IOException("forcefail")));
@@ -121,7 +117,8 @@ public class TestLocalContainerAllocator {
       when(ctx.getApplicationAttemptId()).thenReturn(attemptId);
       when(ctx.getJob(isA(JobId.class))).thenReturn(job);
       when(ctx.getClusterInfo()).thenReturn(
-        new ClusterInfo(Resource.newInstance(10240, 1)));
+        new ClusterInfo(Resource.newInstance(1024, 1), Resource.newInstance(
+          10240, 1)));
       when(ctx.getEventHandler()).thenReturn(eventHandler);
       return ctx;
     }

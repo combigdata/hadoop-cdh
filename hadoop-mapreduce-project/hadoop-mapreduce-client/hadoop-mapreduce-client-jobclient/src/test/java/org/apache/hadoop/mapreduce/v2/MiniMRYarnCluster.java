@@ -20,18 +20,13 @@ package org.apache.hadoop.mapreduce.v2;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.CommonConfigurationKeys;
 import org.apache.hadoop.fs.FileContext;
-import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.http.HttpConfig;
 import org.apache.hadoop.mapred.LocalContainerLauncher;
 import org.apache.hadoop.mapred.ShuffleHandler;
 import org.apache.hadoop.mapreduce.MRConfig;
@@ -39,17 +34,14 @@ import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.v2.hs.JobHistoryServer;
 import org.apache.hadoop.mapreduce.v2.jobhistory.JHAdminConfig;
 import org.apache.hadoop.mapreduce.v2.jobhistory.JobHistoryUtils;
-import org.apache.hadoop.mapreduce.v2.util.MRWebAppUtil;
-import org.apache.hadoop.net.NetUtils;
-import org.apache.hadoop.service.AbstractService;
-import org.apache.hadoop.service.Service;
 import org.apache.hadoop.util.JarFinder;
+import org.apache.hadoop.yarn.YarnRuntimeException;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.server.MiniYARNCluster;
 import org.apache.hadoop.yarn.server.nodemanager.ContainerExecutor;
 import org.apache.hadoop.yarn.server.nodemanager.DefaultContainerExecutor;
-import org.apache.hadoop.yarn.webapp.util.WebAppUtils;
+import org.apache.hadoop.yarn.service.AbstractService;
+import org.apache.hadoop.yarn.service.Service;
 
 /**
  * Configures and starts the MR-specific components in the YARN cluster.
@@ -74,40 +66,8 @@ public class MiniMRYarnCluster extends MiniYARNCluster {
     addService(historyServerWrapper);
   }
 
-  public static String getResolvedMRHistoryWebAppURLWithoutScheme(
-      Configuration conf, boolean isSSLEnabled) {
-    InetSocketAddress address = null;
-    if (isSSLEnabled) {
-      address =
-          conf.getSocketAddr(JHAdminConfig.MR_HISTORY_WEBAPP_HTTPS_ADDRESS,
-              JHAdminConfig.DEFAULT_MR_HISTORY_WEBAPP_HTTPS_ADDRESS,
-              JHAdminConfig.DEFAULT_MR_HISTORY_WEBAPP_HTTPS_PORT);
-    } else {
-      address =
-          conf.getSocketAddr(JHAdminConfig.MR_HISTORY_WEBAPP_ADDRESS,
-              JHAdminConfig.DEFAULT_MR_HISTORY_WEBAPP_ADDRESS,
-              JHAdminConfig.DEFAULT_MR_HISTORY_WEBAPP_PORT);    }
-    address = NetUtils.getConnectAddress(address);
-    StringBuffer sb = new StringBuffer();
-    InetAddress resolved = address.getAddress();
-    if (resolved == null || resolved.isAnyLocalAddress() || 
-        resolved.isLoopbackAddress()) {
-      String lh = address.getHostName();
-      try {
-        lh = InetAddress.getLocalHost().getCanonicalHostName();
-      } catch (UnknownHostException e) {
-        //Ignore and fallback.
-      }
-      sb.append(lh);
-    } else {
-      sb.append(address.getHostName());
-    }
-    sb.append(":").append(address.getPort());
-    return sb.toString();
-  }
-
   @Override
-  public void serviceInit(Configuration conf) throws Exception {
+  public void init(Configuration conf) {
     conf.set(MRConfig.FRAMEWORK_NAME, MRConfig.YARN_FRAMEWORK_NAME);
     if (conf.get(MRJobConfig.MR_AM_STAGING_DIR) == null) {
       conf.set(MRJobConfig.MR_AM_STAGING_DIR, new File(getTestWorkDir(),
@@ -127,21 +87,6 @@ public class MiniMRYarnCluster extends MiniYARNCluster {
     try {
       Path stagingPath = FileContext.getFileContext(conf).makeQualified(
           new Path(conf.get(MRJobConfig.MR_AM_STAGING_DIR)));
-      /*
-       * Re-configure the staging path on Windows if the file system is localFs.
-       * We need to use a absolute path that contains the drive letter. The unit
-       * test could run on a different drive than the AM. We can run into the
-       * issue that job files are localized to the drive where the test runs on,
-       * while the AM starts on a different drive and fails to find the job
-       * metafiles. Using absolute path can avoid this ambiguity.
-       */
-      if (Path.WINDOWS) {
-        if (LocalFileSystem.class.isInstance(stagingPath.getFileSystem(conf))) {
-          conf.set(MRJobConfig.MR_AM_STAGING_DIR,
-              new File(conf.get(MRJobConfig.MR_AM_STAGING_DIR))
-                  .getAbsolutePath());
-        }
-      }
       FileContext fc=FileContext.getFileContext(stagingPath.toUri(), conf);
       if (fc.util().exists(stagingPath)) {
         LOG.info(stagingPath + " exists! deleting...");
@@ -176,7 +121,7 @@ public class MiniMRYarnCluster extends MiniYARNCluster {
     // for corresponding uberized tests.
     conf.setBoolean(MRJobConfig.JOB_UBERTASK_ENABLE, false);
 
-    super.serviceInit(conf);
+    super.init(conf);
   }
 
   private class JobHistoryServerWrapper extends AbstractService {
@@ -185,7 +130,7 @@ public class MiniMRYarnCluster extends MiniYARNCluster {
     }
 
     @Override
-    public synchronized void serviceStart() throws Exception {
+    public synchronized void start() {
       try {
         if (!getConfig().getBoolean(
             JHAdminConfig.MR_HISTORY_MINICLUSTER_FIXED_PORTS,
@@ -193,7 +138,7 @@ public class MiniMRYarnCluster extends MiniYARNCluster {
           // pick free random ports.
           getConfig().set(JHAdminConfig.MR_HISTORY_ADDRESS,
               MiniYARNCluster.getHostname() + ":0");
-          MRWebAppUtil.setJHSWebappURLWithoutScheme(getConfig(),
+          getConfig().set(JHAdminConfig.MR_HISTORY_WEBAPP_ADDRESS,
               MiniYARNCluster.getHostname() + ":0");
         }
         historyServer = new JobHistoryServer();
@@ -211,33 +156,32 @@ public class MiniMRYarnCluster extends MiniYARNCluster {
         if (historyServer.getServiceState() != STATE.STARTED) {
           throw new IOException("HistoryServer failed to start");
         }
-        super.serviceStart();
+        super.start();
       } catch (Throwable t) {
         throw new YarnRuntimeException(t);
       }
       //need to do this because historyServer.init creates a new Configuration
       getConfig().set(JHAdminConfig.MR_HISTORY_ADDRESS,
                       historyServer.getConfig().get(JHAdminConfig.MR_HISTORY_ADDRESS));
-      MRWebAppUtil.setJHSWebappURLWithoutScheme(getConfig(),
-          MRWebAppUtil.getJHSWebappURLWithoutScheme(historyServer.getConfig()));
+      getConfig().set(JHAdminConfig.MR_HISTORY_WEBAPP_ADDRESS,
+                      historyServer.getConfig().get(JHAdminConfig.MR_HISTORY_WEBAPP_ADDRESS));
 
       LOG.info("MiniMRYARN ResourceManager address: " +
                getConfig().get(YarnConfiguration.RM_ADDRESS));
       LOG.info("MiniMRYARN ResourceManager web address: " +
-               WebAppUtils.getRMWebAppURLWithoutScheme(getConfig()));
+               getConfig().get(YarnConfiguration.RM_WEBAPP_ADDRESS));
       LOG.info("MiniMRYARN HistoryServer address: " +
                getConfig().get(JHAdminConfig.MR_HISTORY_ADDRESS));
       LOG.info("MiniMRYARN HistoryServer web address: " +
-          getResolvedMRHistoryWebAppURLWithoutScheme(getConfig(),
-              HttpConfig.isSecure()));
+               getConfig().get(JHAdminConfig.MR_HISTORY_WEBAPP_ADDRESS));
     }
 
     @Override
-    public synchronized void serviceStop() throws Exception {
+    public synchronized void stop() {
       if (historyServer != null) {
         historyServer.stop();
       }
-      super.serviceStop();
+      super.stop();
     }
   }
 

@@ -17,24 +17,23 @@
  */
 package org.apache.hadoop.fs.local;
 
+import java.io.IOException;
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.AbstractFileSystem;
-import org.apache.hadoop.fs.DelegateToFileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileUtil;
+import org.apache.hadoop.fs.DelegateToFileSystem;
 import org.apache.hadoop.fs.FsConstants;
 import org.apache.hadoop.fs.FsServerDefaults;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RawLocalFileSystem;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.util.Shell;
 
 /**
  * The RawLocalFs implementation of AbstractFileSystem.
@@ -76,29 +75,47 @@ public class RawLocalFs extends DelegateToFileSystem {
   @Override
   public boolean supportsSymlinks() {
     return true;
-  }
-
+  }  
+  
   @Override
-  public void createSymlink(Path target, Path link, boolean createParent)
+  public void createSymlink(Path target, Path link, boolean createParent) 
       throws IOException {
     final String targetScheme = target.toUri().getScheme();
     if (targetScheme != null && !"file".equals(targetScheme)) {
       throw new IOException("Unable to create symlink to non-local file "+
-          "system: "+target.toString());
+                            "system: "+target.toString());
     }
-
     if (createParent) {
       mkdir(link.getParent(), FsPermission.getDirDefault(), true);
     }
-
     // NB: Use createSymbolicLink in java.nio.file.Path once available
-    int result = FileUtil.symLink(target.toString(), link.toString());
-    if (result != 0) {
-      throw new IOException("Error " + result + " creating symlink " +
-          link + " to " + target);
+    try {
+      Shell.execCommand(Shell.getSymlinkCommand(
+        getPathWithoutSchemeAndAuthority(target).getPath(),
+        getPathWithoutSchemeAndAuthority(link).getPath()));
+    } catch (IOException x) {
+      throw new IOException("Unable to create symlink: "+x.getMessage());
     }
   }
 
+  /** 
+   * Returns the target of the given symlink. Returns the empty string if  
+   * the given path does not refer to a symlink or there is an error 
+   * acessing the symlink.
+   */
+  private String readLink(Path p) {
+    /* NB: Use readSymbolicLink in java.nio.file.Path once available. Could
+     * use getCanonicalPath in File to get the target of the symlink but that 
+     * does not indicate if the given path refers to a symlink.
+     */
+    try {
+      final String path = p.toUri().getPath();
+      return Shell.execCommand(Shell.READ_LINK_COMMAND, path).trim(); 
+    } catch (IOException x) {
+      return "";
+    }
+  }
+  
   /**
    * Return a FileStatus representing the given path. If the path refers 
    * to a symlink return a FileStatus representing the link rather than
@@ -106,11 +123,11 @@ public class RawLocalFs extends DelegateToFileSystem {
    */
   @Override
   public FileStatus getFileLinkStatus(final Path f) throws IOException {
-    String target = FileUtil.readLink(new File(f.toString()));
+    String target = readLink(f);
     try {
       FileStatus fs = getFileStatus(f);
       // If f refers to a regular file or directory      
-      if (target.isEmpty()) {
+      if ("".equals(target)) {
         return fs;
       }
       // Otherwise f refers to a symlink
@@ -132,7 +149,7 @@ public class RawLocalFs extends DelegateToFileSystem {
        * the readBasicFileAttributes method in java.nio.file.attributes 
        * when available.
        */
-      if (!target.isEmpty()) {
+      if (!"".equals(target)) {
         return new FileStatus(0, false, 0, 0, 0, 0, FsPermission.getDefault(), 
             "", "", new Path(target), f);        
       }
@@ -140,14 +157,6 @@ public class RawLocalFs extends DelegateToFileSystem {
       throw e;
     }
   }
-  
-   @Override
-   public boolean isValidName(String src) {
-     // Different local file systems have different validation rules.  Skip
-     // validation here and just let the OS handle it.  This is consistent with
-     // RawLocalFileSystem.
-     return true;
-   }
   
   @Override
   public Path getLinkTarget(Path f) throws IOException {
@@ -157,5 +166,14 @@ public class RawLocalFs extends DelegateToFileSystem {
      * should never call this function.
      */
     throw new AssertionError();
+  }
+
+  private static File getPathWithoutSchemeAndAuthority(Path path) {
+    Path newPath = path.isUriPathAbsolute() ?
+      new Path(null, null, path.toUri().getPath()) :
+      path;
+
+    // Path.toString() removes leading slash before drive spec on Windows.
+    return new File(newPath.toString());
   }
 }

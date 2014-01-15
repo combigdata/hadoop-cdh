@@ -52,9 +52,9 @@ import org.apache.hadoop.mapreduce.v2.jobhistory.FileNameIndexUtils;
 import org.apache.hadoop.mapreduce.v2.jobhistory.JobHistoryUtils;
 import org.apache.hadoop.mapreduce.v2.jobhistory.JobIndexInfo;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.service.AbstractService;
+import org.apache.hadoop.yarn.YarnRuntimeException;
 import org.apache.hadoop.yarn.event.EventHandler;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
+import org.apache.hadoop.yarn.service.AbstractService;
 
 /**
  * The job history events get routed to this class. This class writes the Job
@@ -115,7 +115,7 @@ public class JobHistoryEventHandler extends AbstractService
    * Creates these directories if they do not already exist.
    */
   @Override
-  protected void serviceInit(Configuration conf) throws Exception {
+  public void init(Configuration conf) {
     String jobId =
       TypeConverter.fromYarn(context.getApplicationID()).toString();
     
@@ -220,7 +220,7 @@ public class JobHistoryEventHandler extends AbstractService
             MRJobConfig.MR_AM_HISTORY_USE_BATCHED_FLUSH_QUEUE_SIZE_THRESHOLD,
             MRJobConfig.DEFAULT_MR_AM_HISTORY_USE_BATCHED_FLUSH_QUEUE_SIZE_THRESHOLD);
     
-    super.serviceInit(conf);
+    super.init(conf);
   }
 
   private void mkdir(FileSystem fs, Path path, FsPermission fsp)
@@ -243,7 +243,7 @@ public class JobHistoryEventHandler extends AbstractService
   }
 
   @Override
-  protected void serviceStart() throws Exception {
+  public void start() {
     eventHandlingThread = new Thread(new Runnable() {
       @Override
       public void run() {
@@ -275,48 +275,38 @@ public class JobHistoryEventHandler extends AbstractService
             boolean isInterrupted = Thread.interrupted();
             handleEvent(event);
             if (isInterrupted) {
-                LOG.debug("Event handling interrupted");
-                Thread.currentThread().interrupt();
-              }
+              Thread.currentThread().interrupt();
             }
           }
         }
-    }, "eventHandlingThread");
+      }
+    });
     eventHandlingThread.start();
-    super.serviceStart();
+    super.start();
   }
 
   @Override
-  protected void serviceStop() throws Exception {
+  public void stop() {
     LOG.info("Stopping JobHistoryEventHandler. "
         + "Size of the outstanding queue size is " + eventQueue.size());
     stopped = true;
     //do not interrupt while event handling is in progress
     synchronized(lock) {
-      if (eventHandlingThread != null) {
-        LOG.debug("Interrupting Event Handling thread");
+      if (eventHandlingThread != null)
         eventHandlingThread.interrupt();
-      } else {
-        LOG.debug("Null event handling thread");
-      }
     }
 
     try {
-      if (eventHandlingThread != null) {
-        LOG.debug("Waiting for Event Handling thread to complete");
+      if (eventHandlingThread != null)
         eventHandlingThread.join();
-      }
     } catch (InterruptedException ie) {
-      LOG.info("Interrupted Exception while stopping", ie);
+      LOG.info("Interruped Exception while stopping", ie);
     }
 
     // Cancel all timers - so that they aren't invoked during or after
     // the metaInfo object is wrapped up.
     for (MetaInfo mi : fileMap.values()) {
       try {
-        if (LOG.isDebugEnabled()) {
-          LOG.debug("Shutting down timer for " + mi);
-        }
         mi.shutDownTimer();
       } catch (IOException e) {
         LOG.info("Exception while cancelling delayed flush timer. "
@@ -364,7 +354,7 @@ public class JobHistoryEventHandler extends AbstractService
       }
     }
     LOG.info("Stopped JobHistoryEventHandler. super.stop()");
-    super.serviceStop();
+    super.stop();
   }
 
   protected EventWriter createEventWriter(Path historyFilePath)
@@ -520,7 +510,7 @@ public class JobHistoryEventHandler extends AbstractService
         mi.getJobIndexInfo().setSubmitTime(jobSubmittedEvent.getSubmitTime());
         mi.getJobIndexInfo().setQueueName(jobSubmittedEvent.getJobQueueName());
       }
-
+     
       // If this is JobFinishedEvent, close the writer and setup the job-index
       if (event.getHistoryEvent().getEventType() == EventType.JOB_FINISHED) {
         try {
@@ -532,24 +522,6 @@ public class JobHistoryEventHandler extends AbstractService
               jFinishedEvent.getFinishedReduces());
           mi.getJobIndexInfo().setJobStatus(JobState.SUCCEEDED.toString());
           closeEventWriter(event.getJobID());
-          processDoneFiles(event.getJobID());
-        } catch (IOException e) {
-          throw new YarnRuntimeException(e);
-        }
-      }
-      // In case of JOB_ERROR, only process all the Done files(e.g. job
-      // summary, job history file etc.) if it is last AM retry.
-      if (event.getHistoryEvent().getEventType() == EventType.JOB_ERROR) {
-        try {
-          JobUnsuccessfulCompletionEvent jucEvent =
-              (JobUnsuccessfulCompletionEvent) event.getHistoryEvent();
-          mi.getJobIndexInfo().setFinishTime(jucEvent.getFinishTime());
-          mi.getJobIndexInfo().setNumMaps(jucEvent.getFinishedMaps());
-          mi.getJobIndexInfo().setNumReduces(jucEvent.getFinishedReduces());
-          mi.getJobIndexInfo().setJobStatus(jucEvent.getStatus());
-          closeEventWriter(event.getJobID());
-          if(context.isLastAMRetry())
-            processDoneFiles(event.getJobID());
         } catch (IOException e) {
           throw new YarnRuntimeException(e);
         }
@@ -566,7 +538,6 @@ public class JobHistoryEventHandler extends AbstractService
           mi.getJobIndexInfo().setNumReduces(jucEvent.getFinishedReduces());
           mi.getJobIndexInfo().setJobStatus(jucEvent.getStatus());
           closeEventWriter(event.getJobID());
-          processDoneFiles(event.getJobID());
         } catch (IOException e) {
           throw new YarnRuntimeException(e);
         }
@@ -653,6 +624,7 @@ public class JobHistoryEventHandler extends AbstractService
   }
 
   protected void closeEventWriter(JobId jobId) throws IOException {
+
     final MetaInfo mi = fileMap.get(jobId);
     if (mi == null) {
       throw new IOException("No MetaInfo found for JobId: [" + jobId + "]");
@@ -672,15 +644,7 @@ public class JobHistoryEventHandler extends AbstractService
       LOG.error("Error closing writer for JobID: " + jobId);
       throw e;
     }
-  }
-
-  protected void processDoneFiles(JobId jobId) throws IOException {
-
-    final MetaInfo mi = fileMap.get(jobId);
-    if (mi == null) {
-      throw new IOException("No MetaInfo found for JobId: [" + jobId + "]");
-    }
-
+     
     if (mi.getHistoryFile() == null) {
       LOG.warn("No file for job-history with " + jobId + " found in cache!");
     }
@@ -761,7 +725,6 @@ public class JobHistoryEventHandler extends AbstractService
 
     @Override
     public void run() {
-      LOG.debug("In flush timer task");
       synchronized (lock) {
         try {
           if (!metaInfo.isTimerShutDown() && shouldRun)
@@ -827,14 +790,7 @@ public class JobHistoryEventHandler extends AbstractService
       return isTimerShutDown;
     }
 
-    @Override
-    public String toString() {
-      return "Job MetaInfo for "+ jobSummary.getJobId()
-             + " history file " + historyFile;
-    }
-
     void closeWriter() throws IOException {
-      LOG.debug("Closing Writer");
       synchronized (lock) {
         if (writer != null) {
           writer.close();
@@ -844,7 +800,6 @@ public class JobHistoryEventHandler extends AbstractService
     }
 
     void writeEvent(HistoryEvent event) throws IOException {
-      LOG.debug("Writing event");
       synchronized (lock) {
         if (writer != null) {
           writer.write(event);
@@ -894,9 +849,6 @@ public class JobHistoryEventHandler extends AbstractService
     }
 
     void flush() throws IOException {
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("Flushing " + toString());
-      }
       synchronized (lock) {
         if (numUnflushedCompletionEvents != 0) { // skipped timer cancel.
           writer.flush();
@@ -907,9 +859,6 @@ public class JobHistoryEventHandler extends AbstractService
     }
 
     void shutDownTimer() throws IOException {
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("Shutting down timer "+ toString());
-      }
       synchronized (lock) {
         isTimerShutDown = true;
         flushTimer.cancel();

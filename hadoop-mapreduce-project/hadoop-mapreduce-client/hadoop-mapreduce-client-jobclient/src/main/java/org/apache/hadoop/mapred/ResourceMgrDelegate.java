@@ -20,15 +20,9 @@ package org.apache.hadoop.mapred;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.EnumSet;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.classification.InterfaceAudience.Private;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
@@ -43,74 +37,37 @@ import org.apache.hadoop.mapreduce.TypeConverter;
 import org.apache.hadoop.mapreduce.v2.util.MRApps;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
-import org.apache.hadoop.yarn.api.ApplicationClientProtocol;
+import org.apache.hadoop.yarn.api.ClientRMProtocol;
+import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationResponse;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.apache.hadoop.yarn.api.records.ApplicationReport;
-import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
-import org.apache.hadoop.yarn.api.records.NodeReport;
-import org.apache.hadoop.yarn.api.records.QueueUserACLInfo;
-import org.apache.hadoop.yarn.api.records.NodeState;
-import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.api.records.YarnClusterMetrics;
-import org.apache.hadoop.yarn.client.api.YarnClient;
-import org.apache.hadoop.yarn.client.api.YarnClientApplication;
+import org.apache.hadoop.yarn.client.YarnClientImpl;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
-import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
-import org.apache.hadoop.yarn.util.ConverterUtils;
+import org.apache.hadoop.yarn.util.ProtoUtils;
 
-import com.google.common.annotations.VisibleForTesting;
-
-public class ResourceMgrDelegate extends YarnClient {
+public class ResourceMgrDelegate extends YarnClientImpl {
   private static final Log LOG = LogFactory.getLog(ResourceMgrDelegate.class);
       
   private YarnConfiguration conf;
-  private ApplicationSubmissionContext application;
+  private GetNewApplicationResponse application;
   private ApplicationId applicationId;
-  @Private
-  @VisibleForTesting
-  protected YarnClient client;
-  private InetSocketAddress rmAddress;
 
   /**
-   * Delegate responsible for communicating with the Resource Manager's
-   * {@link ApplicationClientProtocol}.
+   * Delegate responsible for communicating with the Resource Manager's {@link ClientRMProtocol}.
    * @param conf the configuration object.
    */
   public ResourceMgrDelegate(YarnConfiguration conf) {
-    super(ResourceMgrDelegate.class.getName());
+    super();
     this.conf = conf;
-    this.client = YarnClient.createYarnClient();
     init(conf);
     start();
-  }
-
-  @Override
-  protected void serviceInit(Configuration conf) throws Exception {
-    this.rmAddress = conf.getSocketAddr(YarnConfiguration.RM_ADDRESS,
-          YarnConfiguration.DEFAULT_RM_ADDRESS,
-          YarnConfiguration.DEFAULT_RM_PORT);
-    client.init(conf);
-    super.serviceInit(conf);
-  }
-
-  @Override
-  protected void serviceStart() throws Exception {
-    client.start();
-    super.serviceStart();
-  }
-
-  @Override
-  protected void serviceStop() throws Exception {
-    client.stop();
-    super.serviceStop();
   }
 
   public TaskTrackerInfo[] getActiveTrackers() throws IOException,
       InterruptedException {
     try {
-      return TypeConverter.fromYarnNodes(
-          client.getNodeReports(NodeState.RUNNING));
+      return TypeConverter.fromYarnNodes(super.getNodeReports());
     } catch (YarnException e) {
       throw new IOException(e);
     }
@@ -118,12 +75,7 @@ public class ResourceMgrDelegate extends YarnClient {
 
   public JobStatus[] getAllJobs() throws IOException, InterruptedException {
     try {
-      Set<String> appTypes = new HashSet<String>(1);
-      appTypes.add(MRJobConfig.MR_APPLICATION_TYPE);
-      EnumSet<YarnApplicationState> appStates =
-          EnumSet.noneOf(YarnApplicationState.class);
-      return TypeConverter.fromYarnApps(
-          client.getApplications(appTypes, appStates), this.conf);
+      return TypeConverter.fromYarnApps(super.getApplicationList(), this.conf);
     } catch (YarnException e) {
       throw new IOException(e);
     }
@@ -139,7 +91,7 @@ public class ResourceMgrDelegate extends YarnClient {
   public ClusterMetrics getClusterMetrics() throws IOException,
       InterruptedException {
     try {
-      YarnClusterMetrics metrics = client.getYarnClusterMetrics();
+      YarnClusterMetrics metrics = super.getYarnClusterMetrics();
       ClusterMetrics oldMetrics =
           new ClusterMetrics(1, 1, 1, 1, 1, 1,
               metrics.getNumNodeManagers() * 10,
@@ -159,8 +111,8 @@ public class ResourceMgrDelegate extends YarnClient {
   public Token getDelegationToken(Text renewer) throws IOException,
       InterruptedException {
     try {
-      return ConverterUtils.convertFromYarn(
-          client.getRMDelegationToken(renewer), rmAddress);
+      return ProtoUtils.convertFromProtoFormat(
+        super.getRMDelegationToken(renewer), rmAddress);
     } catch (YarnException e) {
       throw new IOException(e);
     }
@@ -172,7 +124,7 @@ public class ResourceMgrDelegate extends YarnClient {
 
   public JobID getNewJobID() throws IOException, InterruptedException {
     try {
-      this.application = client.createApplication().getApplicationSubmissionContext();
+      this.application = super.getNewApplication();
       this.applicationId = this.application.getApplicationId();
       return TypeConverter.fromYarn(applicationId);
     } catch (YarnException e) {
@@ -184,7 +136,7 @@ public class ResourceMgrDelegate extends YarnClient {
   InterruptedException {
     try {
       org.apache.hadoop.yarn.api.records.QueueInfo queueInfo =
-          client.getQueueInfo(queueName);
+          super.getQueueInfo(queueName);
       return (queueInfo == null) ? null : TypeConverter.fromYarn(queueInfo,
           conf);
     } catch (YarnException e) {
@@ -195,7 +147,7 @@ public class ResourceMgrDelegate extends YarnClient {
   public QueueAclsInfo[] getQueueAclsForCurrentUser() throws IOException,
       InterruptedException {
     try {
-      return TypeConverter.fromYarnQueueUserAclsInfo(client
+      return TypeConverter.fromYarnQueueUserAclsInfo(super
         .getQueueAclsInfo());
     } catch (YarnException e) {
       throw new IOException(e);
@@ -204,7 +156,7 @@ public class ResourceMgrDelegate extends YarnClient {
 
   public QueueInfo[] getQueues() throws IOException, InterruptedException {
     try {
-      return TypeConverter.fromYarnQueueInfo(client.getAllQueues(), this.conf);
+      return TypeConverter.fromYarnQueueInfo(super.getAllQueues(), this.conf);
     } catch (YarnException e) {
       throw new IOException(e);
     }
@@ -212,7 +164,7 @@ public class ResourceMgrDelegate extends YarnClient {
 
   public QueueInfo[] getRootQueues() throws IOException, InterruptedException {
     try {
-      return TypeConverter.fromYarnQueueInfo(client.getRootQueueInfos(),
+      return TypeConverter.fromYarnQueueInfo(super.getRootQueueInfos(),
           this.conf);
     } catch (YarnException e) {
       throw new IOException(e);
@@ -222,7 +174,7 @@ public class ResourceMgrDelegate extends YarnClient {
   public QueueInfo[] getChildQueues(String parent) throws IOException,
       InterruptedException {
     try {
-      return TypeConverter.fromYarnQueueInfo(client.getChildQueueInfos(parent),
+      return TypeConverter.fromYarnQueueInfo(super.getChildQueueInfos(parent),
         this.conf);
     } catch (YarnException e) {
       throw new IOException(e);
@@ -263,112 +215,5 @@ public class ResourceMgrDelegate extends YarnClient {
 
   public ApplicationId getApplicationId() {
     return applicationId;
-  }
-
-  @Override
-  public YarnClientApplication createApplication() throws
-      YarnException, IOException {
-    return client.createApplication();
-  }
-
-  @Override
-  public ApplicationId
-      submitApplication(ApplicationSubmissionContext appContext)
-          throws YarnException, IOException {
-    return client.submitApplication(appContext);
-  }
-
-  @Override
-  public void killApplication(ApplicationId applicationId)
-      throws YarnException, IOException {
-    client.killApplication(applicationId);
-  }
-
-  @Override
-  public ApplicationReport getApplicationReport(ApplicationId appId)
-      throws YarnException, IOException {
-    return client.getApplicationReport(appId);
-  }
-
-  @Override
-  public Token<AMRMTokenIdentifier> getAMRMToken(ApplicationId appId) 
-    throws YarnException, IOException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public List<ApplicationReport> getApplications() throws YarnException,
-      IOException {
-    return client.getApplications();
-  }
-
-  @Override
-  public List<ApplicationReport> getApplications(Set<String> applicationTypes)
-      throws YarnException,
-      IOException {
-    return client.getApplications(applicationTypes);
-  }
-
-  @Override
-  public List<ApplicationReport> getApplications(
-      EnumSet<YarnApplicationState> applicationStates) throws YarnException,
-      IOException {
-    return client.getApplications(applicationStates);
-  }
-
-  @Override
-  public List<ApplicationReport> getApplications(
-      Set<String> applicationTypes,
-      EnumSet<YarnApplicationState> applicationStates)
-      throws YarnException, IOException {
-    return client.getApplications(applicationTypes, applicationStates);
-  }
-
-  @Override
-  public YarnClusterMetrics getYarnClusterMetrics() throws YarnException,
-      IOException {
-    return client.getYarnClusterMetrics();
-  }
-
-  @Override
-  public List<NodeReport> getNodeReports(NodeState... states)
-      throws YarnException, IOException {
-    return client.getNodeReports(states);
-  }
-
-  @Override
-  public org.apache.hadoop.yarn.api.records.Token getRMDelegationToken(
-      Text renewer) throws YarnException, IOException {
-    return client.getRMDelegationToken(renewer);
-  }
-
-  @Override
-  public org.apache.hadoop.yarn.api.records.QueueInfo getQueueInfo(
-      String queueName) throws YarnException, IOException {
-    return client.getQueueInfo(queueName);
-  }
-
-  @Override
-  public List<org.apache.hadoop.yarn.api.records.QueueInfo> getAllQueues()
-      throws YarnException, IOException {
-    return client.getAllQueues();
-  }
-
-  @Override
-  public List<org.apache.hadoop.yarn.api.records.QueueInfo> getRootQueueInfos()
-      throws YarnException, IOException {
-    return client.getRootQueueInfos();
-  }
-
-  @Override
-  public List<org.apache.hadoop.yarn.api.records.QueueInfo> getChildQueueInfos(
-      String parent) throws YarnException, IOException {
-    return client.getChildQueueInfos(parent);
-  }
-
-  @Override
-  public List<QueueUserACLInfo> getQueueAclsInfo() throws YarnException,
-      IOException {
-    return client.getQueueAclsInfo();
   }
 }

@@ -47,8 +47,7 @@ public class NodeHeartbeatResponsePBImpl extends ProtoBase<NodeHeartbeatResponse
   
   private List<ContainerId> containersToCleanup = null;
   private List<ApplicationId> applicationsToCleanup = null;
-  private MasterKey containerTokenMasterKey = null;
-  private MasterKey nmTokenMasterKey = null;
+  private MasterKey masterKey = null;
   
   public NodeHeartbeatResponsePBImpl() {
     builder = NodeHeartbeatResponseProto.newBuilder();
@@ -73,13 +72,8 @@ public class NodeHeartbeatResponsePBImpl extends ProtoBase<NodeHeartbeatResponse
     if (this.applicationsToCleanup != null) {
       addApplicationsToCleanupToProto();
     }
-    if (this.containerTokenMasterKey != null) {
-      builder.setContainerTokenMasterKey(
-          convertToProtoFormat(this.containerTokenMasterKey));
-    }
-    if (this.nmTokenMasterKey != null) {
-      builder.setNmTokenMasterKey(
-          convertToProtoFormat(this.nmTokenMasterKey));
+    if (this.masterKey != null) {
+      builder.setMasterKey(convertToProtoFormat(this.masterKey));
     }
   }
 
@@ -112,47 +106,24 @@ public class NodeHeartbeatResponsePBImpl extends ProtoBase<NodeHeartbeatResponse
   }
 
   @Override
-  public MasterKey getContainerTokenMasterKey() {
+  public MasterKey getMasterKey() {
     NodeHeartbeatResponseProtoOrBuilder p = viaProto ? proto : builder;
-    if (this.containerTokenMasterKey != null) {
-      return this.containerTokenMasterKey;
+    if (this.masterKey != null) {
+      return this.masterKey;
     }
-    if (!p.hasContainerTokenMasterKey()) {
+    if (!p.hasMasterKey()) {
       return null;
     }
-    this.containerTokenMasterKey =
-        convertFromProtoFormat(p.getContainerTokenMasterKey());
-    return this.containerTokenMasterKey;
+    this.masterKey = convertFromProtoFormat(p.getMasterKey());
+    return this.masterKey;
   }
 
   @Override
-  public void setContainerTokenMasterKey(MasterKey masterKey) {
+  public void setMasterKey(MasterKey masterKey) {
     maybeInitBuilder();
     if (masterKey == null)
-      builder.clearContainerTokenMasterKey();
-    this.containerTokenMasterKey = masterKey;
-  }
-
-  @Override
-  public MasterKey getNMTokenMasterKey() {
-    NodeHeartbeatResponseProtoOrBuilder p = viaProto ? proto : builder;
-    if (this.nmTokenMasterKey != null) {
-      return this.nmTokenMasterKey;
-    }
-    if (!p.hasNmTokenMasterKey()) {
-      return null;
-    }
-    this.nmTokenMasterKey =
-        convertFromProtoFormat(p.getNmTokenMasterKey());
-    return this.nmTokenMasterKey;
-  }
-
-  @Override
-  public void setNMTokenMasterKey(MasterKey masterKey) {
-    maybeInitBuilder();
-    if (masterKey == null)
-      builder.clearNmTokenMasterKey();
-    this.nmTokenMasterKey = masterKey;
+      builder.clearMasterKey();
+    this.masterKey = masterKey;
   }
 
   @Override

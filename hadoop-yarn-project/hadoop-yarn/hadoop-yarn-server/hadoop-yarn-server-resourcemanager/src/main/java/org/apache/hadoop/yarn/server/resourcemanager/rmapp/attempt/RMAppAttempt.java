@@ -21,9 +21,6 @@ package org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt;
 import java.util.List;
 import java.util.Set;
 
-import javax.crypto.SecretKey;
-
-import org.apache.hadoop.classification.InterfaceAudience.LimitedPrivate;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationResourceUsageReport;
@@ -34,8 +31,8 @@ import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.event.EventHandler;
-import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
-import org.apache.hadoop.yarn.security.client.ClientToAMTokenIdentifier;
+import org.apache.hadoop.yarn.security.ApplicationTokenIdentifier;
+import org.apache.hadoop.yarn.security.client.ClientTokenIdentifier;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMApp;
 
 /**
@@ -94,6 +91,12 @@ public interface RMAppAttempt extends EventHandler<RMAppAttemptEvent> {
   String getWebProxyBase();
 
   /**
+   * The token required by the clients to talk to the application attempt
+   * @return the token required by the clients to talk to the application attempt
+   */
+  Token<ClientTokenIdentifier> getClientToken();
+
+  /**
    * Diagnostics information for the application attempt.
    * @return diagnostics information for the application attempt.
    */
@@ -146,26 +149,10 @@ public interface RMAppAttempt extends EventHandler<RMAppAttemptEvent> {
   ApplicationSubmissionContext getSubmissionContext();
 
   /**
-   * The AMRMToken belonging to this app attempt
-   * @return The AMRMToken belonging to this app attempt
+   * The application token belonging to this app attempt
+   * @return The application token belonging to this app attempt
    */
-  Token<AMRMTokenIdentifier> getAMRMToken();
-
-  /**
-   * The master key for client-to-AM tokens for this app attempt. This is only
-   * used for RMStateStore. Normal operation must invoke the secret manager to
-   * get the key and not use the local key directly.
-   * @return The master key for client-to-AM tokens for this app attempt
-   */
-  @LimitedPrivate("RMStateStore")
-  SecretKey getClientTokenMasterKey();
-
-  /**
-   * Create a token for authenticating a client connection to the app attempt
-   * @param clientName the name of the client requesting the token
-   * @return the token or null if the attempt is not running
-   */
-  Token<ClientToAMTokenIdentifier> createClientToken(String clientName);
+  Token<ApplicationTokenIdentifier> getApplicationToken();
 
   /**
    * Get application container and resource usage information.

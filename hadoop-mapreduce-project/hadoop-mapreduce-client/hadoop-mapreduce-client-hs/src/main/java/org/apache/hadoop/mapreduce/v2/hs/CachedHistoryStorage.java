@@ -37,8 +37,8 @@ import org.apache.hadoop.mapreduce.v2.hs.webapp.dao.JobsInfo;
 import org.apache.hadoop.mapreduce.v2.hs.HistoryFileManager.HistoryFileInfo;
 import org.apache.hadoop.mapreduce.v2.hs.webapp.dao.JobInfo;
 import org.apache.hadoop.mapreduce.v2.jobhistory.JHAdminConfig;
-import org.apache.hadoop.service.AbstractService;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
+import org.apache.hadoop.yarn.YarnRuntimeException;
+import org.apache.hadoop.yarn.service.AbstractService;
 
 /**
  * Manages an in memory cache of parsed Job History files.
@@ -60,8 +60,7 @@ public class CachedHistoryStorage extends AbstractService implements
 
   @SuppressWarnings("serial")
   @Override
-  public void serviceInit(Configuration conf) throws Exception {
-    super.serviceInit(conf);
+  public void init(Configuration conf) throws YarnRuntimeException {
     LOG.info("CachedHistoryStorage Init");
 
     loadedJobCacheSize = conf.getInt(
@@ -75,6 +74,8 @@ public class CachedHistoryStorage extends AbstractService implements
         return super.size() > loadedJobCacheSize;
       }
     });
+
+    super.init(conf);
   }
 
   public CachedHistoryStorage() {

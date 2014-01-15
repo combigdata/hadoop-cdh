@@ -185,13 +185,12 @@ extends org.apache.hadoop.yarn.server.resourcemanager.scheduler.Queue {
    *                  <code>null</code> if it was just a reservation
    * @param containerStatus <code>ContainerStatus</code> for the completed 
    *                        container
-   * @param childQueue <code>CSQueue</code> to reinsert in childQueues 
    * @param event event to be sent to the container
    */
   public void completedContainer(Resource clusterResource,
       FiCaSchedulerApp application, FiCaSchedulerNode node, 
       RMContainer container, ContainerStatus containerStatus, 
-      RMContainerEventType event, CSQueue childQueue);
+      RMContainerEventType event);
 
   /**
    * Get the number of applications in the queue.

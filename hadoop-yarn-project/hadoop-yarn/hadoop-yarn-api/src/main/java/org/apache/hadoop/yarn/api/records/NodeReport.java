@@ -22,7 +22,7 @@ import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Stable;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
-import org.apache.hadoop.yarn.api.ApplicationClientProtocol;
+import org.apache.hadoop.yarn.api.ClientRMProtocol;
 import org.apache.hadoop.yarn.util.Records;
 
 /**
@@ -37,20 +37,21 @@ import org.apache.hadoop.yarn.util.Records;
  *     <li>Used {@link Resource} on the node.</li>
  *     <li>Total available {@link Resource} of the node.</li>
  *     <li>Number of running containers on the node.</li>
+ *     <li>{@link NodeHealthStatus} of the node.</li>
  *   </ul>
  * </p>
  *
- * @see ApplicationClientProtocol#getClusterNodes(org.apache.hadoop.yarn.api.protocolrecords.GetClusterNodesRequest)
+ * @see NodeHealthStatus
+ * @see ClientRMProtocol#getClusterNodes(org.apache.hadoop.yarn.api.protocolrecords.GetClusterNodesRequest)
  */
 @Public
 @Stable
 public abstract class NodeReport {
 
   @Private
-  @Unstable
   public static NodeReport newInstance(NodeId nodeId, NodeState nodeState,
       String httpAddress, String rackName, Resource used, Resource capability,
-      int numContainers, String healthReport, long lastHealthReportTime) {
+      int numContainers, NodeHealthStatus nodeHealthStatus) {
     NodeReport nodeReport = Records.newRecord(NodeReport.class);
     nodeReport.setNodeId(nodeId);
     nodeReport.setNodeState(nodeState);
@@ -59,8 +60,7 @@ public abstract class NodeReport {
     nodeReport.setUsed(used);
     nodeReport.setCapability(capability);
     nodeReport.setNumContainers(numContainers);
-    nodeReport.setHealthReport(healthReport);
-    nodeReport.setLastHealthReportTime(lastHealthReportTime);
+    nodeReport.setNodeHealthStatus(nodeHealthStatus);
     return nodeReport;
   }
 
@@ -68,8 +68,6 @@ public abstract class NodeReport {
    * Get the <code>NodeId</code> of the node.
    * @return <code>NodeId</code> of the node
    */
-  @Public
-  @Stable
   public abstract NodeId getNodeId();
   
   @Private
@@ -80,8 +78,6 @@ public abstract class NodeReport {
    * Get the <code>NodeState</code> of the node.
    * @return <code>NodeState</code> of the node
    */
-  @Public
-  @Stable
   public abstract NodeState getNodeState();
   
   @Private
@@ -137,39 +133,26 @@ public abstract class NodeReport {
   public abstract void setCapability(Resource capability);
   
   /**
-   * Get the <em>number of allocated containers</em> on the node.
-   * @return <em>number of allocated containers</em> on the node
+   * Get the <em>number of running containers</em> on the node.
+   * @return <em>number of running containers</em> on the node
    */
-  @Private
-  @Unstable
+  @Public
+  @Stable
   public abstract int getNumContainers();
   
   @Private
   @Unstable
   public abstract void setNumContainers(int numContainers);
   
-
-  /** 
-   * Get the <em>diagnostic health report</em> of the node.
-   * @return <em>diagnostic health report</em> of the node
-   */
-  @Public
-  @Stable
-  public abstract String getHealthReport();
-
-  @Private
-  @Unstable
-  public abstract void setHealthReport(String healthReport);
-
   /**
-   * Get the <em>last timestamp</em> at which the health report was received.
-   * @return <em>last timestamp</em> at which the health report was received
+   * Get the <code>NodeHealthStatus</code> of the node. 
+   * @return <code>NodeHealthStatus</code> of the node
    */
   @Public
   @Stable
-  public abstract long getLastHealthReportTime();
-
+  public abstract NodeHealthStatus getNodeHealthStatus();
+  
   @Private
   @Unstable
-  public abstract void setLastHealthReportTime(long lastHealthReport);
+  public abstract void setNodeHealthStatus(NodeHealthStatus nodeHealthStatus);
 }

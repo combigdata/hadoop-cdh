@@ -26,8 +26,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.Stack;
 
-import org.apache.hadoop.classification.InterfaceAudience.Public;
-import org.apache.hadoop.classification.InterfaceStability.Evolving;
+import org.apache.hadoop.yarn.util.Graph;
 
 /**
  * State machine topology.
@@ -41,8 +40,6 @@ import org.apache.hadoop.classification.InterfaceStability.Evolving;
  * @param <EVENT> The event object.
  *
  */
-@Public
-@Evolving
 final public class StateMachineFactory
              <OPERAND, STATE extends Enum<STATE>,
               EVENTTYPE extends Enum<EVENTTYPE>, EVENT> {
@@ -456,7 +453,6 @@ final public class StateMachineFactory
    * @param name graph name
    * @return Graph object generated
    */
-  @SuppressWarnings("rawtypes")
   public Graph generateStateGraph(String name) {
     maybeMakeStateMachineTable();
     Graph g = new Graph(name);

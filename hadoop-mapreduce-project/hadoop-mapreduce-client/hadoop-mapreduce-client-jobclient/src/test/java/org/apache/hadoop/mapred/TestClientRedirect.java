@@ -68,12 +68,12 @@ import org.apache.hadoop.mapreduce.v2.api.records.JobState;
 import org.apache.hadoop.mapreduce.v2.jobhistory.JHAdminConfig;
 import org.apache.hadoop.metrics2.lib.DefaultMetricsSystem;
 import org.apache.hadoop.net.NetUtils;
-import org.apache.hadoop.service.AbstractService;
-import org.apache.hadoop.yarn.api.ApplicationClientProtocol;
+import org.apache.hadoop.yarn.YarnRuntimeException;
+import org.apache.hadoop.yarn.api.ClientRMProtocol;
 import org.apache.hadoop.yarn.api.protocolrecords.CancelDelegationTokenRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.CancelDelegationTokenResponse;
-import org.apache.hadoop.yarn.api.protocolrecords.GetApplicationsRequest;
-import org.apache.hadoop.yarn.api.protocolrecords.GetApplicationsResponse;
+import org.apache.hadoop.yarn.api.protocolrecords.GetAllApplicationsRequest;
+import org.apache.hadoop.yarn.api.protocolrecords.GetAllApplicationsResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.GetApplicationReportRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.GetApplicationReportResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.GetClusterMetricsRequest;
@@ -99,10 +99,10 @@ import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.ipc.YarnRPC;
+import org.apache.hadoop.yarn.service.AbstractService;
 import org.junit.Test;
 
 public class TestClientRedirect {
@@ -223,7 +223,7 @@ public class TestClientRedirect {
     Assert.assertEquals(1, counters.countCounters());
   }
 
-  class RMService extends AbstractService implements ApplicationClientProtocol {
+  class RMService extends AbstractService implements ClientRMProtocol {
     private String clientServiceBindAddress;
     InetSocketAddress clientBindAddress;
     private Server server;
@@ -233,7 +233,7 @@ public class TestClientRedirect {
     }
 
     @Override
-    protected void serviceInit(Configuration conf) throws Exception {
+    public void init(Configuration conf) {
       clientServiceBindAddress = RMADDRESS;
       /*
       clientServiceBindAddress = conf.get(
@@ -241,19 +241,19 @@ public class TestClientRedirect {
           YarnConfiguration.DEFAULT_APPSMANAGER_BIND_ADDRESS);
           */
       clientBindAddress = NetUtils.createSocketAddr(clientServiceBindAddress);
-      super.serviceInit(conf);
+      super.init(conf);
     }
 
     @Override
-    protected void serviceStart() throws Exception {
+    public void start() {
       // All the clients to appsManager are supposed to be authenticated via
       // Kerberos if security is enabled, so no secretManager.
       YarnRPC rpc = YarnRPC.create(getConfig());
       Configuration clientServerConf = new Configuration(getConfig());
-      this.server = rpc.getServer(ApplicationClientProtocol.class, this,
+      this.server = rpc.getServer(ClientRMProtocol.class, this,
           clientBindAddress, clientServerConf, null, 1);
       this.server.start();
-      super.serviceStart();
+      super.start();
     }
 
     @Override
@@ -314,8 +314,8 @@ public class TestClientRedirect {
     }
 
     @Override
-    public GetApplicationsResponse getApplications(
-        GetApplicationsRequest request) throws IOException {
+    public GetAllApplicationsResponse getAllApplications(
+        GetAllApplicationsRequest request) throws IOException {
       return null;
     }
 
@@ -416,12 +416,9 @@ public class TestClientRedirect {
        amRunning = true;
     }
 
-    @Override
-    protected void serviceStop() throws Exception {
-      if (server != null) {
-        server.stop();
-      }
-      super.serviceStop();
+    public void stop() {
+      server.stop();
+      super.stop();
       amRunning = false;
     }
 

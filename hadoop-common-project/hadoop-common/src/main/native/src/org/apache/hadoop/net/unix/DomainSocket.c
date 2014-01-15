@@ -107,6 +107,14 @@ static jthrowable newSocketException(JNIEnv *env, int errnum,
   return jthr;
 }
 
+static const char* terror(int errnum)
+{
+  if ((errnum < 0) || (errnum >= sys_nerr)) {
+    return "unknown error.";
+  }
+  return sys_errlist[errnum];
+}
+
 /**
  * Flexible buffer that will try to fit data on the stack, and fall back
  * to the heap if necessary.
@@ -268,13 +276,12 @@ JNIEnv *env, jclass clazz, jobject jstr, jint skipComponents)
   jthrowable jthr = NULL;
 
   utfLength = (*env)->GetStringUTFLength(env, jstr);
-  if (utfLength > (sizeof(path)-1)) {
+  if (utfLength > sizeof(path)) {
     jthr = newIOException(env, "path is too long!  We expected a path "
-        "no longer than %zd UTF-8 bytes.", (sizeof(path)-1));
+        "no longer than %zd UTF-8 bytes.", sizeof(path));
     goto done;
   }
   (*env)->GetStringUTFRegion(env, jstr, 0, utfLength, path);
-  path [ utfLength ] = 0;
   jthr = (*env)->ExceptionOccurred(env);
   if (jthr) {
     (*env)->ExceptionClear(env);
@@ -298,7 +305,7 @@ JNIEnv *env, jclass clazz, jobject jstr, jint skipComponents)
   // be a directory.  (If it is a directory, we will fail to create the socket
   // later with EISDIR or similar.)
   for (check[0] = '/', check[1] = '\0', rest = path, token = "";
-       token && rest && rest[0];
+       token && rest[0];
        token = strtok_r(rest, "/", &rest)) {
     if (strcmp(check, "/") != 0) {
       // If the previous directory we checked was '/', we skip appending another

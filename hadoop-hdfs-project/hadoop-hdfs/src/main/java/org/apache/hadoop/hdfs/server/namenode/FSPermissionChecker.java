@@ -56,10 +56,14 @@ class FSPermissionChecker {
   /** A set with group namess. Not synchronized since it is unmodifiable */
   private final Set<String> groups;
   private final boolean isSuper;
-
-  FSPermissionChecker(String fsOwner, String supergroup,
-      UserGroupInformation callerUgi) {
-    ugi = callerUgi;
+  
+  FSPermissionChecker(String fsOwner, String supergroup
+      ) throws AccessControlException{
+    try {
+      ugi = UserGroupInformation.getCurrentUser();
+    } catch (IOException e) {
+      throw new AccessControlException(e); 
+    } 
     HashSet<String> s = new HashSet<String>(Arrays.asList(ugi.getGroupNames()));
     groups = Collections.unmodifiableSet(s);
     user = ugi.getShortUserName();
@@ -140,35 +144,35 @@ class FSPermissionChecker {
           + ", resolveLink=" + resolveLink);
     }
     // check if (parentAccess != null) && file exists, then check sb
-    // If resolveLink, the check is performed on the link target.
-    final INodesInPath inodesInPath = root.getINodesInPath(path, resolveLink);
-    final Snapshot snapshot = inodesInPath.getPathSnapshot();
-    final INode[] inodes = inodesInPath.getINodes();
-    int ancestorIndex = inodes.length - 2;
-    for(; ancestorIndex >= 0 && inodes[ancestorIndex] == null;
-        ancestorIndex--);
-    checkTraverse(inodes, ancestorIndex, snapshot);
+      // Resolve symlinks, the check is performed on the link target.
+      final INodesInPath inodesInPath = root.getINodesInPath(path, true); 
+      final Snapshot snapshot = inodesInPath.getPathSnapshot();
+      final INode[] inodes = inodesInPath.getINodes();
+      int ancestorIndex = inodes.length - 2;
+      for(; ancestorIndex >= 0 && inodes[ancestorIndex] == null;
+          ancestorIndex--);
+      checkTraverse(inodes, ancestorIndex, snapshot);
 
-    final INode last = inodes[inodes.length - 1];
-    if (parentAccess != null && parentAccess.implies(FsAction.WRITE)
-        && inodes.length > 1 && last != null) {
-      checkStickyBit(inodes[inodes.length - 2], last, snapshot);
-    }
-    if (ancestorAccess != null && inodes.length > 1) {
-      check(inodes, ancestorIndex, snapshot, ancestorAccess);
-    }
-    if (parentAccess != null && inodes.length > 1) {
-      check(inodes, inodes.length - 2, snapshot, parentAccess);
-    }
-    if (access != null) {
-      check(last, snapshot, access);
-    }
-    if (subAccess != null) {
-      checkSubAccess(last, snapshot, subAccess);
-    }
-    if (doCheckOwner) {
-      checkOwner(last, snapshot);
-    }
+      final INode last = inodes[inodes.length - 1];
+      if (parentAccess != null && parentAccess.implies(FsAction.WRITE)
+          && inodes.length > 1 && last != null) {
+        checkStickyBit(inodes[inodes.length - 2], last, snapshot);
+      }
+      if (ancestorAccess != null && inodes.length > 1) {
+        check(inodes, ancestorIndex, snapshot, ancestorAccess);
+      }
+      if (parentAccess != null && inodes.length > 1) {
+        check(inodes, inodes.length - 2, snapshot, parentAccess);
+      }
+      if (access != null) {
+        check(last, snapshot, access);
+      }
+      if (subAccess != null) {
+        checkSubAccess(last, snapshot, subAccess);
+      }
+      if (doCheckOwner) {
+        checkOwner(last, snapshot);
+      }
   }
 
   /** Guarded by {@link FSNamesystem#readLock()} */

@@ -71,12 +71,14 @@ import org.apache.hadoop.mapreduce.v2.util.MRBuilderUtils;
 import org.apache.hadoop.metrics2.lib.DefaultMetricsSystem;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.net.NetworkTopology;
-import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.security.token.Token;
-import org.apache.hadoop.yarn.api.ApplicationMasterProtocol;
+import org.apache.hadoop.yarn.Clock;
+import org.apache.hadoop.yarn.ClusterInfo;
+import org.apache.hadoop.yarn.SystemClock;
+import org.apache.hadoop.yarn.YarnRuntimeException;
+import org.apache.hadoop.yarn.api.AMRMProtocol;
+import org.apache.hadoop.yarn.api.ContainerExitStatus;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.apache.hadoop.yarn.api.records.ContainerExitStatus;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerState;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
@@ -86,10 +88,8 @@ import org.apache.hadoop.yarn.event.Dispatcher;
 import org.apache.hadoop.yarn.event.DrainDispatcher;
 import org.apache.hadoop.yarn.event.Event;
 import org.apache.hadoop.yarn.event.EventHandler;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
-import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.apache.hadoop.yarn.server.resourcemanager.MockNM;
 import org.apache.hadoop.yarn.server.resourcemanager.MockRM;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
@@ -98,8 +98,6 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.Allocation;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.SchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fifo.FifoScheduler;
-import org.apache.hadoop.yarn.util.Clock;
-import org.apache.hadoop.yarn.util.SystemClock;
 import org.junit.After;
 import org.junit.Test;
 
@@ -870,10 +868,8 @@ public class TestRMContainerAllocator {
     dispatcher.await();
 
     assigned = allocator.schedule();
-    Assert.assertEquals("No of assignments must be 0", 0, assigned.size());
     dispatcher.await();
-    Assert.assertEquals("No of assignments must be 0", 0, assigned.size());
-    assertBlacklistAdditionsAndRemovals(2, 0, rm);
+    Assert.assertEquals("No of assignments must be 0", 0, assigned.size());    
 
     // mark h1/h2 as bad nodes
     nodeManager1.nodeHeartbeat(false);
@@ -882,14 +878,12 @@ public class TestRMContainerAllocator {
 
     assigned = allocator.schedule();
     dispatcher.await();
-    assertBlacklistAdditionsAndRemovals(0, 0, rm);
     Assert.assertEquals("No of assignments must be 0", 0, assigned.size());    
 
     nodeManager3.nodeHeartbeat(true); // Node heartbeat
     dispatcher.await();
-    assigned = allocator.schedule();
+    assigned = allocator.schedule();    
     dispatcher.await();
-    assertBlacklistAdditionsAndRemovals(0, 0, rm);
         
     Assert.assertTrue("No of assignments must be 3", assigned.size() == 3);
     
@@ -942,7 +936,7 @@ public class TestRMContainerAllocator {
     // Known=1, blacklisted=0, ignore should be false - assign first container
     assigned =
         getContainerOnHost(jobId, 1, 1024, new String[] { "h1" },
-            nodeManagers[0], dispatcher, allocator, 0, 0, 0, 0, rm);
+            nodeManagers[0], dispatcher, allocator);
     Assert.assertEquals("No of assignments must be 1", 1, assigned.size());
 
     LOG.info("Failing container _1 on H1 (Node should be blacklisted and"
@@ -952,52 +946,44 @@ public class TestRMContainerAllocator {
     allocator.sendFailure(f1);
 
     // Test single node.
-    // Known=1, blacklisted=1, ignore should be true - assign 0
-    // Because makeRemoteRequest will not be aware of it until next call
-    // The current call will send blacklisted node "h1" to RM
-    assigned =
-        getContainerOnHost(jobId, 2, 1024, new String[] { "h1" },
-            nodeManagers[0], dispatcher, allocator, 1, 0, 0, 1, rm);
-    Assert.assertEquals("No of assignments must be 0", 0, assigned.size());
-
     // Known=1, blacklisted=1, ignore should be true - assign 1
     assigned =
         getContainerOnHost(jobId, 2, 1024, new String[] { "h1" },
-            nodeManagers[0], dispatcher, allocator, 0, 0, 0, 0, rm);
+            nodeManagers[0], dispatcher, allocator);
     Assert.assertEquals("No of assignments must be 1", 1, assigned.size());
 
     nodeManagers[nmNum] = registerNodeManager(nmNum++, rm, dispatcher);
     // Known=2, blacklisted=1, ignore should be true - assign 1 anyway.
     assigned =
         getContainerOnHost(jobId, 3, 1024, new String[] { "h2" },
-            nodeManagers[1], dispatcher, allocator, 0, 0, 0, 0, rm);
+            nodeManagers[1], dispatcher, allocator);
     Assert.assertEquals("No of assignments must be 1", 1, assigned.size());
 
     nodeManagers[nmNum] = registerNodeManager(nmNum++, rm, dispatcher);
     // Known=3, blacklisted=1, ignore should be true - assign 1 anyway.
     assigned =
         getContainerOnHost(jobId, 4, 1024, new String[] { "h3" },
-            nodeManagers[2], dispatcher, allocator, 0, 0, 0, 0, rm);
+            nodeManagers[2], dispatcher, allocator);
     Assert.assertEquals("No of assignments must be 1", 1, assigned.size());
 
     // Known=3, blacklisted=1, ignore should be true - assign 1
     assigned =
         getContainerOnHost(jobId, 5, 1024, new String[] { "h1" },
-            nodeManagers[0], dispatcher, allocator, 0, 0, 0, 0, rm);
+            nodeManagers[0], dispatcher, allocator);
     Assert.assertEquals("No of assignments must be 1", 1, assigned.size());
 
     nodeManagers[nmNum] = registerNodeManager(nmNum++, rm, dispatcher);
     // Known=4, blacklisted=1, ignore should be false - assign 1 anyway
     assigned =
         getContainerOnHost(jobId, 6, 1024, new String[] { "h4" },
-            nodeManagers[3], dispatcher, allocator, 0, 0, 1, 0, rm);
+            nodeManagers[3], dispatcher, allocator);
     Assert.assertEquals("No of assignments must be 1", 1, assigned.size());
 
     // Test blacklisting re-enabled.
     // Known=4, blacklisted=1, ignore should be false - no assignment on h1
     assigned =
         getContainerOnHost(jobId, 7, 1024, new String[] { "h1" },
-            nodeManagers[0], dispatcher, allocator, 0, 0, 0, 0, rm);
+            nodeManagers[0], dispatcher, allocator);
     Assert.assertEquals("No of assignments must be 0", 0, assigned.size());
     // RMContainerRequestor would have created a replacement request.
 
@@ -1006,24 +992,17 @@ public class TestRMContainerAllocator {
     allocator.sendFailure(f2);
 
     // Test ignore blacklisting re-enabled
-    // Known=4, blacklisted=2, ignore should be true. Should assign 0
-    // container for the same reason above.
-    assigned =
-        getContainerOnHost(jobId, 8, 1024, new String[] { "h1" },
-            nodeManagers[0], dispatcher, allocator, 1, 0, 0, 2, rm);
-    Assert.assertEquals("No of assignments must be 0", 0, assigned.size());
-
     // Known=4, blacklisted=2, ignore should be true. Should assign 2
     // containers.
     assigned =
         getContainerOnHost(jobId, 8, 1024, new String[] { "h1" },
-            nodeManagers[0], dispatcher, allocator, 0, 0, 0, 0, rm);
+            nodeManagers[0], dispatcher, allocator);
     Assert.assertEquals("No of assignments must be 2", 2, assigned.size());
 
     // Known=4, blacklisted=2, ignore should be true.
     assigned =
         getContainerOnHost(jobId, 9, 1024, new String[] { "h2" },
-            nodeManagers[1], dispatcher, allocator, 0, 0, 0, 0, rm);
+            nodeManagers[1], dispatcher, allocator);
     Assert.assertEquals("No of assignments must be 1", 1, assigned.size());
 
     // Test blacklist while ignore blacklisting enabled
@@ -1034,7 +1013,7 @@ public class TestRMContainerAllocator {
     // Known=5, blacklisted=3, ignore should be true.
     assigned =
         getContainerOnHost(jobId, 10, 1024, new String[] { "h3" },
-            nodeManagers[2], dispatcher, allocator, 0, 0, 0, 0, rm);
+            nodeManagers[2], dispatcher, allocator);
     Assert.assertEquals("No of assignments must be 1", 1, assigned.size());
     
     // Assign on 5 more nodes - to re-enable blacklisting
@@ -1043,14 +1022,14 @@ public class TestRMContainerAllocator {
       assigned =
           getContainerOnHost(jobId, 11 + i, 1024,
               new String[] { String.valueOf(5 + i) }, nodeManagers[4 + i],
-              dispatcher, allocator, 0, 0, (i == 4 ? 3 : 0), 0, rm);
+              dispatcher, allocator);
       Assert.assertEquals("No of assignments must be 1", 1, assigned.size());
     }
 
     // Test h3 (blacklisted while ignoring blacklisting) is blacklisted.
     assigned =
         getContainerOnHost(jobId, 20, 1024, new String[] { "h3" },
-            nodeManagers[2], dispatcher, allocator, 0, 0, 0, 0, rm);
+            nodeManagers[2], dispatcher, allocator);
     Assert.assertEquals("No of assignments must be 0", 0, assigned.size());
   }
 
@@ -1064,9 +1043,7 @@ public class TestRMContainerAllocator {
   private
       List<TaskAttemptContainerAssignedEvent> getContainerOnHost(JobId jobId,
           int taskAttemptId, int memory, String[] hosts, MockNM mockNM,
-          DrainDispatcher dispatcher, MyContainerAllocator allocator,
-          int expectedAdditions1, int expectedRemovals1,
-          int expectedAdditions2, int expectedRemovals2, MyResourceManager rm)
+          DrainDispatcher dispatcher, MyContainerAllocator allocator)
           throws Exception {
     ContainerRequestEvent reqEvent =
         createReq(jobId, taskAttemptId, memory, hosts);
@@ -1075,8 +1052,6 @@ public class TestRMContainerAllocator {
     // Send the request to the RM
     List<TaskAttemptContainerAssignedEvent> assigned = allocator.schedule();
     dispatcher.await();
-    assertBlacklistAdditionsAndRemovals(
-        expectedAdditions1, expectedRemovals1, rm);
     Assert.assertEquals("No of assignments must be 0", 0, assigned.size());
 
     // Heartbeat from the required nodeManager
@@ -1085,8 +1060,6 @@ public class TestRMContainerAllocator {
 
     assigned = allocator.schedule();
     dispatcher.await();
-    assertBlacklistAdditionsAndRemovals(
-        expectedAdditions2, expectedRemovals2, rm);
     return assigned;
   }
  
@@ -1152,7 +1125,6 @@ public class TestRMContainerAllocator {
     LOG.info("RM Heartbeat (To process the scheduled containers)");
     assigned = allocator.schedule();
     dispatcher.await();
-    assertBlacklistAdditionsAndRemovals(0, 0, rm);
     Assert.assertEquals("No of assignments must be 1", 1, assigned.size());    
     
     LOG.info("Failing container _1 on H1 (should blacklist the node)");
@@ -1169,7 +1141,6 @@ public class TestRMContainerAllocator {
     //Update the Scheduler with the new requests.
     assigned = allocator.schedule();
     dispatcher.await();
-    assertBlacklistAdditionsAndRemovals(1, 0, rm);
     Assert.assertEquals("No of assignments must be 0", 0, assigned.size());
 
     // send another request with different resource and priority
@@ -1188,7 +1159,6 @@ public class TestRMContainerAllocator {
     LOG.info("RM Heartbeat (To process the scheduled containers)");
     assigned = allocator.schedule();
     dispatcher.await();
-    assertBlacklistAdditionsAndRemovals(0, 0, rm);
     Assert.assertEquals("No of assignments must be 0", 0, assigned.size());    
     
     //RMContainerAllocator gets assigned a p:5 on a blacklisted node.
@@ -1197,7 +1167,6 @@ public class TestRMContainerAllocator {
     LOG.info("RM Heartbeat (To process the re-scheduled containers)");
     assigned = allocator.schedule();
     dispatcher.await();
-    assertBlacklistAdditionsAndRemovals(0, 0, rm);
     Assert.assertEquals("No of assignments must be 0", 0, assigned.size());
     
     //Hearbeat from H3 to schedule on this host.
@@ -1207,7 +1176,6 @@ public class TestRMContainerAllocator {
     
     LOG.info("RM Heartbeat (To process the re-scheduled containers for H3)");
     assigned = allocator.schedule();
-    assertBlacklistAdditionsAndRemovals(0, 0, rm);
     dispatcher.await();
      
     // For debugging
@@ -1225,15 +1193,7 @@ public class TestRMContainerAllocator {
           + " host not correct", "h3", assig.getContainer().getNodeId().getHost());
     }
   }
-
-  private static void assertBlacklistAdditionsAndRemovals(
-      int expectedAdditions, int expectedRemovals, MyResourceManager rm) {
-    Assert.assertEquals(expectedAdditions,
-        rm.getMyFifoScheduler().lastBlacklistAdditions.size());
-    Assert.assertEquals(expectedRemovals,
-        rm.getMyFifoScheduler().lastBlacklistRemovals.size());
-  }
-
+  
   private static class MyFifoScheduler extends FifoScheduler {
 
     public MyFifoScheduler(RMContext rmContext) {
@@ -1248,29 +1208,22 @@ public class TestRMContainerAllocator {
     }
     
     List<ResourceRequest> lastAsk = null;
-    List<String> lastBlacklistAdditions;
-    List<String> lastBlacklistRemovals;
     
     // override this to copy the objects otherwise FifoScheduler updates the
     // numContainers in same objects as kept by RMContainerAllocator
     @Override
     public synchronized Allocation allocate(
         ApplicationAttemptId applicationAttemptId, List<ResourceRequest> ask,
-        List<ContainerId> release, 
-        List<String> blacklistAdditions, List<String> blacklistRemovals) {
+        List<ContainerId> release) {
       List<ResourceRequest> askCopy = new ArrayList<ResourceRequest>();
       for (ResourceRequest req : ask) {
         ResourceRequest reqCopy = ResourceRequest.newInstance(req
             .getPriority(), req.getResourceName(), req.getCapability(), req
-            .getNumContainers(), req.getRelaxLocality());
+            .getNumContainers());
         askCopy.add(reqCopy);
       }
       lastAsk = ask;
-      lastBlacklistAdditions = blacklistAdditions;
-      lastBlacklistRemovals = blacklistRemovals;
-      return super.allocate(
-          applicationAttemptId, askCopy, release, 
-          blacklistAdditions, blacklistRemovals);
+      return super.allocate(applicationAttemptId, askCopy, release);
     }
   }
 
@@ -1373,7 +1326,8 @@ public class TestRMContainerAllocator {
       when(context.getApplicationAttemptId()).thenReturn(appAttemptId);
       when(context.getJob(isA(JobId.class))).thenReturn(job);
       when(context.getClusterInfo()).thenReturn(
-        new ClusterInfo(Resource.newInstance(10240, 1)));
+        new ClusterInfo(Resource.newInstance(1024, 1), Resource.newInstance(
+          10240, 1)));
       when(context.getEventHandler()).thenReturn(new EventHandler() {
         @Override
         public void handle(Event event) {
@@ -1431,29 +1385,22 @@ public class TestRMContainerAllocator {
     }
 
     @Override
-    protected ApplicationMasterProtocol createSchedulerProxy() {
+    protected AMRMProtocol createSchedulerProxy() {
       return this.rm.getApplicationMasterService();
     }
 
     @Override
     protected void register() {
-      ApplicationAttemptId attemptId = getContext().getApplicationAttemptId();
-      UserGroupInformation ugi =
-          UserGroupInformation.createRemoteUser(attemptId.toString());
-      Token<AMRMTokenIdentifier> token =
-          rm.getRMContext().getRMApps().get(attemptId.getApplicationId())
-            .getRMAppAttempt(attemptId).getAMRMToken();
-      try {
-        ugi.addTokenIdentifier(token.decodeIdentifier());
-      } catch (IOException e) {
-        throw new YarnRuntimeException(e);
-      }
-      UserGroupInformation.setLoginUser(ugi);
       super.register();
     }
 
     @Override
     protected void unregister() {
+    }
+
+    @Override
+    protected Resource getMinContainerCapability() {
+      return Resource.newInstance(1024, 1);
     }
 
     @Override
@@ -1656,8 +1603,8 @@ public class TestRMContainerAllocator {
           protected void register() {
           }
           @Override
-          protected ApplicationMasterProtocol createSchedulerProxy() {
-            return mock(ApplicationMasterProtocol.class);
+          protected AMRMProtocol createSchedulerProxy() {
+            return mock(AMRMProtocol.class);
           }
           @Override
           protected synchronized void heartbeat() throws Exception {

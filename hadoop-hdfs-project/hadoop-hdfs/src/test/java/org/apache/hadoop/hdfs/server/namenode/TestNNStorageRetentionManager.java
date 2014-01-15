@@ -266,12 +266,12 @@ public class TestNNStorageRetentionManager {
       Joiner.on(",").join(purgedPaths));
   }
   
-  private class TestCaseDescription {
+  private static class TestCaseDescription {
     private Map<File, FakeRoot> dirRoots = Maps.newHashMap();
     private Set<File> expectedPurgedLogs = Sets.newLinkedHashSet();
     private Set<File> expectedPurgedImages = Sets.newLinkedHashSet();
     
-    private class FakeRoot {
+    private static class FakeRoot {
       NameNodeDirType type;
       List<File> files;
       
@@ -331,7 +331,7 @@ public class TestNNStorageRetentionManager {
         if (!root.type.isOfType(NameNodeDirType.EDITS)) continue;
         
         // passing null NNStorage for unit test because it does not use it
-        FileJournalManager fjm = new FileJournalManager(conf,
+        FileJournalManager fjm = new FileJournalManager(
             root.mockStorageDir(), null);
         fjm.purger = purger;
         jms.add(fjm);

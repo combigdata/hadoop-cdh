@@ -77,14 +77,14 @@ public class ClusterMetricsInfo {
     this.containersPending = metrics.getPendingContainers();
     this.containersReserved = metrics.getReservedContainers();
     
-    this.totalMB = availableMB + allocatedMB;
+    this.totalMB = availableMB + reservedMB + allocatedMB;
     this.activeNodes = clusterMetrics.getNumActiveNMs();
     this.lostNodes = clusterMetrics.getNumLostNMs();
     this.unhealthyNodes = clusterMetrics.getUnhealthyNMs();
     this.decommissionedNodes = clusterMetrics.getNumDecommisionedNMs();
     this.rebootedNodes = clusterMetrics.getNumRebootedNMs();
     this.totalNodes = activeNodes + lostNodes + decommissionedNodes
-        + rebootedNodes + unhealthyNodes;
+        + rebootedNodes;
   }
 
   public int getAppsSubmitted() {

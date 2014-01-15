@@ -37,6 +37,8 @@ import org.apache.hadoop.classification.InterfaceAudience.LimitedPrivate;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.yarn.Clock;
+import org.apache.hadoop.yarn.SystemClock;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
@@ -49,14 +51,16 @@ import org.apache.hadoop.yarn.api.records.QueueUserACLInfo;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.server.resourcemanager.RMAuditLogger;
 import org.apache.hadoop.yarn.server.resourcemanager.RMAuditLogger.AuditConstants;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore.RMState;
+import org.apache.hadoop.yarn.server.resourcemanager.resource.DefaultResourceCalculator;
+import org.apache.hadoop.yarn.server.resourcemanager.resource.DominantResourceCalculator;
+import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceCalculator;
+import org.apache.hadoop.yarn.server.resourcemanager.resource.Resources;
 import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
-import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMApp;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttemptEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttemptEventType;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttemptState;
@@ -81,14 +85,6 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeRemoved
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeUpdateSchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.SchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.security.RMContainerTokenSecretManager;
-import org.apache.hadoop.yarn.util.Clock;
-import org.apache.hadoop.yarn.util.SystemClock;
-import org.apache.hadoop.yarn.util.resource.DefaultResourceCalculator;
-import org.apache.hadoop.yarn.util.resource.DominantResourceCalculator;
-import org.apache.hadoop.yarn.util.resource.ResourceCalculator;
-import org.apache.hadoop.yarn.util.resource.Resources;
-
-import com.google.common.annotations.VisibleForTesting;
 
 /**
  * A scheduler that schedules resources between a set of queues. The scheduler
@@ -113,15 +109,14 @@ import com.google.common.annotations.VisibleForTesting;
 @Unstable
 @SuppressWarnings("unchecked")
 public class FairScheduler implements ResourceScheduler {
+
   private boolean initialized;
   private FairSchedulerConfiguration conf;
   private RMContext rmContext;
   private Resource minimumAllocation;
   private Resource maximumAllocation;
-  private Resource incrAllocation;
   private QueueManager queueMgr;
   private Clock clock;
-  private boolean usePortForNodeName;
 
   private static final Log LOG = LogFactory.getLog(FairScheduler.class);
   
@@ -145,7 +140,7 @@ public class FairScheduler implements ResourceScheduler {
       new Allocation(EMPTY_CONTAINER_LIST, Resources.createResource(0));
 
   // Aggregate metrics
-  FSQueueMetrics rootMetrics;
+  QueueMetrics rootMetrics;
 
   // Time when we last updated preemption vars
   protected long lastPreemptionUpdateTime;
@@ -154,9 +149,8 @@ public class FairScheduler implements ResourceScheduler {
 
   // This stores per-application scheduling information, indexed by
   // attempt ID's for fast lookup.
-  @VisibleForTesting
   protected Map<ApplicationAttemptId, FSSchedulerApp> applications = 
-      new ConcurrentHashMap<ApplicationAttemptId, FSSchedulerApp>();
+      new HashMap<ApplicationAttemptId, FSSchedulerApp>();
 
   // Nodes in the cluster, indexed by NodeId
   private Map<NodeId, FSSchedulerNode> nodes = 
@@ -189,44 +183,6 @@ public class FairScheduler implements ResourceScheduler {
   public FairScheduler() {
     clock = new SystemClock();
     queueMgr = new QueueManager(this);
-  }
-
-  private void validateConf(Configuration conf) {
-    // validate scheduler memory allocation setting
-    int minMem = conf.getInt(
-      YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB,
-      YarnConfiguration.DEFAULT_RM_SCHEDULER_MINIMUM_ALLOCATION_MB);
-    int maxMem = conf.getInt(
-      YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_MB,
-      YarnConfiguration.DEFAULT_RM_SCHEDULER_MAXIMUM_ALLOCATION_MB);
-
-    if (minMem < 0 || minMem > maxMem) {
-      throw new YarnRuntimeException("Invalid resource scheduler memory"
-        + " allocation configuration"
-        + ", " + YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB
-        + "=" + minMem
-        + ", " + YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_MB
-        + "=" + maxMem + ", min should equal greater than 0"
-        + ", max should be no smaller than min.");
-    }
-
-    // validate scheduler vcores allocation setting
-    int minVcores = conf.getInt(
-      YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_VCORES,
-      YarnConfiguration.DEFAULT_RM_SCHEDULER_MINIMUM_ALLOCATION_VCORES);
-    int maxVcores = conf.getInt(
-      YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES,
-      YarnConfiguration.DEFAULT_RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES);
-
-    if (minVcores < 0 || minVcores > maxVcores) {
-      throw new YarnRuntimeException("Invalid resource scheduler vcores"
-        + " allocation configuration"
-        + ", " + YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_VCORES
-        + "=" + minVcores
-        + ", " + YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES
-        + "=" + maxVcores + ", min should equal greater than 0"
-        + ", max should be no smaller than min.");
-    }
   }
 
   public FairSchedulerConfiguration getConf() {
@@ -305,7 +261,7 @@ public class FairScheduler implements ResourceScheduler {
    */
   boolean isStarvedForMinShare(FSLeafQueue sched) {
     Resource desiredShare = Resources.min(RESOURCE_CALCULATOR, clusterCapacity,
-      sched.getMinShare(), sched.getDemand());
+        sched.getMinShare(), sched.getDemand());
     return Resources.lessThan(RESOURCE_CALCULATOR, clusterCapacity,
         sched.getResourceUsage(), desiredShare);
   }
@@ -315,7 +271,7 @@ public class FairScheduler implements ResourceScheduler {
    * defined as being below half its fair share.
    */
   boolean isStarvedForFairShare(FSLeafQueue sched) {
-    Resource desiredFairShare = Resources.min(RESOURCE_CALCULATOR, clusterCapacity,
+    Resource desiredFairShare = Resources.max(RESOURCE_CALCULATOR, clusterCapacity,
         Resources.multiply(sched.getFairShare(), .5), sched.getDemand());
     return Resources.lessThan(RESOURCE_CALCULATOR, clusterCapacity,
         sched.getResourceUsage(), desiredFairShare);
@@ -386,8 +342,8 @@ public class FairScheduler implements ResourceScheduler {
     // Sort containers into reverse order of priority
     Collections.sort(runningContainers, new Comparator<RMContainer>() {
       public int compare(RMContainer c1, RMContainer c2) {
-        int ret = c1.getContainer().getPriority().compareTo(
-            c2.getContainer().getPriority());
+        int ret = c2.getContainer().getPriority().compareTo(
+            c1.getContainer().getPriority());
         if (ret == 0) {
           return c2.getContainerId().compareTo(c1.getContainerId());
         }
@@ -445,7 +401,7 @@ public class FairScheduler implements ResourceScheduler {
       // proceed with kill
       if (time + waitTimeBeforeKill < clock.getTime()) {
         ContainerStatus status =
-          SchedulerUtils.createPreemptedContainerStatus(
+          SchedulerUtils.createAbnormalContainerStatus(
             container.getContainerId(), SchedulerUtils.PREEMPTED_CONTAINER);
 
         // TODO: Not sure if this ever actually adds this to the list of cleanup
@@ -565,10 +521,6 @@ public class FairScheduler implements ResourceScheduler {
     return minimumAllocation;
   }
 
-  public Resource getIncrementResourceCapability() {
-    return incrAllocation;
-  }
-
   @Override
   public Resource getMaximumResourceCapability() {
     return maximumAllocation;
@@ -605,9 +557,12 @@ public class FairScheduler implements ResourceScheduler {
    */
   protected synchronized void addApplication(
       ApplicationAttemptId applicationAttemptId, String queueName, String user) {
-    RMApp rmApp = rmContext.getRMApps().get(
-        applicationAttemptId.getApplicationId());
-    FSLeafQueue queue = assignToQueue(rmApp, queueName, user);
+
+    FSLeafQueue queue = queueMgr.getLeafQueue(queueName);
+    if (queue == null) {
+      // queue is not an existing or createable leaf queue
+      queue = queueMgr.getLeafQueue(YarnConfiguration.DEFAULT_QUEUE_NAME);
+    }
 
     FSSchedulerApp schedulerApp =
         new FSSchedulerApp(applicationAttemptId, user,
@@ -616,9 +571,7 @@ public class FairScheduler implements ResourceScheduler {
 
     // Enforce ACLs
     UserGroupInformation userUgi = UserGroupInformation.createRemoteUser(user);
-
-    if (!queue.hasAccess(QueueACL.SUBMIT_APPLICATIONS, userUgi)
-        && !queue.hasAccess(QueueACL.ADMINISTER_QUEUE, userUgi)) {
+    if (!queue.hasAccess(QueueACL.SUBMIT_APPLICATIONS, userUgi)) {
       String msg = "User " + userUgi.getUserName() +
     	        " cannot submit applications to queue " + queue.getName();
       LOG.info(msg);
@@ -626,7 +579,7 @@ public class FairScheduler implements ResourceScheduler {
     	        new RMAppAttemptRejectedEvent(applicationAttemptId, msg));
       return;
     }
-
+    
     queue.addApp(schedulerApp);
     queue.getMetrics().submitApp(user, applicationAttemptId.getAttemptId());
 
@@ -639,30 +592,6 @@ public class FairScheduler implements ResourceScheduler {
     rmContext.getDispatcher().getEventHandler().handle(
         new RMAppAttemptEvent(applicationAttemptId,
             RMAppAttemptEventType.APP_ACCEPTED));
-  }
-  
-  @VisibleForTesting
-  FSLeafQueue assignToQueue(RMApp rmApp, String queueName, String user) {
-    // Potentially set queue to username if configured to do so
-    if (queueName.equals(YarnConfiguration.DEFAULT_QUEUE_NAME) &&
-        userAsDefaultQueue) {
-      queueName = user;
-    }
-    
-    FSLeafQueue queue = queueMgr.getLeafQueue(queueName,
-        conf.getAllowUndeclaredPools());
-    if (queue == null) {
-      // queue is not an existing or createable leaf queue
-      queue = queueMgr.getLeafQueue(YarnConfiguration.DEFAULT_QUEUE_NAME, false);
-    }
-    
-    if (rmApp != null) {
-      rmApp.setQueue(queue.getName());
-    } else {
-      LOG.warn("Couldn't find RM app to set queue name on");
-    }
-    
-    return queue;
   }
 
   private synchronized void removeApplication(
@@ -701,7 +630,7 @@ public class FairScheduler implements ResourceScheduler {
 
     // Inform the queue
     FSLeafQueue queue = queueMgr.getLeafQueue(application.getQueue()
-        .getQueueName(), false);
+        .getQueueName());
     queue.removeApp(application);
 
     // Remove from our data-structure
@@ -749,7 +678,7 @@ public class FairScheduler implements ResourceScheduler {
   }
 
   private synchronized void addNode(RMNode node) {
-    nodes.put(node.getNodeID(), new FSSchedulerNode(node, usePortForNodeName));
+    nodes.put(node.getNodeID(), new FSSchedulerNode(node));
     Resources.addTo(clusterCapacity, node.getTotalCapability());
     updateRootQueueMetrics();
 
@@ -789,7 +718,7 @@ public class FairScheduler implements ResourceScheduler {
 
   @Override
   public Allocation allocate(ApplicationAttemptId appAttemptId,
-      List<ResourceRequest> ask, List<ContainerId> release, List<String> blacklistAdditions, List<String> blacklistRemovals) {
+      List<ResourceRequest> ask, List<ContainerId> release) {
 
     // Make sure this application exists
     FSSchedulerApp application = applications.get(appAttemptId);
@@ -801,7 +730,7 @@ public class FairScheduler implements ResourceScheduler {
 
     // Sanity check
     SchedulerUtils.normalizeRequests(ask, new DominantResourceCalculator(),
-        clusterCapacity, minimumAllocation, maximumAllocation, incrAllocation);
+        clusterCapacity, minimumAllocation, maximumAllocation);
 
     // Release containers
     for (ContainerId releasedContainerId : release) {
@@ -1012,6 +941,13 @@ public class FairScheduler implements ResourceScheduler {
       }
       AppAddedSchedulerEvent appAddedEvent = (AppAddedSchedulerEvent)event;
       String queue = appAddedEvent.getQueue();
+
+      // Potentially set queue to username if configured to do so
+      String def = YarnConfiguration.DEFAULT_QUEUE_NAME;
+      if (queue.equals(def) && userAsDefaultQueue) {
+        queue = appAddedEvent.getUser();
+      }
+
       addApplication(appAddedEvent.getApplicationAttemptId(), queue,
           appAddedEvent.getUser());
       break;
@@ -1050,10 +986,8 @@ public class FairScheduler implements ResourceScheduler {
   public synchronized void reinitialize(Configuration conf, RMContext rmContext)
       throws IOException {
     this.conf = new FairSchedulerConfiguration(conf);
-    validateConf(this.conf);
     minimumAllocation = this.conf.getMinimumAllocation();
     maximumAllocation = this.conf.getMaximumAllocation();
-    incrAllocation = this.conf.getIncrementAllocation();
     userAsDefaultQueue = this.conf.getUserAsDefaultQueue();
     nodeLocalityThreshold = this.conf.getLocalityThresholdNode();
     rackLocalityThreshold = this.conf.getLocalityThresholdRack();
@@ -1063,10 +997,9 @@ public class FairScheduler implements ResourceScheduler {
     sizeBasedWeight = this.conf.getSizeBasedWeight();
     preemptionInterval = this.conf.getPreemptionInterval();
     waitTimeBeforeKill = this.conf.getWaitTimeBeforeKill();
-    usePortForNodeName = this.conf.getUsePortForNodeName();
-    
+
     if (!initialized) {
-      rootMetrics = FSQueueMetrics.forQueue("root", null, true, conf);
+      rootMetrics = QueueMetrics.forQueue("root", null, true, conf);
       this.rmContext = rmContext;
       this.eventLog = new FairSchedulerEventLog();
       eventLog.init(this.conf);
@@ -1117,20 +1050,6 @@ public class FairScheduler implements ResourceScheduler {
   @Override
   public int getNumClusterNodes() {
     return nodes.size();
-  }
-
-  @Override
-  public synchronized boolean checkAccess(UserGroupInformation callerUGI,
-      QueueACL acl, String queueName) {
-    FSQueue queue = getQueueManager().getQueue(queueName);
-    if (queue == null) {
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("ACL not found for queue access-type " + acl
-            + " for queue " + queueName);
-      }
-      return false;
-    }
-    return queue.hasAccess(acl, callerUGI);
   }
 
 }

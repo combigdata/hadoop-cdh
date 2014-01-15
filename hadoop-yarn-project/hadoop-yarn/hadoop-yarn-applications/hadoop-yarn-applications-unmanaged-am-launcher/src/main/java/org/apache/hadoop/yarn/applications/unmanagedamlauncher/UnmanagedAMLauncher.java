@@ -19,9 +19,7 @@
 package org.apache.hadoop.yarn.applications.unmanagedamlauncher;
 
 import java.io.BufferedReader;
-import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
@@ -38,11 +36,9 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileUtil;
-import org.apache.hadoop.security.Credentials;
-import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
+import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationResponse;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
@@ -52,10 +48,9 @@ import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
-import org.apache.hadoop.yarn.client.api.YarnClient;
+import org.apache.hadoop.yarn.client.YarnClientImpl;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
-import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.apache.hadoop.yarn.util.Records;
 
 /**
@@ -77,7 +72,7 @@ public class UnmanagedAMLauncher {
   private Configuration conf;
 
   // Handle to talk to the Resource Manager/Applications Manager
-  private YarnClient rmClient;
+  private YarnClientImpl rmClient;
 
   // Application master specific info to register a new Application with RM/ASM
   private String appName = "";
@@ -165,40 +160,13 @@ public class UnmanagedAMLauncher {
     }
 
     YarnConfiguration yarnConf = new YarnConfiguration(conf);
-    rmClient = YarnClient.createYarnClient();
+    rmClient = new YarnClientImpl();
     rmClient.init(yarnConf);
 
     return true;
   }
 
-  public void launchAM(ApplicationAttemptId attemptId) 
-    throws IOException, YarnException {
-    ApplicationReport report = 
-      rmClient.getApplicationReport(attemptId.getApplicationId());
-    if (report.getYarnApplicationState() != YarnApplicationState.ACCEPTED) {
-      throw new YarnException(
-          "Umanaged AM must be in ACCEPTED state before launching");
-    }
-    Credentials credentials = new Credentials();
-    Token<AMRMTokenIdentifier> token = 
-        rmClient.getAMRMToken(attemptId.getApplicationId());
-    // Service will be empty but that's okay, we are just passing down only
-    // AMRMToken down to the real AM which eventually sets the correct
-    // service-address.
-    credentials.addToken(token.getService(), token);
-    File tokenFile = File.createTempFile("unmanagedAMRMToken","", 
-        new File(System.getProperty("user.dir")));
-    try {
-      FileUtil.chmod(tokenFile.getAbsolutePath(), "600");
-    } catch (InterruptedException ex) {
-      throw new RuntimeException(ex);
-    }
-    tokenFile.deleteOnExit();
-    DataOutputStream os = new DataOutputStream(new FileOutputStream(tokenFile, 
-        true));
-    credentials.writeTokenStorageToStream(os);
-    os.close();
-    
+  public void launchAM(ApplicationAttemptId attemptId) throws IOException {
     Map<String, String> env = System.getenv();
     ArrayList<String> envAMList = new ArrayList<String>();
     boolean setClasspath = false;
@@ -228,9 +196,6 @@ public class UnmanagedAMLauncher {
     envAMList.add(ApplicationConstants.APP_SUBMIT_TIME_ENV + "="
         + System.currentTimeMillis());
 
-    envAMList.add(ApplicationConstants.CONTAINER_TOKEN_FILE_ENV_NAME + "=" + 
-      tokenFile.getAbsolutePath());
-    
     String[] envAM = new String[envAMList.size()];
     Process amProc = Runtime.getRuntime().exec(amCmd, envAMList.toArray(envAM));
 
@@ -309,12 +274,17 @@ public class UnmanagedAMLauncher {
     // Connect to ResourceManager
     rmClient.start();
     try {  
+      // Get a new application id
+      GetNewApplicationResponse newApp = rmClient.getNewApplication();
+      ApplicationId appId = newApp.getApplicationId();
+  
       // Create launch context for app master
       LOG.info("Setting up application submission context for ASM");
-      ApplicationSubmissionContext appContext = rmClient.createApplication()
-          .getApplicationSubmissionContext();
-      ApplicationId appId = appContext.getApplicationId();
-
+      ApplicationSubmissionContext appContext = Records
+          .newRecord(ApplicationSubmissionContext.class);
+  
+      // set the application id
+      appContext.setApplicationId(appId);
       // set the application name
       appContext.setApplicationName(appName);
   
@@ -417,8 +387,8 @@ public class UnmanagedAMLauncher {
 
       LOG.info("Got application report from ASM for" + ", appId="
           + appId.getId() + ", appAttemptId="
-          + report.getCurrentApplicationAttemptId() + ", clientToAMToken="
-          + report.getClientToAMToken() + ", appDiagnostics="
+          + report.getCurrentApplicationAttemptId() + ", clientToken="
+          + report.getClientToken() + ", appDiagnostics="
           + report.getDiagnostics() + ", appMasterHost=" + report.getHost()
           + ", appQueue=" + report.getQueue() + ", appMasterRpcPort="
           + report.getRpcPort() + ", appStartTime=" + report.getStartTime()

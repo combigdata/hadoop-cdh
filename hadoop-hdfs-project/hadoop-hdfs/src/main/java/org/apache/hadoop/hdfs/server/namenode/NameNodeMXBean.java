@@ -17,8 +17,6 @@
  */
 package org.apache.hadoop.hdfs.server.namenode;
 
-import java.util.Map;
-
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 
@@ -35,13 +33,7 @@ public interface NameNodeMXBean {
    * @return the version
    */
   public String getVersion();
-
-  /**
-   * Get the version of software running on the Namenode
-   * @return a string representing the version
-   */
-  public String getSoftwareVersion();
-
+  
   /**
    * Gets the used space by data nodes.
    * 
@@ -182,25 +174,4 @@ public interface NameNodeMXBean {
    * @return the name dir status information, as a JSON string.
    */
   public String getNameDirStatuses();
-  
-  /**
-   * Get information about the transaction ID, including the last applied 
-   * transaction ID and the most recent checkpoint's transaction ID
-   */
-  public String getJournalTransactionInfo();
-
-  /**
-   * Get the number of distinct versions of live datanodes
-   * 
-   * @return the number of distinct versions of live datanodes
-   */
-  public int getDistinctVersionCount();
-
-  /**
-   * Get the number of live datanodes for each distinct versions
-   * 
-   * @return the number of live datanodes for each distinct versions
-   */
-  public Map<String, Integer> getDistinctVersions();
-  
 }

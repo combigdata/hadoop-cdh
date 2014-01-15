@@ -23,7 +23,6 @@ import java.text.NumberFormat;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Stable;
-import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.yarn.util.Records;
 
 /**
@@ -35,7 +34,6 @@ import org.apache.hadoop.yarn.util.Records;
 public abstract class ContainerId implements Comparable<ContainerId>{
 
   @Private
-  @Unstable
   public static ContainerId newInstance(ApplicationAttemptId appAttemptId,
       int containerId) {
     ContainerId id = Records.newRecord(ContainerId.class);
@@ -56,7 +54,6 @@ public abstract class ContainerId implements Comparable<ContainerId>{
   public abstract ApplicationAttemptId getApplicationAttemptId();
   
   @Private
-  @Unstable
   protected abstract void setApplicationAttemptId(ApplicationAttemptId atId);
 
   /**
@@ -68,7 +65,6 @@ public abstract class ContainerId implements Comparable<ContainerId>{
   public abstract int getId();
 
   @Private
-  @Unstable
   protected abstract void setId(int id);
  
   

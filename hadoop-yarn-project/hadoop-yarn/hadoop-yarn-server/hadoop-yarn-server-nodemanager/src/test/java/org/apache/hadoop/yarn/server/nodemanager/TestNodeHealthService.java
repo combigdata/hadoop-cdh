@@ -30,11 +30,10 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileContext;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.util.Shell;
+import org.apache.hadoop.yarn.api.records.NodeHealthStatus;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
-import org.apache.hadoop.yarn.server.api.records.NodeHealthStatus;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -52,7 +51,7 @@ public class TestNodeHealthService {
       "modified-mapred-site.xml");
 
   private File nodeHealthscriptFile = new File(testRootDir,
-      Shell.appendScriptExtension("failingscript"));
+      "failingscript.sh");
 
   @Before
   public void setup() {
@@ -124,8 +123,7 @@ public class TestNodeHealthService {
         factory.newRecordInstance(NodeHealthStatus.class);
     String errorScript = "echo ERROR\n echo \"Tracker not healthy\"";
     String normalScript = "echo \"I am all fine\"";
-    String timeOutScript = Shell.WINDOWS ? "@echo off\nping -n 4 127.0.0.1 >nul\necho \"I am fine\""
-        : "sleep 4\necho \"I am fine\"";
+    String timeOutScript = "sleep 4\n echo\"I am fine\"";
     Configuration conf = getConfForNodeHealthScript();
     conf.writeXml(new FileOutputStream(nodeHealthConfigFile));
     conf.addResource(nodeHealthConfigFile.getName());

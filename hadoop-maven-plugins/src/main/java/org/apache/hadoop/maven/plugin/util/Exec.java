@@ -63,10 +63,11 @@ public class Exec {
         for (String s : stdErr.getOutput()) {
           mojo.getLog().debug(s);
         }
+      } else {
+        stdOut.join();
+        stdErr.join();
+        output.addAll(stdOut.getOutput());
       }
-      stdOut.join();
-      stdErr.join();
-      output.addAll(stdOut.getOutput());
     } catch (Exception ex) {
       mojo.getLog().warn(command + " failed: " + ex.toString());
     }

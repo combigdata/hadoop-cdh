@@ -75,8 +75,8 @@ import org.apache.hadoop.mapreduce.v2.jobhistory.JobHistoryUtils;
 import org.apache.hadoop.mapreduce.v2.jobhistory.JobIndexInfo;
 import org.apache.hadoop.net.DNSToSwitchMapping;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.api.records.ContainerId;
+import org.apache.hadoop.yarn.service.Service;
 import org.apache.hadoop.yarn.util.RackResolver;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -535,10 +535,7 @@ public class TestJobHistoryParsing {
       Assert.assertTrue("Timeout waiting for history move", msecToSleep > 0);
 
       fileInfo = hfm.getFileInfo(jobId);
-      hfm.stop();
       Assert.assertNotNull("Unable to locate old job history", fileInfo);
-      Assert.assertTrue("HistoryFileManager not shutdown properly",
-          hfm.moveToDoneExecutor.isTerminated());
     } finally {
       LOG.info("FINISHED testScanningOldDirs");
     }
@@ -639,9 +636,6 @@ public class TestJobHistoryParsing {
       // correct live time
       hfm.setMaxHistoryAge(-1);
       hfm.clean();
-      hfm.stop();
-      Assert.assertTrue("Thread pool shutdown",
-          hfm.moveToDoneExecutor.isTerminated());
       // should be deleted !
       Assert.assertTrue("file should be deleted ", fileInfo.isDeleted());
 

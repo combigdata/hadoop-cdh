@@ -20,7 +20,6 @@ package org.apache.hadoop.fs;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem.Statistics;
 import org.apache.hadoop.util.StringUtils;
-import org.apache.hadoop.util.Shell;
 
 import static org.apache.hadoop.fs.FileSystemTestHelper.*;
 
@@ -29,7 +28,6 @@ import java.util.Arrays;
 import java.util.Random;
 
 import static org.junit.Assert.*;
-import static org.junit.Assume.assumeTrue;
 
 import org.junit.After;
 import org.junit.Before;
@@ -265,27 +263,11 @@ public class TestLocalFileSystem {
 
   @Test(timeout = 1000)
   public void testListStatusWithColons() throws IOException {
-    assumeTrue(!Shell.WINDOWS);
     File colonFile = new File(TEST_ROOT_DIR, "foo:bar");
     colonFile.mkdirs();
     FileStatus[] stats = fileSys.listStatus(new Path(TEST_ROOT_DIR));
     assertEquals("Unexpected number of stats", 1, stats.length);
     assertEquals("Bad path from stat", colonFile.getAbsolutePath(),
-        stats[0].getPath().toUri().getPath());
-  }
-  
-  @Test
-  public void testListStatusReturnConsistentPathOnWindows() throws IOException {
-    assumeTrue(Shell.WINDOWS);
-    String dirNoDriveSpec = TEST_ROOT_DIR;
-    if (dirNoDriveSpec.charAt(1) == ':')
-    	dirNoDriveSpec = dirNoDriveSpec.substring(2);
-    
-    File file = new File(dirNoDriveSpec, "foo");
-    file.mkdirs();
-    FileStatus[] stats = fileSys.listStatus(new Path(dirNoDriveSpec));
-    assertEquals("Unexpected number of stats", 1, stats.length);
-    assertEquals("Bad path from stat", new Path(file.getPath()).toUri().getPath(),
         stats[0].getPath().toUri().getPath());
   }
   
@@ -431,88 +413,6 @@ public class TestLocalFileSystem {
     } finally {
       stm.close();
     }
-  }
-
-  /**
-   * Tests a simple rename of a directory.
-   */
-  @Test
-  public void testRenameDirectory() throws IOException {
-    Path src = new Path(TEST_ROOT_DIR, "dir1");
-    Path dst = new Path(TEST_ROOT_DIR, "dir2");
-    fileSys.delete(src, true);
-    fileSys.delete(dst, true);
-    assertTrue(fileSys.mkdirs(src));
-    assertTrue(fileSys.rename(src, dst));
-    assertTrue(fileSys.exists(dst));
-    assertFalse(fileSys.exists(src));
-  }
-
-  /**
-   * Tests that renaming a directory replaces the destination if the destination
-   * is an existing empty directory.
-   * 
-   * Before:
-   *   /dir1
-   *     /file1
-   *     /file2
-   *   /dir2
-   * 
-   * After rename("/dir1", "/dir2"):
-   *   /dir2
-   *     /file1
-   *     /file2
-   */
-  @Test
-  public void testRenameReplaceExistingEmptyDirectory() throws IOException {
-    Path src = new Path(TEST_ROOT_DIR, "dir1");
-    Path dst = new Path(TEST_ROOT_DIR, "dir2");
-    fileSys.delete(src, true);
-    fileSys.delete(dst, true);
-    assertTrue(fileSys.mkdirs(src));
-    writeFile(fileSys, new Path(src, "file1"), 1);
-    writeFile(fileSys, new Path(src, "file2"), 1);
-    assertTrue(fileSys.mkdirs(dst));
-    assertTrue(fileSys.rename(src, dst));
-    assertTrue(fileSys.exists(dst));
-    assertTrue(fileSys.exists(new Path(dst, "file1")));
-    assertTrue(fileSys.exists(new Path(dst, "file2")));
-    assertFalse(fileSys.exists(src));
-  }
-
-  /**
-   * Tests that renaming a directory to an existing directory that is not empty
-   * results in a full copy of source to destination.
-   * 
-   * Before:
-   *   /dir1
-   *     /dir2
-   *       /dir3
-   *         /file1
-   *         /file2
-   * 
-   * After rename("/dir1/dir2/dir3", "/dir1"):
-   *   /dir1
-   *     /dir3
-   *       /file1
-   *       /file2
-   */
-  @Test
-  public void testRenameMoveToExistingNonEmptyDirectory() throws IOException {
-    Path src = new Path(TEST_ROOT_DIR, "dir1/dir2/dir3");
-    Path dst = new Path(TEST_ROOT_DIR, "dir1");
-    fileSys.delete(src, true);
-    fileSys.delete(dst, true);
-    assertTrue(fileSys.mkdirs(src));
-    writeFile(fileSys, new Path(src, "file1"), 1);
-    writeFile(fileSys, new Path(src, "file2"), 1);
-    assertTrue(fileSys.exists(dst));
-    assertTrue(fileSys.rename(src, dst));
-    assertTrue(fileSys.exists(dst));
-    assertTrue(fileSys.exists(new Path(dst, "dir3")));
-    assertTrue(fileSys.exists(new Path(dst, "dir3/file1")));
-    assertTrue(fileSys.exists(new Path(dst, "dir3/file2")));
-    assertFalse(fileSys.exists(src));
   }
   
   private void verifyRead(FSDataInputStream stm, byte[] fileContents,

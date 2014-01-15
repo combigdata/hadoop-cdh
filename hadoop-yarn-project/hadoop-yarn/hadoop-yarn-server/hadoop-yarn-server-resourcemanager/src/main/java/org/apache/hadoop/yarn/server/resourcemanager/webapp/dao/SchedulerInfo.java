@@ -22,8 +22,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlSeeAlso;
 
 @XmlRootElement
-@XmlSeeAlso({ CapacitySchedulerInfo.class, FairSchedulerInfo.class,
-  FifoSchedulerInfo.class })
+@XmlSeeAlso({ CapacitySchedulerInfo.class, FifoSchedulerInfo.class })
 public class SchedulerInfo {
 
   public SchedulerInfo() {

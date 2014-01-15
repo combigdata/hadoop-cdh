@@ -77,11 +77,13 @@ public class JobControl implements Runnable {
     this.runnerState = ThreadState.READY;
   }
 	
-  synchronized private static List<ControlledJob> toList(
+  private static List<ControlledJob> toList(
                    LinkedList<ControlledJob> jobs) {
     ArrayList<ControlledJob> retv = new ArrayList<ControlledJob>();
-    for (ControlledJob job : jobs) {
-      retv.add(job);
+    synchronized (jobs) {
+      for (ControlledJob job : jobs) {
+        retv.add(job);
+      }
     }
     return retv;
   }

@@ -32,7 +32,6 @@ import org.apache.hadoop.yarn.util.Records;
 public abstract class ApplicationResourceUsageReport {
 
   @Private
-  @Unstable
   public static ApplicationResourceUsageReport newInstance(
       int numUsedContainers, int numReservedContainers, Resource usedResources,
       Resource reservedResources, Resource neededResources) {
@@ -66,8 +65,8 @@ public abstract class ApplicationResourceUsageReport {
    * Get the number of reserved containers
    * @return the number of reserved containers
    */
-  @Private
-  @Unstable
+  @Public
+  @Stable
   public abstract int getNumReservedContainers();
 
   /**

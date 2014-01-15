@@ -222,8 +222,7 @@ public class PBHelper {
   // DatanodeId
   public static DatanodeID convert(DatanodeIDProto dn) {
     return new DatanodeID(dn.getIpAddr(), dn.getHostName(), dn.getStorageID(),
-        dn.getXferPort(), dn.getInfoPort(), dn.hasInfoSecurePort() ? dn
-        .getInfoSecurePort() : 0, dn.getIpcPort());
+        dn.getXferPort(), dn.getInfoPort(), dn.getIpcPort());
   }
 
   public static DatanodeIDProto convert(DatanodeID dn) {
@@ -233,7 +232,6 @@ public class PBHelper {
         .setStorageID(dn.getStorageID())
         .setXferPort(dn.getXferPort())
         .setInfoPort(dn.getInfoPort())
-        .setInfoSecurePort(dn.getInfoSecurePort())
         .setIpcPort(dn.getIpcPort()).build();
   }
 
@@ -1057,8 +1055,7 @@ public class PBHelper {
             fs.getSymlink().toByteArray() : null,
         fs.getPath().toByteArray(),
         fs.hasFileId()? fs.getFileId(): INodeId.GRANDFATHER_INODE_ID,
-        fs.hasLocations() ? PBHelper.convert(fs.getLocations()) : null,
-        fs.hasChildrenNum() ? fs.getChildrenNum() : -1);
+        fs.hasLocations() ? PBHelper.convert(fs.getLocations()) : null);
   }
 
   public static SnapshottableDirectoryStatus convert(
@@ -1075,7 +1072,6 @@ public class PBHelper {
         status.getGroup(),
         status.getPath().toByteArray(),
         status.getFileId(),
-        status.getChildrenNum(),
         sdirStatusProto.getSnapshotNumber(),
         sdirStatusProto.getSnapshotQuota(),
         sdirStatusProto.getParentFullpath().toByteArray());
@@ -1103,7 +1099,6 @@ public class PBHelper {
       setOwner(fs.getOwner()).
       setGroup(fs.getGroup()).
       setFileId(fs.getFileId()).
-      setChildrenNum(fs.getChildrenNum()).
       setPath(ByteString.copyFrom(fs.getLocalNameInBytes()));
     if (fs.isSymlink())  {
       builder.setSymlink(ByteString.copyFrom(fs.getSymlinkInBytes()));

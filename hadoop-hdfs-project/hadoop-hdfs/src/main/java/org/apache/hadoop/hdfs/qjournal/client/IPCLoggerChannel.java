@@ -519,13 +519,12 @@ public class IPCLoggerChannel implements AsyncLogger {
 
   @Override
   public ListenableFuture<RemoteEditLogManifest> getEditLogManifest(
-      final long fromTxnId, final boolean forReading, 
-      final boolean inProgressOk) {
+      final long fromTxnId, final boolean forReading) {
     return executor.submit(new Callable<RemoteEditLogManifest>() {
       @Override
       public RemoteEditLogManifest call() throws IOException {
         GetEditLogManifestResponseProto ret = getProxy().getEditLogManifest(
-            journalId, fromTxnId, forReading, inProgressOk);
+            journalId, fromTxnId, forReading);
         // Update the http port, since we need this to build URLs to any of the
         // returned logs.
         httpPort = ret.getHttpPort();

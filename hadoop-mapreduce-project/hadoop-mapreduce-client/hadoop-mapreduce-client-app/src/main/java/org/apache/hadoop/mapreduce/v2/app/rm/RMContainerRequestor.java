@@ -36,15 +36,14 @@ import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.v2.api.records.TaskAttemptId;
 import org.apache.hadoop.mapreduce.v2.app.AppContext;
 import org.apache.hadoop.mapreduce.v2.app.client.ClientService;
+import org.apache.hadoop.yarn.YarnRuntimeException;
 import org.apache.hadoop.yarn.api.protocolrecords.AllocateRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
-import org.apache.hadoop.yarn.api.records.ResourceBlacklistRequest;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.exceptions.YarnException;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 
@@ -87,10 +86,6 @@ public abstract class RMContainerRequestor extends RMCommunicator {
   private final Map<String, Integer> nodeFailures = new HashMap<String, Integer>();
   private final Set<String> blacklistedNodes = Collections
       .newSetFromMap(new ConcurrentHashMap<String, Boolean>());
-  private final Set<String> blacklistAdditions = Collections
-      .newSetFromMap(new ConcurrentHashMap<String, Boolean>());
-  private final Set<String> blacklistRemovals = Collections
-      .newSetFromMap(new ConcurrentHashMap<String, Boolean>());
 
   public RMContainerRequestor(ClientService clientService, AppContext context) {
     super(clientService, context);
@@ -129,8 +124,8 @@ public abstract class RMContainerRequestor extends RMCommunicator {
   }
 
   @Override
-  protected void serviceInit(Configuration conf) throws Exception {
-    super.serviceInit(conf);
+  public void init(Configuration conf) {
+    super.init(conf);
     nodeBlacklistingEnabled = 
       conf.getBoolean(MRJobConfig.MR_AM_JOB_NODE_BLACKLISTING_ENABLE, true);
     LOG.info("nodeBlacklistingEnabled:" + nodeBlacklistingEnabled);
@@ -150,13 +145,10 @@ public abstract class RMContainerRequestor extends RMCommunicator {
   }
 
   protected AllocateResponse makeRemoteRequest() throws IOException {
-    ResourceBlacklistRequest blacklistRequest =
-        ResourceBlacklistRequest.newInstance(new ArrayList<String>(blacklistAdditions),
-            new ArrayList<String>(blacklistRemovals));
-    AllocateRequest allocateRequest =
-        AllocateRequest.newInstance(lastResponseID,
-          super.getApplicationProgress(), new ArrayList<ResourceRequest>(ask),
-          new ArrayList<ContainerId>(release), blacklistRequest);
+    AllocateRequest allocateRequest = AllocateRequest.newInstance(
+        applicationAttemptId, lastResponseID, super.getApplicationProgress(),
+        new ArrayList<ResourceRequest>(ask), new ArrayList<ContainerId>(
+            release));
     AllocateResponse allocateResponse;
     try {
       allocateResponse = scheduler.allocate(allocateRequest);
@@ -180,14 +172,6 @@ public abstract class RMContainerRequestor extends RMCommunicator {
 
     ask.clear();
     release.clear();
-
-    if (blacklistAdditions.size() > 0 || blacklistRemovals.size() > 0) {
-      LOG.info("Update the blacklist for " + applicationId +
-          ": blacklistAdditions=" + blacklistAdditions.size() +
-          " blacklistRemovals=" +  blacklistRemovals.size());
-    }
-    blacklistAdditions.clear();
-    blacklistRemovals.clear();
     return allocateResponse;
   }
 
@@ -211,17 +195,11 @@ public abstract class RMContainerRequestor extends RMCommunicator {
         if (ignoreBlacklisting.compareAndSet(false, true)) {
           LOG.info("Ignore blacklisting set to true. Known: " + clusterNmCount
               + ", Blacklisted: " + blacklistedNodeCount + ", " + val + "%");
-          // notify RM to ignore all the blacklisted nodes
-          blacklistAdditions.clear();
-          blacklistRemovals.addAll(blacklistedNodes);
         }
       } else {
         if (ignoreBlacklisting.compareAndSet(true, false)) {
           LOG.info("Ignore blacklisting set to false. Known: " + clusterNmCount
               + ", Blacklisted: " + blacklistedNodeCount + ", " + val + "%");
-          // notify RM of all the blacklisted nodes
-          blacklistAdditions.addAll(blacklistedNodes);
-          blacklistRemovals.clear();
         }
       }
     }
@@ -243,9 +221,6 @@ public abstract class RMContainerRequestor extends RMCommunicator {
     LOG.info(failures + " failures on node " + hostName);
     if (failures >= maxTaskFailuresPerNode) {
       blacklistedNodes.add(hostName);
-      if (!ignoreBlacklisting.get()) {
-        blacklistAdditions.add(hostName);
-      }
       //Even if blacklisting is ignored, continue to remove the host from
       // the request table. The RM may have additional nodes it can allocate on.
       LOG.info("Blacklisted host " + hostName);
@@ -266,7 +241,7 @@ public abstract class RMContainerRequestor extends RMCommunicator {
               ResourceRequest zeroedRequest =
                   ResourceRequest.newInstance(req.getPriority(),
                     req.getResourceName(), req.getCapability(),
-                    req.getNumContainers(), req.getRelaxLocality());
+                    req.getNumContainers());
 
               zeroedRequest.setNumContainers(0);
               // to be sent to RM on next heartbeat
@@ -448,9 +423,5 @@ public abstract class RMContainerRequestor extends RMCommunicator {
     ContainerRequest newReq = new ContainerRequest(orig.attemptID, orig.capability,
         hosts, orig.racks, orig.priority); 
     return newReq;
-  }
-  
-  public Set<String> getBlacklistedNodes() {
-    return blacklistedNodes;
   }
 }

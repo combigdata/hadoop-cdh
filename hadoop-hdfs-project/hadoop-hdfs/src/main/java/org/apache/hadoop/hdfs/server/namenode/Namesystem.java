@@ -18,7 +18,6 @@
 package org.apache.hadoop.hdfs.server.namenode;
 
 import org.apache.hadoop.classification.InterfaceAudience;
-import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.server.namenode.NameNode.OperationCategory;
 import org.apache.hadoop.hdfs.util.RwLock;
 import org.apache.hadoop.ipc.StandbyException;
@@ -38,7 +37,7 @@ public interface Namesystem extends RwLock, SafeMode {
 
   public boolean isInStandbyState();
 
-  public boolean isGenStampInFuture(Block block);
+  public boolean isGenStampInFuture(long generationStamp);
 
   public void adjustSafeModeBlockTotals(int deltaSafe, int deltaTotal);
 

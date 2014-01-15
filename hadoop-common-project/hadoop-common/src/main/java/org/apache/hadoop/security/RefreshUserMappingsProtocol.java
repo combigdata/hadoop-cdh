@@ -22,7 +22,6 @@ import java.io.IOException;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.fs.CommonConfigurationKeys;
-import org.apache.hadoop.io.retry.Idempotent;
 import org.apache.hadoop.security.KerberosInfo;
 
 /**
@@ -44,13 +43,12 @@ public interface RefreshUserMappingsProtocol {
    * Refresh user to group mappings.
    * @throws IOException
    */
-  @Idempotent
   public void refreshUserToGroupsMappings() throws IOException;
   
   /**
    * Refresh superuser proxy group list
    * @throws IOException
    */
-  @Idempotent
-  public void refreshSuperUserGroupsConfiguration() throws IOException;
+  public void refreshSuperUserGroupsConfiguration() 
+  throws IOException;
 }

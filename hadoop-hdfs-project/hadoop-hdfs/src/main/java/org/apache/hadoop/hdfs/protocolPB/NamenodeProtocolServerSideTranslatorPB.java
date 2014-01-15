@@ -157,13 +157,11 @@ public class NamenodeProtocolServerSideTranslatorPB implements
   }
 
   @Override
-  public RegisterResponseProto registerSubordinateNamenode(
-      RpcController unused, RegisterRequestProto request)
-      throws ServiceException {
+  public RegisterResponseProto register(RpcController unused,
+      RegisterRequestProto request) throws ServiceException {
     NamenodeRegistration reg;
     try {
-      reg = impl.registerSubordinateNamenode(
-          PBHelper.convert(request.getRegistration()));
+      reg = impl.register(PBHelper.convert(request.getRegistration()));
     } catch (IOException e) {
       throw new ServiceException(e);
     }

@@ -34,7 +34,6 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.GnuParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
-import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.yarn.webapp.WebAppException;
 
 import org.slf4j.Logger;
@@ -44,7 +43,6 @@ import org.slf4j.LoggerFactory;
  * Generates a specific hamlet implementation class from a spec class
  * using a generic hamlet implementation class.
  */
-@InterfaceAudience.LimitedPrivate({"YARN", "MapReduce"})
 public class HamletGen {
   static final Logger LOG = LoggerFactory.getLogger(HamletGen.class);
   static final Options opts = new Options();

@@ -126,7 +126,7 @@ class ImageLoaderCurrent implements ImageLoader {
                                       new SimpleDateFormat("yyyy-MM-dd HH:mm");
   private static int[] versions = { -16, -17, -18, -19, -20, -21, -22, -23,
       -24, -25, -26, -27, -28, -30, -31, -32, -33, -34, -35, -36, -37, -38, -39,
-      -40, -41, -42, -43, -44, -45, -46, -47 };
+      -40, -41, -42, -43};
   private int imageVersion = 0;
   
   private final Map<Long, String> subtreeMap = new HashMap<Long, String>();
@@ -165,12 +165,6 @@ class ImageLoaderCurrent implements ImageLoader {
 
       v.visit(ImageElement.GENERATION_STAMP, in.readLong());
 
-      if (LayoutVersion.supports(Feature.SEQUENTIAL_BLOCK_ID, imageVersion)) {
-        v.visit(ImageElement.GENERATION_STAMP_V2, in.readLong());
-        v.visit(ImageElement.GENERATION_STAMP_V1_LIMIT, in.readLong());
-        v.visit(ImageElement.LAST_ALLOCATED_BLOCK_ID, in.readLong());
-      }
-
       if (LayoutVersion.supports(Feature.STORED_TXIDS, imageVersion)) {
         v.visit(ImageElement.TRANSACTION_ID, in.readLong());
       }
@@ -183,11 +177,7 @@ class ImageLoaderCurrent implements ImageLoader {
           imageVersion);
       if (supportSnapshot) {
         v.visit(ImageElement.SNAPSHOT_COUNTER, in.readInt());
-        int numSnapshots = in.readInt();
-        v.visit(ImageElement.NUM_SNAPSHOTS_TOTAL, numSnapshots);
-        for (int i = 0; i < numSnapshots; i++) {
-          processSnapshot(in, v);
-        }
+        v.visit(ImageElement.NUM_SNAPSHOTS_TOTAL, in.readInt());
       }
       
       if (LayoutVersion.supports(Feature.FSIMAGE_COMPRESSION, imageVersion)) {
@@ -345,8 +335,8 @@ class ImageLoaderCurrent implements ImageLoader {
     v.visitEnclosingElement(ImageElement.BLOCKS,
                             ImageElement.NUM_BLOCKS, numBlocks);
     
-    // directory or symlink or reference node, no blocks to process    
-    if(numBlocks < 0) { 
+    // directory or symlink, no blocks to process    
+    if(numBlocks == -1 || numBlocks == -2) { 
       v.leaveEnclosingElement(); // Blocks
       return;
     }
@@ -494,22 +484,15 @@ class ImageLoaderCurrent implements ImageLoader {
         // process snapshot
         v.visitEnclosingElement(ImageElement.SNAPSHOT);
         v.visit(ImageElement.SNAPSHOT_ID, in.readInt());
+        // process root of snapshot
+        v.visitEnclosingElement(ImageElement.SNAPSHOT_ROOT);
+        processINode(in, v, true, rootName, false);
+        v.leaveEnclosingElement();
         v.leaveEnclosingElement();
       }
       v.visit(ImageElement.SNAPSHOT_QUOTA, in.readInt());
       v.leaveEnclosingElement();
     }
-  }
-  
-  private void processSnapshot(DataInputStream in, ImageVisitor v)
-      throws IOException {
-    v.visitEnclosingElement(ImageElement.SNAPSHOT);
-    v.visit(ImageElement.SNAPSHOT_ID, in.readInt());
-    // process root of snapshot
-    v.visitEnclosingElement(ImageElement.SNAPSHOT_ROOT);
-    processINode(in, v, true, "", false);
-    v.leaveEnclosingElement();
-    v.leaveEnclosingElement();
   }
   
   private void processDirectoryDiffList(DataInputStream in, ImageVisitor v,
@@ -529,20 +512,16 @@ class ImageLoaderCurrent implements ImageLoader {
   private void processDirectoryDiff(DataInputStream in, ImageVisitor v,
       String currentINodeName) throws IOException {
     v.visitEnclosingElement(ImageElement.SNAPSHOT_DIR_DIFF);
-    int snapshotId = in.readInt();
-    v.visit(ImageElement.SNAPSHOT_DIFF_SNAPSHOTID, snapshotId);
+    String snapshot = FSImageSerialization.readString(in);
+    v.visit(ImageElement.SNAPSHOT_DIFF_SNAPSHOTROOT, snapshot);
     v.visit(ImageElement.SNAPSHOT_DIR_DIFF_CHILDREN_SIZE, in.readInt());
     
     // process snapshotINode
     boolean useRoot = in.readBoolean();
     if (!useRoot) {
       if (in.readBoolean()) {
-        v.visitEnclosingElement(ImageElement.SNAPSHOT_INODE_DIRECTORY_ATTRIBUTES);
-        if (LayoutVersion.supports(Feature.OPTIMIZE_SNAPSHOT_INODES, imageVersion)) {
-          processINodeDirectoryAttributes(in, v, currentINodeName);
-        } else {
-          processINode(in, v, true, currentINodeName, true);
-        }
+        v.visitEnclosingElement(ImageElement.SNAPSHOT_DIFF_SNAPSHOTINODE);
+        processINode(in, v, true, currentINodeName, true);
         v.leaveEnclosingElement();
       }
     }
@@ -569,18 +548,7 @@ class ImageLoaderCurrent implements ImageLoader {
     v.leaveEnclosingElement();
     v.leaveEnclosingElement();
   }
-
-  private void processINodeDirectoryAttributes(DataInputStream in, ImageVisitor v,
-      String parentName) throws IOException {
-    final String pathName = readINodePath(in, parentName);
-    v.visit(ImageElement.INODE_PATH, pathName);
-    processPermission(in, v);
-    v.visit(ImageElement.MODIFICATION_TIME, formatDate(in.readLong()));
-
-    v.visit(ImageElement.NS_QUOTA, in.readLong());
-    v.visit(ImageElement.DS_QUOTA, in.readLong());
-  }
-
+  
   /** Process children under a directory */
   private int processChildren(DataInputStream in, ImageVisitor v,
       boolean skipBlocks, String parentName) throws IOException {
@@ -607,18 +575,6 @@ class ImageLoaderCurrent implements ImageLoader {
     }
   }
  
-  private String readINodePath(DataInputStream in, String parentName)
-      throws IOException {
-    String pathName = FSImageSerialization.readString(in);
-    if (parentName != null) {  // local name
-      pathName = "/" + pathName;
-      if (!"/".equals(parentName)) { // children of non-root directory
-        pathName = parentName + pathName;
-      }
-    }
-    return pathName;
-  }
-
   /**
    * Process an INode
    * 
@@ -638,10 +594,16 @@ class ImageLoaderCurrent implements ImageLoader {
         LayoutVersion.supports(Feature.ADD_INODE_ID, imageVersion);
     
     v.visitEnclosingElement(ImageElement.INODE);
-    final String pathName = readINodePath(in, parentName);
-    v.visit(ImageElement.INODE_PATH, pathName);
+    String pathName = FSImageSerialization.readString(in);
+    if (parentName != null) {  // local name
+      pathName = "/" + pathName;
+      if (!"/".equals(parentName)) { // children of non-root directory
+        pathName = parentName + pathName;
+      }
+    }
 
     long inodeId = INodeId.GRANDFATHER_INODE_ID;
+    v.visit(ImageElement.INODE_PATH, pathName);
     if (supportInodeId) {
       inodeId = in.readLong();
       v.visit(ImageElement.INODE_ID, inodeId);
@@ -655,7 +617,7 @@ class ImageLoaderCurrent implements ImageLoader {
 
     processBlocks(in, v, numBlocks, skipBlocks);
     
-    if (numBlocks >= 0) { // File
+    if (numBlocks > 0) { // File
       if (supportSnapshot) {
         // process file diffs
         processFileDiffList(in, v, parentName);
@@ -669,7 +631,6 @@ class ImageLoaderCurrent implements ImageLoader {
           }
         }
       }
-      processPermission(in, v);
     } else if (numBlocks == -1) { // Directory
       if (supportSnapshot && supportInodeId) {
         dirNodeMap.put(inodeId, pathName);
@@ -686,7 +647,6 @@ class ImageLoaderCurrent implements ImageLoader {
           v.visit(ImageElement.IS_SNAPSHOTTABLE_DIR, Boolean.toString(snapshottable));
         }
       }
-      processPermission(in, v);
     } else if (numBlocks == -2) {
       v.visit(ImageElement.SYMLINK, Text.readString(in));
     } else if (numBlocks == -3) { // reference node
@@ -708,21 +668,8 @@ class ImageLoaderCurrent implements ImageLoader {
       }
     }
 
-    v.leaveEnclosingElement(); // INode
-  }
-
-  private void processINodeFileAttributes(DataInputStream in, ImageVisitor v,
-      String parentName) throws IOException {
-    final String pathName = readINodePath(in, parentName);
-    v.visit(ImageElement.INODE_PATH, pathName);
     processPermission(in, v);
-    v.visit(ImageElement.MODIFICATION_TIME, formatDate(in.readLong()));
-    if(LayoutVersion.supports(Feature.FILE_ACCESS_TIME, imageVersion)) {
-      v.visit(ImageElement.ACCESS_TIME, formatDate(in.readLong()));
-    }
-
-    v.visit(ImageElement.REPLICATION, in.readShort());
-    v.visit(ImageElement.BLOCK_SIZE, in.readLong());
+    v.leaveEnclosingElement(); // INode
   }
   
   private void processFileDiffList(DataInputStream in, ImageVisitor v,
@@ -731,29 +678,16 @@ class ImageLoaderCurrent implements ImageLoader {
     if (size >= 0) {
       v.visitEnclosingElement(ImageElement.SNAPSHOT_FILE_DIFFS,
           ImageElement.NUM_SNAPSHOT_FILE_DIFF, size);
-      for (int i = 0; i < size; i++) {
-        processFileDiff(in, v, currentINodeName);
-      }
-      v.leaveEnclosingElement();
-    }
-  }
-  
-  private void processFileDiff(DataInputStream in, ImageVisitor v,
-      String currentINodeName) throws IOException {
-    int snapshotId = in.readInt();
-    v.visitEnclosingElement(ImageElement.SNAPSHOT_FILE_DIFF,
-        ImageElement.SNAPSHOT_DIFF_SNAPSHOTID, snapshotId);
-    v.visit(ImageElement.SNAPSHOT_FILE_SIZE, in.readLong());
-    if (in.readBoolean()) {
-      v.visitEnclosingElement(ImageElement.SNAPSHOT_INODE_FILE_ATTRIBUTES);
-      if (LayoutVersion.supports(Feature.OPTIMIZE_SNAPSHOT_INODES, imageVersion)) {
-        processINodeFileAttributes(in, v, currentINodeName);
-      } else {
+      String snapshot = FSImageSerialization.readString(in);
+      v.visit(ImageElement.SNAPSHOT_DIFF_SNAPSHOTROOT, snapshot);
+      v.visit(ImageElement.SNAPSHOT_FILE_SIZE, in.readLong());
+      if (in.readBoolean()) {
+        v.visitEnclosingElement(ImageElement.SNAPSHOT_DIFF_SNAPSHOTINODE);
         processINode(in, v, true, currentINodeName, true);
+        v.leaveEnclosingElement();
       }
       v.leaveEnclosingElement();
     }
-    v.leaveEnclosingElement();
   }
   
   /**

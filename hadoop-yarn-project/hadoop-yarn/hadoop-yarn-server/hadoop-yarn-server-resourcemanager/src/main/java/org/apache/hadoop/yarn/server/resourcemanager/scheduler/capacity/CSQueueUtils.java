@@ -17,10 +17,10 @@
 */
 package org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity;
 
+import org.apache.hadoop.yarn.Lock;
 import org.apache.hadoop.yarn.api.records.Resource;
-import org.apache.hadoop.yarn.server.utils.Lock;
-import org.apache.hadoop.yarn.util.resource.ResourceCalculator;
-import org.apache.hadoop.yarn.util.resource.Resources;
+import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceCalculator;
+import org.apache.hadoop.yarn.server.resourcemanager.resource.Resources;
 
 class CSQueueUtils {
   
@@ -99,11 +99,15 @@ class CSQueueUtils {
           Resources.divide(calculator, clusterResource, 
               usedResources, queueLimit);
     }
-
+    
     childQueue.setUsedCapacity(usedCapacity);
     childQueue.setAbsoluteUsedCapacity(absoluteUsedCapacity);
     
-    Resource available = Resources.subtract(queueLimit, usedResources);
+    Resource available = 
+        Resources.roundUp(
+            calculator, 
+            Resources.subtract(queueLimit, usedResources), 
+            minimumAllocation);
     childQueue.getMetrics().setAvailableResourcesToQueue(
         Resources.max(
             calculator, 

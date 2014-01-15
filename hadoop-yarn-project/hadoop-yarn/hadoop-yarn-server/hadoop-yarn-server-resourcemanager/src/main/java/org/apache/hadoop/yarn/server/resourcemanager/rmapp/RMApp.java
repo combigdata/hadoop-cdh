@@ -28,13 +28,12 @@ import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
-import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.event.EventHandler;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttempt;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
 
 /**
- * The interface to an Application in the ResourceManager. Take a
+ * The read interface to an Application in the ResourceManager. Take a
  * look at {@link RMAppImpl} for its implementation. This interface
  * exposes methods to access various updates in application status/report.
  */
@@ -86,13 +85,6 @@ public interface RMApp extends EventHandler<RMAppEvent> {
    * @return the queue to which the application was submitted to.
    */
   String getQueue();
-  
-  /**
-   * Reflects a change in the application's queue from the one specified in the
-   * {@link ApplicationSubmissionContext}.
-   * @param name the new queue name
-   */
-  void setQueue(String name);
 
   /**
    * The name of the application as set in {@link
@@ -129,12 +121,10 @@ public interface RMApp extends EventHandler<RMAppEvent> {
    *   <li>resource usage report - all values are -1</li>
    * </ul>
    *
-   * @param clientUserName the user name of the client requesting the report
    * @param allowAccess whether to allow full access to the report
    * @return the {@link ApplicationReport} detailing the status of the application.
    */
-  ApplicationReport createAndGetApplicationReport(String clientUserName,
-      boolean allowAccess);
+  ApplicationReport createAndGetApplicationReport(boolean allowAccess);
   
   /**
    * To receive the collection of all {@link RMNode}s whose updates have been
@@ -178,9 +168,9 @@ public interface RMApp extends EventHandler<RMAppEvent> {
 
   /**
    * The final finish state of the AM when unregistering as in
-   * {@link FinishApplicationMasterRequest#setFinalApplicationStatus(FinalApplicationStatus)}.
+   * {@link FinishApplicationMasterRequest#setFinishApplicationStatus(FinalApplicationStatus)}.
    * @return the final finish state of the AM as set in
-   * {@link FinishApplicationMasterRequest#setFinalApplicationStatus(FinalApplicationStatus)}.
+   * {@link FinishApplicationMasterRequest#setFinishApplicationStatus(FinalApplicationStatus)}.
    */
   FinalApplicationStatus getFinalApplicationStatus();
 
@@ -195,20 +185,4 @@ public interface RMApp extends EventHandler<RMAppEvent> {
    * @return the application type.
    */
   String getApplicationType(); 
-
-  /**
-   * Check whether this application is safe to unregister.
-   * An application is deemed to be safe to unregister if it is an unmanaged
-   * AM or its state has been removed from state store.
-   * @return the flag which indicates whether this application is safe to
-   *         unregister.
-   */
-  boolean isAppSafeToUnregister();
-
-  /**
-   * Create the external user-facing state of ApplicationMaster from the
-   * current state of the {@link RMApp}.
-   * @return the external user-facing state of ApplicationMaster.
-   */
-  YarnApplicationState createApplicationState();
 }

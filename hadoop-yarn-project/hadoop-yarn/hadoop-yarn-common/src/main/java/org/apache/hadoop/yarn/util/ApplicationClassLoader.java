@@ -18,6 +18,9 @@
 
 package org.apache.hadoop.yarn.util;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Splitter;
+
 import java.io.File;
 import java.io.FilenameFilter;
 import java.net.MalformedURLException;
@@ -30,9 +33,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Splitter;
 
 /**
  * A {@link URLClassLoader} for YARN application isolation. Classes from

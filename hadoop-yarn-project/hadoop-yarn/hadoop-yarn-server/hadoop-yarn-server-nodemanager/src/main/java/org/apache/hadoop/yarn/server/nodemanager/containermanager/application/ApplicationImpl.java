@@ -178,13 +178,6 @@ public class ApplicationImpl implements Application {
                    ApplicationState.APPLICATION_RESOURCES_CLEANINGUP),
                ApplicationEventType.APPLICATION_CONTAINER_FINISHED,
                new AppFinishTransition())
-          .addTransition(ApplicationState.FINISHING_CONTAINERS_WAIT,
-              ApplicationState.FINISHING_CONTAINERS_WAIT,
-              EnumSet.of(
-                  ApplicationEventType.APPLICATION_LOG_HANDLING_INITED,
-                  ApplicationEventType.APPLICATION_LOG_HANDLING_FAILED,
-                  ApplicationEventType.APPLICATION_INITED,
-                  ApplicationEventType.FINISH_APPLICATION))
 
            // Transitions from APPLICATION_RESOURCES_CLEANINGUP state
            .addTransition(ApplicationState.APPLICATION_RESOURCES_CLEANINGUP,
@@ -194,25 +187,12 @@ public class ApplicationImpl implements Application {
                ApplicationState.FINISHED,
                ApplicationEventType.APPLICATION_RESOURCES_CLEANEDUP,
                new AppCompletelyDoneTransition())
-          .addTransition(ApplicationState.APPLICATION_RESOURCES_CLEANINGUP,
-              ApplicationState.APPLICATION_RESOURCES_CLEANINGUP,
-              EnumSet.of(
-                  ApplicationEventType.APPLICATION_LOG_HANDLING_INITED,
-                  ApplicationEventType.APPLICATION_LOG_HANDLING_FAILED,
-                  ApplicationEventType.APPLICATION_LOG_HANDLING_FINISHED,
-                  ApplicationEventType.APPLICATION_INITED,
-                  ApplicationEventType.FINISH_APPLICATION))
            
            // Transitions from FINISHED state
            .addTransition(ApplicationState.FINISHED,
                ApplicationState.FINISHED,
                ApplicationEventType.APPLICATION_LOG_HANDLING_FINISHED,
                new AppLogsAggregatedTransition())
-           .addTransition(ApplicationState.FINISHED, ApplicationState.FINISHED,
-               EnumSet.of(
-                  ApplicationEventType.APPLICATION_LOG_HANDLING_INITED,
-                  ApplicationEventType.APPLICATION_LOG_HANDLING_FAILED,
-                  ApplicationEventType.FINISH_APPLICATION))
                
            // create the topology tables
            .installTopology();
@@ -364,7 +344,7 @@ public class ApplicationImpl implements Application {
     @Override
     public ApplicationState transition(ApplicationImpl app,
         ApplicationEvent event) {
-      ApplicationFinishEvent appEvent = (ApplicationFinishEvent)event;
+
       if (app.containers.isEmpty()) {
         // No container to cleanup. Cleanup app level resources.
         app.handleAppFinishWithContainersCleanedup();
@@ -376,7 +356,7 @@ public class ApplicationImpl implements Application {
       for (ContainerId containerID : app.containers.keySet()) {
         app.dispatcher.getEventHandler().handle(
             new ContainerKillEvent(containerID,
-                "Container killed on application-finish event: " + appEvent.getDiagnostic()));
+                "Container killed on application-finish event from RM."));
       }
       return ApplicationState.FINISHING_CONTAINERS_WAIT;
     }
@@ -412,11 +392,13 @@ public class ApplicationImpl implements Application {
     @Override
     public void transition(ApplicationImpl app, ApplicationEvent event) {
 
+      // Inform the ContainerTokenSecretManager
+      app.context.getContainerTokenSecretManager().appFinished(app.appId);
+
       // Inform the logService
       app.dispatcher.getEventHandler().handle(
           new LogHandlerAppFinishedEvent(app.appId));
 
-      app.context.getNMTokenSecretManager().appFinished(app.getAppId());
     }
   }
 

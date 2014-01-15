@@ -22,7 +22,6 @@ import java.io.IOException;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.server.namenode.FSEditLogOp;
 import org.apache.hadoop.hdfs.server.namenode.EditLogFileOutputStream;
 
@@ -40,8 +39,7 @@ public class BinaryEditsVisitor implements OfflineEditsVisitor {
    * @param filename Name of file to write output to
    */
   public BinaryEditsVisitor(String outputName) throws IOException {
-    this.elfos = new EditLogFileOutputStream(new Configuration(),
-      new File(outputName), 0);
+    this.elfos = new EditLogFileOutputStream(new File(outputName), 0);
     elfos.create();
   }
 

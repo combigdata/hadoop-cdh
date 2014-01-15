@@ -170,7 +170,6 @@ public class TestTokenCache {
     assertNull(conf.get(MRJobConfig.MAPREDUCE_JOB_CREDENTIALS_BINARY));
   }
   
-  @SuppressWarnings("deprecation")
   @Test
   public void testGetTokensForNamenodes() throws IOException,
       URISyntaxException {

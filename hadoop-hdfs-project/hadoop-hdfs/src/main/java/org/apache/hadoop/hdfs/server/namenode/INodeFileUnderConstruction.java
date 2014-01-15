@@ -157,21 +157,20 @@ public class INodeFileUnderConstruction extends INodeFile implements MutableBloc
    * Remove a block from the block list. This block should be
    * the last one on the list.
    */
-  boolean removeLastBlock(Block oldblock) throws IOException {
+  void removeLastBlock(Block oldblock) throws IOException {
     final BlockInfo[] blocks = getBlocks();
-    if (blocks == null || blocks.length == 0) {
-      return false;
+    if (blocks == null) {
+      throw new IOException("Trying to delete non-existant block " + oldblock);
     }
     int size_1 = blocks.length - 1;
     if (!blocks[size_1].equals(oldblock)) {
-      return false;
+      throw new IOException("Trying to delete non-last block " + oldblock);
     }
 
     //copy to a new list
     BlockInfo[] newlist = new BlockInfo[size_1];
     System.arraycopy(blocks, 0, newlist, 0, size_1);
     setBlocks(newlist);
-    return true;
   }
 
   /**

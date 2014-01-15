@@ -20,12 +20,12 @@
   <parent>
     <groupId>org.apache.hadoop</groupId>
     <artifactId>hadoop-project-dist</artifactId>
-    <version>2.2.0</version>
+    <version>2.2.0-SNAPSHOT</version>
     <relativePath>../../hadoop-project-dist</relativePath>
   </parent>
   <groupId>org.apache.hadoop</groupId>
   <artifactId>hadoop-common</artifactId>
-  <version>2.2.0</version>
+  <version>2.2.0-SNAPSHOT</version>
   <description>Apache Hadoop Common</description>
   <name>Apache Hadoop Common</name>
   <packaging>jar</packaging>
@@ -217,6 +217,7 @@
     <dependency>
       <groupId>org.apache.zookeeper</groupId>
       <artifactId>zookeeper</artifactId>
+      <version>3.4.2</version>
       <exclusions>
         <exclusion>
           <groupId>jline</groupId>
@@ -244,12 +245,9 @@
     <dependency>
       <groupId>org.apache.zookeeper</groupId>
       <artifactId>zookeeper</artifactId>
+      <version>3.4.2</version>
       <type>test-jar</type>
       <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.commons</groupId>
-      <artifactId>commons-compress</artifactId>
     </dependency>
   </dependencies>
 
@@ -305,8 +303,6 @@
               <goal>protoc</goal>
             </goals>
             <configuration>
-              <protocVersion>${protobuf.version}</protocVersion>
-              <protocCommand>${protoc.path}</protocCommand>
               <imports>
                 <param>${basedir}/src/main/proto</param>
               </imports>
@@ -320,9 +316,6 @@
                   <include>ZKFCProtocol.proto</include>
                   <include>ProtobufRpcEngine.proto</include>
                   <include>Security.proto</include>
-                  <include>GetUserMappingsProtocol.proto</include>
-                  <include>RefreshAuthorizationPolicyProtocol.proto</include>
-                  <include>RefreshUserMappingsProtocol.proto</include>
                 </includes>
               </source>
               <output>${project.build.directory}/generated-sources/java</output>
@@ -335,8 +328,6 @@
               <goal>protoc</goal>
             </goals>
             <configuration>
-              <protocVersion>${protobuf.version}</protocVersion>
-              <protocCommand>${protoc.path}</protocCommand>
               <imports>
                 <param>${basedir}/src/test/proto</param>
               </imports>
@@ -405,23 +396,6 @@
             </configuration>
           </execution>
           <execution>
-            <id>copy-test-tarballs</id>
-            <phase>process-test-resources</phase>
-            <goals>
-              <goal>run</goal>
-            </goals>
-            <configuration>
-              <target>
-                <copy toDir="${test.cache.data}">
-                  <fileset dir="${basedir}/src/test/java/org/apache/hadoop/fs">
-                    <include name="test-untar.tar"/>
-                    <include name="test-untar.tgz"/>
-                  </fileset>
-                </copy>
-              </target>
-            </configuration>
-          </execution>
-          <execution>
             <phase>pre-site</phase>
             <goals>
               <goal>run</goal>
@@ -452,11 +426,6 @@
             <exclude>src/test/all-tests</exclude>
             <exclude>src/test/resources/kdc/ldif/users.ldif</exclude>
             <exclude>src/main/native/src/org/apache/hadoop/io/compress/lz4/lz4.c</exclude>
-            <exclude>src/test/java/org/apache/hadoop/fs/test-untar.tgz</exclude>
-            <exclude>src/test/resources/test.har/_SUCCESS</exclude>
-            <exclude>src/test/resources/test.har/_index</exclude>
-            <exclude>src/test/resources/test.har/_masterindex</exclude>
-            <exclude>src/test/resources/test.har/part-0</exclude>
           </excludes>
         </configuration>
       </plugin>
@@ -592,13 +561,6 @@
           <family>Windows</family>
         </os>
       </activation>
-      <properties>
-        <snappy.prefix></snappy.prefix>
-        <snappy.lib></snappy.lib>
-        <snappy.include></snappy.include>
-        <require.snappy>false</require.snappy>
-        <bundle.snappy.in.bin>true</bundle.snappy.in.bin>
-      </properties>
       <build>
         <plugins>
           <plugin>
@@ -683,10 +645,6 @@
                     <argument>/nologo</argument>
                     <argument>/p:Configuration=Release</argument>
                     <argument>/p:OutDir=${project.build.directory}/bin/</argument>
-                    <argument>/p:CustomSnappyPrefix=${snappy.prefix}</argument>
-                    <argument>/p:CustomSnappyLib=${snappy.lib}</argument>
-                    <argument>/p:CustomSnappyInclude=${snappy.include}</argument>
-                    <argument>/p:RequireSnappy=${require.snappy}</argument>
                   </arguments>
                 </configuration>
               </execution>

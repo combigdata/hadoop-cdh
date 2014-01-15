@@ -207,10 +207,8 @@ public class TestDelegationTokensWithHA {
     ugi.addToken(token);
 
     Collection<InetSocketAddress> nnAddrs = new HashSet<InetSocketAddress>();
-    nnAddrs.add(new InetSocketAddress("localhost",
-      nn0.getNameNodeAddress().getPort()));
-    nnAddrs.add(new InetSocketAddress("localhost",
-      nn1.getNameNodeAddress().getPort()));
+    nnAddrs.add(nn0.getNameNodeAddress());
+    nnAddrs.add(nn1.getNameNodeAddress());
     HAUtil.cloneDelegationTokenForLogicalUri(ugi, haUri, nnAddrs);
     
     Collection<Token<? extends TokenIdentifier>> tokens = ugi.getTokens();

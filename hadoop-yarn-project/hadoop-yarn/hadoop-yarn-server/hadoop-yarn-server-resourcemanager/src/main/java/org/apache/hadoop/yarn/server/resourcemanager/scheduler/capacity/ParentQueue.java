@@ -45,6 +45,8 @@ import org.apache.hadoop.yarn.api.records.QueueUserACLInfo;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
+import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceCalculator;
+import org.apache.hadoop.yarn.server.resourcemanager.resource.Resources;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainerEventType;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ActiveUsersManager;
@@ -52,8 +54,6 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.NodeType;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.QueueMetrics;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerApp;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.common.fica.FiCaSchedulerNode;
-import org.apache.hadoop.yarn.util.resource.ResourceCalculator;
-import org.apache.hadoop.yarn.util.resource.Resources;
 
 @Private
 @Evolving
@@ -655,7 +655,7 @@ public class ParentQueue implements CSQueue {
               assignment.getResource(), Resources.none())) {
         // Remove and re-insert to sort
         iter.remove();
-        LOG.info("Re-sorting assigned queue: " + childQueue.getQueuePath() + 
+        LOG.info("Re-sorting queues since queue: " + childQueue.getQueuePath() + 
             " stats: " + childQueue);
         childQueues.add(childQueue);
         if (LOG.isDebugEnabled()) {
@@ -685,8 +685,7 @@ public class ParentQueue implements CSQueue {
   @Override
   public void completedContainer(Resource clusterResource,
       FiCaSchedulerApp application, FiCaSchedulerNode node, 
-      RMContainer rmContainer, ContainerStatus containerStatus, 
-      RMContainerEventType event, CSQueue completedChildQueue) {
+      RMContainer rmContainer, ContainerStatus containerStatus, RMContainerEventType event) {
     if (application != null) {
       // Careful! Locking order is important!
       // Book keeping
@@ -702,24 +701,10 @@ public class ParentQueue implements CSQueue {
             " cluster=" + clusterResource);
       }
 
-      // reinsert the updated queue
-      for (Iterator<CSQueue> iter=childQueues.iterator(); iter.hasNext();) {
-        CSQueue csqueue = iter.next();
-        if(csqueue.equals(completedChildQueue))
-        {
-          iter.remove();
-          LOG.info("Re-sorting completed queue: " + csqueue.getQueuePath() + 
-              " stats: " + csqueue);
-          childQueues.add(csqueue);
-          break;
-        }
-      }
-      
       // Inform the parent
       if (parent != null) {
-        // complete my parent
         parent.completedContainer(clusterResource, application, 
-            node, rmContainer, null, event, this);
+            node, rmContainer, null, event);
       }    
     }
   }

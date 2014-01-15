@@ -34,7 +34,8 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hdfs.client.HdfsDataInputStream;
+import org.apache.hadoop.hdfs.DFSClient.DFSDataInputStream;
+import org.apache.hadoop.hdfs.protocol.BlockLocalPathInfo;
 import org.apache.hadoop.hdfs.protocol.ClientDatanodeProtocol;
 import org.apache.hadoop.hdfs.protocol.DatanodeID;
 import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
@@ -56,7 +57,6 @@ import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
 import static org.hamcrest.CoreMatchers.*;
 
 /**
@@ -180,7 +180,7 @@ public class TestShortCircuitLocalRead {
       assertTrue(fs.getClient().useLegacyBlockReaderLocal());
     }
     
-    HdfsDataInputStream stm = (HdfsDataInputStream)fs.open(name);
+    DFSDataInputStream stm = (DFSDataInputStream)fs.open(name);
 
     ByteBuffer actual = ByteBuffer.allocateDirect(expected.length - readOffset);
 

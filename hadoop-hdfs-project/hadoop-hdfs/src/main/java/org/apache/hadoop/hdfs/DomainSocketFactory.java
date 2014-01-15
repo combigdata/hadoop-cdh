@@ -23,15 +23,16 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
-import org.apache.hadoop.HadoopIllegalArgumentException;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hdfs.DFSClient.Conf;
+
 import org.apache.hadoop.net.unix.DomainSocket;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 
 class DomainSocketFactory {
-  private static final Log LOG = BlockReaderLocal.LOG;
+  public static final Log LOG = LogFactory.getLog(DomainSocketFactory.class);
   private final Conf conf;
 
   enum PathStatus {
@@ -50,26 +51,21 @@ class DomainSocketFactory {
   public DomainSocketFactory(Conf conf) {
     this.conf = conf;
 
-    final String feature;
+    String feature = null;
     if (conf.shortCircuitLocalReads && (!conf.useLegacyBlockReaderLocal)) {
       feature = "The short-circuit local reads feature";
     } else if (conf.domainSocketDataTraffic) {
       feature = "UNIX domain socket data traffic";
-    } else {
-      feature = null;
     }
-
-    if (feature == null) {
-      LOG.debug("Both short-circuit local reads and UNIX domain socket are disabled.");
-    } else {
+    if (feature != null) {
       if (conf.domainSocketPath.isEmpty()) {
-        throw new HadoopIllegalArgumentException(feature + " is enabled but "
-            + DFSConfigKeys.DFS_DOMAIN_SOCKET_PATH_KEY + " is not set.");
+        LOG.warn(feature + " is disabled because you have not set " +
+            DFSConfigKeys.DFS_DOMAIN_SOCKET_PATH_KEY);
       } else if (DomainSocket.getLoadingFailureReason() != null) {
-        LOG.warn(feature + " cannot be used because "
-            + DomainSocket.getLoadingFailureReason());
+        LOG.warn(feature + " is disabled because " +
+              DomainSocket.getLoadingFailureReason());
       } else {
-        LOG.debug(feature + " is enabled.");
+        LOG.debug(feature + "is enabled.");
       }
     }
   }
@@ -90,8 +86,8 @@ class DomainSocketFactory {
     // sockets.
     if (conf.domainSocketPath.isEmpty()) return null;
     // If we can't do anything with the domain socket, don't create it.
-    if (!conf.domainSocketDataTraffic &&
-        (!conf.shortCircuitLocalReads || conf.useLegacyBlockReaderLocal)) {
+    if ((conf.domainSocketDataTraffic == false) &&
+        ((!conf.shortCircuitLocalReads) || conf.useLegacyBlockReaderLocal)) {
       return null;
     }
     // UNIX domain sockets can only be used to talk to local peers

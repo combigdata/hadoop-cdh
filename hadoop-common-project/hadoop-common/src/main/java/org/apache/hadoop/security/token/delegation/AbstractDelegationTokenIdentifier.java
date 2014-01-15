@@ -87,12 +87,12 @@ extends TokenIdentifier {
    */
   @Override
   public UserGroupInformation getUser() {
-    if ( (owner == null) || (owner.toString().isEmpty())) {
+    if ( (owner == null) || ("".equals(owner.toString()))) {
       return null;
     }
     final UserGroupInformation realUgi;
     final UserGroupInformation ugi;
-    if ((realUser == null) || (realUser.toString().isEmpty())
+    if ((realUser == null) || ("".equals(realUser.toString()))
         || realUser.equals(owner)) {
       ugi = realUgi = UserGroupInformation.createRemoteUser(owner.toString());
     } else {

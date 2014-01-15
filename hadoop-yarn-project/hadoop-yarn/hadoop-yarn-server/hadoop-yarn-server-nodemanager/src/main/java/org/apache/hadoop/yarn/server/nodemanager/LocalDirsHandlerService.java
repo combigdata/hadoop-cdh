@@ -32,10 +32,10 @@ import org.apache.hadoop.fs.FileContext;
 import org.apache.hadoop.fs.LocalDirAllocator;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
-import org.apache.hadoop.service.AbstractService;
 import org.apache.hadoop.util.StringUtils;
+import org.apache.hadoop.yarn.YarnRuntimeException;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
+import org.apache.hadoop.yarn.service.AbstractService;
 
 /**
  * The class which provides functionality of checking the health of the local
@@ -113,7 +113,7 @@ public class LocalDirsHandlerService extends AbstractService {
    * 
    */
   @Override
-  protected void serviceInit(Configuration config) throws Exception {
+  public void init(Configuration config) {
     // Clone the configuration as we may do modifications to dirs-list
     Configuration conf = new Configuration(config);
     diskHealthCheckInterval = conf.getLong(
@@ -126,7 +126,7 @@ public class LocalDirsHandlerService extends AbstractService {
         YarnConfiguration.NM_MIN_HEALTHY_DISKS_FRACTION,
         YarnConfiguration.DEFAULT_NM_MIN_HEALTHY_DISKS_FRACTION);
     lastDisksCheckTime = System.currentTimeMillis();
-    super.serviceInit(conf);
+    super.init(conf);
 
     FileContext localFs;
     try {
@@ -150,24 +150,24 @@ public class LocalDirsHandlerService extends AbstractService {
    * Method used to start the disk health monitoring, if enabled.
    */
   @Override
-  protected void serviceStart() throws Exception {
+  public void start() {
     if (isDiskHealthCheckerEnabled) {
       dirsHandlerScheduler = new Timer("DiskHealthMonitor-Timer", true);
       dirsHandlerScheduler.scheduleAtFixedRate(monitoringTimerTask,
           diskHealthCheckInterval, diskHealthCheckInterval);
     }
-    super.serviceStart();
+    super.start();
   }
 
   /**
    * Method used to terminate the disk health monitoring service.
    */
   @Override
-  protected void serviceStop() throws Exception {
+  public void stop() {
     if (dirsHandlerScheduler != null) {
       dirsHandlerScheduler.cancel();
     }
-    super.serviceStop();
+    super.stop();
   }
 
   /**

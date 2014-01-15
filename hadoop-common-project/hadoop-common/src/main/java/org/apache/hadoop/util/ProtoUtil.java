@@ -28,8 +28,6 @@ import org.apache.hadoop.ipc.protobuf.RpcHeaderProtos.*;
 import org.apache.hadoop.security.SaslRpcServer.AuthMethod;
 import org.apache.hadoop.security.UserGroupInformation;
 
-import com.google.protobuf.ByteString;
-
 public abstract class ProtoUtil {
 
   /**
@@ -96,7 +94,7 @@ public abstract class ProtoUtil {
         // Real user was established as part of the connection.
         // Send effective user only.
         ugiProto.setEffectiveUser(ugi.getUserName());
-      } else if (authMethod == AuthMethod.TOKEN) {
+      } else if (authMethod == AuthMethod.DIGEST) {
         // With token, the connection itself establishes 
         // both real and effective user. Hence send none in header.
       } else {  // Simple authentication
@@ -160,11 +158,9 @@ public abstract class ProtoUtil {
   }
  
   public static RpcRequestHeaderProto makeRpcRequestHeader(RPC.RpcKind rpcKind,
-      RpcRequestHeaderProto.OperationProto operation, int callId,
-      int retryCount, byte[] uuid) {
+      RpcRequestHeaderProto.OperationProto operation, int callId) {
     RpcRequestHeaderProto.Builder result = RpcRequestHeaderProto.newBuilder();
-    result.setRpcKind(convert(rpcKind)).setRpcOp(operation).setCallId(callId)
-        .setRetryCount(retryCount).setClientId(ByteString.copyFrom(uuid));
+    result.setRpcKind(convert(rpcKind)).setRpcOp(operation).setCallId(callId);
     return result.build();
   }
 }

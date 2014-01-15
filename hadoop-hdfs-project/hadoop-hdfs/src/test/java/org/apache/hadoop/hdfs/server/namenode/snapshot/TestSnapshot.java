@@ -18,8 +18,6 @@
 package org.apache.hadoop.hdfs.server.namenode.snapshot;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -44,18 +42,12 @@ import org.apache.hadoop.hdfs.DFSTestUtil;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.hdfs.client.HdfsDataOutputStream;
-import org.apache.hadoop.hdfs.protocol.HdfsConstants;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants.SafeModeAction;
 import org.apache.hadoop.hdfs.server.namenode.FSDirectory;
-import org.apache.hadoop.hdfs.server.namenode.FSImageTestUtil;
 import org.apache.hadoop.hdfs.server.namenode.FSNamesystem;
 import org.apache.hadoop.hdfs.server.namenode.INode;
-import org.apache.hadoop.hdfs.server.namenode.INodeDirectory;
 import org.apache.hadoop.hdfs.server.namenode.snapshot.SnapshotTestHelper.TestDirectoryTree;
 import org.apache.hadoop.hdfs.server.namenode.snapshot.SnapshotTestHelper.TestDirectoryTree.Node;
-import org.apache.hadoop.hdfs.tools.offlineImageViewer.OfflineImageViewer;
-import org.apache.hadoop.hdfs.tools.offlineImageViewer.XmlImageVisitor;
-import org.apache.hadoop.ipc.RemoteException;
 import org.apache.hadoop.test.GenericTestUtils;
 import org.apache.hadoop.util.Time;
 import org.apache.log4j.Level;
@@ -76,13 +68,7 @@ public class TestSnapshot {
     SnapshotTestHelper.disableLogs();
   }
 
-  private static final long seed;
-  private static final Random random;
-  static {
-    seed = Time.now();
-    random = new Random(seed);
-    System.out.println("Random seed: " + seed);
-  }
+  private static final long seed = Time.now();
   protected static final short REPLICATION = 3;
   protected static final int BLOCKSIZE = 1024;
   /** The number of times snapshots are created for a snapshottable directory */
@@ -95,6 +81,8 @@ public class TestSnapshot {
   protected static FSNamesystem fsn;
   protected static FSDirectory fsdir;
   protected DistributedFileSystem hdfs;
+
+  private static Random random = new Random(seed);
   
   private static String testDir =
       System.getProperty("test.build.data", "build/test/data");
@@ -232,57 +220,16 @@ public class TestSnapshot {
   @Test
   public void testSnapshot() throws Throwable {
     try {
-      runTestSnapshot(SNAPSHOT_ITERATION_NUMBER);
+      runTestSnapshot();
     } catch(Throwable t) {
       SnapshotTestHelper.LOG.info("FAILED", t);
       SnapshotTestHelper.dumpTree("FAILED", cluster);
       throw t;
     }
   }
-  
-  /**
-   * Test if the OfflineImageViewer can correctly parse a fsimage containing
-   * snapshots
-   */
-  @Test
-  public void testOfflineImageViewer() throws Throwable {
-    runTestSnapshot(SNAPSHOT_ITERATION_NUMBER);
-    
-    // retrieve the fsimage. Note that we already save namespace to fsimage at
-    // the end of each iteration of runTestSnapshot.
-    File originalFsimage = FSImageTestUtil.findLatestImageFile(
-        FSImageTestUtil.getFSImage(
-        cluster.getNameNode()).getStorage().getStorageDir(0));
-    assertNotNull("Didn't generate or can't find fsimage", originalFsimage);
-    
-    String ROOT = System.getProperty("test.build.data", "build/test/data");
-    File testFile = new File(ROOT, "/image");
-    String xmlImage = ROOT + "/image_xml";
-    boolean success = false;
-    
-    try {
-      DFSTestUtil.copyFile(originalFsimage, testFile);
-      XmlImageVisitor v = new XmlImageVisitor(xmlImage, true);
-      OfflineImageViewer oiv = new OfflineImageViewer(testFile.getPath(), v,
-          true);
-      oiv.go();
-      success = true;
-    } finally {
-      if (testFile.exists()) {
-        testFile.delete();
-      }
-      // delete the xml file if the parsing is successful
-      if (success) {
-        File xmlImageFile = new File(xmlImage);
-        if (xmlImageFile.exists()) {
-          xmlImageFile.delete();
-        }
-      }
-    }
-  }
 
-  private void runTestSnapshot(int iteration) throws Exception {
-    for (int i = 0; i < iteration; i++) {
+  private void runTestSnapshot() throws Exception {
+    for (int i = 0; i < SNAPSHOT_ITERATION_NUMBER; i++) {
       // create snapshot and check the creation
       cluster.getNamesystem().getSnapshotManager().setAllowNestedSnapshots(true);
       TestDirectoryTree.Node[] ssNodes = createSnapshots();
@@ -344,37 +291,6 @@ public class TestSnapshot {
   }
   
   /**
-   * Test creating a snapshot with illegal name
-   */
-  @Test
-  public void testCreateSnapshotWithIllegalName() throws Exception {
-    final Path dir = new Path("/dir");
-    hdfs.mkdirs(dir);
-    
-    final String name1 = HdfsConstants.DOT_SNAPSHOT_DIR;
-    try {
-      hdfs.createSnapshot(dir, name1);
-      fail("Exception expected when an illegal name is given");
-    } catch (RemoteException e) {
-      String errorMsg = "\"" + HdfsConstants.DOT_SNAPSHOT_DIR
-          + "\" is a reserved name.";
-      GenericTestUtils.assertExceptionContains(errorMsg, e);
-    }
-    
-    String errorMsg = "Snapshot name cannot contain \"" + Path.SEPARATOR + "\"";
-    final String[] badNames = new String[] { "foo" + Path.SEPARATOR,
-        Path.SEPARATOR + "foo", Path.SEPARATOR, "foo" + Path.SEPARATOR + "bar" };
-    for (String badName : badNames) {
-      try {
-        hdfs.createSnapshot(dir, badName);
-        fail("Exception expected when an illegal name is given");
-      } catch (RemoteException e) {
-        GenericTestUtils.assertExceptionContains(errorMsg, e);
-      }
-    }
-  }
-  
-  /**
    * Creating snapshots for a directory that is not snapshottable must fail.
    */
   @Test (timeout=60000)
@@ -408,71 +324,6 @@ public class TestSnapshot {
       GenericTestUtils.assertExceptionContains(
           "Directory is not a snapshottable directory: " + dir, e);
     }
-  }
-  
-  /**
-   * Test multiple calls of allowSnapshot and disallowSnapshot, to make sure 
-   * they are idempotent
-   */
-  @Test
-  public void testAllowAndDisallowSnapshot() throws Exception {
-    final Path dir = new Path("/dir");
-    final Path file0 = new Path(dir, "file0");
-    final Path file1 = new Path(dir, "file1");
-    DFSTestUtil.createFile(hdfs, file0, BLOCKSIZE, REPLICATION, seed);
-    DFSTestUtil.createFile(hdfs, file1, BLOCKSIZE, REPLICATION, seed);
-    
-    INodeDirectory dirNode = fsdir.getINode4Write(dir.toString()).asDirectory();
-    assertFalse(dirNode.isSnapshottable());
-    
-    hdfs.allowSnapshot(dir);
-    dirNode = fsdir.getINode4Write(dir.toString()).asDirectory();
-    assertTrue(dirNode.isSnapshottable());
-    // call allowSnapshot again
-    hdfs.allowSnapshot(dir);
-    dirNode = fsdir.getINode4Write(dir.toString()).asDirectory();
-    assertTrue(dirNode.isSnapshottable());
-    
-    // disallowSnapshot on dir
-    hdfs.disallowSnapshot(dir);
-    dirNode = fsdir.getINode4Write(dir.toString()).asDirectory();
-    assertFalse(dirNode.isSnapshottable());
-    // do it again
-    hdfs.disallowSnapshot(dir);
-    dirNode = fsdir.getINode4Write(dir.toString()).asDirectory();
-    assertFalse(dirNode.isSnapshottable());
-    
-    // same process on root
-    
-    final Path root = new Path("/");
-    INodeDirectory rootNode = fsdir.getINode4Write(root.toString())
-        .asDirectory();
-    assertTrue(rootNode.isSnapshottable());
-    // root is snapshottable dir, but with 0 snapshot quota
-    assertEquals(0, ((INodeDirectorySnapshottable) rootNode).getSnapshotQuota());
-    
-    hdfs.allowSnapshot(root);
-    rootNode = fsdir.getINode4Write(root.toString()).asDirectory();
-    assertTrue(rootNode.isSnapshottable());
-    assertEquals(INodeDirectorySnapshottable.SNAPSHOT_LIMIT,
-        ((INodeDirectorySnapshottable) rootNode).getSnapshotQuota());
-    // call allowSnapshot again
-    hdfs.allowSnapshot(root);
-    rootNode = fsdir.getINode4Write(root.toString()).asDirectory();
-    assertTrue(rootNode.isSnapshottable());
-    assertEquals(INodeDirectorySnapshottable.SNAPSHOT_LIMIT,
-        ((INodeDirectorySnapshottable) rootNode).getSnapshotQuota());
-    
-    // disallowSnapshot on dir
-    hdfs.disallowSnapshot(root);
-    rootNode = fsdir.getINode4Write(root.toString()).asDirectory();
-    assertTrue(rootNode.isSnapshottable());
-    assertEquals(0, ((INodeDirectorySnapshottable) rootNode).getSnapshotQuota());
-    // do it again
-    hdfs.disallowSnapshot(root);
-    rootNode = fsdir.getINode4Write(root.toString()).asDirectory();
-    assertTrue(rootNode.isSnapshottable());
-    assertEquals(0, ((INodeDirectorySnapshottable) rootNode).getSnapshotQuota());
   }
 
   /**

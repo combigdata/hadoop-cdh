@@ -41,8 +41,6 @@ import org.apache.hadoop.io.retry.RetryPolicy;
 import org.apache.hadoop.ipc.Client.ConnectionId;
 import org.apache.hadoop.ipc.RPC.RpcInvoker;
 import org.apache.hadoop.ipc.protobuf.ProtobufRpcEngineProtos.RequestHeaderProto;
-import org.apache.hadoop.ipc.protobuf.RpcHeaderProtos.RpcRequestHeaderProto;
-import org.apache.hadoop.ipc.protobuf.RpcHeaderProtos.RpcResponseHeaderProto;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.SecretManager;
 import org.apache.hadoop.security.token.TokenIdentifier;
@@ -50,10 +48,10 @@ import org.apache.hadoop.util.ProtoUtil;
 import org.apache.hadoop.util.Time;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.protobuf.AbstractMessageLite;
 import com.google.protobuf.BlockingService;
 import com.google.protobuf.CodedOutputStream;
 import com.google.protobuf.Descriptors.MethodDescriptor;
-import com.google.protobuf.GeneratedMessage;
 import com.google.protobuf.Message;
 import com.google.protobuf.ServiceException;
 import com.google.protobuf.TextFormat;
@@ -124,7 +122,7 @@ public class ProtobufRpcEngine implements RpcEngine {
     /**
      * This constructor takes a connectionId, instead of creating a new one.
      */
-    private Invoker(Class<?> protocol, Client.ConnectionId connId,
+    public Invoker(Class<?> protocol, Client.ConnectionId connId,
         Configuration conf, SocketFactory factory) {
       this.remoteId = connId;
       this.client = CLIENTS.getClient(conf, factory, RpcResponseWrapper.class);
@@ -192,6 +190,7 @@ public class ProtobufRpcEngine implements RpcEngine {
       }
 
       RequestHeaderProto rpcRequestHeader = constructRpcRequestHeader(method);
+      RpcResponseWrapper val = null;
       
       if (LOG.isTraceEnabled()) {
         LOG.trace(Thread.currentThread().getId() + ": Call -> " +
@@ -201,7 +200,6 @@ public class ProtobufRpcEngine implements RpcEngine {
 
 
       Message theRequest = (Message) args[1];
-      final RpcResponseWrapper val;
       try {
         val = (RpcResponseWrapper) client.call(RPC.RpcKind.RPC_PROTOCOL_BUFFER,
             new RpcRequestWrapper(rpcRequestHeader, theRequest), remoteId);
@@ -281,16 +279,16 @@ public class ProtobufRpcEngine implements RpcEngine {
    * Protobuf. Several methods on {@link org.apache.hadoop.ipc.Server and RPC} 
    * use type Writable as a wrapper to work across multiple RpcEngine kinds.
    */
-  private static abstract class RpcMessageWithHeader<T extends GeneratedMessage>
-    implements RpcWrapper {
-    T requestHeader;
+  private static class RpcRequestWrapper implements RpcWrapper {
+    RequestHeaderProto requestHeader;
     Message theRequest; // for clientSide, the request is here
     byte[] theRequestRead; // for server side, the request is here
 
-    public RpcMessageWithHeader() {
+    @SuppressWarnings("unused")
+    public RpcRequestWrapper() {
     }
 
-    public RpcMessageWithHeader(T requestHeader, Message theRequest) {
+    RpcRequestWrapper(RequestHeaderProto requestHeader, Message theRequest) {
       this.requestHeader = requestHeader;
       this.theRequest = theRequest;
     }
@@ -305,31 +303,21 @@ public class ProtobufRpcEngine implements RpcEngine {
 
     @Override
     public void readFields(DataInput in) throws IOException {
-      requestHeader = parseHeaderFrom(readVarintBytes(in));
-      theRequestRead = readMessageRequest(in);
-    }
-
-    abstract T parseHeaderFrom(byte[] bytes) throws IOException;
-
-    byte[] readMessageRequest(DataInput in) throws IOException {
-      return readVarintBytes(in);
-    }
-
-    private static byte[] readVarintBytes(DataInput in) throws IOException {
-      final int length = ProtoUtil.readRawVarint32(in);
-      final byte[] bytes = new byte[length];
+      int length = ProtoUtil.readRawVarint32(in);
+      byte[] bytes = new byte[length];
       in.readFully(bytes);
-      return bytes;
-    }
-
-    public T getMessageHeader() {
-      return requestHeader;
-    }
-
-    public byte[] getMessageBytes() {
-      return theRequestRead;
+      requestHeader = RequestHeaderProto.parseFrom(bytes);
+      length = ProtoUtil.readRawVarint32(in);
+      theRequestRead = new byte[length];
+      in.readFully(theRequestRead);
     }
     
+    @Override
+    public String toString() {
+      return requestHeader.getDeclaringClassProtocolName() + "." +
+          requestHeader.getMethodName();
+    }
+
     @Override
     public int getLength() {
       int headerLen = requestHeader.getSerializedSize();
@@ -340,76 +328,10 @@ public class ProtobufRpcEngine implements RpcEngine {
         reqLen = theRequestRead.length;
       } else {
         throw new IllegalArgumentException(
-            "getLength on uninitialized RpcWrapper");      
+            "getLenght on uninilialized RpcWrapper");      
       }
       return CodedOutputStream.computeRawVarint32Size(headerLen) +  headerLen
           + CodedOutputStream.computeRawVarint32Size(reqLen) + reqLen;
-    }
-  }
-  
-  private static class RpcRequestWrapper
-  extends RpcMessageWithHeader<RequestHeaderProto> {
-    @SuppressWarnings("unused")
-    public RpcRequestWrapper() {}
-    
-    public RpcRequestWrapper(
-        RequestHeaderProto requestHeader, Message theRequest) {
-      super(requestHeader, theRequest);
-    }
-    
-    @Override
-    RequestHeaderProto parseHeaderFrom(byte[] bytes) throws IOException {
-      return RequestHeaderProto.parseFrom(bytes);
-    }
-    
-    @Override
-    public String toString() {
-      return requestHeader.getDeclaringClassProtocolName() + "." +
-          requestHeader.getMethodName();
-    }
-  }
-
-  @InterfaceAudience.LimitedPrivate({"RPC"})
-  public static class RpcRequestMessageWrapper
-  extends RpcMessageWithHeader<RpcRequestHeaderProto> {
-    public RpcRequestMessageWrapper() {}
-    
-    public RpcRequestMessageWrapper(
-        RpcRequestHeaderProto requestHeader, Message theRequest) {
-      super(requestHeader, theRequest);
-    }
-    
-    @Override
-    RpcRequestHeaderProto parseHeaderFrom(byte[] bytes) throws IOException {
-      return RpcRequestHeaderProto.parseFrom(bytes);
-    }
-  }
-
-  @InterfaceAudience.LimitedPrivate({"RPC"})
-  public static class RpcResponseMessageWrapper
-  extends RpcMessageWithHeader<RpcResponseHeaderProto> {
-    public RpcResponseMessageWrapper() {}
-    
-    public RpcResponseMessageWrapper(
-        RpcResponseHeaderProto responseHeader, Message theRequest) {
-      super(responseHeader, theRequest);
-    }
-    
-    @Override
-    byte[] readMessageRequest(DataInput in) throws IOException {
-      // error message contain no message body
-      switch (requestHeader.getStatus()) {
-        case ERROR:
-        case FATAL:
-          return null;
-        default:
-          return super.readMessageRequest(in);
-      }
-    }
-    
-    @Override
-    RpcResponseHeaderProto parseHeaderFrom(byte[] bytes) throws IOException {
-      return RpcResponseHeaderProto.parseFrom(bytes);
     }
   }
 
@@ -420,11 +342,11 @@ public class ProtobufRpcEngine implements RpcEngine {
    * Protobuf. Several methods on {@link org.apache.hadoop.ipc.Server and RPC} 
    * use type Writable as a wrapper to work across multiple RpcEngine kinds.
    */
-  @InterfaceAudience.LimitedPrivate({"RPC"}) // temporarily exposed 
-  public static class RpcResponseWrapper implements RpcWrapper {
+  private static class RpcResponseWrapper implements RpcWrapper {
     Message theResponse; // for senderSide, the response is here
     byte[] theResponseRead; // for receiver side, the response is here
 
+    @SuppressWarnings("unused")
     public RpcResponseWrapper() {
     }
 
@@ -454,7 +376,7 @@ public class ProtobufRpcEngine implements RpcEngine {
         resLen = theResponseRead.length;
       } else {
         throw new IllegalArgumentException(
-            "getLength on uninitialized RpcWrapper");      
+            "getLenght on uninilialized RpcWrapper");      
       }
       return CodedOutputStream.computeRawVarint32Size(resLen) + resLen;
     }

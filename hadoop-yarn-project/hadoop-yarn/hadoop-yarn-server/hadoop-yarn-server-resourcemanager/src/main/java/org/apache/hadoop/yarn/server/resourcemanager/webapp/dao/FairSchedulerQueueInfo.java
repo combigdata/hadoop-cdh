@@ -22,80 +22,65 @@ package org.apache.hadoop.yarn.server.resourcemanager.webapp.dao;
 import java.util.ArrayList;
 import java.util.Collection;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlSeeAlso;
-import javax.xml.bind.annotation.XmlTransient;
-
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.server.resourcemanager.resource.Resources;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FSLeafQueue;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FSQueue;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FairScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.QueueManager;
-import org.apache.hadoop.yarn.util.resource.Resources;
 
-@XmlRootElement
-@XmlAccessorType(XmlAccessType.FIELD)
-@XmlSeeAlso({FairSchedulerLeafQueueInfo.class})
 public class FairSchedulerQueueInfo {  
+  private int fairShare;
+  private int minShare;
+  private int maxShare;
+  private int clusterMaxMem;
+  
   private int maxApps;
   
-  @XmlTransient
-  private float fractionMemUsed;
-  @XmlTransient
-  private float fractionMemFairShare;
-  @XmlTransient
-  private float fractionMemMinShare;
-  @XmlTransient
-  private float fractionMemMaxShare;
+  private float fractionUsed;
+  private float fractionFairShare;
+  private float fractionMinShare;
   
-  private ResourceInfo minResources;
-  private ResourceInfo maxResources;
-  private ResourceInfo usedResources;
-  private ResourceInfo fairResources;
-  private ResourceInfo clusterResources;
+  private Resource minResources;
+  private Resource maxResources;
+  private Resource usedResources;
   
   private String queueName;
-  private String schedulingPolicy;
   
-  private Collection<FairSchedulerQueueInfo> childQueues;
-  
-  public FairSchedulerQueueInfo() {
-  }
+  private Collection<FairSchedulerQueueInfo> childInfos;
   
   public FairSchedulerQueueInfo(FSQueue queue, FairScheduler scheduler) {
     QueueManager manager = scheduler.getQueueManager();
     
     queueName = queue.getName();
-    schedulingPolicy = queue.getPolicy().getName();
+        
+    Resource clusterMax = scheduler.getClusterCapacity();
+    clusterMaxMem = clusterMax.getMemory();
     
-    clusterResources = new ResourceInfo(scheduler.getClusterCapacity());
+    usedResources = queue.getResourceUsage();
+    fractionUsed = (float)usedResources.getMemory() / clusterMaxMem;
     
-    usedResources = new ResourceInfo(queue.getResourceUsage());
-    fractionMemUsed = (float)usedResources.getMemory() /
-        clusterResources.getMemory();
+    fairShare = queue.getFairShare().getMemory();
+    minResources = queue.getMinShare();
+    minShare = minResources.getMemory();
+    maxResources = scheduler.getQueueManager().getMaxResources(queueName);
+    if (maxResources.getMemory() > clusterMaxMem) {
+      maxResources = Resources.createResource(clusterMaxMem);
+    }
+    maxShare = maxResources.getMemory();
     
-    fairResources = new ResourceInfo(queue.getFairShare());
-    minResources = new ResourceInfo(queue.getMinShare());
-    maxResources = new ResourceInfo(queue.getMaxShare());
-    maxResources = new ResourceInfo(
-        Resources.componentwiseMin(queue.getMaxShare(),
-            scheduler.getClusterCapacity()));
-    
-    fractionMemFairShare = (float)fairResources.getMemory() / clusterResources.getMemory();
-    fractionMemMinShare = (float)minResources.getMemory() / clusterResources.getMemory();
-    fractionMemMaxShare = (float)maxResources.getMemory() / clusterResources.getMemory();
+    fractionFairShare = (float)fairShare / clusterMaxMem;
+    fractionMinShare = (float)minShare / clusterMaxMem;
     
     maxApps = manager.getQueueMaxApps(queueName);
     
-    Collection<FSQueue> children = queue.getChildQueues();
-    childQueues = new ArrayList<FairSchedulerQueueInfo>();
-    for (FSQueue child : children) {
+    Collection<FSQueue> childQueues = queue.getChildQueues();
+    childInfos = new ArrayList<FairSchedulerQueueInfo>();
+    for (FSQueue child : childQueues) {
       if (child instanceof FSLeafQueue) {
-        childQueues.add(new FairSchedulerLeafQueueInfo((FSLeafQueue)child, scheduler));
+        childInfos.add(new FairSchedulerLeafQueueInfo((FSLeafQueue)child, scheduler));
       } else {
-        childQueues.add(new FairSchedulerQueueInfo(child, scheduler));
+        childInfos.add(new FairSchedulerQueueInfo(child, scheduler));
       }
     }
   }
@@ -103,22 +88,22 @@ public class FairSchedulerQueueInfo {
   /**
    * Returns the fair share as a fraction of the entire cluster capacity.
    */
-  public float getFairShareMemoryFraction() {
-    return fractionMemFairShare;
+  public float getFairShareFraction() {
+    return fractionFairShare;
   }
   
   /**
    * Returns the fair share of this queue in megabytes.
    */
-  public ResourceInfo getFairShare() {
-    return fairResources;
+  public int getFairShare() {
+    return fairShare;
   }
     
-  public ResourceInfo getMinResources() {
+  public Resource getMinResources() {
     return minResources;
   }
   
-  public ResourceInfo getMaxResources() {
+  public Resource getMaxResources() {
     return maxResources;
   }
   
@@ -130,7 +115,7 @@ public class FairSchedulerQueueInfo {
     return queueName;
   }
   
-  public ResourceInfo getUsedResources() {
+  public Resource getUsedResources() {
     return usedResources;
   }
   
@@ -138,16 +123,16 @@ public class FairSchedulerQueueInfo {
    * Returns the queue's min share in as a fraction of the entire
    * cluster capacity.
    */
-  public float getMinShareMemoryFraction() {
-    return fractionMemMinShare;
+  public float getMinShareFraction() {
+    return fractionMinShare;
   }
   
   /**
    * Returns the memory used by this queue as a fraction of the entire 
    * cluster capacity.
    */
-  public float getUsedMemoryFraction() {
-    return fractionMemUsed;
+  public float getUsedFraction() {
+    return fractionUsed;
   }
   
   /**
@@ -155,17 +140,10 @@ public class FairSchedulerQueueInfo {
    * capacity.
    */
   public float getMaxResourcesFraction() {
-    return fractionMemMaxShare;
-  }
-  
-  /**
-   * Returns the name of the scheduling policy used by this queue.
-   */
-  public String getSchedulingPolicy() {
-    return schedulingPolicy;
+    return (float)maxShare / clusterMaxMem;
   }
   
   public Collection<FairSchedulerQueueInfo> getChildQueues() {
-    return childQueues;
+    return childInfos;
   }
 }

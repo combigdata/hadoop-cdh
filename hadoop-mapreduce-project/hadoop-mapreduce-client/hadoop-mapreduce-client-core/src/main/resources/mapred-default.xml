@@ -432,8 +432,7 @@
   <description>User added environment variables for the task tracker child 
   processes. Example :
   1) A=foo  This will set the env variable A to foo
-  2) B=$B:c This is inherit nodemanager's B env variable on Unix.
-  3) B=%B%;c This is inherit nodemanager's B env variable on Windows.
+  2) B=$B:c This is inherit tasktracker's B env variable.  
   </description>
 </property>
 
@@ -1131,23 +1130,6 @@
 </property>
 
 <property>
-  <name>mapreduce.job.token.tracking.ids.enabled</name>
-  <value>false</value>
-  <description>Whether to write tracking ids of tokens to
-    job-conf. When true, the configuration property
-    "mapreduce.job.token.tracking.ids" is set to the token-tracking-ids of
-    the job</description>
-</property>
-
-<property>
-  <name>mapreduce.job.token.tracking.ids</name>
-  <value></value>
-  <description>When mapreduce.job.token.tracking.ids.enabled is
-    set to true, this is set by the framework to the
-    token-tracking-ids used by the job.</description>
-</property>
-
-<property>
   <name>mapreduce.task.merge.progress.records</name>
   <value>10000</value>
   <description> The number of records to process during merge before
@@ -1416,7 +1398,7 @@
 
 <property>
   <name>yarn.app.mapreduce.client-am.ipc.max-retries</name>
-  <value>3</value>
+  <value>1</value>
   <description>The number of client retries to the AM - before reconnecting
     to the RM to fetch Application Status.</description>
 </property>
@@ -1424,7 +1406,7 @@
 <property>
   <name>yarn.app.mapreduce.client.max-retries</name>
   <value>3</value>
-  <description>The number of client retries to the RM/HS before
+  <description>The number of client retries to the RM/HS/AM before
     throwing exception. This is a layer above the ipc.</description>
 </property>
 
@@ -1444,20 +1426,9 @@
 
 <property>
   <description>CLASSPATH for MR applications. A comma-separated list
-  of CLASSPATH entries. If mapreduce.application.framework is set then this
-  must specify the appropriate classpath for that archive, and the name of
-  the archive must be present in the classpath. 
-  When this value is empty, the following default CLASSPATH for MR 
-  applications would be used. 
-  For Linux:
-  $HADOOP_MAPRED_HOME/share/hadoop/mapreduce/*,
-  $HADOOP_MAPRED_HOME/share/hadoop/mapreduce/lib/*.
-  For Windows:
-  %HADOOP_MAPRED_HOME%/share/hadoop/mapreduce/*,
-  %HADOOP_MAPRED_HOME%/share/hadoop/mapreduce/lib/*.
-  </description>
+  of CLASSPATH entries</description>
    <name>mapreduce.application.classpath</name>
-   <value></value>
+   <value>$HADOOP_MAPRED_HOME/share/hadoop/mapreduce/*,$HADOOP_MAPRED_HOME/share/hadoop/mapreduce/lib/*</value>
 </property>
 
 <property>
@@ -1594,14 +1565,4 @@
   <description>Whether to use fixed ports with the minicluster</description>
 </property>
 
-<property>
-  <name>mapreduce.jobhistory.http.policy</name>
-  <value>HTTP_ONLY</value>
-  <description>
-    This configures the HTTP endpoint for JobHistoryServer web UI.
-    The following values are supported:
-    - HTTP_ONLY : Service is provided only on http
-    - HTTPS_ONLY : Service is provided only on https
-  </description>
-</property>
 </configuration>

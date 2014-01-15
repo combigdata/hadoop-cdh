@@ -25,7 +25,6 @@ import org.apache.hadoop.fs.FileContextTestHelper;
 import org.apache.hadoop.fs.FsConstants;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.viewfs.ConfigUtil;
-import org.apache.hadoop.util.Shell;
 import org.mortbay.log.Log;
 
 
@@ -121,11 +120,8 @@ public class ViewFsTestSetup {
    */
   static void linkUpFirstComponents(Configuration conf, String path,
       FileContext fsTarget, String info) {
-    int indexOfEnd = path.indexOf('/', 1);
-    if (Shell.WINDOWS) {
-      indexOfEnd = path.indexOf('/', indexOfEnd + 1);
-    }
-    String firstComponent = path.substring(0, indexOfEnd);
+    int indexOf2ndSlash = path.indexOf('/', 1);
+    String firstComponent = path.substring(0, indexOf2ndSlash);
     URI linkTarget = fsTarget.makeQualified(new Path(firstComponent)).toUri();
     ConfigUtil.addLink(conf, firstComponent, linkTarget);
     Log.info("Added link for " + info + " " 

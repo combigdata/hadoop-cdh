@@ -24,23 +24,20 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.http.HttpConfig;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapreduce.MRConfig;
 import org.apache.hadoop.mapreduce.v2.jobhistory.JHAdminConfig;
-import org.apache.hadoop.mapreduce.v2.util.MRWebAppUtil;
 import org.apache.hadoop.metrics2.lib.DefaultMetricsSystem;
 import org.apache.hadoop.metrics2.source.JvmMetrics;
 import org.apache.hadoop.security.SecurityUtil;
-import org.apache.hadoop.service.CompositeService;
-import org.apache.hadoop.util.ExitUtil;
 import org.apache.hadoop.util.ShutdownHookManager;
 import org.apache.hadoop.util.StringUtils;
+import org.apache.hadoop.yarn.YarnRuntimeException;
 import org.apache.hadoop.yarn.YarnUncaughtExceptionHandler;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.event.Dispatcher;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.logaggregation.AggregatedLogDeletionService;
+import org.apache.hadoop.yarn.service.CompositeService;
 
 /******************************************************************
  * {@link JobHistoryServer} is responsible for servicing all job history
@@ -68,14 +65,11 @@ public class JobHistoryServer extends CompositeService {
   }
 
   @Override
-  protected void serviceInit(Configuration conf) throws Exception {
+  public synchronized void init(Configuration conf) {
     Configuration config = new YarnConfiguration(conf);
 
     config.setBoolean(Dispatcher.DISPATCHER_EXIT_ON_ERROR_KEY, true);
 
-    // This is required for WebApps to use https if enabled.
-    MRWebAppUtil.initialize(getConfig());
-    HttpConfig.setPolicy(MRWebAppUtil.getJHSHttpPolicy());
     try {
       doSecureLogin(conf);
     } catch(IOException ie) {
@@ -90,7 +84,7 @@ public class JobHistoryServer extends CompositeService {
     addService(jobHistoryService);
     addService(clientService);
     addService(aggLogDelService);
-    super.serviceInit(config);
+    super.init(config);
   }
 
   protected JHSDelegationTokenSecretManager createJHSSecretManager(
@@ -115,25 +109,23 @@ public class JobHistoryServer extends CompositeService {
   }
 
   @Override
-  protected void serviceStart() throws Exception {
+  public void start() {
     DefaultMetricsSystem.initialize("JobHistoryServer");
     JvmMetrics.initSingleton("JobHistoryServer", null);
     try {
       jhsDTSecretManager.startThreads();
     } catch(IOException io) {
       LOG.error("Error while starting the Secret Manager threads", io);
-      throw io;
+      throw new RuntimeException(io);
     }
-    super.serviceStart();
+    super.start();
   }
   
   @Override
-  protected void serviceStop() throws Exception {
-    if (jhsDTSecretManager != null) {
-      jhsDTSecretManager.stopThreads();
-    }
+  public void stop() {
+    jhsDTSecretManager.stopThreads();
     DefaultMetricsSystem.shutdown();
-    super.serviceStop();
+    super.stop();
   }
 
   @Private
@@ -141,13 +133,11 @@ public class JobHistoryServer extends CompositeService {
     return this.clientService;
   }
 
-  static JobHistoryServer launchJobHistoryServer(String[] args) {
-    Thread.
-        setDefaultUncaughtExceptionHandler(new YarnUncaughtExceptionHandler());
+  public static void main(String[] args) {
+    Thread.setDefaultUncaughtExceptionHandler(new YarnUncaughtExceptionHandler());
     StringUtils.startupShutdownMessage(JobHistoryServer.class, args, LOG);
-    JobHistoryServer jobHistoryServer = null;
     try {
-      jobHistoryServer = new JobHistoryServer();
+      JobHistoryServer jobHistoryServer = new JobHistoryServer();
       ShutdownHookManager.get().addShutdownHook(
           new CompositeServiceShutdownHook(jobHistoryServer),
           SHUTDOWN_HOOK_PRIORITY);
@@ -156,12 +146,7 @@ public class JobHistoryServer extends CompositeService {
       jobHistoryServer.start();
     } catch (Throwable t) {
       LOG.fatal("Error starting JobHistoryServer", t);
-      ExitUtil.terminate(-1, "Error starting JobHistoryServer");
+      System.exit(-1);
     }
-    return jobHistoryServer;
-  }
-
-  public static void main(String[] args) {
-    launchJobHistoryServer(args);
   }
 }

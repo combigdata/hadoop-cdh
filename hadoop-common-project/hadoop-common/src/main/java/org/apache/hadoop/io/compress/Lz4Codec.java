@@ -69,10 +69,6 @@ public class Lz4Codec implements Configurable, CompressionCodec {
     return NativeCodeLoader.isNativeCodeLoaded();
   }
 
-  public static String getLibraryName() {
-    return Lz4Compressor.getLibraryName();
-  }
-
   /**
    * Create a {@link CompressionOutputStream} that will write to the given
    * {@link OutputStream}.

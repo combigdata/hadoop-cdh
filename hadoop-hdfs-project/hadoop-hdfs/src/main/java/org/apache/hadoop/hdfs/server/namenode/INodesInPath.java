@@ -186,7 +186,7 @@ public class INodesInPath {
       
       // check if the next byte[] in components is for ".snapshot"
       if (isDotSnapshotDir(childName)
-          && isDir && dir instanceof INodeDirectorySnapshottable) {
+          && isDir && dir instanceof INodeDirectoryWithSnapshot) {
         // skip the ".snapshot" in components
         count++;
         index++;

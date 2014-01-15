@@ -39,10 +39,8 @@ import org.apache.hadoop.util.Shell.ShellCommandExecutor;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.Container;
-import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.ContainerDiagnosticsUpdateEvent;
 import org.apache.hadoop.yarn.server.nodemanager.util.ProcessIdFileReader;
 import org.apache.hadoop.util.Shell;
-import org.apache.hadoop.util.StringUtils;
 
 public abstract class ContainerExecutor implements Configurable {
 
@@ -189,6 +187,20 @@ public abstract class ContainerExecutor implements Configurable {
     }
   }
   
+  /** Return a command to execute the given command in OS shell.
+   *  On Windows, the passed in groupId can be used to launch
+   *  and associate the given groupId in a process group. On
+   *  non-Windows, groupId is ignored. */
+  protected static String[] getRunCommand(String command,
+                                          String groupId) {
+    if (Shell.WINDOWS) {
+      return new String[] { Shell.WINUTILS, "task", "create", groupId,
+        "cmd /c " + command };
+    } else {
+      return new String[] { "bash", "-c", command };
+    }
+  }
+
   /** 
    * Return a command to execute the given command in OS shell.
    * On Windows, the passed in groupId can be used to launch
@@ -212,7 +224,7 @@ public abstract class ContainerExecutor implements Configurable {
       List<String> retCommand = new ArrayList<String>();
       retCommand.addAll(Arrays.asList("nice", "-n",
           Integer.toString(containerSchedPriorityAdjustment)));
-      retCommand.addAll(Arrays.asList("bash", command));
+      retCommand.addAll(Arrays.asList("bash", "-c", command));
       return retCommand.toArray(new String[retCommand.size()]);
     }
   }   
@@ -286,16 +298,15 @@ public abstract class ContainerExecutor implements Configurable {
   }
 
   public static class DelayedProcessKiller extends Thread {
-    private Container container;
     private final String user;
     private final String pid;
     private final long delay;
     private final Signal signal;
     private final ContainerExecutor containerExecutor;
 
-    public DelayedProcessKiller(Container container, String user, String pid,
-        long delay, Signal signal, ContainerExecutor containerExecutor) {
-      this.container = container;
+    public DelayedProcessKiller(String user, String pid, long delay,
+        Signal signal,
+        ContainerExecutor containerExecutor) {
       this.user = user;
       this.pid = pid;
       this.delay = delay;
@@ -312,11 +323,7 @@ public abstract class ContainerExecutor implements Configurable {
       } catch (InterruptedException e) {
         return;
       } catch (IOException e) {
-        String message = "Exception when user " + user + " killing task " + pid
-            + " in DelayedProcessKiller: " + StringUtils.stringifyException(e);
-        LOG.warn(message);
-        container.handle(new ContainerDiagnosticsUpdateEvent(container
-          .getContainerId(), message));
+        LOG.warn("Exception when killing task " + pid, e);
       }
     }
   }

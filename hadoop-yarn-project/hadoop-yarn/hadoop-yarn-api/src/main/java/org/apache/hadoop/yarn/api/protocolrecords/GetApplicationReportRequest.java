@@ -20,7 +20,7 @@ package org.apache.hadoop.yarn.api.protocolrecords;
 
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Stable;
-import org.apache.hadoop.yarn.api.ApplicationClientProtocol;
+import org.apache.hadoop.yarn.api.ClientRMProtocol;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.util.Records;
@@ -32,15 +32,13 @@ import org.apache.hadoop.yarn.util.Records;
  * <p>The request should include the {@link ApplicationId} of the 
  * application.</p>
  * 
- * @see ApplicationClientProtocol#getApplicationReport(GetApplicationReportRequest)
+ * @see ClientRMProtocol#getApplicationReport(GetApplicationReportRequest)
  * @see ApplicationReport
  */
 @Public
 @Stable
 public abstract class GetApplicationReportRequest {
 
-  @Public
-  @Stable
   public static GetApplicationReportRequest newInstance(
       ApplicationId applicationId) {
     GetApplicationReportRequest request =
@@ -53,15 +51,11 @@ public abstract class GetApplicationReportRequest {
    * Get the <code>ApplicationId</code> of the application.
    * @return <code>ApplicationId</code> of the application
    */
-  @Public
-  @Stable
   public abstract ApplicationId getApplicationId();
   
   /**
    * Set the <code>ApplicationId</code> of the application
    * @param applicationId <code>ApplicationId</code> of the application
    */
-  @Public
-  @Stable
   public abstract void setApplicationId(ApplicationId applicationId);
 }

@@ -20,7 +20,7 @@ package org.apache.hadoop.yarn.api.protocolrecords;
 
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Stable;
-import org.apache.hadoop.yarn.api.ApplicationClientProtocol;
+import org.apache.hadoop.yarn.api.ClientRMProtocol;
 import org.apache.hadoop.yarn.util.Records;
 
 /**
@@ -29,13 +29,11 @@ import org.apache.hadoop.yarn.util.Records;
  *
  * <p>Currently, this is empty.</p>
  * 
- * @see ApplicationClientProtocol#getQueueUserAcls(GetQueueUserAclsInfoRequest)
+ * @see ClientRMProtocol#getQueueUserAcls(GetQueueUserAclsInfoRequest)
  */
 @Public
 @Stable
 public abstract class GetQueueUserAclsInfoRequest {
-  @Public
-  @Stable
   public static GetQueueUserAclsInfoRequest newInstance() {
     GetQueueUserAclsInfoRequest request =
         Records.newRecord(GetQueueUserAclsInfoRequest.class);

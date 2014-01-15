@@ -28,19 +28,17 @@ import java.util.concurrent.ConcurrentMap;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.ipc.ProtobufRpcEngine;
 import org.apache.hadoop.ipc.Server;
 import org.apache.hadoop.ipc.RPC;
 import org.apache.hadoop.security.token.SecretManager;
 import org.apache.hadoop.security.token.TokenIdentifier;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
+import org.apache.hadoop.yarn.YarnRuntimeException;
 import org.apache.hadoop.yarn.factories.RpcServerFactory;
 
 import com.google.protobuf.BlockingService;
 
-@Private
 public class RpcServerFactoryPBImpl implements RpcServerFactory {
 
   private static final Log LOG = LogFactory.getLog(RpcServerFactoryPBImpl.class);
@@ -166,11 +164,9 @@ public class RpcServerFactoryPBImpl implements RpcServerFactory {
       SecretManager<? extends TokenIdentifier> secretManager, int numHandlers, 
       BlockingService blockingService, String portRangeConfig) throws IOException {
     RPC.setProtocolEngine(conf, pbProtocol, ProtobufRpcEngine.class);
-    RPC.Server server = new RPC.Builder(conf).setProtocol(pbProtocol)
-        .setInstance(blockingService).setBindAddress(addr.getHostName())
-        .setPort(addr.getPort()).setNumHandlers(numHandlers).setVerbose(false)
-        .setSecretManager(secretManager).setPortRangeConfig(portRangeConfig)
-        .build();
+    RPC.Server server = RPC.getServer(pbProtocol, blockingService, 
+        addr.getHostName(), addr.getPort(), numHandlers, false, conf, 
+        secretManager, portRangeConfig);
     LOG.info("Adding protocol "+pbProtocol.getCanonicalName()+" to the server");
     server.addProtocol(RPC.RpcKind.RPC_PROTOCOL_BUFFER, pbProtocol, blockingService);
     return server;

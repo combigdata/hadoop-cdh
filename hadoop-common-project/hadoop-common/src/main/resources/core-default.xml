@@ -1189,43 +1189,4 @@
   </description>
 </property>
 
-<property>
-  <name>ipc.client.fallback-to-simple-auth-allowed</name>
-  <value>false</value>
-  <description>
-    When a client is configured to attempt a secure connection, but attempts to
-    connect to an insecure server, that server may instruct the client to
-    switch to SASL SIMPLE (unsecure) authentication. This setting controls
-    whether or not the client will accept this instruction from the server.
-    When false (the default), the client will not allow the fallback to SIMPLE
-    authentication, and will abort the connection.
-  </description>
-</property>
-
-<property>
-  <name>fs.client.resolve.remote.symlinks</name>
-  <value>true</value>
-  <description>
-      Whether to resolve symlinks when accessing a remote Hadoop filesystem.
-      Setting this to false causes an exception to be thrown upon encountering
-      a symlink. This setting does not apply to local filesystems, which
-      automatically resolve local symlinks.
-  </description>
-</property>
-
-<property>
-  <name>nfs3.server.port</name>
-  <value>2049</value>
-  <description>
-      Specify the port number used by Hadoop NFS.
-  </description>
-</property>
-
-<property>
-  <name>nfs3.mountd.port</name>
-  <value>4242</value>
-  <description>
-      Specify the port number used by Hadoop mount daemon.
-  </description>
-</property>
 </configuration>

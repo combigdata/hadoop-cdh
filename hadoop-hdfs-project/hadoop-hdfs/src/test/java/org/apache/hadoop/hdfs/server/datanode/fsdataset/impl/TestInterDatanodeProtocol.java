@@ -167,7 +167,7 @@ public class TestInterDatanodeProtocol {
       cluster.waitActive();
 
       //create a file
-      DistributedFileSystem dfs = cluster.getFileSystem();
+      DistributedFileSystem dfs = (DistributedFileSystem)cluster.getFileSystem();
       String filestr = "/foo";
       Path filepath = new Path(filestr);
       DFSTestUtil.createFile(dfs, filepath, 1024L, (short)3, 0L);
@@ -225,7 +225,7 @@ public class TestInterDatanodeProtocol {
   }
 
   /** Test 
-   * {@link FsDatasetImpl#initReplicaRecovery(String, ReplicaMap, Block, long, long)}
+   * {@link FsDatasetImpl#initReplicaRecovery(String, ReplicaMap, Block, long)}
    */
   @Test
   public void testInitReplicaRecovery() throws IOException {
@@ -246,9 +246,8 @@ public class TestInterDatanodeProtocol {
       final ReplicaInfo originalInfo = map.get(bpid, b);
 
       final long recoveryid = gs + 1;
-      final ReplicaRecoveryInfo recoveryInfo = FsDatasetImpl
-          .initReplicaRecovery(bpid, map, blocks[0], recoveryid,
-              DFSConfigKeys.DFS_DATANODE_XCEIVER_STOP_TIMEOUT_MILLIS_DEFAULT);
+      final ReplicaRecoveryInfo recoveryInfo = FsDatasetImpl.initReplicaRecovery(
+          bpid, map, blocks[0], recoveryid);
       assertEquals(originalInfo, recoveryInfo);
 
       final ReplicaUnderRecovery updatedInfo = (ReplicaUnderRecovery)map.get(bpid, b);
@@ -257,9 +256,7 @@ public class TestInterDatanodeProtocol {
 
       //recover one more time 
       final long recoveryid2 = gs + 2;
-      final ReplicaRecoveryInfo recoveryInfo2 = FsDatasetImpl
-          .initReplicaRecovery(bpid, map, blocks[0], recoveryid2,
-              DFSConfigKeys.DFS_DATANODE_XCEIVER_STOP_TIMEOUT_MILLIS_DEFAULT);
+      final ReplicaRecoveryInfo recoveryInfo2 = FsDatasetImpl.initReplicaRecovery(bpid, map, blocks[0], recoveryid2);
       assertEquals(originalInfo, recoveryInfo2);
 
       final ReplicaUnderRecovery updatedInfo2 = (ReplicaUnderRecovery)map.get(bpid, b);
@@ -268,8 +265,7 @@ public class TestInterDatanodeProtocol {
       
       //case RecoveryInProgressException
       try {
-        FsDatasetImpl.initReplicaRecovery(bpid, map, b, recoveryid,
-            DFSConfigKeys.DFS_DATANODE_XCEIVER_STOP_TIMEOUT_MILLIS_DEFAULT);
+        FsDatasetImpl.initReplicaRecovery(bpid, map, b, recoveryid);
         Assert.fail();
       }
       catch(RecoveryInProgressException ripe) {
@@ -280,9 +276,7 @@ public class TestInterDatanodeProtocol {
     { // BlockRecoveryFI_01: replica not found
       final long recoveryid = gs + 1;
       final Block b = new Block(firstblockid - 1, length, gs);
-      ReplicaRecoveryInfo r = FsDatasetImpl.initReplicaRecovery(bpid, map, b,
-          recoveryid,
-          DFSConfigKeys.DFS_DATANODE_XCEIVER_STOP_TIMEOUT_MILLIS_DEFAULT);
+      ReplicaRecoveryInfo r = FsDatasetImpl.initReplicaRecovery(bpid, map, b, recoveryid);
       Assert.assertNull("Data-node should not have this replica.", r);
     }
     
@@ -290,8 +284,7 @@ public class TestInterDatanodeProtocol {
       final long recoveryid = gs - 1;
       final Block b = new Block(firstblockid + 1, length, gs);
       try {
-        FsDatasetImpl.initReplicaRecovery(bpid, map, b, recoveryid,
-            DFSConfigKeys.DFS_DATANODE_XCEIVER_STOP_TIMEOUT_MILLIS_DEFAULT);
+        FsDatasetImpl.initReplicaRecovery(bpid, map, b, recoveryid);
         Assert.fail();
       }
       catch(IOException ioe) {
@@ -304,8 +297,7 @@ public class TestInterDatanodeProtocol {
       final long recoveryid = gs + 1;
       final Block b = new Block(firstblockid, length, gs+1);
       try {
-        FsDatasetImpl.initReplicaRecovery(bpid, map, b, recoveryid,
-            DFSConfigKeys.DFS_DATANODE_XCEIVER_STOP_TIMEOUT_MILLIS_DEFAULT);
+        FsDatasetImpl.initReplicaRecovery(bpid, map, b, recoveryid);
         fail("InitReplicaRecovery should fail because replica's " +
         		"gs is less than the block's gs");
       } catch (IOException e) {
@@ -329,7 +321,7 @@ public class TestInterDatanodeProtocol {
       String bpid = cluster.getNamesystem().getBlockPoolId();
 
       //create a file
-      DistributedFileSystem dfs = cluster.getFileSystem();
+      DistributedFileSystem dfs = (DistributedFileSystem)cluster.getFileSystem();
       String filestr = "/foo";
       Path filepath = new Path(filestr);
       DFSTestUtil.createFile(dfs, filepath, 1024L, (short)3, 0L);

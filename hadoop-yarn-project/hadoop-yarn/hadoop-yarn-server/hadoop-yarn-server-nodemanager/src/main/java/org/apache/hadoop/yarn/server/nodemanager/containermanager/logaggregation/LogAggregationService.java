@@ -38,14 +38,13 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.service.AbstractService;
+import org.apache.hadoop.yarn.YarnRuntimeException;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationAccessType;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.event.Dispatcher;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.logaggregation.ContainerLogsRetentionPolicy;
 import org.apache.hadoop.yarn.logaggregation.LogAggregationUtils;
 import org.apache.hadoop.yarn.server.nodemanager.Context;
@@ -58,6 +57,7 @@ import org.apache.hadoop.yarn.server.nodemanager.containermanager.loghandler.eve
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.loghandler.event.LogHandlerAppStartedEvent;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.loghandler.event.LogHandlerContainerFinishedEvent;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.loghandler.event.LogHandlerEvent;
+import org.apache.hadoop.yarn.service.AbstractService;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
@@ -114,7 +114,7 @@ public class LogAggregationService extends AbstractService implements
           .build());
   }
 
-  protected void serviceInit(Configuration conf) throws Exception {
+  public synchronized void init(Configuration conf) {
     this.remoteRootLogDir =
         new Path(conf.get(YarnConfiguration.NM_REMOTE_APP_LOG_DIR,
             YarnConfiguration.DEFAULT_NM_REMOTE_APP_LOG_DIR));
@@ -122,22 +122,22 @@ public class LogAggregationService extends AbstractService implements
         conf.get(YarnConfiguration.NM_REMOTE_APP_LOG_DIR_SUFFIX,
             YarnConfiguration.DEFAULT_NM_REMOTE_APP_LOG_DIR_SUFFIX);
 
-    super.serviceInit(conf);
+    super.init(conf);
   }
 
   @Override
-  protected void serviceStart() throws Exception {
+  public synchronized void start() {
     // NodeId is only available during start, the following cannot be moved
     // anywhere else.
     this.nodeId = this.context.getNodeId();
-    super.serviceStart();
+    super.start();
   }
   
   @Override
-  protected void serviceStop() throws Exception {
+  public synchronized void stop() {
     LOG.info(this.getName() + " waiting for pending aggregation during exit");
     stopAggregators();
-    super.serviceStop();
+    super.stop();
   }
    
   private void stopAggregators() {

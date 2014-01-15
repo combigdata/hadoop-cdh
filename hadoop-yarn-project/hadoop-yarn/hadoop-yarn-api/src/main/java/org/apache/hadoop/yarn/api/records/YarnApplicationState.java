@@ -22,7 +22,7 @@ import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Stable;
 
 /**
- * Enumeration of various states of an <code>ApplicationMaster</code>.
+ * Ennumeration of various states of an <code>ApplicationMaster</code>.
  */
 @Public
 @Stable

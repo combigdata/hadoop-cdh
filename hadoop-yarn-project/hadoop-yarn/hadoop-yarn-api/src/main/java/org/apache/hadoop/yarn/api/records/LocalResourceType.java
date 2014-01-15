@@ -20,7 +20,7 @@ package org.apache.hadoop.yarn.api.records;
 
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Stable;
-import org.apache.hadoop.yarn.api.ContainerManagementProtocol;
+import org.apache.hadoop.yarn.api.ContainerManager;
 
 /**
  * <p><code>LocalResourceType</code> specifies the <em>type</em>
@@ -35,15 +35,13 @@ import org.apache.hadoop.yarn.api.ContainerManagementProtocol;
  *       {@link #ARCHIVE} - Archive, which is automatically unarchived by the 
  *       <code>NodeManager</code>.
  *     </li>
- *     <li>
- *       {@link #PATTERN} - A hybrid between {@link #ARCHIVE} and {@link #FILE}.
  *   </ul>
  * </p>
  *
  * @see LocalResource
  * @see ContainerLaunchContext
  * @see ApplicationSubmissionContext
- * @see ContainerManagementProtocol#startContainers(org.apache.hadoop.yarn.api.protocolrecords.StartContainersRequest)
+ * @see ContainerManager#startContainer(org.apache.hadoop.yarn.api.protocolrecords.StartContainerRequest)
  */
 @Public
 @Stable

@@ -39,7 +39,6 @@ import org.apache.hadoop.hdfs.server.namenode.snapshot.INodeDirectorySnapshottab
 import org.apache.hadoop.hdfs.server.namenode.snapshot.INodeDirectoryWithSnapshot;
 import org.apache.hadoop.hdfs.server.namenode.snapshot.SnapshotFSImageFormat;
 import org.apache.hadoop.hdfs.server.namenode.snapshot.SnapshotFSImageFormat.ReferenceMap;
-import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.ShortWritable;
 import org.apache.hadoop.io.Text;
@@ -81,12 +80,11 @@ public class FSImageSerialization {
   static private final class TLData {
     final DeprecatedUTF8 U_STR = new DeprecatedUTF8();
     final ShortWritable U_SHORT = new ShortWritable();
-    final IntWritable U_INT = new IntWritable();
     final LongWritable U_LONG = new LongWritable();
     final FsPermission FILE_PERM = new FsPermission((short) 0);
   }
 
-  private static void writePermissionStatus(INodeAttributes inode,
+  private static void writePermissionStatus(INodeWithAdditionalFields inode,
       DataOutput out) throws IOException {
     final FsPermission p = TL_DATA.get().FILE_PERM;
     p.fromShort(inode.getFsPermissionShort());
@@ -207,18 +205,6 @@ public class FSImageSerialization {
     writePermissionStatus(file, out);
   }
 
-  /** Serialize an {@link INodeFileAttributes}. */
-  public static void writeINodeFileAttributes(INodeFileAttributes file,
-      DataOutput out) throws IOException {
-    writeLocalName(file, out);
-    writePermissionStatus(file, out);
-    out.writeLong(file.getModificationTime());
-    out.writeLong(file.getAccessTime());
-
-    out.writeShort(file.getFileReplication());
-    out.writeLong(file.getPreferredBlockSize());
-  }
-
   /**
    * Serialize a {@link INodeDirectory}
    * @param node The node to write
@@ -246,21 +232,6 @@ public class FSImageSerialization {
     writePermissionStatus(node, out);
   }
   
-  /**
-   * Serialize a {@link INodeDirectory}
-   * @param a The node to write
-   * @param out The {@link DataOutput} where the fields are written 
-   */
-  public static void writeINodeDirectoryAttributes(
-      INodeDirectoryAttributes a, DataOutput out) throws IOException {
-    writeLocalName(a, out);
-    writePermissionStatus(a, out);
-    out.writeLong(a.getModificationTime());
-
-    out.writeLong(a.getNsQuota());
-    out.writeLong(a.getDsQuota());
-  }
-
   /**
    * Serialize a {@link INodeSymlink} node
    * @param node The node to write
@@ -352,9 +323,9 @@ public class FSImageSerialization {
   
   /** read the long value */
   static long readLong(DataInput in) throws IOException {
-    LongWritable uLong = TL_DATA.get().U_LONG;
-    uLong.readFields(in);
-    return uLong.get();
+    LongWritable ustr = TL_DATA.get().U_LONG;
+    ustr.readFields(in);
+    return ustr.get();
   }
 
   /** write the long value */
@@ -362,20 +333,6 @@ public class FSImageSerialization {
     LongWritable uLong = TL_DATA.get().U_LONG;
     uLong.set(value);
     uLong.write(out);
-  }
-  
-  /** read the int value */
-  static int readInt(DataInput in) throws IOException {
-    IntWritable uInt = TL_DATA.get().U_INT;
-    uInt.readFields(in);
-    return uInt.get();
-  }
-  
-  /** write the int value */
-  static void writeInt(int value, DataOutputStream out) throws IOException {
-    IntWritable uInt = TL_DATA.get().U_INT;
-    uInt.set(value);
-    uInt.write(out);
   }
 
   /** read short value */
@@ -427,16 +384,11 @@ public class FSImageSerialization {
     return createdNodeName;
   }
 
-  private static void writeLocalName(INodeAttributes inode, DataOutput out)
+  private static void writeLocalName(INode inode, DataOutput out)
       throws IOException {
     final byte[] name = inode.getLocalNameBytes();
-    writeBytes(name, out);
-  }
-  
-  public static void writeBytes(byte[] data, DataOutput out)
-      throws IOException {
-    out.writeShort(data.length);
-    out.write(data);
+    out.writeShort(name.length);
+    out.write(name);
   }
 
   /**

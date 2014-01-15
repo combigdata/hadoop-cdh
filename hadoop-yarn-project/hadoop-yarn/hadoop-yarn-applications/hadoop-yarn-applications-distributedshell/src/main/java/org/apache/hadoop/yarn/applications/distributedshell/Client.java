@@ -20,7 +20,6 @@ package org.apache.hadoop.yarn.applications.distributedshell;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -40,13 +39,9 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.DataOutputBuffer;
-import org.apache.hadoop.security.Credentials;
-import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.security.token.Token;
-import org.apache.hadoop.yarn.api.ApplicationClientProtocol;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
+import org.apache.hadoop.yarn.api.ClientRMProtocol;
 import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.KillApplicationRequest;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -58,7 +53,6 @@ import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.api.records.NodeReport;
-import org.apache.hadoop.yarn.api.records.NodeState;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.QueueACL;
 import org.apache.hadoop.yarn.api.records.QueueInfo;
@@ -66,8 +60,7 @@ import org.apache.hadoop.yarn.api.records.QueueUserACLInfo;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.api.records.YarnClusterMetrics;
-import org.apache.hadoop.yarn.client.api.YarnClient;
-import org.apache.hadoop.yarn.client.api.YarnClientApplication;
+import org.apache.hadoop.yarn.client.YarnClientImpl;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.ConverterUtils;
@@ -82,7 +75,7 @@ import org.apache.hadoop.yarn.util.Records;
  * <p>This client is meant to act as an example on how to write yarn-based applications. </p>
  * 
  * <p> To submit an application, a client first needs to connect to the <code>ResourceManager</code> 
- * aka ApplicationsManager or ASM via the {@link ApplicationClientProtocol}. The {@link ApplicationClientProtocol} 
+ * aka ApplicationsManager or ASM via the {@link ClientRMProtocol}. The {@link ClientRMProtocol} 
  * provides a way for the client to get access to cluster information and to request for a
  * new {@link ApplicationId}. <p>
  * 
@@ -106,13 +99,13 @@ import org.apache.hadoop.yarn.util.Records;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Unstable
-public class Client {
+public class Client extends YarnClientImpl {
 
   private static final Log LOG = LogFactory.getLog(Client.class);
 
   // Configuration
   private Configuration conf;
-  private YarnClient yarnClient;
+
   // Application master specific info to register a new Application with RM/ASM
   private String appName = "";
   // App master priority
@@ -125,7 +118,8 @@ public class Client {
   // Application master jar file
   private String appMasterJar = ""; 
   // Main class to invoke application master
-  private final String appMasterMainClass;
+  private final String appMasterMainClass =
+      "org.apache.hadoop.yarn.applications.distributedshell.ApplicationMaster";
 
   // Shell command to be executed 
   private String shellCommand = ""; 
@@ -192,16 +186,9 @@ public class Client {
   /**
    */
   public Client(Configuration conf) throws Exception  {
-    this(
-      "org.apache.hadoop.yarn.applications.distributedshell.ApplicationMaster",
-      conf);
-  }
-
-  Client(String appMasterMainClass, Configuration conf) {
+    super();
     this.conf = conf;
-    this.appMasterMainClass = appMasterMainClass;
-    yarnClient = YarnClient.createYarnClient();
-    yarnClient.init(conf);
+    init(conf);
     opts = new Options();
     opts.addOption("appname", true, "Application Name. Default value - DistributedShell");
     opts.addOption("priority", true, "Application Priority. Default 0");
@@ -219,7 +206,6 @@ public class Client {
     opts.addOption("log_properties", true, "log4j.properties file");
     opts.addOption("debug", false, "Dump out debug information");
     opts.addOption("help", false, "Print usage");
-
   }
 
   /**
@@ -230,6 +216,7 @@ public class Client {
 
   /**
    * Helper function to print out usage
+   * @param opts Parsed command line options 
    */
   private void printUsage() {
     new HelpFormatter().printHelp("Client", opts);
@@ -330,24 +317,24 @@ public class Client {
   public boolean run() throws IOException, YarnException {
 
     LOG.info("Running Client");
-    yarnClient.start();
+    start();
 
-    YarnClusterMetrics clusterMetrics = yarnClient.getYarnClusterMetrics();
+    YarnClusterMetrics clusterMetrics = super.getYarnClusterMetrics();
     LOG.info("Got Cluster metric info from ASM" 
         + ", numNodeManagers=" + clusterMetrics.getNumNodeManagers());
 
-    List<NodeReport> clusterNodeReports = yarnClient.getNodeReports(
-        NodeState.RUNNING);
+    List<NodeReport> clusterNodeReports = super.getNodeReports();
     LOG.info("Got Cluster node info from ASM");
     for (NodeReport node : clusterNodeReports) {
       LOG.info("Got node report from ASM for"
           + ", nodeId=" + node.getNodeId() 
           + ", nodeAddress" + node.getHttpAddress()
           + ", nodeRackName" + node.getRackName()
-          + ", nodeNumContainers" + node.getNumContainers());
+          + ", nodeNumContainers" + node.getNumContainers()
+          + ", nodeHealthStatus" + node.getNodeHealthStatus());
     }
 
-    QueueInfo queueInfo = yarnClient.getQueueInfo(this.amQueue);
+    QueueInfo queueInfo = super.getQueueInfo(this.amQueue);		
     LOG.info("Queue info"
         + ", queueName=" + queueInfo.getQueueName()
         + ", queueCurrentCapacity=" + queueInfo.getCurrentCapacity()
@@ -355,7 +342,7 @@ public class Client {
         + ", queueApplicationCount=" + queueInfo.getApplications().size()
         + ", queueChildQueueCount=" + queueInfo.getChildQueues().size());		
 
-    List<QueueUserACLInfo> listAclInfo = yarnClient.getQueueAclsInfo();
+    List<QueueUserACLInfo> listAclInfo = super.getQueueAclsInfo();				
     for (QueueUserACLInfo aclInfo : listAclInfo) {
       for (QueueACL userAcl : aclInfo.getUserAcls()) {
         LOG.info("User ACL Info for Queue"
@@ -364,28 +351,43 @@ public class Client {
       }
     }		
 
-    // Get a new application id
-    YarnClientApplication app = yarnClient.createApplication();
-    GetNewApplicationResponse appResponse = app.getNewApplicationResponse();
+    // Get a new application id 
+    GetNewApplicationResponse newApp = super.getNewApplication();
+    ApplicationId appId = newApp.getApplicationId();
+
     // TODO get min/max resource capabilities from RM and change memory ask if needed
     // If we do not have min/max, we may not be able to correctly request 
     // the required resources from the RM for the app master
     // Memory ask has to be a multiple of min and less than max. 
     // Dump out information about cluster capability as seen by the resource manager
-    int maxMem = appResponse.getMaximumResourceCapability().getMemory();
+    int minMem = newApp.getMinimumResourceCapability().getMemory();
+    int maxMem = newApp.getMaximumResourceCapability().getMemory();
+    LOG.info("Min mem capabililty of resources in this cluster " + minMem);
     LOG.info("Max mem capabililty of resources in this cluster " + maxMem);
 
-    // A resource ask cannot exceed the max. 
-    if (amMemory > maxMem) {
+    // A resource ask has to be atleast the minimum of the capability of the cluster, the value has to be 
+    // a multiple of the min value and cannot exceed the max. 
+    // If it is not an exact multiple of min, the RM will allocate to the nearest multiple of min
+    if (amMemory < minMem) {
+      LOG.info("AM memory specified below min threshold of cluster. Using min value."
+          + ", specified=" + amMemory
+          + ", min=" + minMem);
+      amMemory = minMem; 
+    } 
+    else if (amMemory > maxMem) {
       LOG.info("AM memory specified above max threshold of cluster. Using max value."
           + ", specified=" + amMemory
           + ", max=" + maxMem);
       amMemory = maxMem;
     }				
 
+    // Create launch context for app master
+    LOG.info("Setting up application submission context for ASM");
+    ApplicationSubmissionContext appContext = Records.newRecord(ApplicationSubmissionContext.class);
+
+    // set the application id 
+    appContext.setApplicationId(appId);
     // set the application name
-    ApplicationSubmissionContext appContext = app.getApplicationSubmissionContext();
-    ApplicationId appId = appContext.getApplicationId();
     appContext.setApplicationName(appName);
 
     // Set up the container launch context for the application master
@@ -553,28 +555,8 @@ public class Client {
     // Not needed in this scenario
     // amContainer.setServiceData(serviceData);
 
-    // Setup security tokens
-    if (UserGroupInformation.isSecurityEnabled()) {
-      Credentials credentials = new Credentials();
-      String tokenRenewer = conf.get(YarnConfiguration.RM_PRINCIPAL);
-      if (tokenRenewer == null || tokenRenewer.length() == 0) {
-        throw new IOException(
-          "Can't get Master Kerberos principal for the RM to use as renewer");
-      }
-
-      // For now, only getting tokens for the default file-system.
-      final Token<?> tokens[] =
-          fs.addDelegationTokens(tokenRenewer, credentials);
-      if (tokens != null) {
-        for (Token<?> token : tokens) {
-          LOG.info("Got dt for " + fs.getUri() + "; " + token);
-        }
-      }
-      DataOutputBuffer dob = new DataOutputBuffer();
-      credentials.writeTokenStorageToStream(dob);
-      ByteBuffer fsTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
-      amContainer.setTokens(fsTokens);
-    }
+    // The following are not required for launching an application master 
+    // amContainer.setContainerId(containerId);		
 
     appContext.setAMContainerSpec(amContainer);
 
@@ -593,7 +575,7 @@ public class Client {
     // or an exception thrown to denote some form of a failure
     LOG.info("Submitting application to ASM");
 
-    yarnClient.submitApplication(appContext);
+    super.submitApplication(appContext);
 
     // TODO
     // Try submitting the same request again
@@ -625,11 +607,11 @@ public class Client {
       }
 
       // Get application report for the appId we are interested in 
-      ApplicationReport report = yarnClient.getApplicationReport(appId);
+      ApplicationReport report = super.getApplicationReport(appId);
 
       LOG.info("Got application report from ASM for"
           + ", appId=" + appId.getId()
-          + ", clientToAMToken=" + report.getClientToAMToken()
+          + ", clientToken=" + report.getClientToken()
           + ", appDiagnostics=" + report.getDiagnostics()
           + ", appMasterHost=" + report.getHost()
           + ", appQueue=" + report.getQueue()
@@ -685,7 +667,7 @@ public class Client {
 
     // Response can be ignored as it is non-null on success or 
     // throws an exception in case of failures
-    yarnClient.killApplication(appId);	
+    super.killApplication(appId);	
   }
 
 }

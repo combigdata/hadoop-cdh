@@ -19,28 +19,21 @@
 package org.apache.hadoop.yarn.server.resourcemanager;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
-import org.apache.hadoop.yarn.api.ContainerManagementProtocol;
-import org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse;
-import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusesRequest;
-import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusesResponse;
+import org.apache.hadoop.yarn.api.ContainerManager;
+import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusRequest;
+import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.StartContainerRequest;
-import org.apache.hadoop.yarn.api.protocolrecords.StartContainersRequest;
-import org.apache.hadoop.yarn.api.protocolrecords.StartContainersResponse;
-import org.apache.hadoop.yarn.api.protocolrecords.StopContainersRequest;
-import org.apache.hadoop.yarn.api.protocolrecords.StopContainersResponse;
+import org.apache.hadoop.yarn.api.protocolrecords.StartContainerResponse;
+import org.apache.hadoop.yarn.api.protocolrecords.StopContainerRequest;
+import org.apache.hadoop.yarn.api.protocolrecords.StopContainerResponse;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerState;
-import org.apache.hadoop.yarn.api.records.ResourceRequest;
-import org.apache.hadoop.yarn.api.records.SerializedException;
 import org.apache.hadoop.yarn.api.records.Token;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
@@ -62,7 +55,7 @@ public class TestApplicationMasterLauncher {
       .getLog(TestApplicationMasterLauncher.class);
 
   private static final class MyContainerManagerImpl implements
-      ContainerManagementProtocol {
+      ContainerManager {
 
     boolean launched = false;
     boolean cleanedup = false;
@@ -73,10 +66,9 @@ public class TestApplicationMasterLauncher {
     int maxAppAttempts;
 
     @Override
-    public StartContainersResponse
-        startContainers(StartContainersRequest requests)
+    public StartContainerResponse
+        startContainer(StartContainerRequest request)
             throws YarnException {
-      StartContainerRequest request = requests.getStartContainerRequests().get(0);
       LOG.info("Container started by MyContainerManager: " + request);
       launched = true;
       Map<String, String> env =
@@ -100,13 +92,11 @@ public class TestApplicationMasterLauncher {
           Long.parseLong(env.get(ApplicationConstants.APP_SUBMIT_TIME_ENV));
       maxAppAttempts =
           Integer.parseInt(env.get(ApplicationConstants.MAX_APP_ATTEMPTS_ENV));
-      return StartContainersResponse.newInstance(
-        new HashMap<String, ByteBuffer>(), new ArrayList<ContainerId>(),
-        new HashMap<ContainerId, SerializedException>());
+      return null;
     }
 
     @Override
-    public StopContainersResponse stopContainers(StopContainersRequest request)
+    public StopContainerResponse stopContainer(StopContainerRequest request)
         throws YarnException {
       LOG.info("Container cleaned up by MyContainerManager");
       cleanedup = true;
@@ -114,10 +104,11 @@ public class TestApplicationMasterLauncher {
     }
 
     @Override
-    public GetContainerStatusesResponse getContainerStatuses(
-        GetContainerStatusesRequest request) throws YarnException {
+    public GetContainerStatusResponse getContainerStatus(
+        GetContainerStatusRequest request) throws YarnException {
       return null;
     }
+
   }
 
   @Test
@@ -174,59 +165,5 @@ public class TestApplicationMasterLauncher {
 
     am.waitForState(RMAppAttemptState.FINISHED);
     rm.stop();
-  }
-  
-    
-  @SuppressWarnings("unused")
-  @Test(timeout = 100000)
-  public void testallocateBeforeAMRegistration() throws Exception {
-    Logger rootLogger = LogManager.getRootLogger();
-    boolean thrown = false;
-    rootLogger.setLevel(Level.DEBUG);
-    MockRM rm = new MockRM();
-    rm.start();
-    MockNM nm1 = rm.registerNode("h1:1234", 5000);
-    RMApp app = rm.submitApp(2000);
-    // kick the scheduling
-    nm1.nodeHeartbeat(true);
-    RMAppAttempt attempt = app.getCurrentAppAttempt();
-    MockAM am = rm.sendAMLaunched(attempt.getAppAttemptId());
-
-    // request for containers
-    int request = 2;
-    try {
-      AllocateResponse ar =
-          am.allocate("h1", 1000, request, new ArrayList<ContainerId>());
-    } catch (Exception e) {
-      Assert.assertEquals("Application Master is trying to allocate before "
-          + "registering for: " + attempt.getAppAttemptId().getApplicationId(),
-        e.getMessage());
-      thrown = true;
-    }
-    // kick the scheduler
-    nm1.nodeHeartbeat(true);
-    try {
-      AllocateResponse amrs =
-          am.allocate(new ArrayList<ResourceRequest>(),
-            new ArrayList<ContainerId>());
-    } catch (Exception e) {
-      Assert.assertEquals("Application Master is trying to allocate before "
-          + "registering for: " + attempt.getAppAttemptId().getApplicationId(),
-        e.getMessage());
-      thrown = true;
-    }
-    Assert.assertTrue(thrown);
-    am.registerAppAttempt();
-    thrown = false;
-    try {
-    am.registerAppAttempt(false);
-    }
-    catch (Exception e) {
-      Assert.assertEquals("Application Master is already registered : "
-          + attempt.getAppAttemptId().getApplicationId(),
-        e.getMessage());
-      thrown = true;
-    }
-    Assert.assertTrue(thrown);
   }
 }

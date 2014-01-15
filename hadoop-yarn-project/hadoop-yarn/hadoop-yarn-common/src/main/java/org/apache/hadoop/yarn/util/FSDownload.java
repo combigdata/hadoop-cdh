@@ -28,7 +28,6 @@ import java.util.regex.Pattern;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.classification.InterfaceAudience.LimitedPrivate;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileContext;
 import org.apache.hadoop.fs.FileStatus;
@@ -47,7 +46,6 @@ import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
  * Download a single URL to the local disk.
  *
  */
-@LimitedPrivate({"YARN", "MapReduce"})
 public class FSDownload implements Callable<Path> {
 
   private static final Log LOG = LogFactory.getLog(FSDownload.class);
@@ -170,7 +168,7 @@ public class FSDownload implements Callable<Path> {
   
   private Path copy(Path sCopy, Path dstdir) throws IOException {
     FileSystem sourceFs = sCopy.getFileSystem(conf);
-    Path dCopy = new Path(dstdir, "tmp_"+sCopy.getName());
+    Path dCopy = new Path(dstdir, sCopy.getName() + ".tmp");
     FileStatus sStat = sourceFs.getFileStatus(sCopy);
     if (sStat.getModificationTime() != resource.getTimestamp()) {
       throw new IOException("Resource " + sCopy +

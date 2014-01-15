@@ -357,14 +357,12 @@ public class ClientNamenodeProtocolTranslatorPB implements
   }
 
   @Override
-  public boolean complete(String src, String clientName,
-                          ExtendedBlock last, long fileId)
+  public boolean complete(String src, String clientName, ExtendedBlock last)
       throws AccessControlException, FileNotFoundException, SafeModeException,
       UnresolvedLinkException, IOException {
     CompleteRequestProto.Builder req = CompleteRequestProto.newBuilder()
         .setSrc(src)
-        .setClientName(clientName)
-        .setFileId(fileId);
+        .setClientName(clientName);   
     if (last != null)
       req.setLast(PBHelper.convert(last));
     try {

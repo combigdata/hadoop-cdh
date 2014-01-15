@@ -79,7 +79,7 @@ public class TestJobClient extends TestMRJobClient {
     Configuration conf = createJobConf();
     String jobId = runJob();
     testGetCounter(jobId, conf);
-    testAllJobList(jobId, conf);
+    testJobList(jobId, conf);
     testChangingJobPriority(jobId, conf);
   }
   

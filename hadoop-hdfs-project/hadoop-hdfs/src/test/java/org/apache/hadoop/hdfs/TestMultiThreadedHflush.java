@@ -18,7 +18,6 @@
 package org.apache.hadoop.hdfs;
 
 import java.io.IOException;
-import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -170,9 +169,12 @@ public class TestMultiThreadedHflush {
                 while (true) {
                   try {
                     stm.hflush();
-                  } catch (ClosedChannelException ioe) {
-                    // Expected exception caught. Ignoring.
-                    return;
+                  } catch (IOException ioe) {
+                    if (!ioe.toString().contains("DFSOutputStream is closed")) {
+                      throw ioe;
+                    } else {
+                      return;
+                    }
                   }
                 }
               } catch (Throwable t) {

@@ -52,18 +52,6 @@
 </property>
 
 <property>
-  <name>dfs.namenode.rpc-bind-host</name>
-  <value></value>
-  <description>
-    The actual address the server will bind to. If this optional address is
-    set, the RPC server will bind to this address and the port specified in
-    dfs.namenode.rpc-address for the RPC server. It can also be specified
-    per name node or name service for HA/Federation. This is most useful for
-    making name node listen to all interfaces by setting to 0.0.0.0.
-  </description>
-</property>
-
-<property>
   <name>dfs.namenode.servicerpc-address</name>
   <value></value>
   <description>
@@ -73,18 +61,6 @@
     dfs.namenode.rpc-address.EXAMPLENAMESERVICE
     The value of this property will take the form of nn-host1:rpc-port.
     If the value of this property is unset the value of dfs.namenode.rpc-address will be used as the default.
-  </description>
-</property>
-
-<property>
-  <name>dfs.namenode.servicerpc-bind-host</name>
-  <value></value>
-  <description>
-    The actual address the server will bind to. If this optional address is
-    set, the service RPC server will bind to this address and the port 
-    specified in dfs.namenode.servicerpc-address. It can also be specified
-    per name node or name service for HA/Federation. This is most useful for
-    making name node listen to all interfaces by setting to 0.0.0.0.
   </description>
 </property>
 
@@ -1314,105 +1290,4 @@
   </description>
 </property>
 
-<property>
-  <name>dfs.namenode.edits.noeditlogchannelflush</name>
-  <value>false</value>
-  <description>
-    Specifies whether to flush edit log file channel. When set, expensive
-    FileChannel#force calls are skipped and synchronous disk writes are
-    enabled instead by opening the edit log file with RandomAccessFile("rws")
-    flags. This can significantly improve the performance of edit log writes
-    on the Windows platform.
-    Note that the behavior of the "rws" flags is platform and hardware specific
-    and might not provide the same level of guarantees as FileChannel#force.
-    For example, the write will skip the disk-cache on SAS and SCSI devices
-    while it might not on SATA devices. This is an expert level setting,
-    change with caution.
-  </description>
-</property>
-
-<property>
-  <name>dfs.client.cache.drop.behind.writes</name>
-  <value></value>
-  <description>
-    Just like dfs.datanode.drop.cache.behind.writes, this setting causes the
-    page cache to be dropped behind HDFS writes, potentially freeing up more
-    memory for other uses.  Unlike dfs.datanode.drop.cache.behind.writes, this
-    is a client-side setting rather than a setting for the entire datanode.
-    If present, this setting will override the DataNode default.
-
-    If the native libraries are not available to the DataNode, this
-    configuration has no effect.
-  </description>
-</property>
-
-<property>
-  <name>dfs.client.cache.drop.behind.reads</name>
-  <value></value>
-  <description>
-    Just like dfs.datanode.drop.cache.behind.reads, this setting causes the
-    page cache to be dropped behind HDFS reads, potentially freeing up more
-    memory for other uses.  Unlike dfs.datanode.drop.cache.behind.reads, this
-    is a client-side setting rather than a setting for the entire datanode.  If
-    present, this setting will override the DataNode default.
-
-    If the native libraries are not available to the DataNode, this
-    configuration has no effect.
-  </description>
-</property>
-
-<property>
-  <name>dfs.client.cache.readahead</name>
-  <value></value>
-  <description>
-    Just like dfs.datanode.readahead.bytes, this setting causes the datanode to
-    read ahead in the block file using posix_fadvise, potentially decreasing
-    I/O wait times.  Unlike dfs.datanode.readahead.bytes, this is a client-side
-    setting rather than a setting for the entire datanode.  If present, this
-    setting will override the DataNode default.
-
-    If the native libraries are not available to the DataNode, this
-    configuration has no effect.
-  </description>
-</property>
-
-<property>
-	<name>dfs.namenode.enable.retrycache</name>
-	<value>true</value>
-	<description>
-	  This enables the retry cache on the namenode. Namenode tracks for
-	  non-idempotent requests the corresponding response. If a client retries the
-	  request, the response from the retry cache is sent. Such operations
-	  are tagged with annotation @AtMostOnce in namenode protocols. It is
-	  recommended that this flag be set to true. Setting it to false, will result
-	  in clients getting failure responses to retried request. This flag must 
-	  be enabled in HA setup for transparent fail-overs.
-	  
-	  The entries in the cache have expiration time configurable
-	  using dfs.namenode.retrycache.expirytime.millis.
-	</description>
-</property>
-
-<property>
-	<name>dfs.namenode.retrycache.expirytime.millis</name>
-	<value>600000</value>
-	<description>
-	  The time for which retry cache entries are retained.
-	</description>
-</property>
-
-<property>
-	<name>dfs.namenode.retrycache.heap.percent</name>
-	<value>0.03f</value>
-	<description>
-	  This parameter configures the heap size allocated for retry cache
-	  (excluding the response cached). This corresponds to approximately
-	  4096 entries for every 64MB of namenode process java heap size.
-	  Assuming retry cache entry expiration time (configured using
-	  dfs.namenode.retrycache.expirytime.millis) of 10 minutes, this
-	  enables retry cache to support 7 operations per second sustained
-	  for 10 minutes. As the heap size is increased, the operation rate
-	  linearly increases.
-	</description>
-</property>
 </configuration>

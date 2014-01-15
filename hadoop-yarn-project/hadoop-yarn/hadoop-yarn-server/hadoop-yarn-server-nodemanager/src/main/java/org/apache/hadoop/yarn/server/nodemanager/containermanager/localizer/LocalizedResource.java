@@ -112,17 +112,12 @@ public class LocalizedResource implements EventHandler<ResourceEvent> {
       .append(getState() == ResourceState.LOCALIZED
           ? getLocalPath() + "," + getSize()
           : "pending").append(",[");
-    try {
-      this.readLock.lock();
-      for (ContainerId c : ref) {
-        sb.append("(").append(c.toString()).append(")");
-      }
-      sb.append("],").append(getTimestamp()).append(",").append(getState())
-        .append("}");
-      return sb.toString();
-    } finally {
-      this.readLock.unlock();
+    for (ContainerId c : ref) {
+      sb.append("(").append(c.toString()).append(")");
     }
+    sb.append("],").append(getTimestamp()).append(",")
+      .append(getState()).append("}");
+    return sb.toString();
   }
 
   private void release(ContainerId container) {

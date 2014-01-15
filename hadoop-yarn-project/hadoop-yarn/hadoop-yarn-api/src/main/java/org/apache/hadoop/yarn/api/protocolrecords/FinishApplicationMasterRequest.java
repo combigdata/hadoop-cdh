@@ -20,7 +20,8 @@ package org.apache.hadoop.yarn.api.protocolrecords;
 
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Stable;
-import org.apache.hadoop.yarn.api.ApplicationMasterProtocol;
+import org.apache.hadoop.yarn.api.AMRMProtocol;
+import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.util.Records;
 
@@ -30,6 +31,10 @@ import org.apache.hadoop.yarn.util.Records;
  *
  * <p>The final request includes details such:
  *   <ul>
+ *     <li>
+ *         {@link ApplicationAttemptId} being managed by the
+ *         <code>ApplicationMaster</code>
+ *     </li>
  *     <li>Final state of the <code>ApplicationMaster</code></li>
  *     <li>
  *       Diagnostic information in case of failure of the
@@ -39,23 +44,41 @@ import org.apache.hadoop.yarn.util.Records;
  *   </ul>
  * </p>
  *
- * @see ApplicationMasterProtocol#finishApplicationMaster(FinishApplicationMasterRequest)
+ * @see AMRMProtocol#finishApplicationMaster(FinishApplicationMasterRequest)
  */
-@Public
-@Stable
 public abstract class FinishApplicationMasterRequest {
 
-  @Public
-  @Stable
   public static FinishApplicationMasterRequest newInstance(
-      FinalApplicationStatus finalAppStatus, String diagnostics, String url) {
+      ApplicationAttemptId appAttemptId, FinalApplicationStatus finalAppStatus,
+      String diagnostics, String url) {
     FinishApplicationMasterRequest request =
         Records.newRecord(FinishApplicationMasterRequest.class);
-    request.setFinalApplicationStatus(finalAppStatus);
+    request.setAppAttemptId(appAttemptId);
+    request.setFinishApplicationStatus(finalAppStatus);
     request.setDiagnostics(diagnostics);
     request.setTrackingUrl(url);
     return request;
   }
+
+  /**
+   * Get the <code>ApplicationAttemptId</code> being managed by the
+   * <code>ApplicationMaster</code>.
+   * @return <code>ApplicationAttemptId</code> being managed by the
+   *         <code>ApplicationMaster</code>
+   */
+  @Public
+  @Stable
+  public abstract ApplicationAttemptId getApplicationAttemptId();
+
+  /**
+   * Set the <code>ApplicationAttemptId</code> being managed by the
+   * <code>ApplicationMaster</code>.
+   * @param applicationAttemptId <code>ApplicationAttemptId</code> being managed
+   *                             by the <code>ApplicationMaster</code>
+   */
+  @Public
+  @Stable
+  public abstract void setAppAttemptId(ApplicationAttemptId applicationAttemptId);
 
   /**
    * Get <em>final state</em> of the <code>ApplicationMaster</code>.
@@ -66,12 +89,12 @@ public abstract class FinishApplicationMasterRequest {
   public abstract FinalApplicationStatus getFinalApplicationStatus();
 
   /**
-   * Set the <em>final state</em> of the <code>ApplicationMaster</code>
-   * @param finalState <em>final state</em> of the <code>ApplicationMaster</code>
+   * Set the <em>finish state</em> of the <code>ApplicationMaster</code>
+   * @param finishState <em>finish state</em> of the <code>ApplicationMaster</code>
    */
   @Public
   @Stable
-  public abstract void setFinalApplicationStatus(FinalApplicationStatus finalState);
+  public abstract void setFinishApplicationStatus(FinalApplicationStatus finishState);
 
   /**
    * Get <em>diagnostic information</em> on application failure.
@@ -91,8 +114,6 @@ public abstract class FinishApplicationMasterRequest {
 
   /**
    * Get the <em>tracking URL</em> for the <code>ApplicationMaster</code>.
-   * This url if contains scheme then that will be used by resource manager
-   * web application proxy otherwise it will default to http.
    * @return <em>tracking URL</em>for the <code>ApplicationMaster</code>
    */
   @Public
@@ -100,22 +121,9 @@ public abstract class FinishApplicationMasterRequest {
   public abstract String getTrackingUrl();
 
   /**
-   * Set the <em>final tracking URL</em>for the <code>ApplicationMaster</code>.
-   * This is the web-URL to which ResourceManager or web-application proxy will
-   * redirect client/users once the application is finished and the
-   * <code>ApplicationMaster</code> is gone.
-   * <p>
-   * If the passed url has a scheme then that will be used by the
-   * ResourceManager and web-application proxy, otherwise the scheme will
-   * default to http.
-   * </p>
-   * <p>
-   * Empty, null, "N/A" strings are all valid besides a real URL. In case an url
-   * isn't explicitly passed, it defaults to "N/A" on the ResourceManager.
-   * <p>
-   *
-   * @param url
-   *          <em>tracking URL</em>for the <code>ApplicationMaster</code>
+   * Set the <em>tracking URL</em>for the <code>ApplicationMaster</code>
+   * @param url <em>tracking URL</em>for the
+   *                   <code>ApplicationMaster</code>
    */
   @Public
   @Stable

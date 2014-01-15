@@ -27,13 +27,10 @@ import java.util.Map;
 import java.util.jar.Attributes;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
-import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import org.apache.commons.collections.map.CaseInsensitiveMap;
-import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
-import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
@@ -142,28 +139,7 @@ public class FileUtil {
     }
     return deleteImpl(dir, true);
   }
-
-  /**
-   * Returns the target of the given symlink. Returns the empty string if
-   * the given path does not refer to a symlink or there is an error
-   * accessing the symlink.
-   * @param f File representing the symbolic link.
-   * @return The target of the symbolic link, empty string on error or if not
-   *         a symlink.
-   */
-  public static String readLink(File f) {
-    /* NB: Use readSymbolicLink in java.nio.file.Path once available. Could
-     * use getCanonicalPath in File to get the target of the symlink but that
-     * does not indicate if the given path refers to a symlink.
-     */
-    try {
-      return Shell.execCommand(
-          Shell.getReadlinkCommand(f.toString())).trim();
-    } catch (IOException x) {
-      return "";
-    }
-  }
-
+  
   /*
    * Pure-Java implementation of "chmod +rwx f".
    */
@@ -633,28 +609,14 @@ public class FileUtil {
    * @throws IOException
    */
   public static void unTar(File inFile, File untarDir) throws IOException {
-    if (!untarDir.mkdirs()) {
+    if (!untarDir.mkdirs()) {           
       if (!untarDir.isDirectory()) {
         throw new IOException("Mkdirs failed to create " + untarDir);
       }
     }
 
+    StringBuilder untarCommand = new StringBuilder();
     boolean gzipped = inFile.toString().endsWith("gz");
-    if(Shell.WINDOWS) {
-      // Tar is not native to Windows. Use simple Java based implementation for 
-      // tests and simple tar archives
-      unTarUsingJava(inFile, untarDir, gzipped);
-    }
-    else {
-      // spawn tar utility to untar archive for full fledged unix behavior such 
-      // as resolving symlinks in tar archives
-      unTarUsingTar(inFile, untarDir, gzipped);
-    }
-  }
-  
-  private static void unTarUsingTar(File inFile, File untarDir,
-      boolean gzipped) throws IOException {
-    StringBuffer untarCommand = new StringBuffer();
     if (gzipped) {
       untarCommand.append(" gzip -dc '");
       untarCommand.append(FileUtil.makeShellPath(inFile));
@@ -679,67 +641,7 @@ public class FileUtil {
                   ". Tar process exited with exit code " + exitcode);
     }
   }
-  
-  private static void unTarUsingJava(File inFile, File untarDir,
-      boolean gzipped) throws IOException {
-    InputStream inputStream = null;
-    TarArchiveInputStream tis = null;
-    try {
-      if (gzipped) {
-        inputStream = new BufferedInputStream(new GZIPInputStream(
-            new FileInputStream(inFile)));
-      } else {
-        inputStream = new BufferedInputStream(new FileInputStream(inFile));
-      }
 
-      tis = new TarArchiveInputStream(inputStream);
-
-      for (TarArchiveEntry entry = tis.getNextTarEntry(); entry != null;) {
-        unpackEntries(tis, entry, untarDir);
-        entry = tis.getNextTarEntry();
-      }
-    } finally {
-      IOUtils.cleanup(LOG, tis, inputStream);
-    }
-  }
-  
-  private static void unpackEntries(TarArchiveInputStream tis,
-      TarArchiveEntry entry, File outputDir) throws IOException {
-    if (entry.isDirectory()) {
-      File subDir = new File(outputDir, entry.getName());
-      if (!subDir.mkdir() && !subDir.isDirectory()) {
-        throw new IOException("Mkdirs failed to create tar internal dir "
-            + outputDir);
-      }
-
-      for (TarArchiveEntry e : entry.getDirectoryEntries()) {
-        unpackEntries(tis, e, subDir);
-      }
-
-      return;
-    }
-
-    File outputFile = new File(outputDir, entry.getName());
-    if (!outputDir.exists()) {
-      if (!outputDir.mkdirs()) {
-        throw new IOException("Mkdirs failed to create tar internal dir "
-            + outputDir);
-      }
-    }
-
-    int count;
-    byte data[] = new byte[2048];
-    BufferedOutputStream outputStream = new BufferedOutputStream(
-        new FileOutputStream(outputFile));
-
-    while ((count = tis.read(data)) != -1) {
-      outputStream.write(data, 0, count);
-    }
-
-    outputStream.flush();
-    outputStream.close();
-  }
-  
   /**
    * Class for creating hardlinks.
    * Supports Unix, WindXP.
@@ -758,18 +660,15 @@ public class FileUtil {
    * On Windows, when symlink creation fails due to security
    * setting, we will log a warning. The return code in this
    * case is 2.
-   *
    * @param target the target for symlink 
    * @param linkname the symlink
-   * @return 0 on success
+   * @return value returned by the command
    */
   public static int symLink(String target, String linkname) throws IOException{
     // Run the input paths through Java's File so that they are converted to the
     // native OS form
-    File targetFile = new File(
-        Path.getPathWithoutSchemeAndAuthority(new Path(target)).toString());
-    File linkFile = new File(
-        Path.getPathWithoutSchemeAndAuthority(new Path(linkname)).toString());
+    File targetFile = new File(target);
+    File linkFile = new File(linkname);
 
     // If not on Java7+, copy a file instead of creating a symlink since
     // Java6 has close to no support for symlinks on Windows. Specifically
@@ -781,16 +680,9 @@ public class FileUtil {
     // is symlinked under userlogs and userlogs are generated afterwards).
     if (Shell.WINDOWS && !Shell.isJava7OrAbove() && targetFile.isFile()) {
       try {
-        LOG.warn("FileUtil#symlink: On Windows+Java6, copying file instead " +
-            "of creating a symlink. Copying " + target + " -> " + linkname);
-
-        if (!linkFile.getParentFile().exists()) {
-          LOG.warn("Parent directory " + linkFile.getParent() +
-              " does not exist.");
-          return 1;
-        } else {
-          org.apache.commons.io.FileUtils.copyFile(targetFile, linkFile);
-        }
+        LOG.info("FileUtil#symlink: On Java6, copying file instead "
+            + linkname + " -> " + target);
+        org.apache.commons.io.FileUtils.copyFile(targetFile, linkFile);
       } catch (IOException ex) {
         LOG.warn("FileUtil#symlink failed to copy the file with error: "
             + ex.getMessage());
@@ -800,23 +692,10 @@ public class FileUtil {
       return 0;
     }
 
-    String[] cmd = Shell.getSymlinkCommand(
-        targetFile.toString(),
-        linkFile.toString());
-
-    ShellCommandExecutor shExec;
+    String[] cmd = Shell.getSymlinkCommand(targetFile.getPath(),
+        linkFile.getPath());
+    ShellCommandExecutor shExec = new ShellCommandExecutor(cmd);
     try {
-      if (Shell.WINDOWS &&
-          linkFile.getParentFile() != null &&
-          !new Path(target).isAbsolute()) {
-        // Relative links on Windows must be resolvable at the time of
-        // creation. To ensure this we run the shell command in the directory
-        // of the link.
-        //
-        shExec = new ShellCommandExecutor(cmd, linkFile.getParentFile());
-      } else {
-        shExec = new ShellCommandExecutor(cmd);
-      }
       shExec.execute();
     } catch (Shell.ExitCodeException ec) {
       int returnVal = ec.getExitCode();
@@ -839,7 +718,7 @@ public class FileUtil {
     }
     return shExec.getExitCode();
   }
-
+  
   /**
    * Change the permissions on a filename.
    * @param filename the name of the file to change
@@ -1239,9 +1118,6 @@ public class FileUtil {
     List<String> classPathEntryList = new ArrayList<String>(
       classPathEntries.length);
     for (String classPathEntry: classPathEntries) {
-      if (classPathEntry.length() == 0) {
-        continue;
-      }
       if (classPathEntry.endsWith("*")) {
         // Append all jars that match the wildcard
         Path globPath = new Path(classPathEntry).suffix("{.jar,.JAR}");
@@ -1255,14 +1131,7 @@ public class FileUtil {
         }
       } else {
         // Append just this entry
-        File fileCpEntry = null;
-        if(!new Path(classPathEntry).isAbsolute()) {
-          fileCpEntry = new File(workingDir, classPathEntry);
-        }
-        else {
-          fileCpEntry = new File(classPathEntry);
-        }
-        String classPathEntryUrl = fileCpEntry.toURI().toURL()
+        String classPathEntryUrl = new File(classPathEntry).toURI().toURL()
           .toExternalForm();
 
         // File.toURI only appends trailing '/' if it can determine that it is a

@@ -36,10 +36,10 @@ public class RetryProxy {
    * @param retryPolicy the policy for retrying method call failures
    * @return the retry proxy
    */
-  public static <T> Object create(Class<T> iface, T implementation,
+  public static Object create(Class<?> iface, Object implementation,
                               RetryPolicy retryPolicy) {
     return RetryProxy.create(iface,
-        new DefaultFailoverProxyProvider<T>(iface, implementation),
+        new DefaultFailoverProxyProvider(iface, implementation),
         retryPolicy);
   }
 
@@ -53,12 +53,12 @@ public class RetryProxy {
    * @param retryPolicy the policy for retrying or failing over method call failures
    * @return the retry proxy
    */
-  public static <T> Object create(Class<T> iface,
-      FailoverProxyProvider<T> proxyProvider, RetryPolicy retryPolicy) {
+  public static Object create(Class<?> iface, FailoverProxyProvider proxyProvider,
+      RetryPolicy retryPolicy) {
     return Proxy.newProxyInstance(
         proxyProvider.getInterface().getClassLoader(),
         new Class<?>[] { iface },
-        new RetryInvocationHandler<T>(proxyProvider, retryPolicy)
+        new RetryInvocationHandler(proxyProvider, retryPolicy)
         );
   }
   
@@ -73,10 +73,10 @@ public class RetryProxy {
    * @param methodNameToPolicyMap a map of method names to retry policies
    * @return the retry proxy
    */
-  public static <T> Object create(Class<T> iface, T implementation,
+  public static Object create(Class<?> iface, Object implementation,
                               Map<String,RetryPolicy> methodNameToPolicyMap) {
     return create(iface,
-        new DefaultFailoverProxyProvider<T>(iface, implementation),
+        new DefaultFailoverProxyProvider(iface, implementation),
         methodNameToPolicyMap,
         RetryPolicies.TRY_ONCE_THEN_FAIL);
   }
@@ -92,14 +92,13 @@ public class RetryProxy {
    * @param methodNameToPolicyMapa map of method names to retry policies
    * @return the retry proxy
    */
-  public static <T> Object create(Class<T> iface,
-      FailoverProxyProvider<T> proxyProvider,
+  public static Object create(Class<?> iface, FailoverProxyProvider proxyProvider,
       Map<String,RetryPolicy> methodNameToPolicyMap,
       RetryPolicy defaultPolicy) {
     return Proxy.newProxyInstance(
         proxyProvider.getInterface().getClassLoader(),
         new Class<?>[] { iface },
-        new RetryInvocationHandler<T>(proxyProvider, defaultPolicy,
+        new RetryInvocationHandler(proxyProvider, defaultPolicy,
             methodNameToPolicyMap)
         );
   }

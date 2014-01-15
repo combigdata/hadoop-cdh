@@ -20,7 +20,6 @@ package org.apache.hadoop.yarn.util;
 
 import static org.apache.hadoop.yarn.util.StringHelper._split;
 
-import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashMap;
@@ -28,12 +27,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.security.SecurityUtil;
-import org.apache.hadoop.security.token.Token;
-import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
@@ -48,7 +42,6 @@ import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
  * from/to 'serializableFormat' to/from hadoop/nativejava data structures.
  *
  */
-@Private
 public class ConverterUtils {
 
   public static final String APPLICATION_PREFIX = "application";
@@ -69,9 +62,6 @@ public class ConverterUtils {
     String authority = "";
     if (url.getHost() != null) {
       authority = url.getHost();
-      if (url.getUserInfo() != null) {
-        authority = url.getUserInfo() + "@" + authority;
-      }
       if (url.getPort() > 0) {
         authority += ":" + url.getPort();
       }
@@ -104,9 +94,6 @@ public class ConverterUtils {
     URL url = RecordFactoryProvider.getRecordFactory(null).newRecordInstance(URL.class);
     if (uri.getHost() != null) {
       url.setHost(uri.getHost());
-    }
-    if (uri.getUserInfo() != null) {
-      url.setUserInfo(uri.getUserInfo());
     }
     url.setPort(uri.getPort());
     url.setScheme(uri.getScheme());
@@ -204,8 +191,7 @@ public class ConverterUtils {
     Iterator<String> it = _split(appIdStr).iterator();
     if (!it.next().equals(APPLICATION_PREFIX)) {
       throw new IllegalArgumentException("Invalid ApplicationId prefix: "
-          + appIdStr + ". The valid ApplicationId should start with prefix "
-          + APPLICATION_PREFIX);
+          + appIdStr);
     }
     try {
       return toApplicationId(it);
@@ -213,25 +199,5 @@ public class ConverterUtils {
       throw new IllegalArgumentException("Invalid AppAttemptId: "
           + appIdStr, n);
     }
-  }
-
-  /**
-   * Convert a protobuf token into a rpc token and set its service
-   * 
-   * @param protoToken the yarn token
-   * @param serviceAddr the connect address for the service
-   * @return rpc token
-   */
-  public static <T extends TokenIdentifier> Token<T> convertFromYarn(
-      org.apache.hadoop.yarn.api.records.Token protoToken,
-      InetSocketAddress serviceAddr) {
-    Token<T> token = new Token<T>(protoToken.getIdentifier().array(),
-                                  protoToken.getPassword().array(),
-                                  new Text(protoToken.getKind()),
-                                  new Text(protoToken.getService()));
-    if (serviceAddr != null) {
-      SecurityUtil.setTokenService(token, serviceAddr);
-    }
-    return token;
   }
 }

@@ -27,12 +27,10 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
-import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
+import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.security.ContainerTokenIdentifier;
-import org.apache.hadoop.yarn.security.NMTokenIdentifier;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.ContainerManagerImpl;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.application.Application;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.application.ApplicationEvent;
@@ -128,24 +126,11 @@ public class DummyContainerManager extends ContainerManagerImpl {
   }
 
   @Override
-  protected UserGroupInformation getRemoteUgi() throws YarnException {
-    ApplicationId appId = ApplicationId.newInstance(0, 0);
-    ApplicationAttemptId appAttemptId =
-        ApplicationAttemptId.newInstance(appId, 1);
-    UserGroupInformation ugi =
-        UserGroupInformation.createRemoteUser(appAttemptId.toString());
-    ugi.addTokenIdentifier(new NMTokenIdentifier(appAttemptId, getContext()
-      .getNodeId(), "testuser", getContext().getNMTokenSecretManager().getCurrentKey()
-      .getKeyId()));
-    return ugi;
-  }
-
-  @Override
   @SuppressWarnings("unchecked")
   protected ContainersLauncher createContainersLauncher(Context context,
       ContainerExecutor exec) {
     return new ContainersLauncher(context, super.dispatcher, exec,
-                                  super.dirsHandler, this) {
+                                  super.dirsHandler) {
       @Override
       public void handle(ContainersLauncherEvent event) {
         Container container = event.getContainer();
@@ -194,15 +179,17 @@ public class DummyContainerManager extends ContainerManagerImpl {
   }
   
   @Override
-  protected void authorizeStartRequest(NMTokenIdentifier nmTokenIdentifier,
-      ContainerTokenIdentifier containerTokenIdentifier) throws YarnException {
-    // do nothing
-  }
-  
-  @Override
-  protected void authorizeGetAndStopContainerRequest(ContainerId containerId,
-      Container container, boolean stopRequest, NMTokenIdentifier identifier) throws YarnException {
-    // do nothing
+  protected void authorizeRequest(String containerIDStr,
+      ContainerLaunchContext launchContext,
+      UserGroupInformation remoteUgi, ContainerTokenIdentifier tokenId)
+      throws YarnException {
+    // do Nothing
   }
 
+  @Override
+  protected ContainerTokenIdentifier
+      getContainerTokenIdentifier(UserGroupInformation remoteUgi,
+          ContainerTokenIdentifier containerTokenId) throws YarnException {
+    return containerTokenId;
+  }
 }

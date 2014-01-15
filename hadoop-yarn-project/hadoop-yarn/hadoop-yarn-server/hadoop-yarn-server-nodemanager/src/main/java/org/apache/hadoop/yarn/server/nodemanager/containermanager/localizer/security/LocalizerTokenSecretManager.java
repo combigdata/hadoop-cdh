@@ -18,32 +18,26 @@
 
 package org.apache.hadoop.yarn.server.nodemanager.containermanager.localizer.security;
 
-import javax.crypto.SecretKey;
-
 import org.apache.hadoop.security.token.SecretManager;
 
 public class LocalizerTokenSecretManager extends
     SecretManager<LocalizerTokenIdentifier> {
 
-  private final SecretKey secretKey;
-  
-  public LocalizerTokenSecretManager() {
-    this.secretKey = generateSecret();
-  }
-  
   @Override
   protected byte[] createPassword(LocalizerTokenIdentifier identifier) {
-    return createPassword(identifier.getBytes(), secretKey);
+    return "testing".getBytes();
   }
 
   @Override
   public byte[] retrievePassword(LocalizerTokenIdentifier identifier)
       throws org.apache.hadoop.security.token.SecretManager.InvalidToken {
-    return createPassword(identifier.getBytes(), secretKey);
+    // TODO Auto-generated method stub
+    return "testing".getBytes();
   }
 
   @Override
   public LocalizerTokenIdentifier createIdentifier() {
+    // TODO Auto-generated method stub
     return new LocalizerTokenIdentifier();
   }
 

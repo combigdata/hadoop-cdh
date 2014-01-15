@@ -17,6 +17,13 @@
  */
 package org.apache.hadoop.hdfs;
 
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+
+import java.net.InetSocketAddress;
+import java.security.Permission;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -32,13 +39,6 @@ import org.apache.hadoop.hdfs.server.protocol.NamenodeProtocols;
 import org.apache.hadoop.test.GenericTestUtils;
 import org.apache.hadoop.util.VersionInfo;
 import org.junit.Test;
-
-import java.net.InetSocketAddress;
-import java.security.Permission;
-
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
 
 /**
  * This class tests that a file need not be closed before its
@@ -158,8 +158,7 @@ public class TestDatanodeRegistration {
     final String DN_HOSTNAME = "localhost";
     final int DN_XFER_PORT = 12345;
     final int DN_INFO_PORT = 12346;
-    final int DN_INFO_SECURE_PORT = 12347;
-    final int DN_IPC_PORT = 12348;
+    final int DN_IPC_PORT = 12347;
     Configuration conf = new HdfsConfiguration();
     MiniDFSCluster cluster = null;
     try {
@@ -174,8 +173,7 @@ public class TestDatanodeRegistration {
 
       // register a datanode
       DatanodeID dnId = new DatanodeID(DN_IP_ADDR, DN_HOSTNAME,
-          "fake-storage-id", DN_XFER_PORT, DN_INFO_PORT, DN_INFO_SECURE_PORT,
-          DN_IPC_PORT);
+          "fake-storage-id", DN_XFER_PORT, DN_INFO_PORT, DN_IPC_PORT);
       long nnCTime = cluster.getNamesystem().getFSImage().getStorage()
           .getCTime();
       StorageInfo mockStorageInfo = mock(StorageInfo.class);
@@ -191,8 +189,7 @@ public class TestDatanodeRegistration {
 
       // register the same datanode again with a different storage ID
       dnId = new DatanodeID(DN_IP_ADDR, DN_HOSTNAME,
-          "changed-fake-storage-id", DN_XFER_PORT, DN_INFO_PORT,
-          DN_INFO_SECURE_PORT, DN_IPC_PORT);
+          "changed-fake-storage-id", DN_XFER_PORT, DN_INFO_PORT, DN_IPC_PORT);
       dnReg = new DatanodeRegistration(dnId,
           mockStorageInfo, null, VersionInfo.getVersion());
       rpcServer.registerDatanode(dnReg);
@@ -226,7 +223,6 @@ public class TestDatanodeRegistration {
       
       DatanodeRegistration mockDnReg = mock(DatanodeRegistration.class);
       doReturn(HdfsConstants.LAYOUT_VERSION).when(mockDnReg).getVersion();
-      doReturn(123).when(mockDnReg).getXferPort();
       doReturn("fake-storage-id").when(mockDnReg).getStorageID();
       doReturn(mockStorageInfo).when(mockDnReg).getStorageInfo();
       
@@ -274,14 +270,12 @@ public class TestDatanodeRegistration {
       
       DatanodeRegistration mockDnReg = mock(DatanodeRegistration.class);
       doReturn(HdfsConstants.LAYOUT_VERSION).when(mockDnReg).getVersion();
-      doReturn(123).when(mockDnReg).getXferPort();
       doReturn("fake-storage-id").when(mockDnReg).getStorageID();
       doReturn(mockStorageInfo).when(mockDnReg).getStorageInfo();
       
       // Should succeed when software versions are the same and CTimes are the
       // same.
       doReturn(VersionInfo.getVersion()).when(mockDnReg).getSoftwareVersion();
-      doReturn(123).when(mockDnReg).getXferPort();
       rpcServer.registerDatanode(mockDnReg);
       
       // Should succeed when software versions are the same and CTimes are

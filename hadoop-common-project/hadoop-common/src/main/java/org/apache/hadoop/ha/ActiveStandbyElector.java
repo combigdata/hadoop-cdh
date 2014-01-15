@@ -31,7 +31,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.HadoopIllegalArgumentException;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
-import org.apache.hadoop.util.ZKUtil.ZKAuthInfo;
+import org.apache.hadoop.ha.HAZKUtil.ZKAuthInfo;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.KeeperException;
@@ -47,6 +47,7 @@ import org.apache.zookeeper.KeeperException.Code;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 
 /**
  * 
@@ -284,7 +285,7 @@ public class ActiveStandbyElector implements StatCallback, StringCallback {
 
     String pathParts[] = znodeWorkingDir.split("/");
     Preconditions.checkArgument(pathParts.length >= 1 &&
-        pathParts[0].isEmpty(),
+        "".equals(pathParts[0]),
         "Invalid path: %s", znodeWorkingDir);
     
     StringBuilder sb = new StringBuilder();
@@ -567,9 +568,6 @@ public class ActiveStandbyElector implements StatCallback, StringCallback {
         LOG.info("Session expired. Entering neutral mode and rejoining...");
         enterNeutralMode();
         reJoinElection(0);
-        break;
-      case SaslAuthenticated:
-        LOG.info("Successfully authenticated to ZooKeeper using SASL.");
         break;
       default:
         fatalError("Unexpected Zookeeper watch event state: "

@@ -144,7 +144,7 @@ public class WrappedMapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT>
 
     @Override
     public URI[] getCacheFiles() throws IOException {
-      return mapContext.getCacheFiles();
+      return mapContext.getCacheArchives();
     }
 
     @Override

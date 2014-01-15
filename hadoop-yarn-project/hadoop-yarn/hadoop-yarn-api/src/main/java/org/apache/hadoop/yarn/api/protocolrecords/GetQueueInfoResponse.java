@@ -22,7 +22,7 @@ import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Stable;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
-import org.apache.hadoop.yarn.api.ApplicationClientProtocol;
+import org.apache.hadoop.yarn.api.ClientRMProtocol;
 import org.apache.hadoop.yarn.api.records.QueueInfo;
 import org.apache.hadoop.yarn.util.Records;
 
@@ -35,14 +35,12 @@ import org.apache.hadoop.yarn.util.Records;
  * .</p>
  * 
  * @see QueueInfo
- * @see ApplicationClientProtocol#getQueueInfo(GetQueueInfoRequest)
+ * @see ClientRMProtocol#getQueueInfo(GetQueueInfoRequest)
  */
 @Public
 @Stable
 public abstract class GetQueueInfoResponse {
 
-  @Private
-  @Unstable
   public static GetQueueInfoResponse newInstance(QueueInfo queueInfo) {
     GetQueueInfoResponse response = Records.newRecord(GetQueueInfoResponse.class);
     response.setQueueInfo(queueInfo);
@@ -53,8 +51,6 @@ public abstract class GetQueueInfoResponse {
    * Get the <code>QueueInfo</code> for the specified queue.
    * @return <code>QueueInfo</code> for the specified queue
    */
-  @Public
-  @Stable
   public abstract QueueInfo getQueueInfo();
   
   @Private

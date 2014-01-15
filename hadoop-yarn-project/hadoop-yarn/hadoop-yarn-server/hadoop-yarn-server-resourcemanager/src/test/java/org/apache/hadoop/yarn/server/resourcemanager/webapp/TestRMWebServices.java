@@ -29,7 +29,6 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.service.Service.STATE;
 import org.apache.hadoop.util.VersionInfo;
 import org.apache.hadoop.yarn.api.records.QueueState;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
@@ -40,15 +39,14 @@ import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.QueueMetrics;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fifo.FifoScheduler;
-import org.apache.hadoop.yarn.server.resourcemanager.security.QueueACLsManager;
 import org.apache.hadoop.yarn.server.security.ApplicationACLsManager;
+import org.apache.hadoop.yarn.service.Service.STATE;
 import org.apache.hadoop.yarn.util.YarnVersionInfo;
 import org.apache.hadoop.yarn.webapp.GenericExceptionHandler;
 import org.apache.hadoop.yarn.webapp.WebServicesTestUtils;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -85,7 +83,6 @@ public class TestRMWebServices extends JerseyTest {
       bind(RMContext.class).toInstance(rm.getRMContext());
       bind(ApplicationACLsManager.class).toInstance(
           rm.getApplicationACLsManager());
-      bind(QueueACLsManager.class).toInstance(rm.getQueueACLsManager());
       serve("/*").with(GuiceContainer.class);
     }
   });
@@ -110,16 +107,6 @@ public class TestRMWebServices extends JerseyTest {
         .contextListenerClass(GuiceServletConfig.class)
         .filterClass(com.google.inject.servlet.GuiceFilter.class)
         .contextPath("jersey-guice-filter").servletPath("/").build());
-  }
-
-  @BeforeClass
-  public static void initClusterMetrics() {
-    ClusterMetrics clusterMetrics = ClusterMetrics.getMetrics();
-    clusterMetrics.incrDecommisionedNMs();
-    clusterMetrics.incrNumActiveNodes();
-    clusterMetrics.incrNumLostNMs();
-    clusterMetrics.incrNumRebootedNMs();
-    clusterMetrics.incrNumUnhealthyNMs();
   }
 
   @Test
@@ -421,7 +408,8 @@ public class TestRMWebServices extends JerseyTest {
     ClusterMetrics clusterMetrics = ClusterMetrics.getMetrics();
 
     long totalMBExpect = 
-        metrics.getAvailableMB() + metrics.getAllocatedMB();
+        metrics.getReservedMB()+ metrics.getAvailableMB() 
+        + metrics.getAllocatedMB();
 
     assertEquals("appsSubmitted doesn't match", 
         metrics.getAppsSubmitted(), submittedApps);
@@ -439,8 +427,7 @@ public class TestRMWebServices extends JerseyTest {
         "totalNodes doesn't match",
         clusterMetrics.getNumActiveNMs() + clusterMetrics.getNumLostNMs()
             + clusterMetrics.getNumDecommisionedNMs()
-            + clusterMetrics.getNumRebootedNMs()
-            + clusterMetrics.getUnhealthyNMs(), totalNodes);
+            + clusterMetrics.getNumRebootedNMs(), totalNodes);
     assertEquals("lostNodes doesn't match", clusterMetrics.getNumLostNMs(),
         lostNodes);
     assertEquals("unhealthyNodes doesn't match",

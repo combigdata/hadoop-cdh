@@ -25,10 +25,10 @@ import java.util.Comparator;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceType;
 import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
+import org.apache.hadoop.yarn.server.resourcemanager.resource.Resources;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FakeSchedulable;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.Schedulable;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
-import org.apache.hadoop.yarn.util.resource.Resources;
 import org.junit.Test;
 
 /**
@@ -64,9 +64,8 @@ public class TestDominantResourceFairnessPolicy {
       ResourceWeights weights, int minMemShare, int minCpuShare) {
     Resource usage = BuilderUtils.newResource(memUsage, cpuUsage);
     Resource minShare = BuilderUtils.newResource(minMemShare, minCpuShare);
-    return new FakeSchedulable(minShare,
-        Resources.createResource(Integer.MAX_VALUE, Integer.MAX_VALUE),
-        weights, Resources.none(), usage, 0l);
+    return new FakeSchedulable(Resources.none(), minShare, weights,
+        Resources.none(), usage, 0l);
   }
   
   @Test

@@ -19,6 +19,7 @@
 package org.apache.hadoop.yarn.api.records;
 
 import org.apache.hadoop.classification.InterfaceAudience.Public;
+import org.apache.hadoop.classification.InterfaceStability.Evolving;
 import org.apache.hadoop.classification.InterfaceStability.Stable;
 import org.apache.hadoop.yarn.util.Records;
 
@@ -26,7 +27,7 @@ import org.apache.hadoop.yarn.util.Records;
  * <p><code>URL</code> represents a serializable {@link java.net.URL}.</p>
  */
 @Public
-@Stable
+@Evolving
 public abstract class URL {
 
   @Public
@@ -45,7 +46,7 @@ public abstract class URL {
    * @return scheme of the URL
    */
   @Public
-  @Stable
+  @Evolving
   public abstract String getScheme();
   
   /**
@@ -53,31 +54,15 @@ public abstract class URL {
    * @param scheme scheme of the URL
    */
   @Public
-  @Stable
+  @Evolving
   public abstract void setScheme(String scheme);
-
-  /**
-   * Get the user info of the URL.
-   * @return user info of the URL
-   */
-  @Public
-  @Stable
-  public abstract String getUserInfo();
-  
-  /**
-   * Set the user info of the URL.
-   * @param userInfo user info of the URL
-   */
-  @Public
-  @Stable
-  public abstract void setUserInfo(String userInfo);
 
   /**
    * Get the host of the URL.
    * @return host of the URL
    */
   @Public
-  @Stable
+  @Evolving
   public abstract String getHost();
   
   /**
@@ -85,7 +70,7 @@ public abstract class URL {
    * @param host host of the URL
    */
   @Public
-  @Stable
+  @Evolving
   public abstract void setHost(String host);
 
   /**
@@ -93,7 +78,7 @@ public abstract class URL {
    * @return port of the URL
    */
   @Public
-  @Stable
+  @Evolving
   public abstract int getPort();
   
   /**
@@ -101,7 +86,7 @@ public abstract class URL {
    * @param port port of the URL
    */
   @Public
-  @Stable
+  @Evolving
   public abstract void setPort(int port);
 
   /**
@@ -109,7 +94,7 @@ public abstract class URL {
    * @return file of the URL
    */
   @Public
-  @Stable
+  @Evolving
   public abstract String getFile();
   
   /**
@@ -117,6 +102,6 @@ public abstract class URL {
    * @param file file of the URL
    */
   @Public
-  @Stable
+  @Evolving
   public abstract void setFile(String file);
 }

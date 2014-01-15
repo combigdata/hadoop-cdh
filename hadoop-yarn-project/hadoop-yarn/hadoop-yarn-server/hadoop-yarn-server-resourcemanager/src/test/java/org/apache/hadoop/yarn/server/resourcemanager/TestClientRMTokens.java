@@ -52,7 +52,7 @@ import org.apache.hadoop.security.token.SecretManager;
 import org.apache.hadoop.security.token.SecretManager.InvalidToken;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
-import org.apache.hadoop.yarn.api.ApplicationClientProtocol;
+import org.apache.hadoop.yarn.api.ClientRMProtocol;
 import org.apache.hadoop.yarn.api.protocolrecords.CancelDelegationTokenRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.GetDelegationTokenRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationRequest;
@@ -63,11 +63,10 @@ import org.apache.hadoop.yarn.ipc.YarnRPC;
 import org.apache.hadoop.yarn.security.client.RMDelegationTokenIdentifier;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.NullRMStateStore;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
-import org.apache.hadoop.yarn.server.resourcemanager.security.QueueACLsManager;
 import org.apache.hadoop.yarn.server.resourcemanager.security.RMDelegationTokenSecretManager;
 import org.apache.hadoop.yarn.server.security.ApplicationACLsManager;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
-import org.apache.hadoop.yarn.util.ConverterUtils;
+import org.apache.hadoop.yarn.util.ProtoUtils;
 import org.apache.hadoop.yarn.util.Records;
 import org.junit.Before;
 import org.junit.Test;
@@ -109,7 +108,7 @@ public class TestClientRMTokens {
     clientRMService.init(conf);
     clientRMService.start();
 
-    ApplicationClientProtocol clientRMWithDT = null;
+    ClientRMProtocol clientRMWithDT = null;
     try {
 
       // Create a user for the renewr and fake the authentication-method
@@ -352,7 +351,7 @@ public class TestClientRMTokens {
   // the kerberos based rpc.
   private org.apache.hadoop.yarn.api.records.Token getDelegationToken(
       final UserGroupInformation loggedInUser,
-      final ApplicationClientProtocol clientRMService, final String renewerString)
+      final ClientRMProtocol clientRMService, final String renewerString)
       throws IOException, InterruptedException {
     org.apache.hadoop.yarn.api.records.Token token = loggedInUser
         .doAs(new PrivilegedExceptionAction<org.apache.hadoop.yarn.api.records.Token>() {
@@ -370,7 +369,7 @@ public class TestClientRMTokens {
   }
   
   private long renewDelegationToken(final UserGroupInformation loggedInUser,
-      final ApplicationClientProtocol clientRMService,
+      final ClientRMProtocol clientRMService,
       final org.apache.hadoop.yarn.api.records.Token dToken)
       throws IOException, InterruptedException {
     long nextExpTime = loggedInUser.doAs(new PrivilegedExceptionAction<Long>() {
@@ -387,7 +386,7 @@ public class TestClientRMTokens {
   }
   
   private void cancelDelegationToken(final UserGroupInformation loggedInUser,
-      final ApplicationClientProtocol clientRMService,
+      final ClientRMProtocol clientRMService,
       final org.apache.hadoop.yarn.api.records.Token dToken)
       throws IOException, InterruptedException {
     loggedInUser.doAs(new PrivilegedExceptionAction<Void>() {
@@ -402,7 +401,7 @@ public class TestClientRMTokens {
     });
   }
   
-  private ApplicationClientProtocol getClientRMProtocolWithDT(
+  private ClientRMProtocol getClientRMProtocolWithDT(
       org.apache.hadoop.yarn.api.records.Token token,
       final InetSocketAddress rmAddress, String user, final Configuration conf) {
     // Maybe consider converting to Hadoop token, serialize de-serialize etc
@@ -410,14 +409,14 @@ public class TestClientRMTokens {
 
     UserGroupInformation ugi = UserGroupInformation
         .createRemoteUser(user);
-    ugi.addToken(ConverterUtils.convertFromYarn(token, rmAddress));
+    ugi.addToken(ProtoUtils.convertFromProtoFormat(token, rmAddress));
 
     final YarnRPC rpc = YarnRPC.create(conf);
-    ApplicationClientProtocol clientRMWithDT = ugi
-        .doAs(new PrivilegedAction<ApplicationClientProtocol>() {
+    ClientRMProtocol clientRMWithDT = ugi
+        .doAs(new PrivilegedAction<ClientRMProtocol>() {
           @Override
-          public ApplicationClientProtocol run() {
-            return (ApplicationClientProtocol) rpc.getProxy(ApplicationClientProtocol.class,
+          public ClientRMProtocol run() {
+            return (ClientRMProtocol) rpc.getProxy(ClientRMProtocol.class,
                 rmAddress, conf);
           }
         });
@@ -425,13 +424,12 @@ public class TestClientRMTokens {
   }
   
   class ClientRMServiceForTest extends ClientRMService {
-
+    
     public ClientRMServiceForTest(Configuration conf,
         ResourceScheduler scheduler,
         RMDelegationTokenSecretManager rmDTSecretManager) {
       super(mock(RMContext.class), scheduler, mock(RMAppManager.class),
-          new ApplicationACLsManager(conf), new QueueACLsManager(scheduler,
-              conf), rmDTSecretManager);
+          new ApplicationACLsManager(conf), rmDTSecretManager);
     }
 
     // Use a random port unless explicitly specified.
@@ -442,11 +440,11 @@ public class TestClientRMTokens {
     }
 
     @Override
-    protected void serviceStop() throws Exception {
+    public void stop() {
       if (rmDTSecretManager != null) {
         rmDTSecretManager.stopThreads();
       }
-      super.serviceStop();
+      super.stop();
     }
 
     

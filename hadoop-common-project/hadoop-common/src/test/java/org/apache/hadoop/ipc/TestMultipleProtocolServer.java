@@ -64,7 +64,7 @@ public class TestMultipleProtocolServer {
     public static final long versionID = 0L;
     void hello() throws IOException;
   }
-  interface Bar extends Mixin {
+  interface Bar extends Mixin, VersionedProtocol {
     public static final long versionID = 0L;
     int echo(int i) throws IOException;
   }

@@ -28,7 +28,6 @@
       <outputDirectory>bin</outputDirectory>
       <includes>
         <include>mapred</include>
-        <include>mapred.cmd</include>
       </includes>
       <fileMode>0755</fileMode>
     </fileSet>
@@ -37,7 +36,6 @@
       <outputDirectory>libexec</outputDirectory>
       <includes>
         <include>mapred-config.sh</include>
-        <include>mapred-config.cmd</include>
       </includes>
       <fileMode>0755</fileMode>
     </fileSet>

@@ -23,9 +23,6 @@ import static org.mockito.Mockito.mock;
 import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -35,7 +32,6 @@ import junit.framework.Assert;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.ipc.Server;
 import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.v2.api.records.JobId;
@@ -53,32 +49,25 @@ import org.apache.hadoop.mapreduce.v2.app.job.TaskAttemptStateInternal;
 import org.apache.hadoop.mapreduce.v2.app.job.impl.TaskAttemptImpl;
 import org.apache.hadoop.mapreduce.v2.util.MRBuilderUtils;
 import org.apache.hadoop.net.NetUtils;
-import org.apache.hadoop.yarn.api.ContainerManagementProtocol;
-import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusesRequest;
-import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusesResponse;
+import org.apache.hadoop.yarn.api.ContainerManager;
+import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusRequest;
+import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.StartContainerRequest;
-import org.apache.hadoop.yarn.api.protocolrecords.StartContainersRequest;
-import org.apache.hadoop.yarn.api.protocolrecords.StartContainersResponse;
-import org.apache.hadoop.yarn.api.protocolrecords.StopContainersRequest;
-import org.apache.hadoop.yarn.api.protocolrecords.StopContainersResponse;
+import org.apache.hadoop.yarn.api.protocolrecords.StartContainerResponse;
+import org.apache.hadoop.yarn.api.protocolrecords.StopContainerRequest;
+import org.apache.hadoop.yarn.api.protocolrecords.StopContainerResponse;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerState;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
-import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.Token;
-import org.apache.hadoop.yarn.client.api.impl.ContainerManagementProtocolProxy;
-import org.apache.hadoop.yarn.client.api.impl.ContainerManagementProtocolProxy.ContainerManagementProtocolProxyData;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.ipc.HadoopYarnProtoRPC;
 import org.apache.hadoop.yarn.ipc.YarnRPC;
 import org.apache.hadoop.yarn.security.ContainerTokenIdentifier;
-import org.apache.hadoop.yarn.server.api.records.MasterKey;
-import org.apache.hadoop.yarn.server.nodemanager.security.NMTokenSecretManagerInNM;
-import org.apache.hadoop.yarn.util.Records;
 import org.junit.Test;
 
 public class TestContainerLauncher {
@@ -90,7 +79,7 @@ public class TestContainerLauncher {
 
   static final Log LOG = LogFactory.getLog(TestContainerLauncher.class);
 
-  @Test (timeout = 5000)
+  @Test
   public void testPoolSize() throws InterruptedException {
 
     ApplicationId appId = ApplicationId.newInstance(12345, 67);
@@ -166,7 +155,7 @@ public class TestContainerLauncher {
     containerLauncher.stop();
   }
 
-  @Test(timeout = 5000)
+  @Test
   public void testPoolLimits() throws InterruptedException {
     ApplicationId appId = ApplicationId.newInstance(12345, 67);
     ApplicationAttemptId appAttemptId = ApplicationAttemptId.newInstance(
@@ -230,7 +219,7 @@ public class TestContainerLauncher {
       containerLauncher.numEventsProcessing.get());
   }
 
-  @Test(timeout = 15000)
+  @Test
   public void testSlowNM() throws Exception {
 
     conf = new Configuration();
@@ -243,19 +232,11 @@ public class TestContainerLauncher {
     YarnRPC rpc = YarnRPC.create(conf);
     String bindAddr = "localhost:0";
     InetSocketAddress addr = NetUtils.createSocketAddr(bindAddr);
-    NMTokenSecretManagerInNM tokenSecretManager =
-        new NMTokenSecretManagerInNM();
-    MasterKey masterKey = Records.newRecord(MasterKey.class);
-    masterKey.setBytes(ByteBuffer.wrap("key".getBytes()));
-    tokenSecretManager.setMasterKey(masterKey);
-    conf.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION,
-      "token");
-    server =
-        rpc.getServer(ContainerManagementProtocol.class,
-          new DummyContainerManager(), addr, conf, tokenSecretManager, 1);
+    server = rpc.getServer(ContainerManager.class, new DummyContainerManager(),
+        addr, conf, null, 1);
     server.start();
 
-    MRApp app = new MRAppWithSlowNM(tokenSecretManager);
+    MRApp app = new MRAppWithSlowNM();
 
     try {
     Job job = app.submit(conf);
@@ -356,34 +337,21 @@ public class TestContainerLauncher {
 
   private class MRAppWithSlowNM extends MRApp {
 
-    private NMTokenSecretManagerInNM tokenSecretManager;
-    public MRAppWithSlowNM(NMTokenSecretManagerInNM tokenSecretManager) {
+    public MRAppWithSlowNM() {
       super(1, 0, false, "TestContainerLauncher", true);
-      this.tokenSecretManager = tokenSecretManager;
     }
 
     @Override
-    protected ContainerLauncher
-        createContainerLauncher(final AppContext context) {
+    protected ContainerLauncher createContainerLauncher(AppContext context) {
       return new ContainerLauncherImpl(context) {
-
         @Override
-        public ContainerManagementProtocolProxyData getCMProxy(
-            String containerMgrBindAddr, ContainerId containerId)
+        protected ContainerManager getCMProxy(ContainerId containerID,
+            String containerManagerBindAddr, Token containerToken)
             throws IOException {
-          InetSocketAddress addr = NetUtils.getConnectAddress(server);
-          String containerManagerBindAddr =
-              addr.getHostName() + ":" + addr.getPort();
-          Token token =
-              tokenSecretManager.createNMToken(
-                containerId.getApplicationAttemptId(),
-                NodeId.newInstance(addr.getHostName(), addr.getPort()), "user");
-          ContainerManagementProtocolProxy cmProxy =
-              new ContainerManagementProtocolProxy(conf);
-          ContainerManagementProtocolProxyData proxy =
-              cmProxy.new ContainerManagementProtocolProxyData(
-                YarnRPC.create(conf), containerManagerBindAddr, containerId,
-                token);
+          // make proxy connect to our local containerManager server
+          ContainerManager proxy = (ContainerManager) rpc.getProxy(
+              ContainerManager.class,
+              NetUtils.getConnectAddress(server), conf);
           return proxy;
         }
       };
@@ -391,23 +359,23 @@ public class TestContainerLauncher {
     };
   }
 
-  public class DummyContainerManager implements ContainerManagementProtocol {
+  public class DummyContainerManager implements ContainerManager {
 
     private ContainerStatus status = null;
 
     @Override
-    public GetContainerStatusesResponse getContainerStatuses(
-        GetContainerStatusesRequest request) throws IOException {
-      List<ContainerStatus> statuses = new ArrayList<ContainerStatus>();
-      statuses.add(status);
-      return GetContainerStatusesResponse.newInstance(statuses, null);
+    public GetContainerStatusResponse getContainerStatus(
+        GetContainerStatusRequest request) throws IOException {
+      GetContainerStatusResponse response = recordFactory
+          .newRecordInstance(GetContainerStatusResponse.class);
+      response.setStatus(status);
+      return response;
     }
 
     @Override
-    public StartContainersResponse startContainers(StartContainersRequest requests)
+    public StartContainerResponse startContainer(StartContainerRequest request)
         throws IOException {
 
-      StartContainerRequest request = requests.getStartContainerRequests().get(0);
       ContainerTokenIdentifier containerTokenIdentifier =
           MRApp.newContainerTokenIdentifier(request.getContainerToken());
 
@@ -415,8 +383,8 @@ public class TestContainerLauncher {
       Assert.assertEquals(MRApp.NM_HOST + ":" + MRApp.NM_PORT,
         containerTokenIdentifier.getNmHostAddress());
 
-      StartContainersResponse response = recordFactory
-          .newRecordInstance(StartContainersResponse.class);
+      StartContainerResponse response = recordFactory
+          .newRecordInstance(StartContainerResponse.class);
       status = recordFactory.newRecordInstance(ContainerStatus.class);
       try {
         // make the thread sleep to look like its not going to respond
@@ -432,7 +400,7 @@ public class TestContainerLauncher {
     }
 
     @Override
-    public StopContainersResponse stopContainers(StopContainersRequest request)
+    public StopContainerResponse stopContainer(StopContainerRequest request)
         throws IOException {
       Exception e = new Exception("Dummy function", new Exception(
           "Dummy function cause"));

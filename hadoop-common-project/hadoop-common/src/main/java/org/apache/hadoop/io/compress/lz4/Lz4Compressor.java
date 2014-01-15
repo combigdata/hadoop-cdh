@@ -296,6 +296,4 @@ public class Lz4Compressor implements Compressor {
   private native static void initIDs();
 
   private native int compressBytesDirect();
-
-  public native static String getLibraryName();
 }

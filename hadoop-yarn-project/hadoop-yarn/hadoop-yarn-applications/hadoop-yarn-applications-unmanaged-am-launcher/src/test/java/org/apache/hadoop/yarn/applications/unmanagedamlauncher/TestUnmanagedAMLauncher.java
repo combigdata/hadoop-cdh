@@ -18,10 +18,8 @@
 
 package org.apache.hadoop.yarn.applications.unmanagedamlauncher;
 
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -40,6 +38,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class TestUnmanagedAMLauncher {
+
   private static final Log LOG = LogFactory
       .getLog(TestUnmanagedAMLauncher.class);
 
@@ -55,30 +54,14 @@ public class TestUnmanagedAMLauncher {
           TestUnmanagedAMLauncher.class.getSimpleName(), 1, 1, 1);
       yarnCluster.init(conf);
       yarnCluster.start();
-      //get the address
-      Configuration yarnClusterConfig = yarnCluster.getConfig();
-      LOG.info("MiniYARN ResourceManager published address: " +
-               yarnClusterConfig.get(YarnConfiguration.RM_ADDRESS));
-      LOG.info("MiniYARN ResourceManager published web address: " +
-               yarnClusterConfig.get(YarnConfiguration.RM_WEBAPP_ADDRESS));
-      String webapp = yarnClusterConfig.get(YarnConfiguration.RM_WEBAPP_ADDRESS);
-      assertTrue("Web app address still unbound to a host at " + webapp,
-        !webapp.startsWith("0.0.0.0"));
-      LOG.info("Yarn webapp is at "+ webapp);
       URL url = Thread.currentThread().getContextClassLoader()
           .getResource("yarn-site.xml");
       if (url == null) {
         throw new RuntimeException(
             "Could not find 'yarn-site.xml' dummy file in classpath");
       }
-      //write the document to a buffer (not directly to the file, as that
-      //can cause the file being written to get read -which will then fail.
-      ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
-      yarnClusterConfig.writeXml(bytesOut);
-      bytesOut.close();
-      //write the bytes to the file in the classpath
       OutputStream os = new FileOutputStream(new File(url.getPath()));
-      os.write(bytesOut.toByteArray());
+      yarnCluster.getConfig().writeXml(os);
       os.close();
     }
     try {
@@ -91,11 +74,8 @@ public class TestUnmanagedAMLauncher {
   @AfterClass
   public static void tearDown() throws IOException {
     if (yarnCluster != null) {
-      try {
-        yarnCluster.stop();
-      } finally {
-        yarnCluster = null;
-      }
+      yarnCluster.stop();
+      yarnCluster = null;
     }
   }
 

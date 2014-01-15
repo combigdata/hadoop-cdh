@@ -111,7 +111,7 @@ public class TestMRJobsWithHistoryService {
     }
   }
 
-  @Test (timeout = 90000)
+  @Test (timeout = 30000)
   public void testJobHistoryData() throws IOException, InterruptedException,
       AvroRemoteException, ClassNotFoundException {
     if (!(new File(MiniMRYarnCluster.APPJAR)).exists()) {

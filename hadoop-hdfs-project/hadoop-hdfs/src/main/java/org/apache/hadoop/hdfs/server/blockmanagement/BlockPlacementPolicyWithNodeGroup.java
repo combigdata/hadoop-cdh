@@ -189,18 +189,15 @@ public class BlockPlacementPolicyWithNodeGroup extends BlockPlacementPolicyDefau
           boolean avoidStaleNodes)
           throws NotEnoughReplicasException {
     int oldNumOfReplicas = results.size();
-
-    final String rackLocation = NetworkTopology.getFirstHalf(
-        localMachine.getNetworkLocation());
+    // randomly choose one node from remote racks
     try {
-      // randomly choose from remote racks
-      chooseRandom(numOfReplicas, "~" + rackLocation, excludedNodes, blocksize,
-          maxReplicasPerRack, results, avoidStaleNodes);
+      chooseRandom(numOfReplicas, "~"+NetworkTopology.getFirstHalf(
+          localMachine.getNetworkLocation()),
+      excludedNodes, blocksize, maxReplicasPerRack, results, avoidStaleNodes);
     } catch (NotEnoughReplicasException e) {
-      // fall back to the local rack
-      chooseRandom(numOfReplicas - (results.size() - oldNumOfReplicas),
-          rackLocation, excludedNodes, blocksize,
-          maxReplicasPerRack, results, avoidStaleNodes);
+      chooseRandom(numOfReplicas-(results.size()-oldNumOfReplicas),
+      localMachine.getNetworkLocation(), excludedNodes, blocksize, 
+      maxReplicasPerRack, results, avoidStaleNodes);
     }
   }
 

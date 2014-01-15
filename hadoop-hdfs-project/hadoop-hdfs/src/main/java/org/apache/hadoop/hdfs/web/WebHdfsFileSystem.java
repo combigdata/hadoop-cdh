@@ -192,10 +192,10 @@ public class WebHdfsFileSystem extends FileSystem
     this.retryPolicy = 
         RetryUtils.getDefaultRetryPolicy(
             conf, 
-            DFSConfigKeys.DFS_HTTP_CLIENT_RETRY_POLICY_ENABLED_KEY,
-            DFSConfigKeys.DFS_HTTP_CLIENT_RETRY_POLICY_ENABLED_DEFAULT,
-            DFSConfigKeys.DFS_HTTP_CLIENT_RETRY_POLICY_SPEC_KEY,
-            DFSConfigKeys.DFS_HTTP_CLIENT_RETRY_POLICY_SPEC_DEFAULT,
+            DFSConfigKeys.DFS_CLIENT_RETRY_POLICY_ENABLED_KEY, 
+            DFSConfigKeys.DFS_CLIENT_RETRY_POLICY_ENABLED_DEFAULT, 
+            DFSConfigKeys.DFS_CLIENT_RETRY_POLICY_SPEC_KEY,
+            DFSConfigKeys.DFS_CLIENT_RETRY_POLICY_SPEC_DEFAULT,
             SafeModeException.class);
     this.workingDir = getHomeDirectory();
 
@@ -391,7 +391,7 @@ public class WebHdfsFileSystem extends FileSystem
       final Param<?,?>... parameters) throws IOException {
     //initialize URI path and query
     final String path = PATH_PREFIX
-        + (fspath == null? "/": makeQualified(fspath).toUri().getRawPath());
+        + (fspath == null? "/": makeQualified(fspath).toUri().getPath());
     final String query = op.toQueryString()
         + Param.toSortedString("&", getAuthParameters(op))
         + Param.toSortedString("&", parameters);

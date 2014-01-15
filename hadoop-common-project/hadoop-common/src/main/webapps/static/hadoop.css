@@ -45,7 +45,8 @@ div#dfsnodetable a#title {
 	font-weight : bolder;
 }
 
-div#dfsnodetable td, th {	
+div#dfsnodetable td, th {
+	border-bottom-style : none;
         padding-bottom : 4px;
         padding-top : 4px;
 }

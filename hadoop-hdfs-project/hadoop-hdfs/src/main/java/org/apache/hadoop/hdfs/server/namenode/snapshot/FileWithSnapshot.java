@@ -24,32 +24,33 @@ import java.util.List;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.hdfs.server.blockmanagement.BlockInfo;
 import org.apache.hadoop.hdfs.server.namenode.FSImageSerialization;
-import org.apache.hadoop.hdfs.server.namenode.INode;
 import org.apache.hadoop.hdfs.server.namenode.INode.BlocksMapUpdateInfo;
+import org.apache.hadoop.hdfs.server.namenode.INode;
 import org.apache.hadoop.hdfs.server.namenode.INodeFile;
-import org.apache.hadoop.hdfs.server.namenode.INodeFileAttributes;
 import org.apache.hadoop.hdfs.server.namenode.Quota;
 import org.apache.hadoop.hdfs.server.namenode.snapshot.SnapshotFSImageFormat.ReferenceMap;
 
 /**
- * An interface for {@link INodeFile} to support snapshot.
+ * {@link INodeFile} with a link to the next element.
+ * The link of all the snapshot files and the original file form a circular
+ * linked list so that all elements are accessible by any of the elements.
  */
 @InterfaceAudience.Private
 public interface FileWithSnapshot {
   /**
    * The difference of an {@link INodeFile} between two snapshots.
    */
-  public static class FileDiff extends AbstractINodeDiff<INodeFile, INodeFileAttributes, FileDiff> {
+  public static class FileDiff extends AbstractINodeDiff<INodeFile, FileDiff> {
     /** The file size at snapshot creation time. */
     private final long fileSize;
 
-    private FileDiff(Snapshot snapshot, INodeFile file) {
+    FileDiff(Snapshot snapshot, INodeFile file) {
       super(snapshot, null, null);
       fileSize = file.computeFileSize();
     }
 
     /** Constructor used by FSImage loading */
-    FileDiff(Snapshot snapshot, INodeFileAttributes snapshotINode,
+    FileDiff(Snapshot snapshot, INodeFile snapshotINode,
         FileDiff posteriorDiff, long fileSize) {
       super(snapshot, snapshotINode, posteriorDiff);
       this.fileSize = fileSize;
@@ -104,7 +105,7 @@ public interface FileWithSnapshot {
       // write snapshotINode
       if (snapshotINode != null) {
         out.writeBoolean(true);
-        FSImageSerialization.writeINodeFileAttributes(snapshotINode, out);
+        FSImageSerialization.writeINodeFile(snapshotINode, out, true);
       } else {
         out.writeBoolean(false);
       }
@@ -115,21 +116,6 @@ public interface FileWithSnapshot {
         BlocksMapUpdateInfo collectedBlocks, final List<INode> removedINodes) {
       return updateQuotaAndCollectBlocks(currentINode, this,
           collectedBlocks, removedINodes);
-    }
-  }
-
-  /** A list of FileDiffs for storing snapshot data. */
-  public static class FileDiffList
-      extends AbstractINodeDiffList<INodeFile, INodeFileAttributes, FileDiff> {
-
-    @Override
-    FileDiff createDiff(Snapshot snapshot, INodeFile file) {
-      return new FileDiff(snapshot, file);
-    }
-    
-    @Override
-    INodeFileAttributes createSnapshotCopy(INodeFile currentINode) {
-      return new INodeFileAttributes.SnapshotCopy(currentINode);
     }
   }
 

@@ -54,7 +54,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
-import java.util.concurrent.TimeUnit;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -153,10 +152,6 @@ import com.google.common.base.Preconditions;
  * will be resolved to another property in this Configuration, while
  * <tt>${<i>user.name</i>}</tt> would then ordinarily be resolved to the value
  * of the System property with that name.
- * By default, warnings will be given to any deprecated configuration 
- * parameters and these are suppressible by configuring
- * <tt>log4j.logger.org.apache.hadoop.conf.Configuration.deprecation</tt> in
- * log4j.properties file.
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
@@ -164,9 +159,6 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
                                       Writable {
   private static final Log LOG =
     LogFactory.getLog(Configuration.class);
-
-  private static final Log LOG_DEPRECATION =
-    LogFactory.getLog("org.apache.hadoop.conf.Configuration.deprecation");
 
   private boolean quietmode = true;
   
@@ -837,7 +829,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
   private void warnOnceIfDeprecated(String name) {
     DeprecatedKeyInfo keyInfo = deprecatedKeyMap.get(name);
     if (keyInfo != null && !keyInfo.accessed) {
-      LOG_DEPRECATION.info(keyInfo.getWarningMessage(name));
+      LOG.warn(keyInfo.getWarningMessage(name));
     }
   }
 
@@ -1091,7 +1083,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    */
   public boolean getBoolean(String name, boolean defaultValue) {
     String valueString = getTrimmed(name);
-    if (null == valueString || valueString.isEmpty()) {
+    if (null == valueString || "".equals(valueString)) {
       return defaultValue;
     }
 
@@ -1147,93 +1139,6 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
       : Enum.valueOf(defaultValue.getDeclaringClass(), val);
   }
 
-  enum ParsedTimeDuration {
-    NS {
-      TimeUnit unit() { return TimeUnit.NANOSECONDS; }
-      String suffix() { return "ns"; }
-    },
-    US {
-      TimeUnit unit() { return TimeUnit.MICROSECONDS; }
-      String suffix() { return "us"; }
-    },
-    MS {
-      TimeUnit unit() { return TimeUnit.MILLISECONDS; }
-      String suffix() { return "ms"; }
-    },
-    S {
-      TimeUnit unit() { return TimeUnit.SECONDS; }
-      String suffix() { return "s"; }
-    },
-    M {
-      TimeUnit unit() { return TimeUnit.MINUTES; }
-      String suffix() { return "m"; }
-    },
-    H {
-      TimeUnit unit() { return TimeUnit.HOURS; }
-      String suffix() { return "h"; }
-    },
-    D {
-      TimeUnit unit() { return TimeUnit.DAYS; }
-      String suffix() { return "d"; }
-    };
-    abstract TimeUnit unit();
-    abstract String suffix();
-    static ParsedTimeDuration unitFor(String s) {
-      for (ParsedTimeDuration ptd : values()) {
-        // iteration order is in decl order, so SECONDS matched last
-        if (s.endsWith(ptd.suffix())) {
-          return ptd;
-        }
-      }
-      return null;
-    }
-    static ParsedTimeDuration unitFor(TimeUnit unit) {
-      for (ParsedTimeDuration ptd : values()) {
-        if (ptd.unit() == unit) {
-          return ptd;
-        }
-      }
-      return null;
-    }
-  }
-
-  /**
-   * Set the value of <code>name</code> to the given time duration. This
-   * is equivalent to <code>set(&lt;name&gt;, value + &lt;time suffix&gt;)</code>.
-   * @param name Property name
-   * @param value Time duration
-   * @param unit Unit of time
-   */
-  public void setTimeDuration(String name, long value, TimeUnit unit) {
-    set(name, value + ParsedTimeDuration.unitFor(unit).suffix());
-  }
-
-  /**
-   * Return time duration in the given time unit. Valid units are encoded in
-   * properties as suffixes: nanoseconds (ns), microseconds (us), milliseconds
-   * (ms), seconds (s), minutes (m), hours (h), and days (d).
-   * @param name Property name
-   * @param defaultValue Value returned if no mapping exists.
-   * @param unit Unit to convert the stored property, if it exists.
-   * @throws NumberFormatException If the property stripped of its unit is not
-   *         a number
-   */
-  public long getTimeDuration(String name, long defaultValue, TimeUnit unit) {
-    String vStr = get(name);
-    if (null == vStr) {
-      return defaultValue;
-    }
-    vStr = vStr.trim();
-    ParsedTimeDuration vUnit = ParsedTimeDuration.unitFor(vStr);
-    if (null == vUnit) {
-      LOG.warn("No unit for " + name + "(" + vStr + ") assuming " + unit);
-      vUnit = ParsedTimeDuration.unitFor(unit);
-    } else {
-      vStr = vStr.substring(0, vStr.lastIndexOf(vUnit.suffix()));
-    }
-    return unit.convert(Long.parseLong(vStr), vUnit.unit());
-  }
-
   /**
    * Get the value of the <code>name</code> property as a <code>Pattern</code>.
    * If no such property is specified, or if the specified value is not a valid
@@ -1245,7 +1150,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    */
   public Pattern getPattern(String name, Pattern defaultValue) {
     String valString = get(name);
-    if (null == valString || valString.isEmpty()) {
+    if (null == valString || "".equals(valString)) {
       return defaultValue;
     }
     try {
@@ -2180,12 +2085,12 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
 
   /** 
    * Write out the non-default properties in this configuration to the given
-   * {@link OutputStream} using UTF-8 encoding.
+   * {@link OutputStream}.
    * 
    * @param out the output stream to write to.
    */
   public void writeXml(OutputStream out) throws IOException {
-    writeXml(new OutputStreamWriter(out, "UTF-8"));
+    writeXml(new OutputStreamWriter(out));
   }
 
   /** 
@@ -2227,7 +2132,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
     doc.appendChild(conf);
     conf.appendChild(doc.createTextNode("\n"));
     handleDeprecation(); //ensure properties is set and deprecation is handled
-    for (Enumeration<Object> e = properties.keys(); e.hasMoreElements();) {
+    for (Enumeration e = properties.keys(); e.hasMoreElements();) {
       String name = (String)e.nextElement();
       Object object = properties.get(name);
       String value = null;

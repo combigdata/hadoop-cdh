@@ -30,7 +30,6 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.BufferOverflowException;
-import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
@@ -40,7 +39,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.hadoop.classification.InterfaceAudience;
-import org.apache.hadoop.fs.CanSetDropBehind;
 import org.apache.hadoop.fs.CreateFlag;
 import org.apache.hadoop.fs.FSOutputSummer;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
@@ -57,7 +55,6 @@ import org.apache.hadoop.hdfs.protocol.HdfsConstants;
 import org.apache.hadoop.hdfs.protocol.HdfsFileStatus;
 import org.apache.hadoop.hdfs.protocol.LocatedBlock;
 import org.apache.hadoop.hdfs.protocol.NSQuotaExceededException;
-import org.apache.hadoop.hdfs.protocol.SnapshotAccessControlException;
 import org.apache.hadoop.hdfs.protocol.UnresolvedPathException;
 import org.apache.hadoop.hdfs.protocol.datatransfer.BlockConstructionStage;
 import org.apache.hadoop.hdfs.protocol.datatransfer.DataTransferProtocol;
@@ -72,9 +69,9 @@ import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.Status;
 import org.apache.hadoop.hdfs.protocolPB.PBHelper;
 import org.apache.hadoop.hdfs.security.token.block.BlockTokenIdentifier;
 import org.apache.hadoop.hdfs.security.token.block.InvalidBlockTokenException;
-import org.apache.hadoop.hdfs.server.datanode.CachingStrategy;
 import org.apache.hadoop.hdfs.server.namenode.NotReplicatedYetException;
 import org.apache.hadoop.hdfs.server.namenode.SafeModeException;
+import org.apache.hadoop.hdfs.server.namenode.snapshot.SnapshotAccessControlException;
 import org.apache.hadoop.io.EnumSetWritable;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.ipc.RemoteException;
@@ -85,7 +82,6 @@ import org.apache.hadoop.util.Daemon;
 import org.apache.hadoop.util.DataChecksum;
 import org.apache.hadoop.util.Progressable;
 import org.apache.hadoop.util.Time;
-import org.mortbay.log.Log;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.CacheBuilder;
@@ -118,8 +114,7 @@ import com.google.common.cache.RemovalNotification;
  * starts sending packets from the dataQueue.
 ****************************************************************/
 @InterfaceAudience.Private
-public class DFSOutputStream extends FSOutputSummer
-    implements Syncable, CanSetDropBehind {
+public class DFSOutputStream extends FSOutputSummer implements Syncable {
   private final DFSClient dfsClient;
   private static final int MAX_PACKETS = 80; // each packet 64K, total 5MB
   private Socket s;
@@ -151,7 +146,6 @@ public class DFSOutputStream extends FSOutputSummer
   private Progressable progress;
   private final short blockReplication; // replication factor of file
   private boolean shouldSyncBlock = false; // force blocks to disk upon close
-  private CachingStrategy cachingStrategy;
   
   private class Packet {
     long    seqno;               // sequencenumber of buffer in block
@@ -1148,8 +1142,7 @@ public class DFSOutputStream extends FSOutputSummer
           // send the request
           new Sender(out).writeBlock(block, accessToken, dfsClient.clientName,
               nodes, null, recoveryFlag? stage.getRecoveryStage() : stage, 
-              nodes.length, block.getNumBytes(), bytesSent, newGS, checksum,
-              cachingStrategy);
+              nodes.length, block.getNumBytes(), bytesSent, newGS, checksum);
   
           // receive ack for connect
           BlockOpResponseProto resp = BlockOpResponseProto.parseFrom(
@@ -1294,8 +1287,7 @@ public class DFSOutputStream extends FSOutputSummer
    */
   static Socket createSocketForPipeline(final DatanodeInfo first,
       final int length, final DFSClient client) throws IOException {
-    final String dnAddr = first.getXferAddr(
-        client.getConf().connectToDnViaHostname);
+    final String dnAddr = first.getXferAddr(client.connectToDnViaHostname());
     if (DFSClient.LOG.isDebugEnabled()) {
       DFSClient.LOG.debug("Connecting to datanode " + dnAddr);
     }
@@ -1311,10 +1303,10 @@ public class DFSOutputStream extends FSOutputSummer
     return sock;
   }
 
-  protected void checkClosed() throws IOException {
+  private void isClosed() throws IOException {
     if (closed) {
       IOException e = lastException;
-      throw e != null ? e : new ClosedChannelException();
+      throw e != null ? e : new IOException("DFSOutputStream is closed");
     }
   }
 
@@ -1346,8 +1338,6 @@ public class DFSOutputStream extends FSOutputSummer
     this.blockSize = stat.getBlockSize();
     this.blockReplication = stat.getReplication();
     this.progress = progress;
-    this.cachingStrategy =
-        dfsClient.getDefaultWriteCachingStrategy().duplicate();
     if ((progress != null) && DFSClient.LOG.isDebugEnabled()) {
       DFSClient.LOG.debug(
           "Set non-null progress callback on DFSOutputStream " + src);
@@ -1485,7 +1475,7 @@ public class DFSOutputStream extends FSOutputSummer
           break;
         }
       }
-      checkClosed();
+      isClosed();
       queueCurrentPacket();
     }
   }
@@ -1495,7 +1485,7 @@ public class DFSOutputStream extends FSOutputSummer
   protected synchronized void writeChunk(byte[] b, int offset, int len, byte[] checksum) 
                                                         throws IOException {
     dfsClient.checkOpen();
-    checkClosed();
+    isClosed();
 
     int cklen = checksum.length;
     int bytesPerChecksum = this.checksum.getBytesPerChecksum(); 
@@ -1627,7 +1617,7 @@ public class DFSOutputStream extends FSOutputSummer
   private void flushOrSync(boolean isSync, EnumSet<SyncFlag> syncFlags)
       throws IOException {
     dfsClient.checkOpen();
-    checkClosed();
+    isClosed();
     try {
       long toWaitFor;
       long lastBlockLength = -1L;
@@ -1714,7 +1704,7 @@ public class DFSOutputStream extends FSOutputSummer
           // If we got an error here, it might be because some other thread called
           // close before our hflush completed. In that case, we should throw an
           // exception that the stream is closed.
-          checkClosed();
+          isClosed();
           // If we aren't closed but failed to sync, we should expose that to the
           // caller.
           throw ioe;
@@ -1759,7 +1749,7 @@ public class DFSOutputStream extends FSOutputSummer
    */
   public synchronized int getCurrentBlockReplication() throws IOException {
     dfsClient.checkOpen();
-    checkClosed();
+    isClosed();
     if (streamer == null) {
       return blockReplication; // no pipeline, return repl factor of file
     }
@@ -1778,7 +1768,7 @@ public class DFSOutputStream extends FSOutputSummer
     long toWaitFor;
     synchronized (this) {
       dfsClient.checkOpen();
-      checkClosed();
+      isClosed();
       //
       // If there is data in the current buffer, send it across
       //
@@ -1795,7 +1785,7 @@ public class DFSOutputStream extends FSOutputSummer
     }
     synchronized (dataQueue) {
       while (!closed) {
-        checkClosed();
+        isClosed();
         if (lastAckedSeqno >= seqno) {
           break;
         }
@@ -1807,7 +1797,7 @@ public class DFSOutputStream extends FSOutputSummer
         }
       }
     }
-    checkClosed();
+    isClosed();
   }
 
   private synchronized void start() {
@@ -1822,8 +1812,8 @@ public class DFSOutputStream extends FSOutputSummer
     if (closed) {
       return;
     }
-    streamer.setLastException(new IOException("Lease timeout of "
-        + (dfsClient.getHdfsTimeout()/1000) + " seconds expired."));
+    streamer.setLastException(new IOException("Lease timeout of " +
+                             (dfsClient.hdfsTimeout/1000) + " seconds expired."));
     closeThreads(true);
     dfsClient.endFileLease(src);
   }
@@ -1891,16 +1881,15 @@ public class DFSOutputStream extends FSOutputSummer
     long localstart = Time.now();
     boolean fileComplete = false;
     while (!fileComplete) {
-      fileComplete =
-          dfsClient.namenode.complete(src, dfsClient.clientName, last, fileId);
+      fileComplete = dfsClient.namenode.complete(src, dfsClient.clientName, last);
       if (!fileComplete) {
-        final int hdfsTimeout = dfsClient.getHdfsTimeout();
         if (!dfsClient.clientRunning ||
-              (hdfsTimeout > 0 && localstart + hdfsTimeout < Time.now())) {
+              (dfsClient.hdfsTimeout > 0 &&
+               localstart + dfsClient.hdfsTimeout < Time.now())) {
             String msg = "Unable to close file because dfsclient " +
                           " was unable to contact the HDFS servers." +
                           " clientRunning " + dfsClient.clientRunning +
-                          " hdfsTimeout " + hdfsTimeout;
+                          " hdfsTimeout " + dfsClient.hdfsTimeout;
             DFSClient.LOG.info(msg);
             throw new IOException(msg);
         }
@@ -1945,8 +1934,4 @@ public class DFSOutputStream extends FSOutputSummer
     return streamer.getBlockToken();
   }
 
-  @Override
-  public void setDropBehind(Boolean dropBehind) throws IOException {
-    this.cachingStrategy.setDropBehind(dropBehind);
-  }
 }

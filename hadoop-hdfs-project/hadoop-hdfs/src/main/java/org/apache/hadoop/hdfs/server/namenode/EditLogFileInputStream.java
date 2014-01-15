@@ -407,6 +407,8 @@ public class EditLogFileInputStream extends EditLogInputStream {
 
     @Override
     public long length() {
+      Preconditions.checkState(advertisedSize != -1,
+          "must get input stream before length is available");
       return advertisedSize;
     }
 

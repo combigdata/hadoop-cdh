@@ -175,7 +175,7 @@ if [ "$COMMAND" = "classpath" ] ; then
   echo $CLASSPATH
   exit
 elif [ "$COMMAND" = "rmadmin" ] ; then
-  CLASS='org.apache.hadoop.yarn.client.cli.RMAdminCLI'
+  CLASS='org.apache.hadoop.yarn.client.RMAdmin'
   YARN_OPTS="$YARN_OPTS $YARN_CLIENT_OPTS"
 elif [ "$COMMAND" = "application" ] ; then
   CLASS=org.apache.hadoop.yarn.client.cli.ApplicationCLI
@@ -210,7 +210,7 @@ elif [ "$COMMAND" = "jar" ] ; then
   CLASS=org.apache.hadoop.util.RunJar
   YARN_OPTS="$YARN_OPTS $YARN_CLIENT_OPTS"
 elif [ "$COMMAND" = "logs" ] ; then
-  CLASS=org.apache.hadoop.yarn.client.cli.LogsCLI
+  CLASS=org.apache.hadoop.yarn.logaggregation.LogDumper
   YARN_OPTS="$YARN_OPTS $YARN_CLIENT_OPTS"
 elif [ "$COMMAND" = "daemonlog" ] ; then
   CLASS=org.apache.hadoop.log.LogLevel

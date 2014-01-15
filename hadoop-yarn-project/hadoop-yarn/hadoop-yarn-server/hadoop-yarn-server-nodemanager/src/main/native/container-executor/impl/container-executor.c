@@ -30,7 +30,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <limits.h>
 #include <sys/stat.h>
 #include <sys/mount.h>
 
@@ -493,21 +492,6 @@ static struct passwd* get_user_info(const char* user) {
   return result;
 }
 
-int is_whitelisted(const char *user) {
-  char **whitelist = get_values(ALLOWED_SYSTEM_USERS_KEY);
-  char **users = whitelist;
-  if (whitelist != NULL) {
-    for(; *users; ++users) {
-      if (strncmp(*users, user, LOGIN_NAME_MAX) == 0) {
-        free_values(whitelist);
-        return 1;
-      }
-    }
-    free_values(whitelist);
-  }
-  return 0;
-}
-
 /**
  * Is the user a real user account?
  * Checks:
@@ -542,9 +526,9 @@ struct passwd* check_user(const char *user) {
     fflush(LOGFILE);
     return NULL;
   }
-  if (user_info->pw_uid < min_uid && !is_whitelisted(user)) {
-    fprintf(LOGFILE, "Requested user %s is not whitelisted and has id %d,"
-	    "which is below the minimum allowed %d\n", user, user_info->pw_uid, min_uid);
+  if (user_info->pw_uid < min_uid) {
+    fprintf(LOGFILE, "Requested user %s has id %d, which is below the "
+	    "minimum allowed %d\n", user, user_info->pw_uid, min_uid);
     fflush(LOGFILE);
     free(user_info);
     return NULL;
@@ -751,33 +735,6 @@ int initialize_user(const char *user, char* const* local_dirs) {
   return failed ? INITIALIZE_USER_FAILED : 0;
 }
 
-int create_log_dirs(const char *app_id, char * const * log_dirs) {
-
-  char* const* log_root;
-  char *any_one_app_log_dir = NULL;
-  for(log_root=log_dirs; *log_root != NULL; ++log_root) {
-    char *app_log_dir = get_app_log_directory(*log_root, app_id);
-    if (app_log_dir == NULL) {
-      // try the next one
-    } else if (create_directory_for_user(app_log_dir) != 0) {
-      free(app_log_dir);
-      return -1;
-    } else if (any_one_app_log_dir == NULL) {
-      any_one_app_log_dir = app_log_dir;
-    } else {
-      free(app_log_dir);
-    }
-  }
-
-  if (any_one_app_log_dir == NULL) {
-    fprintf(LOGFILE, "Did not create any app-log directories\n");
-    return -1;
-  }
-  free(any_one_app_log_dir);
-  return 0;
-}
-
-
 /**
  * Function to prepare the application directories for the container.
  */
@@ -796,11 +753,29 @@ int initialize_app(const char *user, const char *app_id,
     return result;
   }
 
-  // create the log directories for the app on all disks
-  int log_create_result = create_log_dirs(app_id, log_roots);
-  if (log_create_result != 0) {
-    return log_create_result;
+  ////////////// create the log directories for the app on all disks
+  char* const* log_root;
+  char *any_one_app_log_dir = NULL;
+  for(log_root=log_roots; *log_root != NULL; ++log_root) {
+    char *app_log_dir = get_app_log_directory(*log_root, app_id);
+    if (app_log_dir == NULL) {
+      // try the next one
+    } else if (create_directory_for_user(app_log_dir) != 0) {
+      free(app_log_dir);
+      return -1;
+    } else if (any_one_app_log_dir == NULL) {
+      any_one_app_log_dir = app_log_dir;
+    } else {
+      free(app_log_dir);
+    }
   }
+
+  if (any_one_app_log_dir == NULL) {
+    fprintf(LOGFILE, "Did not create any app-log directories\n");
+    return -1;
+  }
+  free(any_one_app_log_dir);
+  ////////////// End of creating the log directories for the app on all disks
 
   // open up the credentials file
   int cred_file = open_file_as_nm(nmPrivate_credentials_file);
@@ -931,33 +906,17 @@ int launch_container_as_user(const char *user, const char *app_id,
     }
   }
 
-  // create the user directory on all disks
-  int result = initialize_user(user, local_dirs);
-  if (result != 0) {
-    return result;
-  }
-
-  // initializing log dirs
-  int log_create_result = create_log_dirs(app_id, log_dirs);
-  if (log_create_result != 0) {
-    return log_create_result;
-  }
-
   // give up root privs
   if (change_user(user_detail->pw_uid, user_detail->pw_gid) != 0) {
     exit_code = SETUID_OPER_FAILED;
     goto cleanup;
   }
 
-  // Create container specific directories as user. If there are no resources
-  // to localize for this container, app-directories and log-directories are
-  // also created automatically as part of this call.
   if (create_container_directories(user, app_id, container_id, local_dirs,
                                    log_dirs, work_dir) != 0) {
     fprintf(LOGFILE, "Could not create container dirs");
     goto cleanup;
   }
-  
 
   // 700
   if (copy_file(container_file_source, script_name, script_file_dest,S_IRWXU) != 0) {

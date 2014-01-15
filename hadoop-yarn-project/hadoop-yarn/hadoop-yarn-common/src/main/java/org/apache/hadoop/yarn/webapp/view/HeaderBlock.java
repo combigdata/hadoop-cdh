@@ -18,9 +18,8 @@
 
 package org.apache.hadoop.yarn.webapp.view;
 
-import org.apache.hadoop.classification.InterfaceAudience;
+import static org.apache.hadoop.yarn.webapp.Params.*;
 
-@InterfaceAudience.LimitedPrivate({"YARN", "MapReduce"})
 public class HeaderBlock extends HtmlBlock {
 
   @Override protected void render(Block html) {

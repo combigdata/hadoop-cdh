@@ -36,8 +36,8 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.yarn.api.ContainerExitStatus;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.apache.hadoop.yarn.api.records.ContainerExitStatus;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
@@ -103,7 +103,7 @@ public class ContainerImpl implements Container {
   public ContainerImpl(Configuration conf, Dispatcher dispatcher,
       ContainerLaunchContext launchContext, Credentials creds,
       NodeManagerMetrics metrics,
-      ContainerTokenIdentifier containerTokenIdentifier) {
+      ContainerTokenIdentifier containerTokenIdentifier) throws IOException {
     this.daemonConf = conf;
     this.dispatcher = dispatcher;
     this.launchContext = launchContext;
@@ -290,11 +290,6 @@ public class ContainerImpl implements Container {
     .addTransition(ContainerState.DONE, ContainerState.DONE,
        ContainerEventType.UPDATE_DIAGNOSTICS_MSG,
        UPDATE_DIAGNOSTICS_TRANSITION)
-    // This transition may result when
-    // we notify container of failed localization if localizer thread (for
-    // that container) fails for some reason
-    .addTransition(ContainerState.DONE, ContainerState.DONE,
-        ContainerEventType.RESOURCE_FAILED)
 
     // create the topology tables
     .installTopology();
@@ -335,11 +330,8 @@ public class ContainerImpl implements Container {
   public Map<Path,List<String>> getLocalizedResources() {
     this.readLock.lock();
     try {
-      if (ContainerState.LOCALIZED == getContainerState()) {
-        return localizedResources;
-      } else {
-        return null;
-      }
+    assert ContainerState.LOCALIZED == getContainerState(); // TODO: FIXME!!
+    return localizedResources;
     } finally {
       this.readLock.unlock();
     }
@@ -502,9 +494,6 @@ public class ContainerImpl implements Container {
         ContainerEvent event) {
       final ContainerLaunchContext ctxt = container.launchContext;
       container.metrics.initingContainer();
-
-      container.dispatcher.getEventHandler().handle(new AuxServicesEvent
-          (AuxServicesEventType.CONTAINER_INIT, container));
 
       // Inform the AuxServices about the opaque serviceData
       Map<String,ByteBuffer> csd = ctxt.getServiceData();
@@ -823,16 +812,8 @@ public class ContainerImpl implements Container {
   static class ContainerDoneTransition implements
       SingleArcTransition<ContainerImpl, ContainerEvent> {
     @Override
-    @SuppressWarnings("unchecked")
     public void transition(ContainerImpl container, ContainerEvent event) {
       container.finished();
-      //if the current state is NEW it means the CONTAINER_INIT was never 
-      // sent for the event, thus no need to send the CONTAINER_STOP
-      if (container.getCurrentState() 
-          != org.apache.hadoop.yarn.api.records.ContainerState.NEW) {
-        container.dispatcher.getEventHandler().handle(new AuxServicesEvent
-            (AuxServicesEventType.CONTAINER_STOP, container));
-      }
     }
   }
 

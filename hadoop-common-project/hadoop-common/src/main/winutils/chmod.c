@@ -561,11 +561,22 @@ static BOOL ConvertActionsToMask(__in LPCWSTR path,
 {
   MODE_CHANGE_ACTION const *curr = NULL;
 
+  BY_HANDLE_FILE_INFORMATION fileInformation;
   DWORD dwErrorCode = ERROR_SUCCESS;
 
   INT mode = 0;
 
-  dwErrorCode = FindFileOwnerAndPermission(path, FALSE, NULL, NULL, &mode);
+  dwErrorCode = GetFileInformationByName(path, FALSE, &fileInformation);
+  if (dwErrorCode != ERROR_SUCCESS)
+  {
+    ReportErrorCode(L"GetFileInformationByName", dwErrorCode);
+    return FALSE;
+  }
+  if (IsDirFileInfo(&fileInformation))
+  {
+    mode |= UX_DIRECTORY;
+  }
+  dwErrorCode = FindFileOwnerAndPermission(path, NULL, NULL, &mode);
   if (dwErrorCode != ERROR_SUCCESS)
   {
     ReportErrorCode(L"FindFileOwnerAndPermission", dwErrorCode);

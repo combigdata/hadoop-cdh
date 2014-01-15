@@ -31,11 +31,6 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.hdfs.server.namenode.FSNamesystem;
 import org.apache.hadoop.hdfs.server.namenode.NameNode;
 import org.apache.hadoop.hdfs.server.namenode.NameNode.OperationCategory;
-import org.apache.hadoop.hdfs.server.namenode.startupprogress.Phase;
-import org.apache.hadoop.hdfs.server.namenode.startupprogress.StartupProgress;
-import org.apache.hadoop.hdfs.server.namenode.startupprogress.StartupProgress.Counter;
-import org.apache.hadoop.hdfs.server.namenode.startupprogress.Step;
-import org.apache.hadoop.hdfs.server.namenode.startupprogress.StepType;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.ipc.StandbyException;
 import org.apache.hadoop.security.Credentials;
@@ -58,15 +53,6 @@ public class DelegationTokenSecretManager
       .getLog(DelegationTokenSecretManager.class);
   
   private final FSNamesystem namesystem;
-
-  public DelegationTokenSecretManager(long delegationKeyUpdateInterval,
-      long delegationTokenMaxLifetime, long delegationTokenRenewInterval,
-      long delegationTokenRemoverScanInterval, FSNamesystem namesystem) {
-    this(delegationKeyUpdateInterval, delegationTokenMaxLifetime,
-        delegationTokenRenewInterval, delegationTokenRemoverScanInterval, false,
-        namesystem);
-  }
-
   /**
    * Create a secret manager
    * @param delegationKeyUpdateInterval the number of seconds for rolling new
@@ -76,16 +62,13 @@ public class DelegationTokenSecretManager
    * @param delegationTokenRenewInterval how often the tokens must be renewed
    * @param delegationTokenRemoverScanInterval how often the tokens are scanned
    *        for expired tokens
-   * @param storeTokenTrackingId whether to store the token's tracking id
    */
   public DelegationTokenSecretManager(long delegationKeyUpdateInterval,
       long delegationTokenMaxLifetime, long delegationTokenRenewInterval,
-      long delegationTokenRemoverScanInterval, boolean storeTokenTrackingId,
-      FSNamesystem namesystem) {
+      long delegationTokenRemoverScanInterval, FSNamesystem namesystem) {
     super(delegationKeyUpdateInterval, delegationTokenMaxLifetime,
         delegationTokenRenewInterval, delegationTokenRemoverScanInterval);
     this.namesystem = namesystem;
-    this.storeTokenTrackingId = storeTokenTrackingId;
   }
 
   @Override //SecretManager
@@ -93,28 +76,17 @@ public class DelegationTokenSecretManager
     return new DelegationTokenIdentifier();
   }
   
-  @Override
-  public byte[] retrievePassword(
-      DelegationTokenIdentifier identifier) throws InvalidToken {
+  @Override //SecretManager
+  public void checkAvailableForRead() throws StandbyException {
+    namesystem.checkOperation(OperationCategory.READ);
+    namesystem.readLock();
     try {
-      // this check introduces inconsistency in the authentication to a
-      // HA standby NN.  non-token auths are allowed into the namespace which
-      // decides whether to throw a StandbyException.  tokens are a bit
-      // different in that a standby may be behind and thus not yet know
-      // of all tokens issued by the active NN.  the following check does
-      // not allow ANY token auth, however it should allow known tokens in
       namesystem.checkOperation(OperationCategory.READ);
-    } catch (StandbyException se) {
-      // FIXME: this is a hack to get around changing method signatures by
-      // tunneling a non-InvalidToken exception as the cause which the
-      // RPC server will unwrap before returning to the client
-      InvalidToken wrappedStandby = new InvalidToken("StandbyException");
-      wrappedStandby.initCause(se);
-      throw wrappedStandby;
+    } finally {
+      namesystem.readUnlock();
     }
-    return super.retrievePassword(identifier);
   }
-  
+
   /**
    * Returns expiry time of a token given its identifier.
    * 
@@ -155,15 +127,14 @@ public class DelegationTokenSecretManager
    * Store the current state of the SecretManager for persistence
    * 
    * @param out Output stream for writing into fsimage.
-   * @param sdPath String storage directory path
    * @throws IOException
    */
-  public synchronized void saveSecretManagerState(DataOutputStream out,
-      String sdPath) throws IOException {
+  public synchronized void saveSecretManagerState(DataOutputStream out)
+      throws IOException {
     out.writeInt(currentId);
-    saveAllKeys(out, sdPath);
+    saveAllKeys(out);
     out.writeInt(delegationTokenSequenceNumber);
-    saveCurrentTokens(out, sdPath);
+    saveCurrentTokens(out);
   }
   
   /**
@@ -196,7 +167,7 @@ public class DelegationTokenSecretManager
     }
     if (currentTokens.get(identifier) == null) {
       currentTokens.put(identifier, new DelegationTokenInformation(expiryTime,
-          password, getTrackingIdIfEnabled(identifier)));
+          password));
     } else {
       throw new IOException(
           "Same delegation token being added twice; invalid entry in fsimage or editlogs");
@@ -235,7 +206,7 @@ public class DelegationTokenSecretManager
       byte[] password = createPassword(identifier.getBytes(), allKeys
           .get(keyId).getKey());
       currentTokens.put(identifier, new DelegationTokenInformation(expiryTime,
-          password, getTrackingIdIfEnabled(identifier)));
+          password));
     }
   }
 
@@ -266,13 +237,8 @@ public class DelegationTokenSecretManager
   /**
    * Private helper methods to save delegation keys and tokens in fsimage
    */
-  private synchronized void saveCurrentTokens(DataOutputStream out,
-      String sdPath) throws IOException {
-    StartupProgress prog = NameNode.getStartupProgress();
-    Step step = new Step(StepType.DELEGATION_TOKENS, sdPath);
-    prog.beginStep(Phase.SAVING_CHECKPOINT, step);
-    prog.setTotal(Phase.SAVING_CHECKPOINT, step, currentTokens.size());
-    Counter counter = prog.getCounter(Phase.SAVING_CHECKPOINT, step);
+  private synchronized void saveCurrentTokens(DataOutputStream out)
+      throws IOException {
     out.writeInt(currentTokens.size());
     Iterator<DelegationTokenIdentifier> iter = currentTokens.keySet()
         .iterator();
@@ -281,29 +247,20 @@ public class DelegationTokenSecretManager
       id.write(out);
       DelegationTokenInformation info = currentTokens.get(id);
       out.writeLong(info.getRenewDate());
-      counter.increment();
     }
-    prog.endStep(Phase.SAVING_CHECKPOINT, step);
   }
   
   /*
    * Save the current state of allKeys
    */
-  private synchronized void saveAllKeys(DataOutputStream out, String sdPath)
+  private synchronized void saveAllKeys(DataOutputStream out)
       throws IOException {
-    StartupProgress prog = NameNode.getStartupProgress();
-    Step step = new Step(StepType.DELEGATION_KEYS, sdPath);
-    prog.beginStep(Phase.SAVING_CHECKPOINT, step);
-    prog.setTotal(Phase.SAVING_CHECKPOINT, step, currentTokens.size());
-    Counter counter = prog.getCounter(Phase.SAVING_CHECKPOINT, step);
     out.writeInt(allKeys.size());
     Iterator<Integer> iter = allKeys.keySet().iterator();
     while (iter.hasNext()) {
       Integer key = iter.next();
       allKeys.get(key).write(out);
-      counter.increment();
     }
-    prog.endStep(Phase.SAVING_CHECKPOINT, step);
   }
   
   /**
@@ -311,20 +268,13 @@ public class DelegationTokenSecretManager
    */
   private synchronized void loadCurrentTokens(DataInput in)
       throws IOException {
-    StartupProgress prog = NameNode.getStartupProgress();
-    Step step = new Step(StepType.DELEGATION_TOKENS);
-    prog.beginStep(Phase.LOADING_FSIMAGE, step);
     int numberOfTokens = in.readInt();
-    prog.setTotal(Phase.LOADING_FSIMAGE, step, numberOfTokens);
-    Counter counter = prog.getCounter(Phase.LOADING_FSIMAGE, step);
     for (int i = 0; i < numberOfTokens; i++) {
       DelegationTokenIdentifier id = new DelegationTokenIdentifier();
       id.readFields(in);
       long expiryTime = in.readLong();
       addPersistedDelegationToken(id, expiryTime);
-      counter.increment();
     }
-    prog.endStep(Phase.LOADING_FSIMAGE, step);
   }
 
   /**
@@ -333,19 +283,12 @@ public class DelegationTokenSecretManager
    * @throws IOException
    */
   private synchronized void loadAllKeys(DataInput in) throws IOException {
-    StartupProgress prog = NameNode.getStartupProgress();
-    Step step = new Step(StepType.DELEGATION_KEYS);
-    prog.beginStep(Phase.LOADING_FSIMAGE, step);
     int numberOfKeys = in.readInt();
-    prog.setTotal(Phase.LOADING_FSIMAGE, step, numberOfKeys);
-    Counter counter = prog.getCounter(Phase.LOADING_FSIMAGE, step);
     for (int i = 0; i < numberOfKeys; i++) {
       DelegationKey value = new DelegationKey();
       value.readFields(in);
       addKey(value);
-      counter.increment();
     }
-    prog.endStep(Phase.LOADING_FSIMAGE, step);
   }
 
   /**

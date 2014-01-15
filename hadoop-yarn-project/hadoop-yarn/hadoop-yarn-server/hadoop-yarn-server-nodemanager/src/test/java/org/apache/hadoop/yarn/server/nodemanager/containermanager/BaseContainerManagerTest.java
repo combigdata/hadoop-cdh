@@ -20,11 +20,6 @@ package org.apache.hadoop.yarn.server.nodemanager.containermanager;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 import junit.framework.Assert;
 
@@ -35,20 +30,20 @@ import org.apache.hadoop.fs.FileContext;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.UnsupportedFileSystemException;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.security.token.SecretManager.InvalidToken;
-import org.apache.hadoop.yarn.api.ContainerManagementProtocol;
-import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusesRequest;
+import org.apache.hadoop.yarn.api.ContainerManager;
+import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusRequest;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
+import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.ContainerState;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
+import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.event.AsyncDispatcher;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.security.ContainerTokenIdentifier;
-import org.apache.hadoop.yarn.security.NMTokenIdentifier;
 import org.apache.hadoop.yarn.server.api.ResourceTracker;
 import org.apache.hadoop.yarn.server.nodemanager.ContainerExecutor;
 import org.apache.hadoop.yarn.server.nodemanager.Context;
@@ -62,11 +57,10 @@ import org.apache.hadoop.yarn.server.nodemanager.NodeStatusUpdater;
 import org.apache.hadoop.yarn.server.nodemanager.NodeStatusUpdaterImpl;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.application.Application;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.application.ApplicationState;
-import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.Container;
 import org.apache.hadoop.yarn.server.nodemanager.metrics.NodeManagerMetrics;
 import org.apache.hadoop.yarn.server.nodemanager.security.NMContainerTokenSecretManager;
-import org.apache.hadoop.yarn.server.nodemanager.security.NMTokenSecretManagerInNM;
 import org.apache.hadoop.yarn.server.security.ApplicationACLsManager;
+import org.apache.hadoop.yarn.service.Service.STATE;
 import org.junit.After;
 import org.junit.Before;
 
@@ -103,7 +97,7 @@ public abstract class BaseContainerManagerTest {
   protected static final int HTTP_PORT = 5412;
   protected Configuration conf = new YarnConfiguration();
   protected Context context = new NMContext(new NMContainerTokenSecretManager(
-    conf), new NMTokenSecretManagerInNM()) {
+    conf)) {
     public int getHttpPort() {
       return HTTP_PORT;
     };
@@ -121,11 +115,6 @@ public abstract class BaseContainerManagerTest {
     protected ResourceTracker getRMClient() {
       return new LocalRMInterface();
     };
-
-    @Override
-    protected void stopRMProxy() {
-      return;
-    }
 
     @Override
     protected void startStatusUpdater() {
@@ -160,13 +149,12 @@ public abstract class BaseContainerManagerTest {
     LOG.info("Created localDir in " + localDir.getAbsolutePath());
     LOG.info("Created tmpDir in " + tmpDir.getAbsolutePath());
 
-    String bindAddress = "0.0.0.0:12345";
+    String bindAddress = "0.0.0.0:5555";
     conf.set(YarnConfiguration.NM_ADDRESS, bindAddress);
     conf.set(YarnConfiguration.NM_LOCAL_DIRS, localDir.getAbsolutePath());
     conf.set(YarnConfiguration.NM_LOG_DIRS, localLogDir.getAbsolutePath());
     conf.set(YarnConfiguration.NM_REMOTE_APP_LOG_DIR, remoteLogDir.getAbsolutePath());
 
-    conf.setLong(YarnConfiguration.NM_LOG_RETAIN_SECONDS, 1);
     // Default delSrvc
     delSrvc = createDeletionService();
     delSrvc.init(conf);
@@ -184,7 +172,6 @@ public abstract class BaseContainerManagerTest {
 
   protected ContainerManagerImpl
       createContainerManager(DeletionService delSrvc) {
-    
     return new ContainerManagerImpl(context, exec, delSrvc, nodeStatusUpdater,
       metrics, new ApplicationACLsManager(conf), dirsHandler) {
       @Override
@@ -194,36 +181,10 @@ public abstract class BaseContainerManagerTest {
       }
 
       @Override
-        protected void authorizeGetAndStopContainerRequest(ContainerId containerId,
-            Container container, boolean stopRequest, NMTokenIdentifier identifier) throws YarnException {
-          // do nothing
-        }
-      @Override
-      protected void authorizeUser(UserGroupInformation remoteUgi,
-          NMTokenIdentifier nmTokenIdentifier) {
+      protected void authorizeRequest(String containerIDStr,
+          ContainerLaunchContext launchContext, UserGroupInformation remoteUgi,
+          ContainerTokenIdentifier tokenId) throws YarnException {
         // do nothing
-      }
-      @Override
-        protected void authorizeStartRequest(
-            NMTokenIdentifier nmTokenIdentifier,
-            ContainerTokenIdentifier containerTokenIdentifier) throws YarnException {
-          // do nothing
-        }
-      
-      @Override
-        protected void updateNMTokenIdentifier(
-            NMTokenIdentifier nmTokenIdentifier) throws InvalidToken {
-          // Do nothing
-        }
-
-      @Override
-      public Map<String, ByteBuffer> getAuxServiceMetaData() {
-        Map<String, ByteBuffer> serviceData = new HashMap<String, ByteBuffer>();
-        serviceData.put("AuxService1",
-            ByteBuffer.wrap("AuxServiceMetaData1".getBytes()));
-        serviceData.put("AuxService2",
-            ByteBuffer.wrap("AuxServiceMetaData2".getBytes()));
-        return serviceData;
       }
     };
   }
@@ -241,36 +202,35 @@ public abstract class BaseContainerManagerTest {
 
   @After
   public void tearDown() throws IOException, InterruptedException {
-    if (containerManager != null) {
+    if (containerManager != null
+        && containerManager.getServiceState() == STATE.STARTED) {
       containerManager.stop();
     }
     createContainerExecutor().deleteAsUser(user,
         new Path(localDir.getAbsolutePath()), new Path[] {});
   }
 
-  public static void waitForContainerState(ContainerManagementProtocol containerManager,
+  public static void waitForContainerState(ContainerManager containerManager,
       ContainerId containerID, ContainerState finalState)
       throws InterruptedException, YarnException, IOException {
     waitForContainerState(containerManager, containerID, finalState, 20);
   }
 
-  public static void waitForContainerState(ContainerManagementProtocol containerManager,
+  public static void waitForContainerState(ContainerManager containerManager,
           ContainerId containerID, ContainerState finalState, int timeOutMax)
           throws InterruptedException, YarnException, IOException {
-    List<ContainerId> list = new ArrayList<ContainerId>();
-    list.add(containerID);
-    GetContainerStatusesRequest request =
-        GetContainerStatusesRequest.newInstance(list);
-    ContainerStatus containerStatus =
-        containerManager.getContainerStatuses(request).getContainerStatuses()
-          .get(0);
-    int timeoutSecs = 0;
+    GetContainerStatusRequest request =
+        recordFactory.newRecordInstance(GetContainerStatusRequest.class);
+        request.setContainerId(containerID);
+        ContainerStatus containerStatus =
+            containerManager.getContainerStatus(request).getStatus();
+        int timeoutSecs = 0;
       while (!containerStatus.getState().equals(finalState)
           && timeoutSecs++ < timeOutMax) {
           Thread.sleep(1000);
           LOG.info("Waiting for container to get into state " + finalState
               + ". Current state is " + containerStatus.getState());
-          containerStatus = containerManager.getContainerStatuses(request).getContainerStatuses().get(0);
+          containerStatus = containerManager.getContainerStatus(request).getStatus();
         }
         LOG.info("Container state is " + containerStatus.getState());
         Assert.assertEquals("ContainerState is not correct (timedout)",
@@ -282,7 +242,7 @@ public abstract class BaseContainerManagerTest {
       throws InterruptedException {
     // Wait for app-finish
     Application app =
-        containerManager.getContext().getApplications().get(appID);
+        containerManager.context.getApplications().get(appID);
     int timeout = 0;
     while (!(app.getApplicationState().equals(finalState))
         && timeout++ < 15) {

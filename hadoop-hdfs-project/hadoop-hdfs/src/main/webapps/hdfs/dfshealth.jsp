@@ -34,7 +34,7 @@
   boolean isActive = (nnHAState == HAServiceState.ACTIVE);
   String namenodeRole = nn.getRole().toString();
   String namenodeState = nnHAState.toString();
-  String namenodeLabel = NamenodeJspHelper.getNameNodeLabel(nn);
+  String namenodeLabel = nn.getNameNodeAddressHostPortString();
 %>
 
 <!DOCTYPE html>
@@ -47,7 +47,7 @@
 <h1><%=namenodeRole%> '<%=namenodeLabel%>' (<%=namenodeState%>)</h1>
 <%= NamenodeJspHelper.getVersionTable(fsn) %>
 <br />
-<% if (isActive && fsn != null) { %> 
+<% if (isActive) { %> 
   <b><a href="/nn_browsedfscontent.jsp">Browse the filesystem</a></b><br>
 <% } %> 
 <b><a href="/logs/"><%=namenodeRole%> Logs</a></b>
@@ -56,7 +56,6 @@
 <h3>Cluster Summary</h3>
 <b> <%= NamenodeJspHelper.getSecurityModeText()%> </b>
 <b> <%= NamenodeJspHelper.getSafeModeText(fsn)%> </b>
-<b> <%= NamenodeJspHelper.getRollingUpgradeText(fsn)%> </b>
 <b> <%= NamenodeJspHelper.getInodeLimitText(fsn)%> </b>
 <%= NamenodeJspHelper.getCorruptFilesWarning(fsn)%>
 
@@ -65,8 +64,6 @@
 <hr/>
 <% healthjsp.generateConfReport(out, nn, request); %>
 <hr>
-<h3>Startup Progress</h3>
-<% healthjsp.generateStartupProgress(out, nn.getStartupProgress()); %>
 <%
 out.println(ServletUtil.htmlFooter());
 %>

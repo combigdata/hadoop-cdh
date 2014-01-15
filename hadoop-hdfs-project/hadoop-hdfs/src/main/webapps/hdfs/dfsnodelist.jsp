@@ -33,7 +33,7 @@ String namenodeRole = nn.getRole().toString();
 FSNamesystem fsn = nn.getNamesystem();
 HAServiceState nnHAState = nn.getServiceState();
 boolean isActive = (nnHAState == HAServiceState.ACTIVE);
-String namenodeLabel = NamenodeJspHelper.getNameNodeLabel(nn);
+String namenodeLabel = nn.getNameNodeAddressHostPortString();
 %>
 
 <!DOCTYPE html>
@@ -46,7 +46,7 @@ String namenodeLabel = NamenodeJspHelper.getNameNodeLabel(nn);
 <h1><%=namenodeRole%> '<%=namenodeLabel%>'</h1>
 <%= NamenodeJspHelper.getVersionTable(fsn) %>
 <br />
-<% if (isActive && fsn != null) { %> 
+<% if (isActive) { %> 
   <b><a href="/nn_browsedfscontent.jsp">Browse the filesystem</a></b><br>
 <% } %> 
 <b><a href="/logs/"><%=namenodeRole%> Logs</a></b><br>

@@ -24,10 +24,10 @@ import java.util.List;
 import org.apache.hadoop.net.Node;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
+import org.apache.hadoop.yarn.api.records.NodeHealthStatus;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.NodeState;
 import org.apache.hadoop.yarn.server.api.protocolrecords.NodeHeartbeatResponse;
-import org.apache.hadoop.yarn.server.api.records.NodeHealthStatus;
 
 /**
  * Node managers information on available resources 
@@ -74,16 +74,10 @@ public interface RMNode {
   public String getHttpAddress();
   
   /**
-   * the latest health report received from this node.
-   * @return the latest health report received from this node.
+   * the health-status for this node
+   * @return the health-status for this node.
    */
-  public String getHealthReport();
-  
-  /**
-   * the time of the latest health report received from this node.
-   * @return the time of the latest health report received from this node.
-   */
-  public long getLastHealthReportTime();
+  public NodeHealthStatus getNodeHealthStatus();
   
   /**
    * the total available resource.

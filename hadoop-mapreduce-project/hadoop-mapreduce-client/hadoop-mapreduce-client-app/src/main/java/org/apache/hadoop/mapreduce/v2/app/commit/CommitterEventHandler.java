@@ -47,10 +47,10 @@ import org.apache.hadoop.mapreduce.v2.app.job.event.TaskAttemptEventType;
 import org.apache.hadoop.mapreduce.v2.app.rm.RMHeartbeatHandler;
 import org.apache.hadoop.mapreduce.v2.util.MRApps;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.service.AbstractService;
 import org.apache.hadoop.util.StringUtils;
+import org.apache.hadoop.yarn.YarnRuntimeException;
 import org.apache.hadoop.yarn.event.EventHandler;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
+import org.apache.hadoop.yarn.service.AbstractService;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
@@ -87,8 +87,8 @@ public class CommitterEventHandler extends AbstractService
   }
 
   @Override
-  protected void serviceInit(Configuration conf) throws Exception {
-    super.serviceInit(conf);
+  public void init(Configuration conf) {
+    super.init(conf);
     commitThreadCancelTimeoutMs = conf.getInt(
         MRJobConfig.MR_AM_COMMITTER_CANCEL_TIMEOUT_MS,
         MRJobConfig.DEFAULT_MR_AM_COMMITTER_CANCEL_TIMEOUT_MS);
@@ -108,7 +108,7 @@ public class CommitterEventHandler extends AbstractService
   }
 
   @Override
-  protected void serviceStart() throws Exception {
+  public void start() {    
     ThreadFactory tf = new ThreadFactoryBuilder()
       .setNameFormat("CommitterEvent Processor #%d")
       .build();
@@ -134,7 +134,7 @@ public class CommitterEventHandler extends AbstractService
     });
     eventHandlingThread.setName("CommitterEvent Handler");
     eventHandlingThread.start();
-    super.serviceStart();
+    super.start();
   }
 
 
@@ -148,18 +148,14 @@ public class CommitterEventHandler extends AbstractService
   }
 
   @Override
-  protected void serviceStop() throws Exception {
+  public void stop() {
     if (stopped.getAndSet(true)) {
       // return if already stopped
       return;
     }
-    if (eventHandlingThread != null) {
-      eventHandlingThread.interrupt();
-    }
-    if (launcherPool != null) {
-      launcherPool.shutdown();
-    }
-    super.serviceStop();
+    eventHandlingThread.interrupt();
+    launcherPool.shutdown();
+    super.stop();
   }
 
   private synchronized void jobCommitStarted() throws IOException {

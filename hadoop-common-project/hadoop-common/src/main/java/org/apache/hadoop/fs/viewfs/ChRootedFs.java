@@ -83,12 +83,7 @@ class ChRootedFs extends AbstractFileSystem {
     return new Path((chRootPathPart.isRoot() ? "" : chRootPathPartString)
         + path.toUri().getPath());
   }
-
-  @Override
-  public boolean isValidName(String src) {
-    return myFs.isValidName(fullPath(new Path(src)).toUri().toString());
-  }
-
+  
   public ChRootedFs(final AbstractFileSystem fs, final Path theRoot)
     throws URISyntaxException {
     super(fs.getUri(), fs.getUri().getScheme(),
@@ -108,7 +103,7 @@ class ChRootedFs extends AbstractFileSystem {
     //              scheme:/// and scheme://authority/
     myUri = new URI(myFs.getUri().toString() + 
         (myFs.getUri().getAuthority() == null ? "" :  Path.SEPARATOR) +
-          chRootPathPart.toUri().getPath().substring(1));
+          chRootPathPart.toString().substring(1));
     super.checkPath(theRoot);
   }
   

@@ -79,10 +79,6 @@ public class SnappyCodec implements Configurable, CompressionCodec {
         SnappyDecompressor.isNativeCodeLoaded();
   }
 
-  public static String getLibraryName() {
-    return SnappyCompressor.getLibraryName();
-  }
-
   /**
    * Create a {@link CompressionOutputStream} that will write to the given
    * {@link OutputStream}.

@@ -21,7 +21,6 @@ import static org.apache.hadoop.hdfs.server.namenode.NNStorage.getFinalizedEdits
 import static org.apache.hadoop.hdfs.server.namenode.NNStorage.getImageFileName;
 import static org.apache.hadoop.hdfs.server.namenode.NNStorage.getInProgressEditsFileName;
 import static org.apache.hadoop.test.GenericTestUtils.assertGlobEquals;
-import static org.junit.Assert.assertEquals;
 
 import java.io.File;
 import java.io.IOException;
@@ -60,7 +59,7 @@ public class TestNNStorageRetentionFunctional {
   */
   @Test
   public void testPurgingWithNameEditsDirAfterFailure()
-      throws Exception {
+      throws IOException {
     MiniDFSCluster cluster = null;    
     Configuration conf = new HdfsConfiguration();
     conf.setLong(DFSConfigKeys.DFS_NAMENODE_NUM_EXTRA_EDITS_RETAINED_KEY, 0);
@@ -108,10 +107,10 @@ public class TestNNStorageRetentionFunctional {
           getInProgressEditsFileName(5));
       
       LOG.info("Failing first storage dir by chmodding it");
-      assertEquals(0, FileUtil.chmod(cd0.getAbsolutePath(), "000"));
+      FileUtil.setExecutable(sd0, false);
       doSaveNamespace(nn);      
       LOG.info("Restoring accessibility of first storage dir");      
-      assertEquals(0, FileUtil.chmod(cd0.getAbsolutePath(), "755"));
+      FileUtil.setExecutable(sd0, true);
 
       LOG.info("nothing should have been purged in first storage dir");
       assertGlobEquals(cd0, "fsimage_\\d*",
@@ -140,7 +139,7 @@ public class TestNNStorageRetentionFunctional {
       assertGlobEquals(cd0, "edits_.*",
           getInProgressEditsFileName(9));
     } finally {
-      FileUtil.chmod(cd0.getAbsolutePath(), "755");
+      FileUtil.setExecutable(sd0, true);
 
       LOG.info("Shutting down...");
       if (cluster != null) {

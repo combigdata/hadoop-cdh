@@ -203,8 +203,7 @@ public class QJournalProtocolServerSideTranslatorPB implements QJournalProtocolP
       return impl.getEditLogManifest(
           request.getJid().getIdentifier(),
           request.getSinceTxId(),
-          request.getForReading(),
-          request.getInProgressOk());
+          request.getForReading());
     } catch (IOException e) {
       throw new ServiceException(e);
     }

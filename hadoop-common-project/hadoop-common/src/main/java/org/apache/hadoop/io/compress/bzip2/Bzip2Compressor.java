@@ -298,6 +298,4 @@ public class Bzip2Compressor implements Compressor {
   private native static long getBytesRead(long strm);
   private native static long getBytesWritten(long strm);
   private native static void end(long strm);
-
-  public native static String getLibraryName();
 }

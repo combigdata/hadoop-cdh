@@ -19,6 +19,9 @@
 package org.apache.hadoop.yarn.server.nodemanager;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -26,36 +29,32 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.http.HttpConfig;
-import org.apache.hadoop.http.HttpConfig.Policy;
 import org.apache.hadoop.metrics2.lib.DefaultMetricsSystem;
 import org.apache.hadoop.security.SecurityUtil;
-import org.apache.hadoop.service.CompositeService;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.ShutdownHookManager;
 import org.apache.hadoop.util.StringUtils;
+import org.apache.hadoop.yarn.YarnRuntimeException;
 import org.apache.hadoop.yarn.YarnUncaughtExceptionHandler;
-import org.apache.hadoop.yarn.api.ContainerManagementProtocol;
+import org.apache.hadoop.yarn.api.ContainerManager;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
+import org.apache.hadoop.yarn.api.records.NodeHealthStatus;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.event.AsyncDispatcher;
 import org.apache.hadoop.yarn.event.Dispatcher;
 import org.apache.hadoop.yarn.event.EventHandler;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
-import org.apache.hadoop.yarn.server.api.records.NodeHealthStatus;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.ContainerManagerImpl;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.application.Application;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.Container;
 import org.apache.hadoop.yarn.server.nodemanager.metrics.NodeManagerMetrics;
 import org.apache.hadoop.yarn.server.nodemanager.security.NMContainerTokenSecretManager;
-import org.apache.hadoop.yarn.server.nodemanager.security.NMTokenSecretManagerInNM;
 import org.apache.hadoop.yarn.server.nodemanager.webapp.WebServer;
 import org.apache.hadoop.yarn.server.security.ApplicationACLsManager;
+import org.apache.hadoop.yarn.service.CompositeService;
 
 import com.google.common.annotations.VisibleForTesting;
 
@@ -66,6 +65,11 @@ public class NodeManager extends CompositeService
    * Priority of the NodeManager shutdown hook.
    */
   public static final int SHUTDOWN_HOOK_PRIORITY = 30;
+  
+  /**
+   * Extra duration to wait for containers to be killed on shutdown.
+   */
+  private static final int SHUTDOWN_CLEANUP_SLOP_MS = 1000;
 
   private static final Log LOG = LogFactory.getLog(NodeManager.class);
   protected final NodeManagerMetrics metrics = NodeManagerMetrics.create();
@@ -77,6 +81,8 @@ public class NodeManager extends CompositeService
   private ContainerManagerImpl containerManager;
   private NodeStatusUpdater nodeStatusUpdater;
   private static CompositeServiceShutdownHook nodeManagerShutdownHook; 
+  
+  private long waitForContainersOnShutdownMillis;
   
   private AtomicBoolean isStopping = new AtomicBoolean(false);
   
@@ -112,10 +118,8 @@ public class NodeManager extends CompositeService
     return new DeletionService(exec);
   }
 
-  protected NMContext createNMContext(
-      NMContainerTokenSecretManager containerTokenSecretManager,
-      NMTokenSecretManagerInNM nmTokenSecretManager) {
-    return new NMContext(containerTokenSecretManager, nmTokenSecretManager);
+  protected NMContext createNMContext(NMContainerTokenSecretManager containerTokenSecretManager) {
+    return new NMContext(containerTokenSecretManager);
   }
 
   protected void doSecureLogin() throws IOException {
@@ -124,18 +128,14 @@ public class NodeManager extends CompositeService
   }
 
   @Override
-  protected void serviceInit(Configuration conf) throws Exception {
+  public void init(Configuration conf) {
 
     conf.setBoolean(Dispatcher.DISPATCHER_EXIT_ON_ERROR_KEY, true);
 
     NMContainerTokenSecretManager containerTokenSecretManager =
         new NMContainerTokenSecretManager(conf);
 
-    NMTokenSecretManagerInNM nmTokenSecretManager =
-        new NMTokenSecretManagerInNM();
-    
-    this.context =
-        createNMContext(containerTokenSecretManager, nmTokenSecretManager);
+    this.context = createNMContext(containerTokenSecretManager);
 
     this.aclsManager = new ApplicationACLsManager(conf);
 
@@ -185,40 +185,36 @@ public class NodeManager extends CompositeService
     // so that we make sure everything is up before registering with RM. 
     addService(nodeStatusUpdater);
     
-    super.serviceInit(conf);
+    waitForContainersOnShutdownMillis =
+        conf.getLong(YarnConfiguration.NM_SLEEP_DELAY_BEFORE_SIGKILL_MS,
+            YarnConfiguration.DEFAULT_NM_SLEEP_DELAY_BEFORE_SIGKILL_MS) + 
+        conf.getLong(YarnConfiguration.NM_PROCESS_KILL_WAIT_MS,
+            YarnConfiguration.DEFAULT_NM_PROCESS_KILL_WAIT_MS) +
+        SHUTDOWN_CLEANUP_SLOP_MS;
+    
+    super.init(conf);
     // TODO add local dirs to del
   }
 
   @Override
-  protected void serviceStart() throws Exception {
+  public void start() {
     try {
       doSecureLogin();
     } catch (IOException e) {
       throw new YarnRuntimeException("Failed NodeManager login", e);
     }
-    super.serviceStart();
+    super.start();
   }
 
   @Override
-  protected void serviceStop() throws Exception {
+  public void stop() {
     if (isStopping.getAndSet(true)) {
       return;
     }
-    super.serviceStop();
+
+    cleanupContainers(NodeManagerEventType.SHUTDOWN);
+    super.stop();
     DefaultMetricsSystem.shutdown();
-  }
-
-  public String getName() {
-    return "NodeManager";
-  }
-
-  protected void shutDown() {
-    new Thread() {
-      @Override
-      public void run() {
-        NodeManager.this.stop();
-      }
-    }.start();
   }
 
   protected void resyncWithRM() {
@@ -228,11 +224,65 @@ public class NodeManager extends CompositeService
       public void run() {
         LOG.info("Notifying ContainerManager to block new container-requests");
         containerManager.setBlockNewContainerRequests(true);
-        LOG.info("Cleaning up running containers on resync");
-        containerManager.cleanupContainersOnNMResync();
+        cleanupContainers(NodeManagerEventType.RESYNC);
         ((NodeStatusUpdaterImpl) nodeStatusUpdater ).rebootNodeStatusUpdater();
       }
     }.start();
+  }
+
+  @SuppressWarnings("unchecked")
+  protected void cleanupContainers(NodeManagerEventType eventType) {
+    Map<ContainerId, Container> containers = context.getContainers();
+    if (containers.isEmpty()) {
+      return;
+    }
+    LOG.info("Containers still running on " + eventType + " : "
+        + containers.keySet());
+    
+    List<ContainerId> containerIds =
+        new ArrayList<ContainerId>(containers.keySet());
+    dispatcher.getEventHandler().handle(
+        new CMgrCompletedContainersEvent(containerIds, 
+            CMgrCompletedContainersEvent.Reason.ON_SHUTDOWN));
+    
+    LOG.info("Waiting for containers to be killed");
+    
+    switch (eventType) {
+    case SHUTDOWN:
+      long waitStartTime = System.currentTimeMillis();
+      while (!containers.isEmpty()
+          && System.currentTimeMillis() - waitStartTime < waitForContainersOnShutdownMillis) {
+        try {
+          Thread.sleep(1000);
+        } catch (InterruptedException ex) {
+          LOG.warn("Interrupted while sleeping on container kill on shutdown",
+            ex);
+        }
+      }
+      break;
+    case RESYNC:
+      while (!containers.isEmpty()) {
+        try {
+          Thread.sleep(1000);
+          //to remove done containers from the map
+          nodeStatusUpdater.getNodeStatusAndUpdateContainersInContext();
+        } catch (InterruptedException ex) {
+          LOG.warn("Interrupted while sleeping on container kill on resync",
+            ex);
+        }
+      }
+      break;
+    default:
+      LOG.warn("Invalid eventType: " + eventType);
+    }
+
+    // All containers killed
+    if (containers.isEmpty()) {
+      LOG.info("All containers in DONE state");
+    } else {
+      LOG.info("Done waiting for containers to be killed. Still alive: " + 
+          containers.keySet());
+    }
   }
 
   public static class NMContext implements Context {
@@ -244,16 +294,13 @@ public class NodeManager extends CompositeService
         new ConcurrentSkipListMap<ContainerId, Container>();
 
     private final NMContainerTokenSecretManager containerTokenSecretManager;
-    private final NMTokenSecretManagerInNM nmTokenSecretManager;
-    private ContainerManagementProtocol containerManager;
+    private ContainerManager containerManager;
     private WebServer webServer;
     private final NodeHealthStatus nodeHealthStatus = RecordFactoryProvider
         .getRecordFactory(null).newRecordInstance(NodeHealthStatus.class);
 
-    public NMContext(NMContainerTokenSecretManager containerTokenSecretManager,
-        NMTokenSecretManagerInNM nmTokenSecretManager) {
+    public NMContext(NMContainerTokenSecretManager containerTokenSecretManager) {
       this.containerTokenSecretManager = containerTokenSecretManager;
-      this.nmTokenSecretManager = nmTokenSecretManager;
       this.nodeHealthStatus.setIsNodeHealthy(true);
       this.nodeHealthStatus.setHealthReport("Healthy");
       this.nodeHealthStatus.setLastHealthReportTime(System.currentTimeMillis());
@@ -286,23 +333,17 @@ public class NodeManager extends CompositeService
     public NMContainerTokenSecretManager getContainerTokenSecretManager() {
       return this.containerTokenSecretManager;
     }
-    
-    @Override
-    public NMTokenSecretManagerInNM getNMTokenSecretManager() {
-      return this.nmTokenSecretManager;
-    }
-    
     @Override
     public NodeHealthStatus getNodeHealthStatus() {
       return this.nodeHealthStatus;
     }
 
     @Override
-    public ContainerManagementProtocol getContainerManager() {
+    public ContainerManager getContainerManager() {
       return this.containerManager;
     }
 
-    public void setContainerManager(ContainerManagementProtocol containerManager) {
+    public void setContainerManager(ContainerManager containerManager) {
       this.containerManager = containerManager;
     }
 
@@ -347,7 +388,7 @@ public class NodeManager extends CompositeService
   public void handle(NodeManagerEvent event) {
     switch (event.getType()) {
     case SHUTDOWN:
-      shutDown();
+      stop();
       break;
     case RESYNC:
       resyncWithRM();
@@ -373,7 +414,7 @@ public class NodeManager extends CompositeService
   }
 
   @VisibleForTesting
-  public Context getNMContext() {
+  Context getNMContext() {
     return this.context;
   }
 
@@ -382,19 +423,6 @@ public class NodeManager extends CompositeService
     StringUtils.startupShutdownMessage(NodeManager.class, args, LOG);
     NodeManager nodeManager = new NodeManager();
     Configuration conf = new YarnConfiguration();
-    setHttpPolicy(conf);
     nodeManager.initAndStartNodeManager(conf, false);
-  }
-  
-  private static void setHttpPolicy(Configuration conf) {
-    HttpConfig.setPolicy(Policy.fromString(conf.get(
-      YarnConfiguration.YARN_HTTP_POLICY_KEY,
-      YarnConfiguration.YARN_HTTP_POLICY_DEFAULT)));
-  }
-
-  @VisibleForTesting
-  @Private
-  public NodeStatusUpdater getNodeStatusUpdater() {
-    return nodeStatusUpdater;
   }
 }

@@ -47,7 +47,6 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
-import org.apache.hadoop.hdfs.DFSTestUtil;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants.SafeModeAction;
@@ -174,7 +173,7 @@ public class TestOfflineImageViewer {
     File outputFile = new File(ROOT, "/basicCheckOutput");
     
     try {
-      DFSTestUtil.copyFile(originalFsimage, testFile);
+      copyFile(originalFsimage, testFile);
       
       ImageVisitor v = new LsImageVisitor(outputFile.getPath(), true);
       OfflineImageViewer oiv = new OfflineImageViewer(testFile.getPath(), v, false);
@@ -367,6 +366,25 @@ public class TestOfflineImageViewer {
       if(out != null) out.close();
     }
   }
+  
+  // Copy one file's contents into the other
+  private void copyFile(File src, File dest) throws IOException {
+    InputStream in = null;
+    OutputStream out = null;
+    
+    try {
+      in = new FileInputStream(src);
+      out = new FileOutputStream(dest);
+
+      byte [] b = new byte[1024];
+      while( in.read(b)  > 0 ) {
+        out.write(b);
+      }
+    } finally {
+      if(in != null) in.close();
+      if(out != null) out.close();
+    }
+  }
 
   @Test
   public void outputOfFileDistributionVisitor() throws IOException {
@@ -376,7 +394,7 @@ public class TestOfflineImageViewer {
     int totalFiles = 0;
     BufferedReader reader = null;
     try {
-      DFSTestUtil.copyFile(originalFsimage, testFile);
+      copyFile(originalFsimage, testFile);
       ImageVisitor v = new FileDistributionVisitor(outputFile.getPath(), 0, 0);
       OfflineImageViewer oiv = 
         new OfflineImageViewer(testFile.getPath(), v, false);
@@ -448,7 +466,7 @@ public class TestOfflineImageViewer {
     File testFile = new File(ROOT, "/basicCheck");
 
     try {
-      DFSTestUtil.copyFile(originalFsimage, testFile);
+      copyFile(originalFsimage, testFile);
       TestImageVisitor v = new TestImageVisitor();
       OfflineImageViewer oiv = new OfflineImageViewer(testFile.getPath(), v, true);
       oiv.go();

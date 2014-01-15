@@ -26,7 +26,6 @@ import java.security.PrivilegedExceptionAction;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
@@ -66,19 +65,17 @@ import org.apache.hadoop.mapreduce.v2.util.MRApps;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
+import org.apache.hadoop.yarn.YarnRuntimeException;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.exceptions.YarnException;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.ipc.YarnRPC;
-import org.apache.hadoop.yarn.security.client.ClientToAMTokenIdentifier;
-import org.apache.hadoop.yarn.util.ConverterUtils;
-
-import com.google.common.annotations.VisibleForTesting;
+import org.apache.hadoop.yarn.security.client.ClientTokenIdentifier;
+import org.apache.hadoop.yarn.util.ProtoUtils;
 
 public class ClientServiceDelegate {
   private static final Log LOG = LogFactory.getLog(ClientServiceDelegate.class);
@@ -96,8 +93,7 @@ public class ClientServiceDelegate {
   private RecordFactory recordFactory = RecordFactoryProvider.getRecordFactory(null);
   private static String UNKNOWN_USER = "Unknown User";
   private String trackingUrl;
-  private AtomicBoolean usingAMProxy = new AtomicBoolean(false);
-  private int maxClientRetry;
+
   private boolean amAclDisabledStatusLogged = false;
 
   public ClientServiceDelegate(Configuration conf, ResourceMgrDelegate rm,
@@ -184,10 +180,9 @@ public class ClientServiceDelegate {
           serviceAddr = NetUtils.createSocketAddrForHost(
               application.getHost(), application.getRpcPort());
           if (UserGroupInformation.isSecurityEnabled()) {
-            org.apache.hadoop.yarn.api.records.Token clientToAMToken =
-                application.getClientToAMToken();
-            Token<ClientToAMTokenIdentifier> token =
-                ConverterUtils.convertFromYarn(clientToAMToken, serviceAddr);
+            org.apache.hadoop.yarn.api.records.Token clientToken = application.getClientToken();
+            Token<ClientTokenIdentifier> token =
+                ProtoUtils.convertFromProtoFormat(clientToken, serviceAddr);
             newUgi.addToken(token);
           }
           LOG.debug("Connecting to " + serviceAddr);
@@ -291,7 +286,6 @@ public class ClientServiceDelegate {
     MRClientProtocol proxy = 
          (MRClientProtocol) rpc.getProxy(MRClientProtocol.class,
             serviceAddr, conf);
-    usingAMProxy.set(true);
     LOG.trace("Connected to ApplicationMaster at: " + serviceAddr);
     return proxy;
   }
@@ -306,15 +300,13 @@ public class ClientServiceDelegate {
     } catch (NoSuchMethodException e) {
       throw new YarnRuntimeException("Method name mismatch", e);
     }
-    maxClientRetry = this.conf.getInt(
+    int maxRetries = this.conf.getInt(
         MRJobConfig.MR_CLIENT_MAX_RETRIES,
         MRJobConfig.DEFAULT_MR_CLIENT_MAX_RETRIES);
     IOException lastException = null;
-    while (maxClientRetry > 0) {
-      MRClientProtocol MRClientProxy = null;
+    while (maxRetries > 0) {
       try {
-        MRClientProxy = getProxy();
-        return methodOb.invoke(MRClientProxy, args);
+        return methodOb.invoke(getProxy(), args);
       } catch (InvocationTargetException e) {
         // Will not throw out YarnException anymore
         LOG.debug("Failed to contact AM/History for job " + jobId + 
@@ -322,42 +314,20 @@ public class ClientServiceDelegate {
         // Force reconnection by setting the proxy to null.
         realProxy = null;
         // HS/AMS shut down
-        // if it's AM shut down, do not decrement maxClientRetry as we wait for
-        // AM to be restarted.
-        if (!usingAMProxy.get()) {
-          maxClientRetry--;
-        }
-        usingAMProxy.set(false);
+        maxRetries--;
         lastException = new IOException(e.getTargetException());
-        try {
-          Thread.sleep(100);
-        } catch (InterruptedException ie) {
-          LOG.warn("ClientServiceDelegate invoke call interrupted", ie);
-          throw new YarnRuntimeException(ie);
-        }
+        
       } catch (Exception e) {
         LOG.debug("Failed to contact AM/History for job " + jobId
             + "  Will retry..", e);
         // Force reconnection by setting the proxy to null.
         realProxy = null;
         // RM shutdown
-        maxClientRetry--;
-        lastException = new IOException(e.getMessage());
-        try {
-          Thread.sleep(100);
-        } catch (InterruptedException ie) {
-          LOG.warn("ClientServiceDelegate invoke call interrupted", ie);
-          throw new YarnRuntimeException(ie);
-        }
+        maxRetries--;
+        lastException = new IOException(e.getMessage());     
       }
     }
     throw lastException;
-  }
-
-  // Only for testing
-  @VisibleForTesting
-  public int getMaxClientRetry() {
-    return this.maxClientRetry;
   }
 
   public org.apache.hadoop.mapreduce.Counters getJobCounters(JobID arg0) throws IOException,

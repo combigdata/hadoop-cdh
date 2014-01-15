@@ -42,7 +42,6 @@ import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.event.AsyncDispatcher;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.server.nodemanager.Context;
@@ -50,7 +49,6 @@ import org.apache.hadoop.yarn.server.nodemanager.LocalDirsHandlerService;
 import org.apache.hadoop.yarn.server.nodemanager.NodeHealthCheckerService;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.application.Application;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.Container;
-import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.ContainerState;
 import org.apache.hadoop.yarn.server.nodemanager.webapp.ContainerLogsPage.ContainersLogsBlock;
 import org.apache.hadoop.yarn.server.security.ApplicationACLsManager;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
@@ -155,14 +153,8 @@ public class TestContainerLogsPage {
           new ConcurrentHashMap<ApplicationId, Application>();
       appMap.put(appId, app);
       when(context.getApplications()).thenReturn(appMap);
-      ConcurrentHashMap<ContainerId, Container> containers =
-          new ConcurrentHashMap<ContainerId, Container>();
-      when(context.getContainers()).thenReturn(containers);
-
-      MockContainer container = new MockContainer(appAttemptId,
-        new AsyncDispatcher(), conf, user, appId, 1);
-      container.setState(ContainerState.RUNNING);
-      context.getContainers().put(container1, container);
+      when(context.getContainers()).thenReturn(
+        new ConcurrentHashMap<ContainerId, Container>());
 
       ContainersLogsBlock cLogsBlock =
           new ContainersLogsBlock(conf, context, aclsManager, dirsHandler);

@@ -17,7 +17,7 @@
 */
 package org.apache.hadoop.mapreduce.v2.app;
 
-import org.apache.hadoop.yarn.util.Clock;
+import org.apache.hadoop.yarn.Clock;
 
 public class ControlledClock implements Clock {
   private long time = -1;

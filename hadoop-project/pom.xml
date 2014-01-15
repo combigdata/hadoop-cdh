@@ -20,11 +20,11 @@
   <parent>
     <groupId>org.apache.hadoop</groupId>
     <artifactId>hadoop-main</artifactId>
-    <version>2.2.0</version>
+    <version>2.2.0-SNAPSHOT</version>
   </parent>
   <groupId>org.apache.hadoop</groupId>
   <artifactId>hadoop-project</artifactId>
-  <version>2.2.0</version>
+  <version>2.2.0-SNAPSHOT</version>
   <description>Apache Hadoop Project POM</description>
   <name>Apache Hadoop Project POM</name>
   <packaging>pom</packaging>
@@ -57,18 +57,6 @@
     <!-- Used for building path to native library loaded by tests.  Projects -->
     <!-- at different nesting levels in the source tree may need to override. -->
     <hadoop.common.build.dir>${basedir}/../../hadoop-common-project/hadoop-common/target</hadoop.common.build.dir>
-    <java.security.egd>file:///dev/urandom</java.security.egd>
-
-    <!-- avro version -->
-    <avro.version>1.7.4</avro.version>
-
-    <!-- jersey version -->
-    <jersey.version>1.9</jersey.version>
-
-    <!-- ProtocolBuffer version, used to verify the protoc version and -->
-    <!-- define the protobuf JAR version                               -->
-    <protobuf.version>2.5.0</protobuf.version>
-    <protoc.path>${env.HADOOP_PROTOC_PATH}</protoc.path>
   </properties>
 
   <dependencyManagement>
@@ -102,11 +90,6 @@
       <dependency>
         <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-auth</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.hadoop</groupId>
-        <artifactId>hadoop-nfs</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
@@ -315,11 +298,6 @@
         <version>2.1</version>
       </dependency>
       <dependency>
-        <groupId>org.apache.commons</groupId>
-        <artifactId>commons-compress</artifactId>
-        <version>1.4.1</version>
-      </dependency>
-      <dependency>
         <groupId>xmlenc</groupId>
         <artifactId>xmlenc</artifactId>
         <version>0.52</version>
@@ -362,23 +340,6 @@
       </dependency>
 
       <dependency>
-        <groupId>org.glassfish</groupId>
-        <artifactId>javax.servlet</artifactId>
-        <version>3.1</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.codehaus.plexus</groupId>
-        <artifactId>plexus-utils</artifactId>
-        <version>2.0.5</version>
-      </dependency>
-      <dependency>
-        <groupId>org.codehaus.plexus</groupId>
-        <artifactId>plexus-component-annotations</artifactId>
-        <version>1.5.5</version>
-      </dependency>
-
-      <dependency>
         <groupId>asm</groupId>
         <artifactId>asm</artifactId>
         <version>3.2</version>
@@ -386,12 +347,12 @@
       <dependency>
         <groupId>com.sun.jersey</groupId>
         <artifactId>jersey-core</artifactId>
-        <version>${jersey.version}</version>
+        <version>1.8</version>
       </dependency>
       <dependency>
         <groupId>com.sun.jersey</groupId>
         <artifactId>jersey-json</artifactId>
-        <version>${jersey.version}</version>
+        <version>1.8</version>
         <exclusions>
           <exclusion>
             <groupId>javax.xml.stream</groupId>
@@ -402,7 +363,7 @@
       <dependency>
         <groupId>com.sun.jersey</groupId>
         <artifactId>jersey-server</artifactId>
-        <version>${jersey.version}</version>
+        <version>1.8</version>
       </dependency>
 
       <dependency>
@@ -420,25 +381,25 @@
       <dependency>
         <groupId>com.sun.jersey.contribs</groupId>
         <artifactId>jersey-guice</artifactId>
-        <version>${jersey.version}</version>
+        <version>1.8</version>
       </dependency>
 
       <dependency>
         <groupId>com.sun.jersey.jersey-test-framework</groupId>
         <artifactId>jersey-test-framework-core</artifactId>
-        <version>${jersey.version}</version>
+        <version>1.8</version>
         <scope>test</scope>
       </dependency>
       <dependency>
         <groupId>com.sun.jersey.jersey-test-framework</groupId>
         <artifactId>jersey-test-framework-grizzly2</artifactId>
-        <version>${jersey.version}</version>
+        <version>1.8</version>
       </dependency>
 
       <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty</artifactId>
-        <version>3.6.2.Final</version>
+        <version>3.5.11.Final</version>
       </dependency>
 
       <dependency>
@@ -581,12 +542,12 @@
       <dependency>
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-api</artifactId>
-        <version>1.7.5</version>
+        <version>1.6.1</version>
       </dependency>
       <dependency>
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-log4j12</artifactId>
-        <version>1.7.5</version>
+        <version>1.6.1</version>
       </dependency>
       <dependency>
         <groupId>org.eclipse.jdt</groupId>
@@ -626,7 +587,7 @@
       <dependency>
         <groupId>org.apache.avro</groupId>
         <artifactId>avro</artifactId>
-        <version>${avro.version}</version>
+        <version>1.5.3</version>
       </dependency>
       <dependency>
         <groupId>net.sf.kosmosfs</groupId>
@@ -641,7 +602,7 @@
       <dependency>
         <groupId>com.google.protobuf</groupId>
         <artifactId>protobuf-java</artifactId>
-        <version>${protobuf.version}</version>
+        <version>2.4.0a</version>
       </dependency>
       <dependency>
         <groupId>commons-daemon</groupId>
@@ -667,7 +628,7 @@
       <dependency>
         <groupId>org.apache.zookeeper</groupId>
         <artifactId>zookeeper</artifactId>
-        <version>3.4.5</version>
+        <version>3.4.2</version>
         <exclusions>
           <exclusion>
             <!-- otherwise seems to drag in junit 3.8.1 via jline -->
@@ -681,23 +642,6 @@
           <exclusion>
             <groupId>com.sun.jmx</groupId>
             <artifactId>jmxri</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.jboss.netty</groupId>
-            <artifactId>netty</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.zookeeper</groupId>
-        <artifactId>zookeeper</artifactId>
-        <version>3.4.5</version>
-        <type>test-jar</type>
-        <scope>test</scope>
-        <exclusions>
-          <exclusion>
-            <groupId>org.jboss.netty</groupId>
-            <artifactId>netty</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -734,7 +678,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-dependency-plugin</artifactId>
-          <version>2.2</version>
+          <version>2.1</version>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
@@ -794,7 +738,7 @@
         <plugin>
           <groupId>org.apache.avro</groupId>
           <artifactId>avro-maven-plugin</artifactId>
-          <version>${avro.version}</version>
+          <version>1.5.3</version>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo.jspc</groupId>
@@ -919,7 +863,7 @@
 
             <java.net.preferIPv4Stack>true</java.net.preferIPv4Stack>
             <java.security.krb5.conf>${basedir}/src/test/resources/krb5.conf</java.security.krb5.conf>
-            <java.security.egd>${java.security.egd}</java.security.egd>
+            <java.security.egd>file:///dev/urandom</java.security.egd>
             <require.test.libhadoop>${require.test.libhadoop}</require.test.libhadoop>
           </systemPropertyVariables>
           <includes>
@@ -939,26 +883,6 @@
           <outputDirectory>${project.reporting.outputDirectory}</outputDirectory>
           <includeReports>false</includeReports>
         </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-enforcer-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>depcheck</id>
-            <configuration>
-              <rules>
-                <DependencyConvergence>
-                  <uniqueVersions>true</uniqueVersions> 
-                </DependencyConvergence>
-              </rules>
-            </configuration>
-            <goals>
-              <goal>enforce</goal>
-            </goals>
-            <phase>verify</phase>
-          </execution>
-        </executions>
       </plugin>
     </plugins>
   </build>
@@ -993,14 +917,6 @@
           <family>Windows</family>
         </os>
       </activation>
-      <properties>
-        <!-- We must use this exact string for egd on Windows, because the -->
-        <!-- JVM will check for an exact string match on this.  If found, it -->
-        <!-- will use a native entropy provider.  This will not really -->
-        <!-- attempt to open a file at this path. -->
-        <java.security.egd>file:/dev/urandom</java.security.egd>
-        <bundle.snappy.in.bin>true</bundle.snappy.in.bin>
-      </properties>
       <build>
         <plugins>
           <plugin>
@@ -1009,7 +925,7 @@
             <configuration>
               <environmentVariables>
                 <!-- Specify where to look for the native DLL on Windows -->
-                <PATH>${env.PATH};${hadoop.common.build.dir}/bin;${snappy.lib}</PATH>
+                <PATH>${env.PATH};${hadoop.common.build.dir}/bin</PATH>
               </environmentVariables>
             </configuration>
           </plugin>

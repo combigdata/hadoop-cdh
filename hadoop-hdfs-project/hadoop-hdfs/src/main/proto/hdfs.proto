@@ -16,12 +16,6 @@
  * limitations under the License.
  */
 
-/**
- * These .proto interfaces are private and stable.
- * Please see http://wiki.apache.org/hadoop/Compatibility
- * for what changes are allowed for a *stable* .proto interface.
- */
-
 // This file contains protocol buffers that are used throughout HDFS -- i.e.
 // by the client, server, and data transfer protocols.
 
@@ -52,9 +46,8 @@ message DatanodeIDProto {
   required string hostName = 2;  // hostname
   required string storageID = 3; // unique storage id
   required uint32 xferPort = 4;  // data streaming port
-  required uint32 infoPort = 5;  // datanode http port
+  required uint32 infoPort = 5;  // info server port
   required uint32 ipcPort = 6;   // ipc server port
-  optional uint32 infoSecurePort = 7 [default = 0]; // datanode https port
 }
 
 /**
@@ -180,7 +173,6 @@ message HdfsFileStatusProto {
 
   // Optional field for fileId
   optional uint64 fileId = 13 [default = 0]; // default as an invalid id
-  optional int32 childrenNum = 14 [default = -1];
 } 
 
 /**

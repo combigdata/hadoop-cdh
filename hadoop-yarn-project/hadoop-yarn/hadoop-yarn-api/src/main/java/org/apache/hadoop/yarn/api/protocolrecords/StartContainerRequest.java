@@ -20,9 +20,8 @@ package org.apache.hadoop.yarn.api.protocolrecords;
 
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Stable;
-import org.apache.hadoop.yarn.api.ContainerManagementProtocol;
+import org.apache.hadoop.yarn.api.ContainerManager;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
-import org.apache.hadoop.yarn.api.records.NMToken;
 import org.apache.hadoop.yarn.api.records.Token;
 import org.apache.hadoop.yarn.util.Records;
 
@@ -36,13 +35,12 @@ import org.apache.hadoop.yarn.util.Records;
  * necessary binaries/jar/shared-objects etc. via the 
  * {@link ContainerLaunchContext}.</p>
  *
- * @see ContainerManagementProtocol#startContainers(StartContainersRequest)
+ * @see ContainerManager#startContainer(StartContainerRequest)
  */
 @Public
 @Stable
 public abstract class StartContainerRequest {
-  @Public
-  @Stable
+
   public static StartContainerRequest newInstance(
       ContainerLaunchContext context, Token container) {
     StartContainerRequest request =
@@ -73,16 +71,6 @@ public abstract class StartContainerRequest {
   @Stable
   public abstract void setContainerLaunchContext(ContainerLaunchContext context);
 
-  /**
-   * <p>Get the container token to be used for authorization during starting
-   * container.</p>
-   * <p>Note: {@link NMToken} will be used for authenticating communication with </code>
-   * NodeManager</code>.</p>
-   * @return the container token to be used for authorization during starting
-   * container.
-   * @see NMToken
-   * @see ContainerManagementProtocol#startContainers(StartContainersRequest)
-   */
   @Public
   @Stable
   public abstract Token getContainerToken();

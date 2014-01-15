@@ -25,7 +25,6 @@ import java.util.regex.Pattern;
 
 import org.apache.avro.reflect.Stringable;
 import org.apache.commons.lang.StringUtils;
-import org.apache.hadoop.HadoopIllegalArgumentException;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
@@ -58,32 +57,6 @@ public class Path implements Comparable {
 
   private URI uri;                                // a hierarchical uri
 
-  /**
-   * Pathnames with scheme and relative path are illegal.
-   * @param path to be checked
-   */
-  void checkNotSchemeWithRelative() {
-    if (toUri().isAbsolute() && !isUriPathAbsolute()) {
-      throw new HadoopIllegalArgumentException(
-          "Unsupported name: has scheme but relative path-part");
-    }
-  }
-
-  void checkNotRelative() {
-    if (!isAbsolute() && toUri().getScheme() == null) {
-      throw new HadoopIllegalArgumentException("Path is relative");
-    }
-  }
-
-  public static Path getPathWithoutSchemeAndAuthority(Path path) {
-    // This code depends on Path.toString() to remove the leading slash before
-    // the drive specification on Windows.
-    Path newPath = path.isUriPathAbsolute() ?
-      new Path(null, null, path.toUri().getPath()) :
-      path;
-    return newPath;
-  }
-
   /** Resolve a child path against a parent path. */
   public Path(String parent, String child) {
     this(new Path(parent), new Path(child));
@@ -104,7 +77,7 @@ public class Path implements Comparable {
     // Add a slash to parent's path so resolution is compatible with URI's
     URI parentUri = parent.uri;
     String parentPath = parentUri.getPath();
-    if (!(parentPath.equals("/") || parentPath.isEmpty())) {
+    if (!(parentPath.equals("/") || parentPath.equals(""))) {
       try {
         parentUri = new URI(parentUri.getScheme(), parentUri.getAuthority(),
                       parentUri.getPath()+"/", null, parentUri.getFragment());
@@ -182,18 +155,6 @@ public class Path implements Comparable {
   /** Construct a Path from components. */
   public Path(String scheme, String authority, String path) {
     checkPathArg( path );
-
-    // add a slash in front of paths with Windows drive letters
-    if (hasWindowsDrive(path) && path.charAt(0) != '/') {
-      path = "/" + path;
-    }
-
-    // add "./" in front of Linux relative paths so that a path containing
-    // a colon e.q. "a:b" will not be interpreted as scheme "a".
-    if (!WINDOWS && path.charAt(0) != '/') {
-      path = "./" + path;
-    }
-
     initialize(scheme, authority, path, null);
   }
 

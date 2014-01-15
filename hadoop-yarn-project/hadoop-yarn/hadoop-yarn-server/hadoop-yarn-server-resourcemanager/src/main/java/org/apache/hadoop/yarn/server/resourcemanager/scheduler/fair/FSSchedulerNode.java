@@ -36,10 +36,10 @@ import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
+import org.apache.hadoop.yarn.server.resourcemanager.resource.Resources;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerNode;
-import org.apache.hadoop.yarn.util.resource.Resources;
 
 @Private
 @Unstable
@@ -52,7 +52,6 @@ public class FSSchedulerNode extends SchedulerNode {
 
   private Resource availableResource;
   private Resource usedResource = recordFactory.newRecordInstance(Resource.class);
-  private Resource totalResourceCapability;
 
   private volatile int numContainers;
 
@@ -64,19 +63,10 @@ public class FSSchedulerNode extends SchedulerNode {
     new HashMap<ContainerId, RMContainer>();
   
   private final RMNode rmNode;
-  private final String nodeName;
 
-  public FSSchedulerNode(RMNode node, boolean usePortForNodeName) {
+  public FSSchedulerNode(RMNode node) {
     this.rmNode = node;
     this.availableResource = Resources.clone(node.getTotalCapability());
-    totalResourceCapability =
-        Resource.newInstance(node.getTotalCapability().getMemory(), node
-            .getTotalCapability().getVirtualCores());
-    if (usePortForNodeName) {
-      nodeName = rmNode.getHostName() + ":" + node.getNodeID().getPort();
-    } else {
-      nodeName = rmNode.getHostName();
-    }
   }
 
   public RMNode getRMNode() {
@@ -92,8 +82,8 @@ public class FSSchedulerNode extends SchedulerNode {
   }
 
   @Override
-  public String getNodeName() {
-    return nodeName;
+  public String getHostName() {
+    return rmNode.getHostName();
   }
 
   @Override
@@ -175,11 +165,6 @@ public class FSSchedulerNode extends SchedulerNode {
     }
     Resources.addTo(availableResource, resource);
     Resources.subtractFrom(usedResource, resource);
-  }
-
-  @Override
-  public Resource getTotalResource() {
-    return this.totalResourceCapability;
   }
 
   private synchronized void deductAvailableResource(Resource resource) {

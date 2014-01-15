@@ -18,8 +18,10 @@
 
 package org.apache.hadoop.mapred;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.HashSet;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -47,11 +49,11 @@ import org.apache.hadoop.mapreduce.v2.app.job.event.TaskAttemptEventType;
 import org.apache.hadoop.mapreduce.v2.app.launcher.ContainerLauncher;
 import org.apache.hadoop.mapreduce.v2.app.launcher.ContainerLauncherEvent;
 import org.apache.hadoop.mapreduce.v2.app.launcher.ContainerRemoteLaunchEvent;
-import org.apache.hadoop.service.AbstractService;
 import org.apache.hadoop.util.StringUtils;
+import org.apache.hadoop.yarn.YarnRuntimeException;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
+import org.apache.hadoop.yarn.service.AbstractService;
 
 /**
  * Runs the container task locally in a thread.
@@ -111,17 +113,15 @@ public class LocalContainerLauncher extends AbstractService implements
     // after running (e.g., "localizeForTask()" or "localizeForMapTask()").
   }
 
-  public void serviceStart() throws Exception {
+  public void start() {
     eventHandlingThread = new Thread(new SubtaskRunner(), "uber-SubtaskRunner");
     eventHandlingThread.start();
-    super.serviceStart();
+    super.start();
   }
 
-  public void serviceStop() throws Exception {
-    if (eventHandlingThread != null) {
-      eventHandlingThread.interrupt();
-    }
-    super.serviceStop();
+  public void stop() {
+    eventHandlingThread.interrupt();
+    super.stop();
   }
 
   @Override

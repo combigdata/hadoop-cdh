@@ -25,14 +25,13 @@ import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Evolving;
 import org.apache.hadoop.classification.InterfaceStability.Stable;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
-import org.apache.hadoop.yarn.api.ApplicationMasterProtocol;
-import org.apache.hadoop.yarn.api.records.AMCommand;
+import org.apache.hadoop.yarn.api.AMRMProtocol;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
-import org.apache.hadoop.yarn.api.records.NMToken;
 import org.apache.hadoop.yarn.api.records.NodeReport;
 import org.apache.hadoop.yarn.api.records.PreemptionMessage;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.Token;
 import org.apache.hadoop.yarn.util.Records;
 
 /**
@@ -43,10 +42,10 @@ import org.apache.hadoop.yarn.util.Records;
  *   <ul>
  *     <li>Response ID to track duplicate responses.</li>
  *     <li>
- *       An AMCommand sent by ResourceManager to let the <code>ApplicationMaster</code>
- *       take some actions (resync, shutdown etc.).
+ *       A reboot flag to let the <code>ApplicationMaster</code> know that its 
+ *       horribly out of sync and needs to reboot.</li>
  *     <li>A list of newly allocated {@link Container}.</li>
- *     <li>A list of completed {@link Container}s' statuses.</li>
+ *     <li>A list of completed {@link Container}.</li>
  *     <li>
  *       The available headroom for resources in the cluster for the
  *       application. 
@@ -57,19 +56,17 @@ import org.apache.hadoop.yarn.util.Records;
  *   </ul>
  * </p>
  * 
- * @see ApplicationMasterProtocol#allocate(AllocateRequest)
+ * @see AMRMProtocol#allocate(AllocateRequest)
  */
 @Public
 @Stable
 public abstract class AllocateResponse {
 
-  @Public
-  @Stable
   public static AllocateResponse newInstance(int responseId,
       List<ContainerStatus> completedContainers,
       List<Container> allocatedContainers, List<NodeReport> updatedNodes,
-      Resource availResources, AMCommand command, int numClusterNodes,
-      PreemptionMessage preempt, List<NMToken> nmTokens) {
+      Resource availResources, boolean resync, int numClusterNodes,
+      PreemptionMessage preempt) {
     AllocateResponse response = Records.newRecord(AllocateResponse.class);
     response.setNumClusterNodes(numClusterNodes);
     response.setResponseId(responseId);
@@ -77,28 +74,32 @@ public abstract class AllocateResponse {
     response.setAllocatedContainers(allocatedContainers);
     response.setUpdatedNodes(updatedNodes);
     response.setAvailableResources(availResources);
-    response.setAMCommand(command);
+    response.setResync(resync);
     response.setPreemptionMessage(preempt);
-    response.setNMTokens(nmTokens);
     return response;
   }
 
   /**
-   * If the <code>ResourceManager</code> needs the
-   * <code>ApplicationMaster</code> to take some action then it will send an
-   * AMCommand to the <code>ApplicationMaster</code>. See <code>AMCommand</code> 
-   * for details on commands and actions for them.
-   * @return <code>AMCommand</code> if the <code>ApplicationMaster</code> should
-   *         take action, <code>null</code> otherwise
-   * @see AMCommand
+   * Should the <code>ApplicationMaster</code> take action because of being 
+   * out-of-sync with the <code>ResourceManager</code> as deigned by
+   * {@link #getResponseId()}
+   * This can be due to application errors or because the ResourceManager 
+   * has restarted. The action to be taken by the <code>ApplicationMaster</code> 
+   * is to shutdown without unregistering with the <code>ResourceManager</code>. 
+   * The ResourceManager will start a new attempt. If the application is already 
+   * done when it gets the resync command, then it may choose to shutdown after 
+   * unregistering in which case the ResourceManager will not start a new attempt. 
+   *
+   * @return <code>true</code> if the <code>ApplicationMaster</code> should
+   *         take action, <code>false</code> otherwise
    */
   @Public
   @Stable
-  public abstract AMCommand getAMCommand();
+  public abstract boolean getResync();
 
   @Private
   @Unstable
-  public abstract void setAMCommand(AMCommand command);
+  public abstract void setResync(boolean value);
 
   /**
    * Get the <em>last response id</em>.
@@ -126,8 +127,8 @@ public abstract class AllocateResponse {
    * <code>ResourceManager</code>.
    * @param containers list of <em>newly allocated</em> <code>Container</code>
    */
-  @Private
-  @Unstable
+  @Public
+  @Stable
   public abstract void setAllocatedContainers(List<Container> containers);
 
   /**
@@ -162,7 +163,7 @@ public abstract class AllocateResponse {
    * @return The delta of updated nodes since the last response
    */
   @Public
-  @Stable
+  @Unstable
   public abstract  List<NodeReport> getUpdatedNodes();
 
   @Private
@@ -182,16 +183,16 @@ public abstract class AllocateResponse {
   public abstract void setNumClusterNodes(int numNodes);
 
   /**
-   * <p>Get the description of containers owned by the AM, but requested back by
+   * Get the description of containers owned by the AM, but requested back by
    * the cluster. Note that the RM may have an inconsistent view of the
    * resources owned by the AM. These messages are advisory, and the AM may
-   * elect to ignore them.<p>
+   * elect to ignore them.
    *
-   * <p>The message is a snapshot of the resources the RM wants back from the AM.
+   * The message is a snapshot of the resources the RM wants back from the AM.
    * While demand persists, the RM will repeat its request; applications should
-   * not interpret each message as a request for <em>additional<em>
+   * not interpret each message as a request for <emph>additional<emph>
    * resources on top of previous messages. Resources requested consistently
-   * over some duration may be forcibly killed by the RM.<p>
+   * over some duration may be forcibly killed by the RM.
    *
    * @return A specification of the resources to reclaim from this AM.
    */
@@ -202,23 +203,24 @@ public abstract class AllocateResponse {
   @Private
   @Unstable
   public abstract void setPreemptionMessage(PreemptionMessage request);
-
+  
+  @Public
+  @Stable
+  public abstract void setNMTokens(List<Token> nmTokens);
+  
   /**
-   * <p>Get the list of NMTokens required for communicating with NM. New NMTokens
-   * issued only if<p>
-   * <p>1) AM is receiving first container on underlying NodeManager.<br>
-   * OR<br>
+   * Get the list of NMTokens required for communicating with NM. New NMTokens
+   * issued only if
+   * 1) AM is receiving first container on underlying NodeManager.
+   * OR
    * 2) NMToken master key rolled over in ResourceManager and AM is getting new
-   * container on the same underlying NodeManager.<p>
-   * <p>AM will receive one NMToken per NM irrespective of the number of containers
+   * container on the same underlying NodeManager.
+   * AM will receive one NMToken per NM irrespective of the number of containers
    * issued on same NM. AM is expected to store these tokens until issued a
-   * new token for the same NM.<p>
+   * new token for the same NM.
    */
   @Public
   @Stable
-  public abstract List<NMToken> getNMTokens();
+  public abstract List<Token> getNMTokens();
 
-  @Private
-  @Unstable
-  public abstract void setNMTokens(List<NMToken> nmTokens);
 }

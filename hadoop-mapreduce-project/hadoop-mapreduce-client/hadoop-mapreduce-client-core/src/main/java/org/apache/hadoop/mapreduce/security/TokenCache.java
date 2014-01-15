@@ -159,14 +159,11 @@ public class TokenCache {
   
   /**
    * load job token from a file
-   * @deprecated Use {@link Credentials#readTokenStorageFile} instead,
-   * this method is included for compatibility against Hadoop-1.
    * @param conf
    * @throws IOException
    */
   @InterfaceAudience.Private
-  @Deprecated
-  public static Credentials loadTokens(String jobTokenFile, JobConf conf)
+  public static Credentials loadTokens(String jobTokenFile, JobConf conf) 
   throws IOException {
     Path localJobTokenFile = new Path ("file:///" + jobTokenFile);
 
@@ -183,13 +180,11 @@ public class TokenCache {
   
   /**
    * load job token from a file
-   * @deprecated Use {@link Credentials#readTokenStorageFile} instead,
-   * this method is included for compatibility against Hadoop-1.
+   * 
    * @param conf
    * @throws IOException
    */
   @InterfaceAudience.Private
-  @Deprecated
   public static Credentials loadTokens(String jobTokenFile, Configuration conf)
       throws IOException {
     return loadTokens(jobTokenFile, new JobConf(conf));
@@ -225,13 +220,10 @@ public class TokenCache {
   }
 
   /**
-   * @deprecated Use {@link Credentials#getToken(org.apache.hadoop.io.Text)}
-   * instead, this method is included for compatibility against Hadoop-1
+   * 
    * @param namenode
    * @return delegation token
    */
-  @InterfaceAudience.Private
-  @Deprecated
   public static
       Token<?> getDelegationToken(
           Credentials credentials, String namenode) {

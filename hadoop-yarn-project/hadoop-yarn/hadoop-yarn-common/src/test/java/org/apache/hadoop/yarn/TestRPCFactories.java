@@ -26,7 +26,7 @@ import junit.framework.Assert;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.ipc.Server;
 import org.apache.hadoop.net.NetUtils;
-import org.apache.hadoop.yarn.api.ApplicationMasterProtocol;
+import org.apache.hadoop.yarn.api.AMRMProtocol;
 import org.apache.hadoop.yarn.api.protocolrecords.AllocateRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.FinishApplicationMasterRequest;
@@ -34,7 +34,6 @@ import org.apache.hadoop.yarn.api.protocolrecords.FinishApplicationMasterRespons
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
 import org.apache.hadoop.yarn.exceptions.YarnException;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.factories.impl.pb.RpcClientFactoryPBImpl;
 import org.apache.hadoop.yarn.factories.impl.pb.RpcServerFactoryPBImpl;
 import org.junit.Test;
@@ -55,12 +54,12 @@ public class TestRPCFactories {
   private void testPbServerFactory() {
     InetSocketAddress addr = new InetSocketAddress(0);
     Configuration conf = new Configuration();
-    ApplicationMasterProtocol instance = new AMRMProtocolTestImpl();
+    AMRMProtocol instance = new AMRMProtocolTestImpl();
     Server server = null;
     try {
       server = 
         RpcServerFactoryPBImpl.get().getServer(
-            ApplicationMasterProtocol.class, instance, addr, conf, null, 1);
+            AMRMProtocol.class, instance, addr, conf, null, 1);
       server.start();
     } catch (YarnRuntimeException e) {
       e.printStackTrace();
@@ -77,19 +76,19 @@ public class TestRPCFactories {
     InetSocketAddress addr = new InetSocketAddress(0);
     System.err.println(addr.getHostName() + addr.getPort());
     Configuration conf = new Configuration();
-    ApplicationMasterProtocol instance = new AMRMProtocolTestImpl();
+    AMRMProtocol instance = new AMRMProtocolTestImpl();
     Server server = null;
     try {
       server = 
         RpcServerFactoryPBImpl.get().getServer(
-            ApplicationMasterProtocol.class, instance, addr, conf, null, 1);
+            AMRMProtocol.class, instance, addr, conf, null, 1);
       server.start();
       System.err.println(server.getListenerAddress());
       System.err.println(NetUtils.getConnectAddress(server));
 
-      ApplicationMasterProtocol amrmClient = null;
+      AMRMProtocol amrmClient = null;
       try {
-        amrmClient = (ApplicationMasterProtocol) RpcClientFactoryPBImpl.get().getClient(ApplicationMasterProtocol.class, 1, NetUtils.getConnectAddress(server), conf);
+        amrmClient = (AMRMProtocol) RpcClientFactoryPBImpl.get().getClient(AMRMProtocol.class, 1, NetUtils.getConnectAddress(server), conf);
       } catch (YarnRuntimeException e) {
         e.printStackTrace();
         Assert.fail("Failed to create client");
@@ -105,7 +104,7 @@ public class TestRPCFactories {
     }     
   }
 
-  public class AMRMProtocolTestImpl implements ApplicationMasterProtocol {
+  public class AMRMProtocolTestImpl implements AMRMProtocol {
 
     @Override
     public RegisterApplicationMasterResponse registerApplicationMaster(

@@ -62,9 +62,8 @@ public class TaskCompletionEvent
     super(eventId, taskId, idWithinJob, isMap, org.apache.hadoop.mapreduce.
           TaskCompletionEvent.Status.valueOf(status.name()), taskTrackerHttp);
   }
-
-  @Private
-  public static TaskCompletionEvent downgrade(
+  
+  static TaskCompletionEvent downgrade(
     org.apache.hadoop.mapreduce.TaskCompletionEvent event) {
     return new TaskCompletionEvent(event.getEventId(),
       TaskAttemptID.downgrade(event.getTaskAttemptId()),event.idWithinJob(),

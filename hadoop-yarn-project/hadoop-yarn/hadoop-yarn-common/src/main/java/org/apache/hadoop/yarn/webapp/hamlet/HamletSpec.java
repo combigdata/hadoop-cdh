@@ -21,7 +21,6 @@ package org.apache.hadoop.yarn.webapp.hamlet;
 import java.lang.annotation.*;
 import java.util.EnumSet;
 
-import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.yarn.webapp.SubView;
 
 /**
@@ -44,7 +43,6 @@ import org.apache.hadoop.yarn.webapp.SubView;
  * used as attribute builder methods to differentiate from element builder
  * methods.
  */
-@InterfaceAudience.LimitedPrivate({"YARN", "MapReduce"})
 public class HamletSpec {
   // The enum values are lowercase for better compression,
   // while avoiding runtime conversion.

@@ -18,9 +18,10 @@
 
 package org.apache.hadoop.yarn.server.resourcemanager;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -34,8 +35,6 @@ import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.Credentials;
-import org.apache.hadoop.security.SaslRpcServer.AuthMethod;
-import org.apache.hadoop.security.SecurityUtil;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.delegation.DelegationKey;
@@ -43,7 +42,6 @@ import org.apache.hadoop.util.ExitUtil;
 import org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.GetDelegationTokenRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.GetDelegationTokenResponse;
-import org.apache.hadoop.yarn.api.records.AMCommand;
 import org.apache.hadoop.yarn.api.records.ApplicationAccessType;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -52,7 +50,6 @@ import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerState;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.apache.hadoop.yarn.security.client.RMDelegationTokenIdentifier;
 import org.apache.hadoop.yarn.server.api.protocolrecords.NodeHeartbeatResponse;
 import org.apache.hadoop.yarn.server.api.records.NodeAction;
@@ -65,8 +62,9 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMApp;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppState;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttempt;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttemptState;
+import org.apache.hadoop.yarn.server.resourcemanager.security.DelegationTokenRenewer;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
-import org.apache.hadoop.yarn.util.ConverterUtils;
+import org.apache.hadoop.yarn.util.ProtoUtils;
 import org.apache.log4j.Level;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
@@ -78,11 +76,8 @@ public class TestRMRestart {
 
   private YarnConfiguration conf;
 
-  // Fake rmAddr for token-renewal
-  private static InetSocketAddress rmAddr;
-
   @Before
-  public void setup() throws UnknownHostException {
+  public void setup() {
     Logger rootLogger = LogManager.getRootLogger();
     rootLogger.setLevel(Level.DEBUG);
     ExitUtil.disableSystemExit();
@@ -90,11 +85,9 @@ public class TestRMRestart {
     UserGroupInformation.setConfiguration(conf);
     conf.set(YarnConfiguration.RECOVERY_ENABLED, "true");
     conf.set(YarnConfiguration.RM_STORE, MemoryRMStateStore.class.getName());
-
-    rmAddr = new InetSocketAddress("localhost", 8032);
   }
 
-  @Test (timeout=180000)
+  @Test
   public void testRMRestart() throws Exception {
     Assert.assertTrue(YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS > 1);
     conf.setInt(YarnConfiguration.RM_AM_MAX_ATTEMPTS,
@@ -257,7 +250,7 @@ public class TestRMRestart {
     AllocateResponse allocResponse = am1.allocate(
         new ArrayList<ResourceRequest>(),
         new ArrayList<ContainerId>());
-    Assert.assertTrue(allocResponse.getAMCommand() == AMCommand.AM_RESYNC);
+    Assert.assertTrue(allocResponse.getResync());
     
     // NM should be rebooted on heartbeat, even first heartbeat for nm2
     NodeHeartbeatResponse hbResponse = nm1.nodeHeartbeat(true);
@@ -334,12 +327,10 @@ public class TestRMRestart {
 
     // finish the AM's
     am1.unregisterAppAttempt();
-    rm2.waitForState(loadedApp1.getApplicationId(), RMAppState.FINISHING);
     am1Node.nodeHeartbeat(attempt1.getAppAttemptId(), 1, ContainerState.COMPLETE);
     am1.waitForState(RMAppAttemptState.FINISHED);
     
     am2.unregisterAppAttempt();
-    rm2.waitForState(loadedApp2.getApplicationId(), RMAppState.FINISHING);
     am2Node.nodeHeartbeat(attempt2.getAppAttemptId(), 1, ContainerState.COMPLETE);
     am2.waitForState(RMAppAttemptState.FINISHED);
     
@@ -454,7 +445,6 @@ public class TestRMRestart {
     Token<RMDelegationTokenIdentifier> token1 =
         new Token<RMDelegationTokenIdentifier>(dtId1,
           rm1.getRMDTSecretManager());
-    SecurityUtil.setTokenService(token1, rmAddr);
     ts.addToken(userText1, token1);
     tokenSet.add(token1);
 
@@ -465,7 +455,6 @@ public class TestRMRestart {
     Token<RMDelegationTokenIdentifier> token2 =
         new Token<RMDelegationTokenIdentifier>(dtId2,
           rm1.getRMDTSecretManager());
-    SecurityUtil.setTokenService(token2, rmAddr);
     ts.addToken(userText2, token2);
     tokenSet.add(token2);
 
@@ -544,21 +533,15 @@ public class TestRMRestart {
     Assert.assertEquals(BuilderUtils.newContainerId(attemptId1, 1),
       attemptState.getMasterContainer().getId());
 
-    // the appToken and clientTokenMasterKey that are generated when
-    // RMAppAttempt is created,
+    // the appToken and clientToken that are generated when RMAppAttempt is created,
     HashSet<Token<?>> tokenSet = new HashSet<Token<?>>();
-    tokenSet.add(attempt1.getAMRMToken());
-    byte[] clientTokenMasterKey =
-        attempt1.getClientTokenMasterKey().getEncoded();
+    tokenSet.add(attempt1.getApplicationToken());
+    tokenSet.add(attempt1.getClientToken());
 
-    // assert application credentials are saved
-    Credentials savedCredentials = attemptState.getAppAttemptCredentials();
+    // assert application Token is saved
     HashSet<Token<?>> savedTokens = new HashSet<Token<?>>();
-    savedTokens.addAll(savedCredentials.getAllTokens());
+    savedTokens.addAll(attemptState.getAppAttemptTokens().getAllTokens());
     Assert.assertEquals(tokenSet, savedTokens);
-    Assert.assertArrayEquals("client token master key not saved",
-        clientTokenMasterKey, savedCredentials.getSecretKey(
-            RMStateStore.AM_CLIENT_TOKEN_MASTER_KEY_NAME));
 
     // start new RM
     MockRM rm2 = new TestSecurityMockRM(conf, memStore);
@@ -571,25 +554,17 @@ public class TestRMRestart {
     // assert loaded attempt recovered attempt tokens
     Assert.assertNotNull(loadedAttempt1);
     savedTokens.clear();
-    savedTokens.add(loadedAttempt1.getAMRMToken());
+    savedTokens.add(loadedAttempt1.getApplicationToken());
+    savedTokens.add(loadedAttempt1.getClientToken());
     Assert.assertEquals(tokenSet, savedTokens);
 
-    // assert client token master key is recovered back to api-versioned
-    // client token master key
-    Assert.assertEquals("client token master key not restored",
-        attempt1.getClientTokenMasterKey(),
-        loadedAttempt1.getClientTokenMasterKey());
+    // assert clientToken is recovered back to api-versioned clientToken
+    Assert.assertEquals(attempt1.getClientToken(),
+      loadedAttempt1.getClientToken());
 
-    // assert ClientTokenSecretManager also knows about the key
-    Assert.assertArrayEquals(clientTokenMasterKey,
-        rm2.getClientToAMTokenSecretManager().getMasterKey(attemptId1)
-            .getEncoded());
+    // Not testing ApplicationTokenSecretManager has the password populated back,
+    // that is needed in work-preserving restart
 
-    // assert AMRMTokenSecretManager also knows about the AMRMToken password
-    Token<AMRMTokenIdentifier> amrmToken = loadedAttempt1.getAMRMToken();
-    Assert.assertArrayEquals(amrmToken.getPassword(),
-      rm2.getAMRMTokenSecretManager().retrievePassword(
-        amrmToken.decodeIdentifier()));
     rm1.stop();
     rm2.stop();
   }
@@ -597,12 +572,6 @@ public class TestRMRestart {
   @Test
   public void testRMDelegationTokenRestoredOnRMRestart() throws Exception {
     conf.setInt(YarnConfiguration.RM_AM_MAX_ATTEMPTS, 2);
-    
-    conf.set(
-        CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION,
-        "kerberos");
-    conf.set(YarnConfiguration.RM_ADDRESS, "localhost:8032");
-    UserGroupInformation.setConfiguration(conf);
     MemoryRMStateStore memStore = new MemoryRMStateStore();
     memStore.init(conf);
     RMState rmState = memStore.getState();
@@ -615,23 +584,20 @@ public class TestRMRestart {
         rmState.getRMDTSecretManagerState().getMasterKeyState();
 
     MockRM rm1 = new TestSecurityMockRM(conf, memStore);
-
     rm1.start();
 
     // create an empty credential
     Credentials ts = new Credentials();
 
     // request a token and add into credential
-    GetDelegationTokenRequest request1 =
-        GetDelegationTokenRequest.newInstance("renewer1");
-    UserGroupInformation.getCurrentUser().setAuthenticationMethod(
-        AuthMethod.KERBEROS);
+    GetDelegationTokenRequest request1 = mock(GetDelegationTokenRequest.class);
+    when(request1.getRenewer()).thenReturn("renewer1");
     GetDelegationTokenResponse response1 =
         rm1.getClientRMService().getDelegationToken(request1);
     org.apache.hadoop.yarn.api.records.Token delegationToken1 =
         response1.getRMDelegationToken();
     Token<RMDelegationTokenIdentifier> token1 =
-        ConverterUtils.convertFromYarn(delegationToken1, rmAddr);
+        ProtoUtils.convertFromProtoFormat(delegationToken1, null);
     RMDelegationTokenIdentifier dtId1 = token1.decodeIdentifier();
 
     HashSet<RMDelegationTokenIdentifier> tokenIdentSet =
@@ -656,21 +622,21 @@ public class TestRMRestart {
         rm1.getRMDTSecretManager().getAllTokens();
     Assert.assertEquals(tokenIdentSet, allTokensRM1.keySet());
     Assert.assertEquals(allTokensRM1, rmDTState);
-    
+
     // assert sequence number is saved
     Assert.assertEquals(
       rm1.getRMDTSecretManager().getLatestDTSequenceNumber(),
       rmState.getRMDTSecretManagerState().getDTSequenceNumber());
 
     // request one more token
-    GetDelegationTokenRequest request2 =
-        GetDelegationTokenRequest.newInstance("renewer2");
+    GetDelegationTokenRequest request2 = mock(GetDelegationTokenRequest.class);
+    when(request2.getRenewer()).thenReturn("renewer2");
     GetDelegationTokenResponse response2 =
         rm1.getClientRMService().getDelegationToken(request2);
     org.apache.hadoop.yarn.api.records.Token delegationToken2 =
         response2.getRMDelegationToken();
     Token<RMDelegationTokenIdentifier> token2 =
-        ConverterUtils.convertFromYarn(delegationToken2, rmAddr);
+        ProtoUtils.convertFromProtoFormat(delegationToken2, null);
     RMDelegationTokenIdentifier dtId2 = token2.decodeIdentifier();
 
     // cancel token2
@@ -694,7 +660,7 @@ public class TestRMRestart {
     // assert master keys and tokens are populated back to DTSecretManager
     Map<RMDelegationTokenIdentifier, Long> allTokensRM2 =
         rm2.getRMDTSecretManager().getAllTokens();
-    Assert.assertEquals(allTokensRM2.keySet(), allTokensRM1.keySet());
+    Assert.assertEquals(allTokensRM1, allTokensRM2);
     // rm2 has its own master keys when it starts, we use containsAll here
     Assert.assertTrue(rm2.getRMDTSecretManager().getAllMasterKeys()
       .containsAll(allKeysRM1));
@@ -747,24 +713,25 @@ public class TestRMRestart {
     }
 
     @Override
-    protected ClientRMService createClientRMService() {
-      return new ClientRMService(getRMContext(), getResourceScheduler(),
-          rmAppManager, applicationACLsManager, null, rmDTSecretManager){
-        @Override
-        protected void serviceStart() throws Exception {
-          // do nothing
-        }
-
-        @Override
-        protected void serviceStop() throws Exception {
-          //do nothing
-        }
-      };
+    protected void doSecureLogin() throws IOException {
+      // Do nothing.
     }
 
     @Override
-    protected void doSecureLogin() throws IOException {
-      // Do nothing.
+    protected DelegationTokenRenewer createDelegationTokenRenewer() {
+      return new DelegationTokenRenewer() {
+        @Override
+        protected void renewToken(final DelegationTokenToRenew dttr)
+            throws IOException {
+          // Do nothing
+        }
+
+        @Override
+        protected void setTimerForTokenRenewal(DelegationTokenToRenew token)
+            throws IOException {
+          // Do nothing
+        }
+      };
     }
   }
 }

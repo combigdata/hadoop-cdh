@@ -28,18 +28,16 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileContext;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.http.HttpConfig;
 import org.apache.hadoop.metrics2.lib.DefaultMetricsSystem;
-import org.apache.hadoop.service.AbstractService;
-import org.apache.hadoop.service.CompositeService;
 import org.apache.hadoop.util.Shell;
 import org.apache.hadoop.util.Shell.ShellCommandExecutor;
+import org.apache.hadoop.yarn.YarnRuntimeException;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.event.Dispatcher;
 import org.apache.hadoop.yarn.exceptions.YarnException;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
+import org.apache.hadoop.yarn.ipc.RPCUtil;
 import org.apache.hadoop.yarn.server.api.ResourceTracker;
 import org.apache.hadoop.yarn.server.api.protocolrecords.NodeHeartbeatRequest;
 import org.apache.hadoop.yarn.server.api.protocolrecords.NodeHeartbeatResponse;
@@ -52,23 +50,9 @@ import org.apache.hadoop.yarn.server.nodemanager.NodeStatusUpdater;
 import org.apache.hadoop.yarn.server.nodemanager.NodeStatusUpdaterImpl;
 import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
 import org.apache.hadoop.yarn.server.resourcemanager.ResourceTrackerService;
-import org.apache.hadoop.yarn.webapp.util.WebAppUtils;
+import org.apache.hadoop.yarn.service.AbstractService;
+import org.apache.hadoop.yarn.service.CompositeService;
 
-/**
- * Embedded Yarn minicluster for testcases that need to interact with a cluster.
- * <p/>
- * In a real cluster, resource request matching is done using the hostname, and
- * by default Yarn minicluster works in the exact same way as a real cluster.
- * <p/>
- * If a testcase needs to use multiple nodes and exercise resource request 
- * matching to a specific node, then the property 
- * {@YarnConfiguration.RM_SCHEDULER_INCLUDE_PORT_IN_NODE_NAME} should be set
- * <code>true</code> in the configuration used to initialize the minicluster.
- * <p/>
- * With this property set to <code>true</code>, the matching will be done using
- * the <code>hostname:port</code> of the namenodes. In such case, the AM must
- * do resource request using <code>hostname:port</code> as the location.
- */
 public class MiniYARNCluster extends CompositeService {
 
   private static final Log LOG = LogFactory.getLog(MiniYARNCluster.class);
@@ -108,7 +92,7 @@ public class MiniYARNCluster extends CompositeService {
           new Path(targetWorkDir.getAbsolutePath()), true);
     } catch (Exception e) {
       LOG.warn("COULD NOT CLEANUP", e);
-      throw new YarnRuntimeException("could not cleanup test dir: "+ e, e);
+      throw new YarnRuntimeException("could not cleanup test dir", e);
     } 
 
     if (Shell.WINDOWS) {
@@ -156,10 +140,9 @@ public class MiniYARNCluster extends CompositeService {
   }
   
   @Override
-  public void serviceInit(Configuration conf) throws Exception {
-    super.serviceInit(conf instanceof YarnConfiguration ? conf
-                                                        : new YarnConfiguration(
-                                                          conf));
+  public void init(Configuration conf) {
+    super.init(conf instanceof YarnConfiguration ? conf
+        : new YarnConfiguration(conf));
   }
 
   public File getTestWorkDir() {
@@ -189,23 +172,23 @@ public class MiniYARNCluster extends CompositeService {
     }
 
     @Override
-    public synchronized void serviceStart() throws Exception {
+    public synchronized void start() {
       try {
         getConfig().setBoolean(YarnConfiguration.IS_MINI_YARN_CLUSTER, true);
         if (!getConfig().getBoolean(
             YarnConfiguration.YARN_MINICLUSTER_FIXED_PORTS,
             YarnConfiguration.DEFAULT_YARN_MINICLUSTER_FIXED_PORTS)) {
           // pick free random ports.
-          String hostname = MiniYARNCluster.getHostname();
           getConfig().set(YarnConfiguration.RM_ADDRESS,
-              hostname + ":0");
+              MiniYARNCluster.getHostname() + ":0");
           getConfig().set(YarnConfiguration.RM_ADMIN_ADDRESS,
-              hostname + ":0");
+              MiniYARNCluster.getHostname() + ":0");
           getConfig().set(YarnConfiguration.RM_SCHEDULER_ADDRESS,
-              hostname + ":0");
+              MiniYARNCluster.getHostname() + ":0");
           getConfig().set(YarnConfiguration.RM_RESOURCE_TRACKER_ADDRESS,
-              hostname + ":0");
-          WebAppUtils.setRMWebAppHostnameAndPort(getConfig(), hostname, 0);
+              MiniYARNCluster.getHostname() + ":0");
+          getConfig().set(YarnConfiguration.RM_WEBAPP_ADDRESS,
+              MiniYARNCluster.getHostname() + ":0");
         }
         resourceManager = new ResourceManager() {
           @Override
@@ -231,22 +214,22 @@ public class MiniYARNCluster extends CompositeService {
               "ResourceManager failed to start. Final state is "
                   + resourceManager.getServiceState());
         }
-        super.serviceStart();
+        super.start();
       } catch (Throwable t) {
         throw new YarnRuntimeException(t);
       }
       LOG.info("MiniYARN ResourceManager address: " +
                getConfig().get(YarnConfiguration.RM_ADDRESS));
       LOG.info("MiniYARN ResourceManager web address: " +
-               WebAppUtils.getRMWebAppURLWithoutScheme(getConfig()));
+               getConfig().get(YarnConfiguration.RM_WEBAPP_ADDRESS));
     }
 
     @Override
-    public synchronized void serviceStop() throws Exception {
+    public synchronized void stop() {
       if (resourceManager != null) {
         resourceManager.stop();
       }
-      super.serviceStop();
+      super.stop();
 
       if (Shell.WINDOWS) {
         // On Windows, clean up the short temporary symlink that was created to
@@ -271,10 +254,10 @@ public class MiniYARNCluster extends CompositeService {
       index = i;
     }
 
-    public synchronized void serviceInit(Configuration conf) throws Exception {
-      Configuration config = new YarnConfiguration(conf);
-      super.serviceInit(config);
-    }
+    public synchronized void init(Configuration conf) {                          
+      Configuration config = new YarnConfiguration(conf);                            
+      super.init(config);                                                        
+    }                                                                            
 
     /**
      * Create local/log directories
@@ -296,7 +279,7 @@ public class MiniYARNCluster extends CompositeService {
       return dirsString;
     }
 
-    public synchronized void serviceStart() throws Exception {
+    public synchronized void start() {
       try {
         // create nm-local-dirs and configure them for the nodemanager
         String localDirsString = prepareDirs("local", numLocalDirs);
@@ -317,19 +300,8 @@ public class MiniYARNCluster extends CompositeService {
                         MiniYARNCluster.getHostname() + ":0");
         getConfig().set(YarnConfiguration.NM_LOCALIZER_ADDRESS,
                         MiniYARNCluster.getHostname() + ":0");
-        WebAppUtils
-            .setNMWebAppHostNameAndPort(getConfig(),
-                MiniYARNCluster.getHostname(), 0);
-
-        // Disable resource checks by default
-        if (!getConfig().getBoolean(
-            YarnConfiguration.YARN_MINICLUSTER_CONTROL_RESOURCE_MONITORING,
-            YarnConfiguration.
-                DEFAULT_YARN_MINICLUSTER_CONTROL_RESOURCE_MONITORING)) {
-          getConfig().setBoolean(YarnConfiguration.NM_PMEM_CHECK_ENABLED, false);
-          getConfig().setBoolean(YarnConfiguration.NM_VMEM_CHECK_ENABLED, false);
-        }
-
+        getConfig().set(YarnConfiguration.NM_WEBAPP_ADDRESS,
+                        MiniYARNCluster.getHostname() + ":0");
         LOG.info("Starting NM: " + index);
         nodeManagers[index].init(getConfig());
         new Thread() {
@@ -347,18 +319,18 @@ public class MiniYARNCluster extends CompositeService {
           // RM could have failed.
           throw new IOException("NodeManager " + index + " failed to start");
         }
-        super.serviceStart();
+        super.start();
       } catch (Throwable t) {
         throw new YarnRuntimeException(t);
       }
     }
 
     @Override
-    public synchronized void serviceStop() throws Exception {
+    public synchronized void stop() {
       if (nodeManagers[index] != null) {
         nodeManagers[index].stop();
       }
-      super.serviceStop();
+      super.stop();
     }
   }
   
@@ -391,10 +363,10 @@ public class MiniYARNCluster extends CompositeService {
                   NodeHeartbeatResponse.class);
               try {
                 response = rt.nodeHeartbeat(request);
-              } catch (YarnException e) {
+              } catch (YarnException ioe) {
                 LOG.info("Exception in heartbeat from node " + 
-                    request.getNodeStatus().getNodeId(), e);
-                throw e;
+                    request.getNodeStatus().getNodeId(), ioe);
+                throw RPCUtil.getRemoteException(ioe);
               }
               return response;
             }
@@ -407,20 +379,15 @@ public class MiniYARNCluster extends CompositeService {
                   newRecordInstance(RegisterNodeManagerResponse.class);
               try {
                 response = rt.registerNodeManager(request);
-              } catch (YarnException e) {
+              } catch (YarnException ioe) {
                 LOG.info("Exception in node registration from "
-                    + request.getNodeId().toString(), e);
-                throw e;
+                    + request.getNodeId().toString(), ioe);
+                throw RPCUtil.getRemoteException(ioe);
               }
               return response;
             }
           };
         };
-
-        @Override
-        protected void stopRMProxy() {
-          return;
-        }
       };
     };
   }

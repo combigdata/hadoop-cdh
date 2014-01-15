@@ -88,7 +88,7 @@ public class ServiceAuthorizationManager {
     String clientPrincipal = null; 
     if (krbInfo != null) {
       String clientKey = krbInfo.clientPrincipal();
-      if (clientKey != null && !clientKey.isEmpty()) {
+      if (clientKey != null && !clientKey.equals("")) {
         try {
           clientPrincipal = SecurityUtil.getServerPrincipal(
               conf.get(clientKey), addr);

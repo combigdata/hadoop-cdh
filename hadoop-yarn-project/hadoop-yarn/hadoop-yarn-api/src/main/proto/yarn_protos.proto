@@ -16,17 +16,10 @@
  * limitations under the License.
  */
 
-/**
- * These .proto interfaces are public and stable.
- * Please see http://wiki.apache.org/hadoop/Compatibility
- * for what changes are allowed for a *stable* .proto interface.
- */
-
 option java_package = "org.apache.hadoop.yarn.proto";
 option java_outer_classname = "YarnProtos";
 option java_generic_services = true;
 option java_generate_equals_and_hash = true;
-package hadoop.yarn;
 
 import "Security.proto";
 
@@ -95,12 +88,30 @@ enum FinalApplicationStatusProto {
   APP_KILLED = 3;
 }
 
+message ApplicationStatusProto {
+  optional int32 response_id = 1;
+  optional ApplicationAttemptIdProto application_attempt_id = 2;
+  optional float progress = 3;
+}
+
+message ApplicationMasterProto {
+  optional ApplicationIdProto application_id = 1;
+  optional string host = 2;
+  optional int32 rpc_port = 3;
+  optional string trackingUrl = 4;
+  optional ApplicationStatusProto status = 5;
+  optional YarnApplicationStateProto state = 6;
+  optional hadoop.common.TokenProto client_token = 7;
+  optional int32 containerCount = 8;
+  optional int32 amFailCount = 9;
+  optional string diagnostics = 10 [default = ""];
+}
+
 message URLProto {
   optional string scheme = 1;
   optional string host = 2;
   optional int32 port = 3;
   optional string file = 4;
-  optional string userInfo = 5;
 }
 
 enum LocalResourceVisibilityProto {
@@ -139,7 +150,7 @@ message ApplicationReportProto {
   optional string name = 4;
   optional string host = 5;
   optional int32 rpc_port = 6;
-  optional hadoop.common.TokenProto client_to_am_token = 7;
+  optional hadoop.common.TokenProto client_token = 7;
   optional YarnApplicationStateProto yarn_application_state = 8;
   optional string trackingUrl = 9;
   optional string diagnostics = 10 [default = "N/A"];
@@ -151,7 +162,6 @@ message ApplicationReportProto {
   optional ApplicationAttemptIdProto currentApplicationAttemptId = 16;
   optional float progress = 17;
   optional string applicationType = 18;
-  optional hadoop.common.TokenProto am_rm_token = 19;
 }
 
 enum NodeStateProto {
@@ -168,6 +178,12 @@ message NodeIdProto {
   optional int32 port = 2;
 }
 
+message NodeHealthStatusProto {
+  optional bool is_node_healthy = 1;
+  optional string health_report = 2;
+  optional int64 last_health_report_time = 3;
+}
+
 message NodeReportProto {
   optional NodeIdProto nodeId = 1;
   optional string httpAddress = 2;
@@ -175,9 +191,8 @@ message NodeReportProto {
   optional ResourceProto used = 4;
   optional ResourceProto capability = 5;
   optional int32 numContainers = 6;
-  optional NodeStateProto node_state = 7;
-  optional string health_report = 8;
-  optional int64 last_health_report_time = 9;
+  optional NodeHealthStatusProto node_health_status = 8;
+  optional NodeStateProto node_state = 9;
 }
 
 
@@ -190,11 +205,6 @@ message ResourceRequestProto {
   optional ResourceProto capability = 3;
   optional int32 num_containers = 4;
   optional bool relax_locality = 5 [default = true];
-}
-
-enum AMCommandProto {
-  AM_RESYNC = 1;
-  AM_SHUTDOWN = 2;
 }
 
 message PreemptionMessageProto {
@@ -217,11 +227,6 @@ message PreemptionContainerProto {
 
 message PreemptionResourceRequestProto {
   optional ResourceRequestProto resource = 1;
-}
-
-message ResourceBlacklistRequestProto {
-  repeated string blacklist_additions = 1; 
-  repeated string blacklist_removals = 2; 
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -309,6 +314,11 @@ enum ContainerExitStatusProto {
 ////////////////////////////////////////////////////////////////////////
 ////// From common//////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
+message StringURLMapProto {
+  optional string key = 1;
+  optional URLProto value = 2;
+}
+
 message StringLocalResourceMapProto {
   optional string key = 1;
   optional LocalResourceProto value = 2;

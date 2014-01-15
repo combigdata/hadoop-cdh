@@ -36,8 +36,7 @@ public class RegisterNodeManagerResponsePBImpl extends ProtoBase<RegisterNodeMan
   RegisterNodeManagerResponseProto.Builder builder = null;
   boolean viaProto = false;
   
-  private MasterKey containerTokenMasterKey = null;
-  private MasterKey nmTokenMasterKey = null;
+  private MasterKey masterKey = null;
   
   private boolean rebuild = false;
   
@@ -59,13 +58,8 @@ public class RegisterNodeManagerResponsePBImpl extends ProtoBase<RegisterNodeMan
   }
 
   private void mergeLocalToBuilder() {
-    if (this.containerTokenMasterKey != null) {
-      builder.setContainerTokenMasterKey(
-          convertToProtoFormat(this.containerTokenMasterKey));
-    }
-    if (this.nmTokenMasterKey != null) {
-      builder.setNmTokenMasterKey(
-          convertToProtoFormat(this.nmTokenMasterKey));
+    if (this.masterKey != null) {
+      builder.setMasterKey(convertToProtoFormat(this.masterKey));
     }
   }
 
@@ -86,48 +80,24 @@ public class RegisterNodeManagerResponsePBImpl extends ProtoBase<RegisterNodeMan
   }
 
   @Override
-  public MasterKey getContainerTokenMasterKey() {
+  public MasterKey getMasterKey() {
     RegisterNodeManagerResponseProtoOrBuilder p = viaProto ? proto : builder;
-    if (this.containerTokenMasterKey != null) {
-      return this.containerTokenMasterKey;
+    if (this.masterKey != null) {
+      return this.masterKey;
     }
-    if (!p.hasContainerTokenMasterKey()) {
+    if (!p.hasMasterKey()) {
       return null;
     }
-    this.containerTokenMasterKey =
-        convertFromProtoFormat(p.getContainerTokenMasterKey());
-    return this.containerTokenMasterKey;
+    this.masterKey = convertFromProtoFormat(p.getMasterKey());
+    return this.masterKey;
   }
 
   @Override
-  public void setContainerTokenMasterKey(MasterKey masterKey) {
+  public void setMasterKey(MasterKey masterKey) {
     maybeInitBuilder();
     if (masterKey == null)
-      builder.clearContainerTokenMasterKey();
-    this.containerTokenMasterKey = masterKey;
-    rebuild = true;
-  }
-
-  @Override
-  public MasterKey getNMTokenMasterKey() {
-    RegisterNodeManagerResponseProtoOrBuilder p = viaProto ? proto : builder;
-    if (this.nmTokenMasterKey != null) {
-      return this.nmTokenMasterKey;
-    }
-    if (!p.hasNmTokenMasterKey()) {
-      return null;
-    }
-    this.nmTokenMasterKey =
-        convertFromProtoFormat(p.getNmTokenMasterKey());
-    return this.nmTokenMasterKey;
-  }
-
-  @Override
-  public void setNMTokenMasterKey(MasterKey masterKey) {
-    maybeInitBuilder();
-    if (masterKey == null)
-      builder.clearNmTokenMasterKey();
-    this.nmTokenMasterKey = masterKey;
+      builder.clearMasterKey();
+    this.masterKey = masterKey;
     rebuild = true;
   }
 

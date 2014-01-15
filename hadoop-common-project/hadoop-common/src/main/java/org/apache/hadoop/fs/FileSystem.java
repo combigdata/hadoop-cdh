@@ -53,7 +53,6 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.MultipleIOException;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.net.NetUtils;
-import org.apache.hadoop.security.AccessControlException;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.SecurityUtil;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -120,7 +119,6 @@ public abstract class FileSystem extends Configured implements Closeable {
    */
   private Set<Path> deleteOnExit = new TreeSet<Path>();
   
-  boolean resolveSymlinks;
   /**
    * This method adds a file system for testing so that we can find it later. It
    * is only for testing.
@@ -197,9 +195,6 @@ public abstract class FileSystem extends Configured implements Closeable {
    */
   public void initialize(URI name, Configuration conf) throws IOException {
     statistics = getStatistics(name.getScheme(), getClass());    
-    resolveSymlinks = conf.getBoolean(
-        CommonConfigurationKeys.FS_CLIENT_RESOLVE_REMOTE_SYMLINKS_KEY,
-        CommonConfigurationKeys.FS_CLIENT_RESOLVE_REMOTE_SYMLINKS_DEFAULT);
   }
 
   /**
@@ -265,16 +260,6 @@ public abstract class FileSystem extends Configured implements Closeable {
    */
   protected int getDefaultPort() {
     return 0;
-  }
-
-  protected static FileSystem getFSofPath(final Path absOrFqPath,
-      final Configuration conf)
-      throws UnsupportedFileSystemException, IOException {
-    absOrFqPath.checkNotSchemeWithRelative();
-    absOrFqPath.checkNotRelative();
-
-    // Uses the default file system if not fully qualified
-    return get(absOrFqPath.toUri(), conf);
   }
 
   /**
@@ -826,9 +811,7 @@ public abstract class FileSystem extends Configured implements Closeable {
   public FSDataOutputStream create(Path f, short replication, 
       Progressable progress) throws IOException {
     return create(f, true, 
-                  getConf().getInt(
-                      CommonConfigurationKeysPublic.IO_FILE_BUFFER_SIZE_KEY,
-                      CommonConfigurationKeysPublic.IO_FILE_BUFFER_SIZE_DEFAULT),
+                  getConf().getInt("io.file.buffer.size", 4096),
                   replication,
                   getDefaultBlockSize(f), progress);
   }
@@ -1260,7 +1243,7 @@ public abstract class FileSystem extends Configured implements Closeable {
   protected void rename(final Path src, final Path dst,
       final Rename... options) throws IOException {
     // Default implementation
-    final FileStatus srcStatus = getFileLinkStatus(src);
+    final FileStatus srcStatus = getFileStatus(src);
     if (srcStatus == null) {
       throw new FileNotFoundException("rename source " + src + " not found.");
     }
@@ -1276,7 +1259,7 @@ public abstract class FileSystem extends Configured implements Closeable {
 
     FileStatus dstStatus;
     try {
-      dstStatus = getFileLinkStatus(dst);
+      dstStatus = getFileStatus(dst);
     } catch (IOException e) {
       dstStatus = null;
     }
@@ -2192,65 +2175,6 @@ public abstract class FileSystem extends Configured implements Closeable {
   public abstract FileStatus getFileStatus(Path f) throws IOException;
 
   /**
-   * See {@link FileContext#fixRelativePart}
-   */
-  protected Path fixRelativePart(Path p) {
-    if (p.isUriPathAbsolute()) {
-      return p;
-    } else {
-      return new Path(getWorkingDirectory(), p);
-    }
-  }
-
-  /**
-   * See {@link FileContext#createSymlink(Path, Path, boolean)}
-   */
-  public void createSymlink(final Path target, final Path link,
-      final boolean createParent) throws AccessControlException,
-      FileAlreadyExistsException, FileNotFoundException,
-      ParentNotDirectoryException, UnsupportedFileSystemException, 
-      IOException {
-    // Supporting filesystems should override this method
-    throw new UnsupportedOperationException(
-        "Filesystem does not support symlinks!");
-  }
-
-  /**
-   * See {@link FileContext#getFileLinkStatus(Path)}
-   */
-  public FileStatus getFileLinkStatus(final Path f)
-      throws AccessControlException, FileNotFoundException,
-      UnsupportedFileSystemException, IOException {
-    // Supporting filesystems should override this method
-    return getFileStatus(f);
-  }
-
-  /**
-   * See {@link AbstractFileSystem#supportsSymlinks()}
-   */
-  public boolean supportsSymlinks() {
-    return false;
-  }
-
-  /**
-   * See {@link FileContext#getLinkTarget(Path)}
-   */
-  public Path getLinkTarget(Path f) throws IOException {
-    // Supporting filesystems should override this method
-    throw new UnsupportedOperationException(
-        "Filesystem does not support symlinks!");
-  }
-
-  /**
-   * See {@link AbstractFileSystem#getLinkTarget(Path)}
-   */
-  protected Path resolveLink(Path f) throws IOException {
-    // Supporting filesystems should override this method
-    throw new UnsupportedOperationException(
-        "Filesystem does not support symlinks!");
-  }
-
-  /**
    * Get the checksum of a file.
    *
    * @param f The file path
@@ -2473,8 +2397,7 @@ public abstract class FileSystem extends Configured implements Closeable {
         }
         
         // now insert the new file system into the map
-        if (map.isEmpty()
-                && !ShutdownHookManager.get().isShutdownInProgress()) {
+        if (map.isEmpty() ) {
           ShutdownHookManager.get().addShutdownHook(clientFinalizer, SHUTDOWN_HOOK_PRIORITY);
         }
         fs.key = key;
@@ -2806,25 +2729,5 @@ public abstract class FileSystem extends Configured implements Closeable {
       System.out.println("  FileSystem " + pair.getKey().getName() + 
                          ": " + pair.getValue());
     }
-  }
-  
-  // Symlinks are temporarily disabled - see Hadoop-10020
-  private static boolean symlinkEnabled = false;
-  private static Configuration conf = null;
-  
-  @Deprecated
-  @VisibleForTesting
-  public static boolean isSymlinksEnabled() {
-    if (conf == null) {
-      Configuration conf = new Configuration();
-      symlinkEnabled = conf.getBoolean("test.SymlinkEnabledForTesting", false); 
-    }
-    return symlinkEnabled;
-  }
-  
-  @Deprecated
-  @VisibleForTesting
-  public static void enableSymlinks() {
-    symlinkEnabled = true;
   }
 }

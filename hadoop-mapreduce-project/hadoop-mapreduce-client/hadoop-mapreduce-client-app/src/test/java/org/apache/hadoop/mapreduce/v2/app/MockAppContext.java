@@ -19,16 +19,15 @@
 package org.apache.hadoop.mapreduce.v2.app;
 
 import java.util.Map;
-import java.util.Set;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.v2.api.records.JobId;
 import org.apache.hadoop.mapreduce.v2.app.job.Job;
+import org.apache.hadoop.yarn.Clock;
+import org.apache.hadoop.yarn.ClusterInfo;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.event.EventHandler;
-import org.apache.hadoop.yarn.security.client.ClientToAMTokenSecretManager;
-import org.apache.hadoop.yarn.util.Clock;
 
 import com.google.common.collect.Maps;
 
@@ -38,8 +37,7 @@ public class MockAppContext implements AppContext {
   final String user = MockJobs.newUserName();
   final Map<JobId, Job> jobs;
   final long startTime = System.currentTimeMillis();
-  Set<String> blacklistedNodes;
-  
+
   public MockAppContext(int appid) {
     appID = MockJobs.newAppID(appid);
     appAttemptID = ApplicationAttemptId.newInstance(appID, 0);
@@ -115,31 +113,6 @@ public class MockAppContext implements AppContext {
   @Override
   public ClusterInfo getClusterInfo() {
     return null;
-  }
-
-  @Override
-  public Set<String> getBlacklistedNodes() {
-    return blacklistedNodes;
-  }
-  
-  public void setBlacklistedNodes(Set<String> blacklistedNodes) {
-    this.blacklistedNodes = blacklistedNodes;
-  }
-
-  public ClientToAMTokenSecretManager getClientToAMTokenSecretManager() {
-    // Not implemented
-    return null;
-  }
-
-  @Override
-  public boolean isLastAMRetry() {
-    return false;
-  }
-
-  @Override
-  public boolean hasSuccessfullyUnregistered() {
-    // bogus - Not Required
-    return true;
   }
 
 }

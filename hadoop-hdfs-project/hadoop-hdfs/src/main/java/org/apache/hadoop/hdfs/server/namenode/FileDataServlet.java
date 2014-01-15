@@ -61,14 +61,9 @@ public class FileDataServlet extends DfsServlet {
     } else {
       hostname = host.getIpAddr();
     }
-    int port = host.getInfoPort();
-    if ("https".equals(scheme)) {
-      final Integer portObject = (Integer) getServletContext().getAttribute(
-          DFSConfigKeys.DFS_DATANODE_HTTPS_PORT_KEY);
-      if (portObject != null) {
-        port = portObject;
-      }
-    }
+    final int port = "https".equals(scheme)
+      ? (Integer)getServletContext().getAttribute(DFSConfigKeys.DFS_DATANODE_HTTPS_PORT_KEY)
+      : host.getInfoPort();
 
     String dtParam = "";
     if (dt != null) {

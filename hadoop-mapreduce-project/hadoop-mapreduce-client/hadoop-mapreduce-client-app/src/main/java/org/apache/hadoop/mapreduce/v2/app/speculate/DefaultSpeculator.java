@@ -44,13 +44,13 @@ import org.apache.hadoop.mapreduce.v2.app.AppContext;
 import org.apache.hadoop.mapreduce.v2.app.job.Job;
 import org.apache.hadoop.mapreduce.v2.app.job.Task;
 import org.apache.hadoop.mapreduce.v2.app.job.TaskAttempt;
-import org.apache.hadoop.mapreduce.v2.app.job.event.TaskAttemptStatusUpdateEvent.TaskAttemptStatus;
 import org.apache.hadoop.mapreduce.v2.app.job.event.TaskEvent;
 import org.apache.hadoop.mapreduce.v2.app.job.event.TaskEventType;
-import org.apache.hadoop.service.AbstractService;
+import org.apache.hadoop.mapreduce.v2.app.job.event.TaskAttemptStatusUpdateEvent.TaskAttemptStatus;
+import org.apache.hadoop.yarn.Clock;
+import org.apache.hadoop.yarn.YarnRuntimeException;
 import org.apache.hadoop.yarn.event.EventHandler;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
-import org.apache.hadoop.yarn.util.Clock;
+import org.apache.hadoop.yarn.service.AbstractService;
 
 
 public class DefaultSpeculator extends AbstractService implements
@@ -77,16 +77,6 @@ public class DefaultSpeculator extends AbstractService implements
 
   private final Map<Task, AtomicBoolean> pendingSpeculations
       = new ConcurrentHashMap<Task, AtomicBoolean>();
-
-  // Used to track any TaskAttempts that aren't heart-beating for a while, so
-  // that we can aggressively speculate instead of waiting for task-timeout.
-  private final ConcurrentMap<TaskAttemptId, TaskAttemptHistoryStatistics>
-      runningTaskAttemptStatistics = new ConcurrentHashMap<TaskAttemptId,
-          TaskAttemptHistoryStatistics>();
-  // Regular heartbeat from tasks is every 3 secs. So if we don't get a
-  // heartbeat in 9 secs (3 heartbeats), we simulate a heartbeat with no change
-  // in progress.
-  private static final long MAX_WAITTING_TIME_FOR_HEARTBEAT = 9 * 1000;
 
   // These are the current needs, not the initial needs.  For each job, these
   //  record the number of attempts that exist and that are actively
@@ -176,7 +166,7 @@ public class DefaultSpeculator extends AbstractService implements
   //  looking for speculation opportunities
 
   @Override
-  protected void serviceStart() throws Exception {
+  public void start() {
     Runnable speculationBackgroundCore
         = new Runnable() {
             @Override
@@ -212,17 +202,17 @@ public class DefaultSpeculator extends AbstractService implements
         (speculationBackgroundCore, "DefaultSpeculator background processing");
     speculationBackgroundThread.start();
 
-    super.serviceStart();
+    super.start();
   }
 
   @Override
-  protected void serviceStop()throws Exception {
-      stopped = true;
+  public void stop() {
+    stopped = true;
     // this could be called before background thread is established
     if (speculationBackgroundThread != null) {
       speculationBackgroundThread.interrupt();
     }
-    super.serviceStop();
+    super.stop();
   }
 
   @Override
@@ -339,9 +329,6 @@ public class DefaultSpeculator extends AbstractService implements
       runningTasks.putIfAbsent(taskID, Boolean.TRUE);
     } else {
       runningTasks.remove(taskID, Boolean.TRUE);
-      if (!stateString.equals(TaskAttemptState.STARTING.name())) {
-        runningTaskAttemptStatistics.remove(attemptID);
-      }
     }
   }
 
@@ -401,33 +388,6 @@ public class DefaultSpeculator extends AbstractService implements
 
         long estimatedReplacementEndTime
             = now + estimator.estimatedNewAttemptRuntime(taskID);
-
-        float progress = taskAttempt.getProgress();
-        TaskAttemptHistoryStatistics data =
-            runningTaskAttemptStatistics.get(runningTaskAttemptID);
-        if (data == null) {
-          runningTaskAttemptStatistics.put(runningTaskAttemptID,
-            new TaskAttemptHistoryStatistics(estimatedRunTime, progress, now));
-        } else {
-          if (estimatedRunTime == data.getEstimatedRunTime()
-              && progress == data.getProgress()) {
-            // Previous stats are same as same stats
-            if (data.notHeartbeatedInAWhile(now)) {
-              // Stats have stagnated for a while, simulate heart-beat.
-              TaskAttemptStatus taskAttemptStatus = new TaskAttemptStatus();
-              taskAttemptStatus.id = runningTaskAttemptID;
-              taskAttemptStatus.progress = progress;
-              taskAttemptStatus.taskState = taskAttempt.getState();
-              // Now simulate the heart-beat
-              handleAttempt(taskAttemptStatus);
-            }
-          } else {
-            // Stats have changed - update our data structure
-            data.setEstimatedRunTime(estimatedRunTime);
-            data.setProgress(progress);
-            data.resetHeartBeatTime(now);
-          }
-        }
 
         if (estimatedEndTime < now) {
           return PROGRESS_IS_GOOD;
@@ -550,48 +510,5 @@ public class DefaultSpeculator extends AbstractService implements
   private int computeSpeculations() {
     // We'll try to issue one map and one reduce speculation per job per run
     return maybeScheduleAMapSpeculation() + maybeScheduleAReduceSpeculation();
-  }
-
-  static class TaskAttemptHistoryStatistics {
-
-    private long estimatedRunTime;
-    private float progress;
-    private long lastHeartBeatTime;
-
-    public TaskAttemptHistoryStatistics(long estimatedRunTime, float progress,
-        long nonProgressStartTime) {
-      this.estimatedRunTime = estimatedRunTime;
-      this.progress = progress;
-      resetHeartBeatTime(nonProgressStartTime);
-    }
-
-    public long getEstimatedRunTime() {
-      return this.estimatedRunTime;
-    }
-
-    public float getProgress() {
-      return this.progress;
-    }
-
-    public void setEstimatedRunTime(long estimatedRunTime) {
-      this.estimatedRunTime = estimatedRunTime;
-    }
-
-    public void setProgress(float progress) {
-      this.progress = progress;
-    }
-
-    public boolean notHeartbeatedInAWhile(long now) {
-      if (now - lastHeartBeatTime <= MAX_WAITTING_TIME_FOR_HEARTBEAT) {
-        return false;
-      } else {
-        resetHeartBeatTime(now);
-        return true;
-      }
-    }
-
-    public void resetHeartBeatTime(long lastHeartBeatTime) {
-      this.lastHeartBeatTime = lastHeartBeatTime;
-    }
   }
 }

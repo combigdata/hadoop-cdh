@@ -63,9 +63,7 @@ public class TestSlive {
   /** gets the test write location according to the coding guidelines */
   private static File getWriteLoc() {
     String writeLoc = System.getProperty(TEST_DATA_PROP, "build/test/data/");
-    File writeDir = new File(writeLoc, "slive");
-    writeDir.mkdirs();
-    return writeDir;
+    return new File(writeLoc, "slive");
   }
 
   /** gets where the MR job places its data + output + results */

@@ -27,11 +27,7 @@ import org.apache.hadoop.yarn.util.Records;
  * allocation 
  *
  */
-@Public
-@Stable
 public abstract class Priority implements Comparable<Priority> {
-
-  public static final Priority UNDEFINED = newInstance(-1);
 
   @Public
   @Stable
@@ -45,16 +41,12 @@ public abstract class Priority implements Comparable<Priority> {
    * Get the assigned priority
    * @return the assigned priority
    */
-  @Public
-  @Stable
   public abstract int getPriority();
   
   /**
    * Set the assigned priority
    * @param priority the assigned priority
    */
-  @Public
-  @Stable
   public abstract void setPriority(int priority);
   
   @Override
@@ -81,7 +73,7 @@ public abstract class Priority implements Comparable<Priority> {
 
   @Override
   public int compareTo(Priority other) {
-    return other.getPriority() - this.getPriority();
+    return this.getPriority() - other.getPriority();
   }
 
   @Override

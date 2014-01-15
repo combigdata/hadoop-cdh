@@ -18,10 +18,8 @@
 
 package org.apache.hadoop.yarn.server.resourcemanager.scheduler;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -38,8 +36,8 @@ import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
+import org.apache.hadoop.yarn.server.resourcemanager.resource.Resources;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttemptState;
-import org.apache.hadoop.yarn.util.resource.Resources;
 
 /**
  * This class keeps track of all the consumption of an application. This also
@@ -61,8 +59,7 @@ public class AppSchedulingInfo {
       new org.apache.hadoop.yarn.server.resourcemanager.resource.Priority.Comparator());
   final Map<Priority, Map<String, ResourceRequest>> requests = 
     new HashMap<Priority, Map<String, ResourceRequest>>();
-  final Set<String> blacklist = new HashSet<String>();
-  
+
   //private final ApplicationStore store;
   private final ActiveUsersManager activeUsersManager;
   
@@ -116,13 +113,13 @@ public class AppSchedulingInfo {
    * The ApplicationMaster is updating resource requirements for the
    * application, by asking for more resources and releasing resources acquired
    * by the application.
-   *
-   * @param requests resources to be acquired
+   * 
+   * @param requests
+   *          resources to be acquired
    */
   synchronized public void updateResourceRequests(
       List<ResourceRequest> requests) {
     QueueMetrics metrics = queue.getMetrics();
-    
     // Update resource requests
     for (ResourceRequest request : requests) {
       Priority priority = request.getPriority();
@@ -180,25 +177,6 @@ public class AppSchedulingInfo {
     }
   }
 
-  /**
-   * The ApplicationMaster is updating the blacklist
-   *
-   * @param blacklistAdditions resources to be added to the blacklist
-   * @param blacklistRemovals resources to be removed from the blacklist
-   */
-  synchronized public void updateBlacklist(
-      List<String> blacklistAdditions, List<String> blacklistRemovals) {
-    // Add to blacklist
-    if (blacklistAdditions != null) {
-      blacklist.addAll(blacklistAdditions);
-    }
-
-    // Remove from blacklist
-    if (blacklistRemovals != null) {
-      blacklist.removeAll(blacklistRemovals);
-    }
-  }
-
   synchronized public Collection<Priority> getPriorities() {
     return priorities;
   }
@@ -206,14 +184,6 @@ public class AppSchedulingInfo {
   synchronized public Map<String, ResourceRequest> getResourceRequests(
       Priority priority) {
     return requests.get(priority);
-  }
-
-  synchronized public List<ResourceRequest> getAllResourceRequests() {
-    List<ResourceRequest> ret = new ArrayList<ResourceRequest>();
-    for (Map<String, ResourceRequest> r : requests.values()) {
-      ret.addAll(r.values());
-    }
-    return ret;
   }
 
   synchronized public ResourceRequest getResourceRequest(Priority priority,
@@ -227,10 +197,6 @@ public class AppSchedulingInfo {
     return request.getCapability();
   }
 
-  public synchronized boolean isBlacklisted(String resourceName) {
-    return blacklist.contains(resourceName);
-  }
-  
   /**
    * Resources have been allocated to this application by the resource
    * scheduler. Track them.
@@ -283,7 +249,7 @@ public class AppSchedulingInfo {
     // Update future requirements
     nodeLocalRequest.setNumContainers(nodeLocalRequest.getNumContainers() - 1);
     if (nodeLocalRequest.getNumContainers() == 0) {
-      this.requests.get(priority).remove(node.getNodeName());
+      this.requests.get(priority).remove(node.getHostName());
     }
 
     ResourceRequest rackLocalRequest = requests.get(priority).get(

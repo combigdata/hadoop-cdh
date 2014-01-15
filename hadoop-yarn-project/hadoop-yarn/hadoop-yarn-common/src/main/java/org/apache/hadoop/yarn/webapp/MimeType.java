@@ -18,9 +18,6 @@
 
 package org.apache.hadoop.yarn.webapp;
 
-import org.apache.hadoop.classification.InterfaceAudience;
-
-@InterfaceAudience.LimitedPrivate({"YARN", "MapReduce"})
 public interface MimeType {
 
   public static final String TEXT = "text/plain; charset=UTF-8";

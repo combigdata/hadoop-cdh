@@ -19,20 +19,14 @@
 package org.apache.hadoop.yarn.server.resourcemanager;
 
 import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.spy;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.security.PrivilegedExceptionAction;
-import java.util.HashSet;
-import java.util.EnumSet;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CyclicBarrier;
@@ -46,33 +40,25 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.yarn.MockApps;
-import org.apache.hadoop.yarn.api.ApplicationClientProtocol;
-import org.apache.hadoop.yarn.api.protocolrecords.GetApplicationsRequest;
-import org.apache.hadoop.yarn.api.protocolrecords.GetApplicationsResponse;
+import org.apache.hadoop.yarn.api.ClientRMProtocol;
 import org.apache.hadoop.yarn.api.protocolrecords.GetApplicationReportRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.GetApplicationReportResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.GetClusterNodesRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.GetQueueInfoRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.GetQueueInfoResponse;
-import org.apache.hadoop.yarn.api.protocolrecords.KillApplicationRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.RenewDelegationTokenRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.SubmitApplicationRequest;
-import org.apache.hadoop.yarn.api.records.ApplicationAccessType;
-import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.NodeReport;
-import org.apache.hadoop.yarn.api.records.NodeState;
-import org.apache.hadoop.yarn.api.records.QueueACL;
 import org.apache.hadoop.yarn.api.records.QueueInfo;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.event.Dispatcher;
 import org.apache.hadoop.yarn.event.Event;
 import org.apache.hadoop.yarn.event.EventHandler;
-import org.apache.hadoop.yarn.exceptions.ApplicationNotFoundException;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
@@ -80,17 +66,15 @@ import org.apache.hadoop.yarn.ipc.YarnRPC;
 import org.apache.hadoop.yarn.security.client.RMDelegationTokenIdentifier;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.NullRMStateStore;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore;
+import org.apache.hadoop.yarn.server.resourcemanager.resource.Resources;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMApp;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppImpl;
-import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttemptImpl;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.YarnScheduler;
-import org.apache.hadoop.yarn.server.resourcemanager.security.QueueACLsManager;
 import org.apache.hadoop.yarn.server.resourcemanager.security.RMDelegationTokenSecretManager;
 import org.apache.hadoop.yarn.server.security.ApplicationACLsManager;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
 import org.apache.hadoop.yarn.util.Records;
-import org.apache.hadoop.yarn.util.resource.Resources;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -101,8 +85,6 @@ public class TestClientRMService {
 
   private RecordFactory recordFactory = RecordFactoryProvider
       .getRecordFactory(null);
-
-  private String appType = "MockApp";
 
   private static RMDelegationTokenSecretManager dtsm;
   
@@ -126,62 +108,42 @@ public class TestClientRMService {
     MockRM rm = new MockRM() {
       protected ClientRMService createClientRMService() {
         return new ClientRMService(this.rmContext, scheduler,
-          this.rmAppManager, this.applicationACLsManager, this.queueACLsManager,
+          this.rmAppManager, this.applicationACLsManager,
           this.rmDTSecretManager);
       };
     };
     rm.start();
 
     // Add a healthy node
-    MockNM node = rm.registerNode("host1:1234", 1024);
-    rm.sendNodeStarted(node);
+    MockNM node = rm.registerNode("host:1234", 1024);
     node.nodeHeartbeat(true);
-    
-    // Add and lose a node
-    MockNM lostNode = rm.registerNode("host2:1235", 1024);
-    rm.sendNodeStarted(lostNode);
-    lostNode.nodeHeartbeat(true);
-    rm.NMwaitForState(lostNode.getNodeId(), NodeState.RUNNING);
-    rm.sendNodeLost(lostNode);
 
     // Create a client.
     Configuration conf = new Configuration();
     YarnRPC rpc = YarnRPC.create(conf);
     InetSocketAddress rmAddress = rm.getClientRMService().getBindAddress();
     LOG.info("Connecting to ResourceManager at " + rmAddress);
-    ApplicationClientProtocol client =
-        (ApplicationClientProtocol) rpc
-          .getProxy(ApplicationClientProtocol.class, rmAddress, conf);
+    ClientRMProtocol client =
+        (ClientRMProtocol) rpc
+          .getProxy(ClientRMProtocol.class, rmAddress, conf);
 
     // Make call
     GetClusterNodesRequest request =
-        GetClusterNodesRequest.newInstance(EnumSet.of(NodeState.RUNNING));
+        Records.newRecord(GetClusterNodesRequest.class);
     List<NodeReport> nodeReports =
         client.getClusterNodes(request).getNodeReports();
     Assert.assertEquals(1, nodeReports.size());
-    Assert.assertNotSame("Node is expected to be healthy!", NodeState.UNHEALTHY,
-        nodeReports.get(0).getNodeState());
+    Assert.assertTrue("Node is expected to be healthy!", nodeReports.get(0)
+      .getNodeHealthStatus().getIsNodeHealthy());
 
     // Now make the node unhealthy.
     node.nodeHeartbeat(false);
 
     // Call again
     nodeReports = client.getClusterNodes(request).getNodeReports();
-    Assert.assertEquals("Unhealthy nodes should not show up by default", 0,
-        nodeReports.size());
-    
-    // Now query for UNHEALTHY nodes
-    request = GetClusterNodesRequest.newInstance(EnumSet.of(NodeState.UNHEALTHY));
-    nodeReports = client.getClusterNodes(request).getNodeReports();
     Assert.assertEquals(1, nodeReports.size());
-    Assert.assertEquals("Node is expected to be unhealthy!", NodeState.UNHEALTHY,
-        nodeReports.get(0).getNodeState());
-    
-    // Query all states should return all nodes
-    rm.registerNode("host3:1236", 1024);
-    request = GetClusterNodesRequest.newInstance(EnumSet.allOf(NodeState.class));
-    nodeReports = client.getClusterNodes(request).getNodeReports();
-    Assert.assertEquals(3, nodeReports.size());
+    Assert.assertFalse("Node is expected to be unhealthy!", nodeReports.get(0)
+      .getNodeHealthStatus().getIsNodeHealthy());
   }
   
   @Test
@@ -190,49 +152,24 @@ public class TestClientRMService {
     when(rmContext.getRMApps()).thenReturn(
         new ConcurrentHashMap<ApplicationId, RMApp>());
     ClientRMService rmService = new ClientRMService(rmContext, null, null,
-        null, null, null);
+        null, null);
     RecordFactory recordFactory = RecordFactoryProvider.getRecordFactory(null);
     GetApplicationReportRequest request = recordFactory
         .newRecordInstance(GetApplicationReportRequest.class);
     request.setApplicationId(ApplicationId.newInstance(0, 0));
-    try {
-      rmService.getApplicationReport(request);
-      Assert.fail();
-    } catch (ApplicationNotFoundException ex) {
-      Assert.assertEquals(ex.getMessage(),
-          "Application with id '" + request.getApplicationId()
-              + "' doesn't exist in RM.");
-    }
+    GetApplicationReportResponse applicationReport = rmService
+        .getApplicationReport(request);
+    Assert.assertNull("It should return null as application report for absent application.",
+        applicationReport.getApplicationReport());
   }
   
-  @Test
-  public void testForceKillApplication() throws YarnException {
-    RMContext rmContext = mock(RMContext.class);
-    when(rmContext.getRMApps()).thenReturn(
-        new ConcurrentHashMap<ApplicationId, RMApp>());
-    ClientRMService rmService = new ClientRMService(rmContext, null, null,
-        null, null, null);
-    ApplicationId applicationId =
-        BuilderUtils.newApplicationId(System.currentTimeMillis(), 0);
-    KillApplicationRequest request =
-        KillApplicationRequest.newInstance(applicationId);
-    try {
-      rmService.forceKillApplication(request);
-      Assert.fail();
-    } catch (ApplicationNotFoundException ex) {
-      Assert.assertEquals(ex.getMessage(),
-          "Trying to kill an absent " +
-              "application " + request.getApplicationId());
-    }
-  }
-
   @Test
   public void testGetQueueInfo() throws Exception {
     YarnScheduler yarnScheduler = mock(YarnScheduler.class);
     RMContext rmContext = mock(RMContext.class);
     mockRMContext(yarnScheduler, rmContext);
     ClientRMService rmService = new ClientRMService(rmContext, yarnScheduler,
-        null, null, null, null);
+        null, null, null);
     GetQueueInfoRequest request = recordFactory
         .newRecordInstance(GetQueueInfoRequest.class);
     request.setQueueName("testqueue");
@@ -315,7 +252,7 @@ public class TestClientRMService {
 
     RMContext rmContext = mock(RMContext.class);
     ClientRMService rmService = new ClientRMService(
-        rmContext, null, null, null, null, dtsm);
+        rmContext, null, null, null, dtsm);
     rmService.renewDelegationToken(request);
   }
 
@@ -333,22 +270,11 @@ public class TestClientRMService {
         new EventHandler<Event>() {
           public void handle(Event event) {}
         });
-    ApplicationId appId1 = getApplicationId(100);
-
-    ApplicationACLsManager mockAclsManager = mock(ApplicationACLsManager.class);
-    when(
-        mockAclsManager.checkAccess(UserGroupInformation.getCurrentUser(),
-            ApplicationAccessType.VIEW_APP, null, appId1)).thenReturn(true);
-
-    QueueACLsManager mockQueueACLsManager = mock(QueueACLsManager.class);
-    when(mockQueueACLsManager.checkAccess(any(UserGroupInformation.class),
-            any(QueueACL.class), anyString())).thenReturn(true);
     ClientRMService rmService =
-        new ClientRMService(rmContext, yarnScheduler, appManager,
-            mockAclsManager, mockQueueACLsManager, null);
+        new ClientRMService(rmContext, yarnScheduler, appManager, null, null);
 
     // without name and queue
-
+    ApplicationId appId1 = getApplicationId(100);
     SubmitApplicationRequest submitRequest1 = mockSubmitAppRequest(
         appId1, null, null);
     try {
@@ -369,8 +295,6 @@ public class TestClientRMService {
     ApplicationId appId2 = getApplicationId(101);
     SubmitApplicationRequest submitRequest2 = mockSubmitAppRequest(
         appId2, name, queue);
-    submitRequest2.getApplicationSubmissionContext().setApplicationType(
-        "matchType");
     try {
       rmService.submitApplication(submitRequest2);
     } catch (YarnException e) {
@@ -389,25 +313,6 @@ public class TestClientRMService {
       Assert.assertTrue("The thrown exception is not expected.",
           e.getMessage().contains("Cannot add a duplicate!"));
     }
-
-    GetApplicationsRequest getAllAppsRequest =
-        GetApplicationsRequest.newInstance(new HashSet<String>());
-    GetApplicationsResponse getAllApplicationsResponse =
-        rmService.getApplications(getAllAppsRequest);
-    Assert.assertEquals(5,
-        getAllApplicationsResponse.getApplicationList().size());
-
-    Set<String> appTypes = new HashSet<String>();
-    appTypes.add("matchType");
-
-    getAllAppsRequest = GetApplicationsRequest.newInstance(appTypes);
-    getAllApplicationsResponse =
-        rmService.getApplications(getAllAppsRequest);
-    Assert.assertEquals(1,
-        getAllApplicationsResponse.getApplicationList().size());
-    Assert.assertEquals(appId2,
-        getAllApplicationsResponse.getApplicationList()
-            .get(0).getApplicationId());
   }
   
   @Test(timeout=4000)
@@ -455,8 +360,7 @@ public class TestClientRMService {
     when(rmContext.getDispatcher().getEventHandler()).thenReturn(eventHandler);
       
     final ClientRMService rmService =
-        new ClientRMService(rmContext, yarnScheduler, appManager, null, null,
-            null);
+        new ClientRMService(rmContext, yarnScheduler, appManager, null, null);
 
     // submit an app and wait for it to block while in app submission
     Thread t = new Thread() {
@@ -490,7 +394,6 @@ public class TestClientRMService {
     submissionContext.setQueue(queue);
     submissionContext.setApplicationId(appId);
     submissionContext.setResource(resource);
-    submissionContext.setApplicationType(appType);
 
    SubmitApplicationRequest submitRequest =
        recordFactory.newRecordInstance(SubmitApplicationRequest.class);
@@ -502,8 +405,6 @@ public class TestClientRMService {
       throws IOException {
     Dispatcher dispatcher = mock(Dispatcher.class);
     when(rmContext.getDispatcher()).thenReturn(dispatcher);
-    EventHandler eventHandler = mock(EventHandler.class);
-    when(dispatcher.getEventHandler()).thenReturn(eventHandler);
     QueueInfo queInfo = recordFactory.newRecordInstance(QueueInfo.class);
     queInfo.setQueueName("testqueue");
     when(yarnScheduler.getQueueInfo(eq("testqueue"), anyBoolean(), anyBoolean()))
@@ -540,14 +441,9 @@ public class TestClientRMService {
       ApplicationId applicationId3, YarnConfiguration config, String queueName) {
     ApplicationSubmissionContext asContext = mock(ApplicationSubmissionContext.class);
     when(asContext.getMaxAppAttempts()).thenReturn(1);
-    RMAppImpl app =  spy(new RMAppImpl(applicationId3, rmContext, config, null, null,
+    return new RMAppImpl(applicationId3, rmContext, config, null, null,
         queueName, asContext, yarnScheduler, null , System
-            .currentTimeMillis(), "YARN"));
-    ApplicationAttemptId attemptId = ApplicationAttemptId.newInstance(applicationId3, 1);
-    RMAppAttemptImpl rmAppAttemptImpl = new RMAppAttemptImpl(attemptId,
-        rmContext, yarnScheduler, null, asContext, config, null);
-    when(app.getCurrentAppAttempt()).thenReturn(rmAppAttemptImpl);
-    return app;
+            .currentTimeMillis(), "YARN");
   }
 
   private static YarnScheduler mockYarnScheduler() {

@@ -86,11 +86,6 @@ extends AbstractDelegationTokenIdentifier>
   private long tokenMaxLifetime;
   private long tokenRemoverScanInterval;
   private long tokenRenewInterval;
-  /**
-   * Whether to store a token's tracking ID in its TokenInformation.
-   * Can be overridden by a subclass.
-   */
-  protected boolean storeTokenTrackingId;
   private Thread tokenRemoverThread;
   protected volatile boolean running;
 
@@ -107,7 +102,6 @@ extends AbstractDelegationTokenIdentifier>
     this.tokenMaxLifetime = delegationTokenMaxLifetime;
     this.tokenRenewInterval = delegationTokenRenewInterval;
     this.tokenRemoverScanInterval = delegationTokenRemoverScanInterval;
-    this.storeTokenTrackingId = false;
   }
 
   /** should be called before this object is used */
@@ -207,7 +201,7 @@ extends AbstractDelegationTokenIdentifier>
     }
     if (currentTokens.get(identifier) == null) {
       currentTokens.put(identifier, new DelegationTokenInformation(renewDate,
-          password, getTrackingIdIfEnabled(identifier)));
+          password));
     } else {
       throw new IOException(
           "Same delegation token being added twice.");
@@ -286,7 +280,7 @@ extends AbstractDelegationTokenIdentifier>
     byte[] password = createPassword(identifier.getBytes(), currentKey.getKey());
     storeNewToken(identifier, now + tokenRenewInterval);
     currentTokens.put(identifier, new DelegationTokenInformation(now
-        + tokenRenewInterval, password, getTrackingIdIfEnabled(identifier)));
+        + tokenRenewInterval, password));
     return password;
   }
 
@@ -303,21 +297,6 @@ extends AbstractDelegationTokenIdentifier>
       throw new InvalidToken("token (" + identifier.toString() + ") is expired");
     }
     return info.getPassword();
-  }
-
-  protected String getTrackingIdIfEnabled(TokenIdent ident) {
-    if (storeTokenTrackingId) {
-      return ident.getTrackingId();
-    }
-    return null;
-  }
-
-  public synchronized String getTokenTrackingId(TokenIdent identifier) {
-    DelegationTokenInformation info = currentTokens.get(identifier);
-    if (info == null) {
-      return null;
-    }
-    return info.getTrackingId();
   }
 
   /**
@@ -356,7 +335,7 @@ extends AbstractDelegationTokenIdentifier>
       throw new InvalidToken("User " + renewer + 
                              " tried to renew an expired token");
     }
-    if ((id.getRenewer() == null) || (id.getRenewer().toString().isEmpty())) {
+    if ((id.getRenewer() == null) || ("".equals(id.getRenewer().toString()))) {
       throw new AccessControlException("User " + renewer + 
                                        " tried to renew a token without " +
                                        "a renewer");
@@ -380,9 +359,8 @@ extends AbstractDelegationTokenIdentifier>
           + " is trying to renew a token with " + "wrong password");
     }
     long renewTime = Math.min(id.getMaxDate(), now + tokenRenewInterval);
-    String trackingId = getTrackingIdIfEnabled(id);
     DelegationTokenInformation info = new DelegationTokenInformation(renewTime,
-        password, trackingId);
+        password);
 
     if (currentTokens.get(id) == null) {
       throw new InvalidToken("Renewal request for unknown token");
@@ -414,7 +392,7 @@ extends AbstractDelegationTokenIdentifier>
     HadoopKerberosName cancelerKrbName = new HadoopKerberosName(canceller);
     String cancelerShortName = cancelerKrbName.getShortName();
     if (!canceller.equals(owner)
-        && (renewer == null || renewer.toString().isEmpty() || !cancelerShortName
+        && (renewer == null || "".equals(renewer.toString()) || !cancelerShortName
             .equals(renewer.toString()))) {
       throw new AccessControlException(canceller
           + " is not authorized to cancel the token");
@@ -442,17 +420,9 @@ extends AbstractDelegationTokenIdentifier>
   public static class DelegationTokenInformation {
     long renewDate;
     byte[] password;
-    String trackingId;
-
     public DelegationTokenInformation(long renewDate, byte[] password) {
-      this(renewDate, password, null);
-    }
-
-    public DelegationTokenInformation(long renewDate, byte[] password,
-        String trackingId) {
       this.renewDate = renewDate;
       this.password = password;
-      this.trackingId = trackingId;
     }
     /** returns renew date */
     public long getRenewDate() {
@@ -461,10 +431,6 @@ extends AbstractDelegationTokenIdentifier>
     /** returns password */
     byte[] getPassword() {
       return password;
-    }
-    /** returns tracking id */
-    public String getTrackingId() {
-      return trackingId;
     }
   }
   
