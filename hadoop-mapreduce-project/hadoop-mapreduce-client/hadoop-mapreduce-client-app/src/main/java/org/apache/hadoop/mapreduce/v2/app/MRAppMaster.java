@@ -117,6 +117,7 @@ import org.apache.hadoop.service.AbstractService;
 import org.apache.hadoop.service.CompositeService;
 import org.apache.hadoop.service.Service;
 import org.apache.hadoop.service.ServiceOperations;
+import org.apache.hadoop.util.ExitUtil;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.ShutdownHookManager;
 import org.apache.hadoop.util.StringInterner;
@@ -1375,9 +1376,7 @@ public class MRAppMaster extends CompositeService {
       initAndStartAppMaster(appMaster, conf, jobUserName);
     } catch (Throwable t) {
       LOG.fatal("Error starting MRAppMaster", t);
-      System.exit(1);
-    } finally {
-      LogManager.shutdown();
+      ExitUtil.terminate(1, t);
     }
   }
 
@@ -1453,4 +1452,11 @@ public class MRAppMaster extends CompositeService {
       }
     });
   }
+
+  @Override
+  protected void serviceStop() throws Exception {
+    super.serviceStop();
+    LogManager.shutdown();
+  }
+
 }
