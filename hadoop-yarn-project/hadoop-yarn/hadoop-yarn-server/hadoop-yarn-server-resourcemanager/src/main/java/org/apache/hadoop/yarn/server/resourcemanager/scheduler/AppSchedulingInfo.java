@@ -260,7 +260,7 @@ public class AppSchedulingInfo {
       // once an allocation is done we assume the application is
       // running from scheduler's POV.
       pending = false;
-      metrics.runAppAttempt(applicationId, user);
+      metrics.incrAppsRunning(this, user);
     }
     LOG.debug("allocate: user: " + user + ", memory: "
         + request.getCapability());
@@ -390,7 +390,7 @@ public class AppSchedulingInfo {
                 .getNumContainers()));
       }
     }
-    metrics.finishAppAttempt(applicationId, pending, user);
+    metrics.finishApp(this, rmAppAttemptFinalState);
     
     // Clear requests themselves
     clearRequests();

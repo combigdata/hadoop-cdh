@@ -644,7 +644,8 @@ public class LeafQueue implements CSQueue {
       addApplicationAttempt(application, user);
     }
 
-    metrics.submitAppAttempt(userName);
+    int attemptId = application.getApplicationAttemptId().getAttemptId();
+    metrics.submitApp(userName, attemptId);
     getParent().submitApplicationAttempt(application, userName);
   }
 
@@ -701,8 +702,6 @@ public class LeafQueue implements CSQueue {
           getParent().getQueuePath(), ace);
       throw ace;
     }
-
-    metrics.submitApp(userName);
   }
 
   private synchronized void activateApplications() {
