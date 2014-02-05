@@ -181,9 +181,6 @@ Release 2.4.0 - UNRELEASED
     YARN-1541. Changed ResourceManager to invalidate ApplicationMaster host/port
     information once an AM crashes. (Jian He via vinodkv)
 
-    YARN-1493. Changed ResourceManager and Scheduler interfacing to recognize
-    app-attempts separately from apps. (Jian He via vinodkv)
-
     YARN-1482. Modified WebApplicationProxy to make it work across ResourceManager
     fail-over. (Xuan Gong via vinodkv)
 

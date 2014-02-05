@@ -16,28 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.hadoop.yarn.server.resourcemanager.scheduler.event;
+package org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.event;
 
-import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppState;
+import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
+import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttemptEvent;
+import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttemptEventType;
 
-public class AppRemovedSchedulerEvent extends SchedulerEvent {
+public class RMAppAttemptRejectedEvent extends RMAppAttemptEvent {
 
-  private final ApplicationId applicationId;
-  private final RMAppState finalState;
+  private final String message;
 
-  public AppRemovedSchedulerEvent(ApplicationId applicationId,
-      RMAppState finalState) {
-    super(SchedulerEventType.APP_REMOVED);
-    this.applicationId = applicationId;
-    this.finalState = finalState;
+  public RMAppAttemptRejectedEvent(ApplicationAttemptId appAttemptId, String message) {
+    super(appAttemptId, RMAppAttemptEventType.APP_REJECTED);
+    this.message = message;
   }
 
-  public ApplicationId getApplicationID() {
-    return this.applicationId;
-  }
-
-  public RMAppState getFinalState() {
-    return this.finalState;
+  public String getMessage() {
+    return this.message;
   }
 }
