@@ -171,7 +171,7 @@ public class Application {
         new AppAddedSchedulerEvent(this.applicationId, this.queue, "user");
     scheduler.handle(addAppEvent);
     AppAttemptAddedSchedulerEvent addAttemptEvent =
-        new AppAttemptAddedSchedulerEvent(this.applicationAttemptId, false);
+        new AppAttemptAddedSchedulerEvent(this.applicationAttemptId);
     scheduler.handle(addAttemptEvent);
   }
   

@@ -23,21 +23,14 @@ import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 public class AppAttemptAddedSchedulerEvent extends SchedulerEvent {
 
   private final ApplicationAttemptId applicationAttemptId;
-  private final boolean transferStateFromPreviousAttempt;
 
   public AppAttemptAddedSchedulerEvent(
-      ApplicationAttemptId applicationAttemptId,
-      boolean transferStateFromPreviousAttempt) {
+      ApplicationAttemptId applicationAttemptId) {
     super(SchedulerEventType.APP_ATTEMPT_ADDED);
     this.applicationAttemptId = applicationAttemptId;
-    this.transferStateFromPreviousAttempt = transferStateFromPreviousAttempt;
   }
 
   public ApplicationAttemptId getApplicationAttemptId() {
     return applicationAttemptId;
-  }
-
-  public boolean getTransferStateFromPreviousAttempt() {
-    return transferStateFromPreviousAttempt;
   }
 }
