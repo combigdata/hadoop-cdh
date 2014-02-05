@@ -79,6 +79,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.QueueMetrics;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.TestSchedulerUtils;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.TestCapacityScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.AppAddedSchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.AppAttemptAddedSchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.AppAttemptRemovedSchedulerEvent;
@@ -259,7 +260,7 @@ public class TestFairScheduler {
     scheduler.addApplication(id.getApplicationId(), queueId, userId);
     // This conditional is for testAclSubmitApplication where app is rejected
     // and no app is added.
-    if (scheduler.getSchedulerApplications().containsKey(id.getApplicationId())) {
+    if (scheduler.applications.containsKey(id.getApplicationId())) {
       scheduler.addApplicationAttempt(id, false);
     }
     List<ResourceRequest> ask = new ArrayList<ResourceRequest>();
@@ -2545,6 +2546,6 @@ public class TestFairScheduler {
     FairScheduler scheduler =
         (FairScheduler) resourceManager.getResourceScheduler();
     TestSchedulerUtils.verifyAppAddedAndRemovedFromScheduler(
-      scheduler.getSchedulerApplications(), scheduler, "default");
+      scheduler.applications, scheduler, "default");
   }
 }

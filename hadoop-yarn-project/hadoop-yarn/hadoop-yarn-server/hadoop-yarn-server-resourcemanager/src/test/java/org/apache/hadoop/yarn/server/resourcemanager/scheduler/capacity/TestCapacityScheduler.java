@@ -642,7 +642,7 @@ public class TestCapacityScheduler {
 
     SchedulerApplication app =
         TestSchedulerUtils.verifyAppAddedAndRemovedFromScheduler(
-          cs.getSchedulerApplications(), cs, "a1");
+          cs.applications, cs, "a1");
     Assert.assertEquals("a1", app.getQueue().getQueueName());
   }
  }

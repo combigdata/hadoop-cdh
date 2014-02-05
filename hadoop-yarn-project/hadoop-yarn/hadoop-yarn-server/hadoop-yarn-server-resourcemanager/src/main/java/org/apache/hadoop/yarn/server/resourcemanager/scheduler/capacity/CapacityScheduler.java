@@ -67,7 +67,6 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainerStat
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNodeCleanContainerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.UpdatedContainerInfo;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.AbstractYarnScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.Allocation;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.PreemptableResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.QueueMetrics;
@@ -96,7 +95,7 @@ import com.google.common.annotations.VisibleForTesting;
 @LimitedPrivate("yarn")
 @Evolving
 @SuppressWarnings("unchecked")
-public class CapacityScheduler extends AbstractYarnScheduler
+public class CapacityScheduler
   implements PreemptableResourceScheduler, CapacitySchedulerContext,
              Configurable {
 
@@ -178,6 +177,7 @@ public class CapacityScheduler extends AbstractYarnScheduler
 
   private CapacitySchedulerConfiguration conf;
   private Configuration yarnConf;
+  private RMContext rmContext;
 
   private Map<String, CSQueue> queues = new ConcurrentHashMap<String, CSQueue>();
 
@@ -190,6 +190,10 @@ public class CapacityScheduler extends AbstractYarnScheduler
 
   private Resource minimumAllocation;
   private Resource maximumAllocation;
+
+  @VisibleForTesting
+  protected Map<ApplicationId, SchedulerApplication> applications =
+      new ConcurrentHashMap<ApplicationId, SchedulerApplication>();
 
   private boolean initialized = false;
 
@@ -267,10 +271,9 @@ public class CapacityScheduler extends AbstractYarnScheduler
       this.maximumAllocation = this.conf.getMaximumAllocation();
       this.calculator = this.conf.getResourceCalculator();
       this.usePortForNodeName = this.conf.getUsePortForNodeName();
-      this.applications =
-          new ConcurrentHashMap<ApplicationId, SchedulerApplication>();
-      this.rmContext = rmContext;
 
+      this.rmContext = rmContext;
+      
       initializeQueues(this.conf);
       
       initialized = true;
