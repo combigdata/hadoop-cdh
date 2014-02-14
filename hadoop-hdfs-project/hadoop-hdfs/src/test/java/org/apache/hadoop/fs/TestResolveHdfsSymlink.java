@@ -26,6 +26,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.commons.lang.RandomStringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.DFSClient;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
@@ -49,6 +50,10 @@ import org.junit.Test;
  */
 public class TestResolveHdfsSymlink {
   private static MiniDFSCluster cluster = null;
+
+  private final static String TEST_ROOT =
+      System.getProperty("test.build.data", "target/test/data") +
+      RandomStringUtils.randomAlphanumeric(10);
 
   @BeforeClass
   public static void setUp() throws IOException {
@@ -80,19 +85,19 @@ public class TestResolveHdfsSymlink {
         .getUri());
 
     Path alphaLocalPath = new Path(fcLocal.getDefaultFileSystem().getUri()
-        .toString(), "/tmp/alpha");
+        .toString(), TEST_ROOT + "/tmp/alpha");
     DFSTestUtil.createFile(FileSystem.getLocal(conf), alphaLocalPath, 16,
         (short) 1, 2);
 
     Path linkTarget = new Path(fcLocal.getDefaultFileSystem().getUri()
-        .toString(), "/tmp");
+        .toString(), TEST_ROOT + "/tmp");
     Path hdfsLink = new Path(fcHdfs.getDefaultFileSystem().getUri().toString(),
-        "/tmp/link");
+        TEST_ROOT + "/tmp/link");
     fcHdfs.createSymlink(linkTarget, hdfsLink, true);
 
     Path alphaHdfsPathViaLink = new Path(fcHdfs.getDefaultFileSystem().getUri()
         .toString()
-        + "/tmp/link/alpha");
+        + TEST_ROOT + "/tmp/link/alpha");
 
     Set<AbstractFileSystem> afsList = fcHdfs
         .resolveAbstractFileSystems(alphaHdfsPathViaLink);
