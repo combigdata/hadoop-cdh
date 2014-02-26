@@ -76,6 +76,7 @@ import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
+import org.apache.hadoop.yarn.api.records.NMToken;
 import org.apache.hadoop.yarn.api.records.NodeReport;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
@@ -547,7 +548,7 @@ public class ApplicationMaster {
     }
 
     List<Container> previousAMRunningContainers =
-        response.getContainersFromPreviousAttempt();
+        response.getContainersFromPreviousAttempts();
     LOG.info("Received " + previousAMRunningContainers.size()
         + " previous AM's running containers on AM registration.");
     numAllocatedContainers.addAndGet(previousAMRunningContainers.size());
