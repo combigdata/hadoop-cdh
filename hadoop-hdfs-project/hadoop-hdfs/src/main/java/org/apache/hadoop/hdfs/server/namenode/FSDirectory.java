@@ -2251,6 +2251,7 @@ public class FSDirectory implements Closeable {
     final Quota.Counts counts = child.computeQuotaUsage();
     updateCount(iip, pos,
         counts.get(Quota.NAMESPACE), counts.get(Quota.DISKSPACE), checkQuota);
+    boolean isRename = (child.getParent() != null);
     final INodeDirectory parent = inodes[pos-1].asDirectory();
     boolean added = false;
     try {
@@ -2265,7 +2266,9 @@ public class FSDirectory implements Closeable {
           -counts.get(Quota.NAMESPACE), -counts.get(Quota.DISKSPACE));
     } else {
       iip.setINode(pos - 1, child.getParent());
-      AclStorage.copyINodeDefaultAcl(child);
+      if (!isRename) {
+        AclStorage.copyINodeDefaultAcl(child);
+      }
       addToInodeMap(child);
     }
     return added;
