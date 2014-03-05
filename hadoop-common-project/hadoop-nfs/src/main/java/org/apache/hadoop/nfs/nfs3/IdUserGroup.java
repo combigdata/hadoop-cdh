@@ -24,6 +24,7 @@ import java.io.InputStreamReader;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.util.Time;
+import org.apache.hadoop.conf.Configuration;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BiMap;
@@ -43,9 +44,12 @@ public class IdUserGroup {
   static final String MAC_GET_ALL_USERS_CMD = "dscl . -list /Users UniqueID";
   static final String MAC_GET_ALL_GROUPS_CMD = "dscl . -list /Groups PrimaryGroupID";
 
-  // Do update every 15 minutes
-  final static long TIMEOUT = 15 * 60 * 1000; // ms
-
+  // Do update every 15 minutes by default
+  final static long TIMEOUT_DEFAULT = 15 * 60 * 1000; // ms
+  final static long TIMEOUT_MIN = 1 * 60 * 1000; // ms
+  final private long timeout;
+  final static String NFS_USERUPDATE_MILLY = "hadoop.nfs.userupdate.milly";
+  
   // Maps for id to name map. Guarded by this object monitor lock
   private BiMap<Integer, String> uidNameMap = HashBiMap.create();
   private BiMap<Integer, String> gidNameMap = HashBiMap.create();
@@ -53,11 +57,30 @@ public class IdUserGroup {
   private long lastUpdateTime = 0; // Last time maps were updated
   
   public IdUserGroup() throws IOException {
+    timeout = TIMEOUT_DEFAULT;
+    updateMaps();
+  }
+  
+  public IdUserGroup(Configuration conf) throws IOException {
+    long updateTime = conf.getLong(NFS_USERUPDATE_MILLY, TIMEOUT_DEFAULT);
+    // Minimal interval is 1 minute
+    if (updateTime < TIMEOUT_MIN) {
+      LOG.info("User configured user account update time is less"
+          + " than 1 minute. Use 1 minute instead.");
+      timeout = TIMEOUT_MIN;
+    } else {
+      timeout = updateTime;
+    }
     updateMaps();
   }
 
+  @VisibleForTesting
+  public long getTimeout() {
+    return timeout;
+  }
+  
   synchronized private boolean isExpired() {
-    return Time.monotonicNow() - lastUpdateTime > TIMEOUT;
+    return Time.monotonicNow() - lastUpdateTime > timeout;
   }
 
   // If can't update the maps, will keep using the old ones
