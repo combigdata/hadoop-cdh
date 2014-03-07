@@ -153,7 +153,7 @@ public class StandbyCheckpointer {
     final long txid;
     final NameNodeFile imageType;
     
-    namesystem.writeLockInterruptibly();
+    namesystem.longReadLockInterruptibly();
     try {
       assert namesystem.getEditLog().isOpenForRead() :
         "Standby Checkpointer should only attempt a checkpoint when " +
@@ -184,7 +184,7 @@ public class StandbyCheckpointer {
       assert txid == thisCheckpointTxId : "expected to save checkpoint at txid=" +
         thisCheckpointTxId + " but instead saved at txid=" + txid;
     } finally {
-      namesystem.writeUnlock();
+      namesystem.longReadUnlock();
     }
     
     // Upload the saved checkpoint back to the active
