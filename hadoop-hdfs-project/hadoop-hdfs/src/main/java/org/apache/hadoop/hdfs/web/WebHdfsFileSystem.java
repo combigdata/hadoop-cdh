@@ -1131,4 +1131,10 @@ public class WebHdfsFileSystem extends FileSystem
     InetSocketAddress[] r = new InetSocketAddress[ret.size()];
     return ret.toArray(r);
   }
+
+  @Override
+  public String getCanonicalServiceName() {
+    return tokenServiceName == null ? super.getCanonicalServiceName()
+        : tokenServiceName.toString();
+  }
 }
