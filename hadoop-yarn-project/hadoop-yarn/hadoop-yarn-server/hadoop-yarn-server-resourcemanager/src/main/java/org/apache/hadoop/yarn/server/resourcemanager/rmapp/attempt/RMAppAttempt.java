@@ -178,4 +178,13 @@ public interface RMAppAttempt extends EventHandler<RMAppAttemptEvent> {
    * @return the start time of the application.
    */
   long getStartTime();
+
+  /**
+   * The current state of the {@link RMAppAttempt}.
+   * 
+   * @return the current state {@link RMAppAttemptState} for this application
+   *         attempt.
+   */
+  RMAppAttemptState getState();
+
 }
