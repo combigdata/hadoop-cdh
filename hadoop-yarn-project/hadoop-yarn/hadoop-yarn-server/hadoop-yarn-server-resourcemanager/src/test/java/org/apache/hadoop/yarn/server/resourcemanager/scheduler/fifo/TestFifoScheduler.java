@@ -28,7 +28,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -134,7 +134,7 @@ public class TestFifoScheduler {
   public void testFifoSchedulerCapacityWhenNoNMs() {
     FifoScheduler scheduler = new FifoScheduler();
     QueueInfo queueInfo = scheduler.getQueueInfo(null, false, false);
-    Assert.assertEquals(0.0f, queueInfo.getCurrentCapacity());
+    Assert.assertEquals(0.0f, queueInfo.getCurrentCapacity(), 0.0f);
   }
   
   @Test(timeout=5000)
@@ -276,7 +276,7 @@ public class TestFifoScheduler {
     assertEquals(schedulerNodes.get(node0.getNodeID()).
         getAvailableResource().getMemory(), 1024);
     QueueInfo queueInfo = scheduler.getQueueInfo(null, false, false);
-    Assert.assertEquals(0.0f, queueInfo.getCurrentCapacity());
+    Assert.assertEquals(0.0f, queueInfo.getCurrentCapacity(), 0.0f);
     
     int _appId = 1;
     int _appAttemptId = 1;
@@ -318,7 +318,7 @@ public class TestFifoScheduler {
     Assert.assertEquals(1, info.getLiveContainers().size());
     // And check the default Queue now is full.
     queueInfo = scheduler.getQueueInfo(null, false, false);
-    Assert.assertEquals(1.0f, queueInfo.getCurrentCapacity());
+    Assert.assertEquals(1.0f, queueInfo.getCurrentCapacity(), 0.0f);
   }
   
 //  @Test

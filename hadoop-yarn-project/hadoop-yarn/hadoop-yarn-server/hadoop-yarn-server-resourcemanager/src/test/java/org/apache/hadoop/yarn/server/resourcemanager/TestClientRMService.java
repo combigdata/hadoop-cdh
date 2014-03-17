@@ -45,7 +45,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CyclicBarrier;
 
 import com.google.common.collect.Sets;
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.commons.lang.math.LongRange;
 import org.apache.commons.logging.Log;
