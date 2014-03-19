@@ -125,7 +125,7 @@ public class NameNode implements NameNodeStatusMXBean {
   static{
     HdfsConfiguration.init();
   }
-  
+
   /**
    * Categories of operations supported by the namenode.
    */
@@ -266,6 +266,11 @@ public class NameNode implements NameNodeStatusMXBean {
 
   private JvmPauseMonitor pauseMonitor;
   private ObjectName nameNodeStatusBeanName;
+  /**
+   * The service name of the delegation token issued by the namenode. It is
+   * the name service id in HA mode, or the rpc address in non-HA mode.
+   */
+  private String tokenServiceName;
   
   /** Format a new filesystem.  Destroys any filesystem that may already
    * exist at this location.  **/
@@ -302,6 +307,13 @@ public class NameNode implements NameNodeStatusMXBean {
   public static StartupProgress getStartupProgress() {
     return startupProgress;
   }
+
+  /**
+   * Return the service name of the issued delegation token.
+   *
+   * @return The name service id in HA-mode, or the rpc address in non-HA mode
+   */
+  public String getTokenServiceName() { return tokenServiceName; }
 
   public static InetSocketAddress getAddress(String address) {
     return NetUtils.createSocketAddr(address, DEFAULT_PORT);
@@ -496,6 +508,9 @@ public class NameNode implements NameNodeStatusMXBean {
     loadNamesystem(conf);
 
     rpcServer = createRpcServer(conf);
+    final String nsId = getNameServiceId(conf);
+    tokenServiceName = HAUtil.isHAEnabled(conf, nsId) ? nsId : NetUtils
+            .getHostPortString(rpcServer.getRpcAddress());
     if (NamenodeRole.NAMENODE == role) {
       httpServer.setNameNodeAddress(getNameNodeAddress());
       httpServer.setFSImage(getFSImage());
