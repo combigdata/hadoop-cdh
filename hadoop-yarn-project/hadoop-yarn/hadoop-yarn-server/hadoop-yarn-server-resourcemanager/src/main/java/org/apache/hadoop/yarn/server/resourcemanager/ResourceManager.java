@@ -21,6 +21,7 @@ package org.apache.hadoop.yarn.server.resourcemanager;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
+import java.security.PrivilegedExceptionAction;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -162,6 +163,8 @@ public class ResourceManager extends CompositeService implements Recoverable {
   /** End of Active services */
 
   private Configuration conf;
+
+  private UserGroupInformation rmLoginUGI;
   
   public ResourceManager() {
     super("ResourceManager");
@@ -231,6 +234,8 @@ public class ResourceManager extends CompositeService implements Recoverable {
     createAndInitActiveServices();
 
     webAppAddress = WebAppUtils.getRMWebAppURLWithoutScheme(this.conf);
+
+    this.rmLoginUGI = UserGroupInformation.getCurrentUser();
 
     super.serviceInit(this.conf);
   }
@@ -849,7 +854,18 @@ public class ResourceManager extends CompositeService implements Recoverable {
     }
 
     LOG.info("Transitioning to active state");
-    startActiveServices();
+
+    // use rmLoginUGI to startActiveServices.
+    // in non-secure model, rmLoginUGI will be current UGI
+    // in secure model, rmLoginUGI will be LoginUser UGI
+    this.rmLoginUGI.doAs(new PrivilegedExceptionAction<Void>() {
+      @Override
+      public Void run() throws Exception {
+        startActiveServices();
+        return null;
+      }
+    });
+
     rmContext.setHAServiceState(HAServiceProtocol.HAServiceState.ACTIVE);
     LOG.info("Transitioned to active state");
   }
@@ -901,6 +917,11 @@ public class ResourceManager extends CompositeService implements Recoverable {
 	  InetSocketAddress socAddr = getBindAddress(conf);
     SecurityUtil.login(this.conf, YarnConfiguration.RM_KEYTAB,
         YarnConfiguration.RM_PRINCIPAL, socAddr.getHostName());
+
+    // if security is enable, set rmLoginUGI as UGI of loginUser
+    if (UserGroupInformation.isSecurityEnabled()) {
+      this.rmLoginUGI = UserGroupInformation.getLoginUser();
+    }
   }
 
   @Override
