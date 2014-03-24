@@ -167,8 +167,7 @@ public class IdUserGroup {
         try {
           br.close();
         } catch (IOException e1) {
-          LOG.error("Can't close BufferedReader of command result");
-          e1.printStackTrace();
+          LOG.error("Can't close BufferedReader of command result", e1);
         }
       }
     }
@@ -250,7 +249,7 @@ public class IdUserGroup {
       uid = getUid(user);
     } catch (IOException e) {
       uid = user.hashCode();
-      LOG.info("Can't map user " + user + ". Use its string hashcode:" + uid);
+      LOG.info("Can't map user " + user + ". Use its string hashcode:" + uid, e);
     }
     return uid;
   }
@@ -263,7 +262,7 @@ public class IdUserGroup {
       gid = getGid(group);
     } catch (IOException e) {
       gid = group.hashCode();
-      LOG.debug("Can't map group " + group + ". Use its string hashcode:" + gid);
+      LOG.info("Can't map group " + group + ". Use its string hashcode:" + gid, e);
     }
     return gid;
   }
