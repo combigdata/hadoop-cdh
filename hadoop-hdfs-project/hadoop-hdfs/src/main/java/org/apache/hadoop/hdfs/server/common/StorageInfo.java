@@ -226,8 +226,8 @@ public class StorageInfo {
     return storageType == NodeType.DATA_NODE? DataNodeLayoutVersion.FEATURES
         : NameNodeLayoutVersion.FEATURES;
   }
-  
-  static String getProperty(Properties props, StorageDirectory sd,
+
+  protected static String getProperty(Properties props, StorageDirectory sd,
       String name) throws InconsistentFSStateException {
     String property = props.getProperty(name);
     if (property == null) {
