@@ -381,7 +381,7 @@ public class TestRMRestart {
     Assert.assertEquals(4, rmAppState.size());
  }
 
-  @Test
+  @Test (timeout = 60000)
   public void testRMRestartAppRunningAMFailed() throws Exception {
     conf.setInt(YarnConfiguration.RM_AM_MAX_ATTEMPTS,
       YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS);
@@ -427,7 +427,7 @@ public class TestRMRestart {
     rm2.stop();
   }
 
-  @Test
+  @Test (timeout = 60000)
   public void testRMRestartWaitForPreviousAMToFinish() throws Exception {
     // testing 3 cases
     // After RM restarts
@@ -594,7 +594,7 @@ public class TestRMRestart {
   // store but before the RMAppAttempt notifies RMApp that it has succeeded. On
   // recovery, RMAppAttempt should send the AttemptFinished event to RMApp so
   // that RMApp can recover its state.
-  @Test
+  @Test (timeout = 60000)
   public void testRMRestartWaitForPreviousSucceededAttempt() throws Exception {
     conf.setInt(YarnConfiguration.RM_AM_MAX_ATTEMPTS, 2);
     MemoryRMStateStore memStore = new MemoryRMStateStore() {
@@ -647,7 +647,7 @@ public class TestRMRestart {
       rmAppState.get(app0.getApplicationId()).getState());
   }
 
-  @Test
+  @Test (timeout = 60000)
   public void testRMRestartFailedApp() throws Exception {
     conf.setInt(YarnConfiguration.RM_AM_MAX_ATTEMPTS, 1);
     MemoryRMStateStore memStore = new MemoryRMStateStore();
@@ -696,7 +696,7 @@ public class TestRMRestart {
     rm2.stop();
   }
 
-  @Test
+  @Test (timeout = 60000)
   public void testRMRestartKilledApp() throws Exception{
     conf.setInt(YarnConfiguration.RM_AM_MAX_ATTEMPTS,
       YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS);
@@ -744,7 +744,7 @@ public class TestRMRestart {
     rm2.stop();
   }
 
-  @Test
+  @Test (timeout = 60000)
   public void testRMRestartKilledAppWithNoAttempts() throws Exception {
     MemoryRMStateStore memStore = new MemoryRMStateStore() {
       @Override
@@ -784,7 +784,7 @@ public class TestRMRestart {
     Assert.assertTrue(loadedApp0.getAppAttempts().size() == 0);
   }
 
-  @Test
+  @Test (timeout = 60000)
   public void testRMRestartSucceededApp() throws Exception {
     conf.setInt(YarnConfiguration.RM_AM_MAX_ATTEMPTS,
       YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS);
@@ -836,7 +836,7 @@ public class TestRMRestart {
     rm2.stop();
   }
 
-  @Test
+  @Test (timeout = 60000)
   public void testRMRestartGetApplicationList() throws Exception {
     conf.setInt(YarnConfiguration.RM_AM_MAX_ATTEMPTS, 1);
     MemoryRMStateStore memStore = new MemoryRMStateStore();
@@ -984,7 +984,7 @@ public class TestRMRestart {
       appState.getAttempt(am.getApplicationAttemptId()).getState());
   }
 
-  @Test
+  @Test (timeout = 60000)
   public void testRMRestartOnMaxAppAttempts() throws Exception {
     conf.setInt(YarnConfiguration.RM_AM_MAX_ATTEMPTS,
         YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS);
@@ -1058,7 +1058,7 @@ public class TestRMRestart {
     rm2.stop();
   }
 
-  @Test
+  @Test (timeout = 60000)
   public void testDelegationTokenRestoredInDelegationTokenRenewer()
       throws Exception {
     conf.setInt(YarnConfiguration.RM_AM_MAX_ATTEMPTS, 2);
@@ -1158,7 +1158,7 @@ public class TestRMRestart {
     }
   }
 
-  @Test
+  @Test (timeout = 60000)
   public void testAppAttemptTokensRestoredOnRMRestart() throws Exception {
     conf.setInt(YarnConfiguration.RM_AM_MAX_ATTEMPTS, 2);
     conf.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION,
@@ -1248,7 +1248,7 @@ public class TestRMRestart {
     rm2.stop();
   }
 
-  @Test
+  @Test (timeout = 60000)
   public void testRMDelegationTokenRestoredOnRMRestart() throws Exception {
     conf.setInt(YarnConfiguration.RM_AM_MAX_ATTEMPTS, 2);
     conf.set(
@@ -1397,7 +1397,7 @@ public class TestRMRestart {
 
   // This is to test submit an application to the new RM with the old delegation
   // token got from previous RM.
-  @Test
+  @Test (timeout = 60000)
   public void testAppSubmissionWithOldDelegationTokenAfterRMRestart()
       throws Exception {
     conf.setInt(YarnConfiguration.RM_AM_MAX_ATTEMPTS, 2);
@@ -1432,7 +1432,7 @@ public class TestRMRestart {
     rm2.waitForState(app.getApplicationId(), RMAppState.ACCEPTED);
   }
 
-  @Test
+  @Test (timeout = 60000)
   public void testRMStateStoreDispatcherDrainedOnRMStop() throws Exception {
     MemoryRMStateStore memStore = new MemoryRMStateStore() {
       volatile boolean wait = true;
@@ -1491,7 +1491,7 @@ public class TestRMRestart {
     Assert.assertTrue(rmAppState.size() == NUM_APPS);
   }
 
-  @Test
+  @Test (timeout = 60000)
   public void testFinishedAppRemovalAfterRMRestart() throws Exception {
     MemoryRMStateStore memStore = new MemoryRMStateStore();
     conf.setInt(YarnConfiguration.RM_MAX_COMPLETED_APPLICATIONS, 1);
@@ -1563,7 +1563,7 @@ public class TestRMRestart {
   // This is to test Killing application should be able to wait until app
   // reaches killed state and also check that attempt state is saved before app
   // state is saved.
-  @Test
+  @Test (timeout = 60000)
   public void testClientRetryOnKillingApplication() throws Exception {
     MemoryRMStateStore memStore = new TestMemoryRMStateStore();
     memStore.init(conf);
@@ -1807,6 +1807,13 @@ public class TestRMRestart {
 
     public TestSecurityMockRM(Configuration conf, RMStateStore store) {
       super(conf, store);
+    }
+
+    @Override
+    public void init(Configuration conf) {
+      // reset localServiceAddress.
+      RMDelegationTokenIdentifier.Renewer.setSecretManager(null, null);
+      super.init(conf);
     }
 
     @Override
