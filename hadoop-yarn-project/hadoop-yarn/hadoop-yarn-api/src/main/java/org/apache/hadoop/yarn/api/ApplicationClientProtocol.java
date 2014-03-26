@@ -24,6 +24,7 @@ import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Stable;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
+import org.apache.hadoop.io.retry.Idempotent;
 import org.apache.hadoop.yarn.api.protocolrecords.CancelDelegationTokenRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.CancelDelegationTokenResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.GetApplicationsRequest;
@@ -89,6 +90,7 @@ public interface ApplicationClientProtocol {
    */
   @Public
   @Stable
+  @Idempotent
   public GetNewApplicationResponse getNewApplication(
       GetNewApplicationRequest request)
   throws YarnException, IOException;
@@ -109,6 +111,10 @@ public interface ApplicationClientProtocol {
    * followed by {@link #getApplicationReport(GetApplicationReportRequest)}
    * to make sure that the application gets properly submitted.</p>
    * 
+   * <p>During the submission process, it checks whether the application
+   * already exists. If the application exists, it will simply return
+   * SubmitApplicationResponse</p>
+   *
    * <p> In secure mode,the <code>ResourceManager</code> verifies access to
    * queues etc. before accepting the application submission.</p>
    * 
@@ -123,6 +129,7 @@ public interface ApplicationClientProtocol {
    */
   @Public
   @Stable
+  @Idempotent
   public SubmitApplicationResponse submitApplication(
       SubmitApplicationRequest request) 
   throws YarnException, IOException;
@@ -149,6 +156,7 @@ public interface ApplicationClientProtocol {
    */
   @Public
   @Stable
+  @Idempotent
   public KillApplicationResponse forceKillApplication(
       KillApplicationRequest request) 
   throws YarnException, IOException;
@@ -206,6 +214,7 @@ public interface ApplicationClientProtocol {
    */
   @Public
   @Stable
+  @Idempotent
   public GetClusterMetricsResponse getClusterMetrics(
       GetClusterMetricsRequest request) 
   throws YarnException, IOException;
@@ -233,6 +242,7 @@ public interface ApplicationClientProtocol {
    */
   @Public
   @Stable
+  @Idempotent
   public GetApplicationsResponse getApplications(
       GetApplicationsRequest request)
   throws YarnException, IOException;
@@ -252,6 +262,7 @@ public interface ApplicationClientProtocol {
    */
   @Public
   @Stable
+  @Idempotent
   public GetClusterNodesResponse getClusterNodes(
       GetClusterNodesRequest request) 
   throws YarnException, IOException;
@@ -273,6 +284,7 @@ public interface ApplicationClientProtocol {
    */
   @Public
   @Stable
+  @Idempotent
   public GetQueueInfoResponse getQueueInfo(
       GetQueueInfoRequest request) 
   throws YarnException, IOException;
@@ -292,6 +304,7 @@ public interface ApplicationClientProtocol {
    */
   @Public
   @Stable
+ @Idempotent
   public GetQueueUserAclsInfoResponse getQueueUserAcls(
       GetQueueUserAclsInfoRequest request) 
   throws YarnException, IOException;
@@ -310,6 +323,7 @@ public interface ApplicationClientProtocol {
    */
   @Public
   @Stable
+  @Idempotent
   public GetDelegationTokenResponse getDelegationToken(
       GetDelegationTokenRequest request) 
   throws YarnException, IOException;
@@ -324,6 +338,7 @@ public interface ApplicationClientProtocol {
    */
   @Private
   @Unstable
+  @Idempotent
   public RenewDelegationTokenResponse renewDelegationToken(
       RenewDelegationTokenRequest request) throws YarnException,
       IOException;
@@ -338,6 +353,7 @@ public interface ApplicationClientProtocol {
    */
   @Private
   @Unstable
+  @Idempotent
   public CancelDelegationTokenResponse cancelDelegationToken(
       CancelDelegationTokenRequest request) throws YarnException,
       IOException;
@@ -352,6 +368,7 @@ public interface ApplicationClientProtocol {
    */
   @Public
   @Unstable
+  @Idempotent
   public MoveApplicationAcrossQueuesResponse moveApplicationAcrossQueues(
       MoveApplicationAcrossQueuesRequest request) throws YarnException, IOException;
 }
