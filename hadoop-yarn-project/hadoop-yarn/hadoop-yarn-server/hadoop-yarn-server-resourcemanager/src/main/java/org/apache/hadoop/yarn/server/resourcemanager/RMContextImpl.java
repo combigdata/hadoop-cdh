@@ -79,6 +79,7 @@ public class RMContextImpl implements RMContext {
   private ResourceTrackerService resourceTrackerService;
   private ApplicationMasterService applicationMasterService;
   private ConfigurationProvider configurationProvider;
+
   /**
    * Default constructor. To be used in conjunction with setter methods for
    * individual fields.
