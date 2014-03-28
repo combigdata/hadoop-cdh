@@ -90,6 +90,9 @@ public class TestRMAdminService {
     fs.delete(tmpDir, true);
     fs.mkdirs(workingPath);
     fs.mkdirs(tmpDir);
+
+    // reset the groups to what it default test settings
+    MockUnixGroupsMapping.resetGroups();
   }
 
   @After
@@ -780,12 +783,7 @@ public class TestRMAdminService {
   private static class MockUnixGroupsMapping implements
       GroupMappingServiceProvider {
 
-    @SuppressWarnings("serial")
-    private static List<String> group = new ArrayList<String>() {{
-      add("test_group_A");
-      add("test_group_B");
-      add("test_group_C");
-    }};
+    private static List<String> group = new ArrayList<String>();
 
     @Override
     public List<String> getGroups(String user) throws IOException {
@@ -807,6 +805,13 @@ public class TestRMAdminService {
       group.add("test_group_D");
       group.add("test_group_E");
       group.add("test_group_F");
+    }
+    
+    public static void resetGroups() {
+      group.clear();
+      group.add("test_group_A");
+      group.add("test_group_B");
+      group.add("test_group_C");
     }
   }
 
