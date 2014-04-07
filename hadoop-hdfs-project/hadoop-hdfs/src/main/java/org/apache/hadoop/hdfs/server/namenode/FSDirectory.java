@@ -79,6 +79,7 @@ public class FSDirectory implements Closeable {
   private final FSNamesystem namesystem;
   private volatile boolean ready = false;
   private static final long UNKNOWN_DISK_SPACE = -1;
+  private volatile boolean skipQuotaCheck = false; //skip while consuming edits
   private final int maxComponentLength;
   private final int maxDirItems;
   private final int lsLimit;  // max list limit
@@ -217,6 +218,16 @@ public class FSDirectory implements Closeable {
         writeUnlock();
       }
     }
+  }
+
+  /** Enable quota verification */
+  void enableQuotaChecks() {
+    skipQuotaCheck = false;
+  }
+
+  /** Disable quota verification */
+  void disableQuotaChecks() {
+    skipQuotaCheck = true;
   }
 
   /**
@@ -1366,7 +1377,7 @@ public class FSDirectory implements Closeable {
     if (numOfINodes>inodes.length) {
       numOfINodes = inodes.length;
     }
-    if (checkQuota) {
+    if (checkQuota && !skipQuotaCheck) {
       verifyQuota(inodes, numOfINodes, nsDelta, dsDelta, null);
     }
     for(int i = 0; i < numOfINodes; i++) {
@@ -1650,7 +1661,7 @@ public class FSDirectory implements Closeable {
    */
   private void verifyQuotaForRename(INode[] srcInodes, INode[]dstInodes)
       throws QuotaExceededException {
-    if (!ready) {
+    if (!ready || skipQuotaCheck) {
       // Do not check quota if edits log is still being processed
       return;
     }

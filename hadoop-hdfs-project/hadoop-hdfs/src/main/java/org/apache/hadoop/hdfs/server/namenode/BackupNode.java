@@ -130,6 +130,7 @@ public class BackupNode extends NameNode {
   protected void loadNamesystem(Configuration conf) throws IOException {
     BackupImage bnImage = new BackupImage(conf);
     this.namesystem = new FSNamesystem(conf, bnImage);
+    namesystem.dir.disableQuotaChecks();
     bnImage.setNamesystem(namesystem);
     bnImage.recoverCreateRead();
   }
