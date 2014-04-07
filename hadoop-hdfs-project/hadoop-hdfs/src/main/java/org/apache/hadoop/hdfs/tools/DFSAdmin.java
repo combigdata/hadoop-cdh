@@ -1005,7 +1005,7 @@ public class DFSAdmin extends FsShell {
     // server principal for this call   
     // should be NN's one.
     conf.set(CommonConfigurationKeys.HADOOP_SECURITY_SERVICE_USER_NAME_KEY, 
-        conf.get(DFSConfigKeys.DFS_NAMENODE_USER_NAME_KEY, ""));
+        conf.get(DFSConfigKeys.DFS_NAMENODE_KERBEROS_PRINCIPAL_KEY, ""));
 
     // Create the client
     RefreshAuthorizationPolicyProtocol refreshProtocol =
@@ -1031,7 +1031,7 @@ public class DFSAdmin extends FsShell {
     // server principal for this call   
     // should be NN's one.
     conf.set(CommonConfigurationKeys.HADOOP_SECURITY_SERVICE_USER_NAME_KEY, 
-        conf.get(DFSConfigKeys.DFS_NAMENODE_USER_NAME_KEY, ""));
+        conf.get(DFSConfigKeys.DFS_NAMENODE_KERBEROS_PRINCIPAL_KEY, ""));
  
     // Create the client
     RefreshUserMappingsProtocol refreshProtocol =
@@ -1058,7 +1058,7 @@ public class DFSAdmin extends FsShell {
     // server principal for this call 
     // should be NAMENODE's one.
     conf.set(CommonConfigurationKeys.HADOOP_SECURITY_SERVICE_USER_NAME_KEY, 
-        conf.get(DFSConfigKeys.DFS_NAMENODE_USER_NAME_KEY, ""));
+        conf.get(DFSConfigKeys.DFS_NAMENODE_KERBEROS_PRINCIPAL_KEY, ""));
 
     // Create the client
     RefreshUserMappingsProtocol refreshProtocol =
@@ -1418,7 +1418,7 @@ public class DFSAdmin extends FsShell {
 
     // For datanode proxy the server principal should be DN's one.
     conf.set(CommonConfigurationKeys.HADOOP_SECURITY_SERVICE_USER_NAME_KEY,
-        conf.get(DFSConfigKeys.DFS_DATANODE_USER_NAME_KEY, ""));
+        conf.get(DFSConfigKeys.DFS_DATANODE_KERBEROS_PRINCIPAL_KEY, ""));
 
     // Create the client
     ClientDatanodeProtocol dnProtocol =     

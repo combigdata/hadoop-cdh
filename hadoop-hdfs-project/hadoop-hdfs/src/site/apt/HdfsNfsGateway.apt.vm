@@ -67,15 +67,19 @@ HDFS NFS Gateway
 ----
    The above are the only required configuration for the NFS gateway in non-secure mode. For Kerberized
    hadoop clusters, the following configurations need to be added to hdfs-site.xml:
+
 ----
-<property>
-  <name>dfs.nfsgateway.keytab.file</name>
-  <value>/etc/hadoop/conf/nfsserver.keytab</value> <!-- path to the nfs gateway keytab -->
-</property>
-<property>
-  <name>dfs.nfsgateway.kerberos.principal</name>
-  <value>nfsserver/_HOST@YOUR-REALM.COM</value>
-</property>
+  <property>
+    <name>dfs.nfs.keytab.file</name>
+    <value>/etc/hadoop/conf/nfsserver.keytab</value> <!-- path to the nfs gateway keytab -->
+  </property>
+----
+
+----
+  <property>
+    <name>dfs.nfs.kerberos.principal</name>
+    <value>nfsserver/_HOST@YOUR-REALM.COM</value>
+  </property>
 ----
    It's strongly recommended for the users to update a few configuration properties based on their use
    cases. All the related configuration properties can be added or updated in hdfs-site.xml.
