@@ -923,6 +923,7 @@ class NameNodeRpcServer implements NamenodeProtocols {
     }
 
     namesystem.getBlockManager().processReport(nodeReg, poolId, blist);
+    metrics.incrStorageBlockReportOps();
     if (nn.getFSImage().isUpgradeFinalized() && !nn.isStandbyState())
       return new FinalizeCommand(poolId);
     return null;

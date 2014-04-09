@@ -57,6 +57,8 @@ public class NameNodeMetrics {
   @Metric MutableCounterLong createSymlinkOps;
   @Metric MutableCounterLong getLinkTargetOps;
   @Metric MutableCounterLong filesInGetListingOps;
+  @Metric("Number of blockReports from individual storages")
+  MutableCounterLong storageBlockReportOps;
 
   @Metric("Journal transactions") MutableRate transactions;
   @Metric("Journal syncs") MutableRate syncs;
@@ -164,6 +166,10 @@ public class NameNodeMetrics {
 
   public void incrGetLinkTargetOps() {
     getLinkTargetOps.incr();
+  }
+
+  public void incrStorageBlockReportOps() {
+    storageBlockReportOps.incr();
   }
 
   public void addTransaction(long latency) {
