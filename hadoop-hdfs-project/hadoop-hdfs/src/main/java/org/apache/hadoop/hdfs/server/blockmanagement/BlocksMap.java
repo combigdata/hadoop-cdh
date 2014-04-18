@@ -22,7 +22,6 @@ import java.util.Iterator;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.util.GSet;
 import org.apache.hadoop.util.LightWeightGSet;
-import org.apache.hadoop.util.LightWeightGSet.SetIterator;
 
 /**
  * This class maintains the map from a block to its metadata.
@@ -63,20 +62,7 @@ class BlocksMap {
   BlocksMap(final float loadFactor) {
     // Use 2% of total memory to size the GSet capacity
     this.capacity = LightWeightGSet.computeCapacity(2.0, "BlocksMap");
-    this.blocks = new LightWeightGSet<Block, BlockInfo>(capacity) {
-      @Override
-      public Iterator<BlockInfo> iterator() {
-        SetIterator iterator = new SetIterator();
-        /*
-         * Not tracking any modifications to set. As this set will be used
-         * always under FSNameSystem lock, modifications will not cause any
-         * ConcurrentModificationExceptions. But there is a chance of missing
-         * newly added elements during iteration.
-         */
-        iterator.setTrackModification(false);
-        return iterator;
-      }
-    };
+    this.blocks = new LightWeightGSet<Block, BlockInfo>(capacity);
   }
 
 
