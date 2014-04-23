@@ -161,7 +161,6 @@ public class NamenodeFsck {
    * @param totalDatanodes number of live datanodes
    * @param minReplication minimum replication
    * @param remoteAddress source address of the fsck request
-   * @throws IOException
    */
   NamenodeFsck(Configuration conf, NameNode namenode,
       NetworkTopology networktopology, 
