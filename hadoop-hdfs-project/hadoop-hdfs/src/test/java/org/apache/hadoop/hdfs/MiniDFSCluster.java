@@ -81,8 +81,10 @@ import org.apache.hadoop.hdfs.server.common.Storage;
 import org.apache.hadoop.hdfs.server.datanode.DataNode;
 import org.apache.hadoop.hdfs.server.datanode.DataNodeTestUtils;
 import org.apache.hadoop.hdfs.server.datanode.DataStorage;
+import org.apache.hadoop.hdfs.server.datanode.DatanodeUtil;
 import org.apache.hadoop.hdfs.server.datanode.SimulatedFSDataset;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
+import org.apache.hadoop.hdfs.server.datanode.fsdataset.impl.FsDatasetUtil;
 import org.apache.hadoop.hdfs.server.namenode.FSNamesystem;
 import org.apache.hadoop.hdfs.server.namenode.NameNode;
 import org.apache.hadoop.hdfs.server.namenode.NameNodeAdapter;
@@ -1551,6 +1553,14 @@ public class MiniDFSCluster {
     raFile.close();
     LOG.warn("Corrupting the block " + blockFile);
     return true;
+  }
+  
+  public static boolean changeGenStampOfBlock(int dnIndex, ExtendedBlock blk,
+      long newGenStamp) throws IOException {
+    File blockFile = getBlockFile(dnIndex, blk);
+    File metaFile = FsDatasetUtil.findMetaFile(blockFile);
+    return metaFile.renameTo(new File(DatanodeUtil.getMetaName(
+        blockFile.getAbsolutePath(), newGenStamp)));
   }
 
   /*
