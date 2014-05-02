@@ -142,7 +142,9 @@ public class TestZKRMStateStore extends RMStateStoreTestBase {
     conf.set(YarnConfiguration.RM_STORE, ZKRMStateStore.class.getName());
     conf.set(YarnConfiguration.RM_ZK_ADDRESS, hostPort);
     conf.set(YarnConfiguration.RM_HA_ID, rmId);
-    for (String rpcAddress : YarnConfiguration.RM_SERVICES_ADDRESS_CONF_KEYS) {
+    conf.set(YarnConfiguration.RM_WEBAPP_ADDRESS, "localhost:0");
+
+    for (String rpcAddress : YarnConfiguration.getServiceAddressConfKeys(conf)) {
       for (String id : HAUtil.getRMHAIds(conf)) {
         conf.set(HAUtil.addSuffix(rpcAddress, id), "localhost:0");
       }

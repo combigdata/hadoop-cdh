@@ -492,7 +492,8 @@ public class TestRMAdminService {
     configuration.setBoolean(YarnConfiguration.AUTO_FAILOVER_ENABLED, false);
     configuration.set(YarnConfiguration.RM_HA_IDS, "rm1,rm2");
     int base = 100;
-    for (String confKey : YarnConfiguration.RM_SERVICES_ADDRESS_CONF_KEYS) {
+    for (String confKey : YarnConfiguration
+        .getServiceAddressConfKeys(configuration)) {
       configuration.set(HAUtil.addSuffix(confKey, "rm1"), "0.0.0.0:"
           + (base + 20));
       configuration.set(HAUtil.addSuffix(confKey, "rm2"), "0.0.0.0:"
