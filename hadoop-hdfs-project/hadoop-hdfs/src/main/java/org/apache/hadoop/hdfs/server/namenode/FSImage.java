@@ -546,7 +546,7 @@ public class FSImage implements Closeable {
   }
 
   @VisibleForTesting
-  void setEditLogForTesting(FSEditLog newLog) {
+  public void setEditLogForTesting(FSEditLog newLog) {
     editLog = newLog;
   }
 
