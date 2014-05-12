@@ -143,6 +143,7 @@ import org.apache.hadoop.fs.Options;
 import org.apache.hadoop.fs.Options.Rename;
 import org.apache.hadoop.fs.ParentNotDirectoryException;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.PathIsNotEmptyDirectoryException;
 import org.apache.hadoop.fs.UnresolvedLinkException;
 import org.apache.hadoop.fs.permission.AclEntry;
 import org.apache.hadoop.fs.permission.AclStatus;
@@ -3197,10 +3198,11 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       // Rename does not operates on link targets
       // Do not resolveLink when checking permissions of src and dst
       // Check write access to parent of src
-      checkPermission(pc, src, false, null, FsAction.WRITE, null, null, false);
+      checkPermission(pc, src, false, null, FsAction.WRITE, null, null,
+          false, false);
       // Check write access to ancestor of dst
       checkPermission(pc, actualdst, false, FsAction.WRITE, null, null, null,
-          false);
+          false, false);
     }
 
     if (dir.renameTo(src, dst, logRetryCache)) {
@@ -3261,9 +3263,11 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       // Rename does not operates on link targets
       // Do not resolveLink when checking permissions of src and dst
       // Check write access to parent of src
-      checkPermission(pc, src, false, null, FsAction.WRITE, null, null, false);
+      checkPermission(pc, src, false, null, FsAction.WRITE, null, null, false,
+          false);
       // Check write access to ancestor of dst
-      checkPermission(pc, dst, false, FsAction.WRITE, null, null, null, false);
+      checkPermission(pc, dst, false, FsAction.WRITE, null, null, null, false,
+          false);
     }
 
     dir.renameTo(src, dst, logRetryCache, options);
@@ -3343,11 +3347,11 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       checkNameNodeSafeMode("Cannot delete " + src);
       src = FSDirectory.resolvePath(src, pathComponents, dir);
       if (!recursive && dir.isNonEmptyDirectory(src)) {
-        throw new IOException(src + " is non empty");
+        throw new PathIsNotEmptyDirectoryException(src + " is non empty");
       }
       if (enforcePermission && isPermissionEnabled) {
         checkPermission(pc, src, false, null, FsAction.WRITE, null,
-            FsAction.ALL, false);
+            FsAction.ALL, true, false);
       }
       // Unlink the target directory from directory tree
       if (!dir.delete(src, collectedBlocks, removedINodes, logRetryCache)) {
@@ -3499,7 +3503,8 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       checkOperation(OperationCategory.READ);
       src = FSDirectory.resolvePath(src, pathComponents, dir);
       if (isPermissionEnabled) {
-        checkPermission(pc, src, false, null, null, null, null, resolveLink);
+        checkPermission(pc, src, false, null, null, null, null, false,
+            resolveLink);
       }
       stat = dir.getFileInfo(src, resolveLink);
     } catch (AccessControlException e) {
@@ -5473,7 +5478,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       FsAction parentAccess, FsAction access, FsAction subAccess)
       throws AccessControlException, UnresolvedLinkException {
         checkPermission(pc, path, doCheckOwner, ancestorAccess,
-            parentAccess, access, subAccess, true);
+            parentAccess, access, subAccess, false, true);
   }
 
   /**
@@ -5484,14 +5489,14 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
   private void checkPermission(FSPermissionChecker pc,
       String path, boolean doCheckOwner, FsAction ancestorAccess,
       FsAction parentAccess, FsAction access, FsAction subAccess,
-      boolean resolveLink)
+      boolean ignoreEmptyDir, boolean resolveLink)
       throws AccessControlException, UnresolvedLinkException {
     if (!pc.isSuperUser()) {
       dir.waitForReady();
       readLock();
       try {
         pc.checkPermission(path, dir, doCheckOwner, ancestorAccess,
-            parentAccess, access, subAccess, resolveLink);
+            parentAccess, access, subAccess, ignoreEmptyDir, resolveLink);
       } finally {
         readUnlock();
       }
