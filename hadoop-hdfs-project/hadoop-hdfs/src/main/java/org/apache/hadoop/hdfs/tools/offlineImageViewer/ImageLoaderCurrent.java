@@ -29,7 +29,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.protocol.DatanodeInfo.AdminStates;
 import org.apache.hadoop.hdfs.protocol.LayoutFlags;
-import org.apache.hadoop.hdfs.protocol.LayoutVersion;
+import org.apache.hadoop.hdfs.protocol.LayoutVersion.Feature;
 import org.apache.hadoop.hdfs.security.token.delegation.DelegationTokenIdentifier;
 import org.apache.hadoop.hdfs.server.namenode.FSImageSerialization;
 import org.apache.hadoop.hdfs.server.namenode.INodeId;
@@ -127,7 +127,7 @@ class ImageLoaderCurrent implements ImageLoader {
                                       new SimpleDateFormat("yyyy-MM-dd HH:mm");
   private static int[] versions = { -16, -17, -18, -19, -20, -21, -22, -23,
       -24, -25, -26, -27, -28, -30, -31, -32, -33, -34, -35, -36, -37, -38, -39,
-      -40, -41, -42, -43, -44, -45, -46, -47, -48, -49, -50, -51, -52 };
+      -40, -41, -42, -43, -44, -45, -46, -47, -48, -49, -50, -51 };
   private int imageVersion = 0;
   
   private final Map<Long, Boolean> subtreeMap = new HashMap<Long, Boolean>();
@@ -158,8 +158,7 @@ class ImageLoaderCurrent implements ImageLoader {
       imageVersion = in.readInt();
       if( !canLoadVersion(imageVersion))
         throw new IOException("Cannot process fslayout version " + imageVersion);
-      if (NameNodeLayoutVersion.supports(
-          LayoutVersion.Feature.ADD_LAYOUT_FLAGS, imageVersion)) {
+      if (NameNodeLayoutVersion.supports(Feature.ADD_LAYOUT_FLAGS, imageVersion)) {
         LayoutFlags.read(in);
       }
 
@@ -170,25 +169,22 @@ class ImageLoaderCurrent implements ImageLoader {
 
       v.visit(ImageElement.GENERATION_STAMP, in.readLong());
 
-      if (NameNodeLayoutVersion.supports(
-          LayoutVersion.Feature.SEQUENTIAL_BLOCK_ID, imageVersion)) {
+      if (NameNodeLayoutVersion.supports(Feature.SEQUENTIAL_BLOCK_ID, imageVersion)) {
         v.visit(ImageElement.GENERATION_STAMP_V2, in.readLong());
         v.visit(ImageElement.GENERATION_STAMP_V1_LIMIT, in.readLong());
         v.visit(ImageElement.LAST_ALLOCATED_BLOCK_ID, in.readLong());
       }
 
-      if (NameNodeLayoutVersion.supports(
-          LayoutVersion.Feature.STORED_TXIDS, imageVersion)) {
+      if (NameNodeLayoutVersion.supports(Feature.STORED_TXIDS, imageVersion)) {
         v.visit(ImageElement.TRANSACTION_ID, in.readLong());
       }
       
-      if (NameNodeLayoutVersion.supports(
-          LayoutVersion.Feature.ADD_INODE_ID, imageVersion)) {
+      if (NameNodeLayoutVersion.supports(Feature.ADD_INODE_ID, imageVersion)) {
         v.visit(ImageElement.LAST_INODE_ID, in.readLong());
       }
       
-      boolean supportSnapshot = NameNodeLayoutVersion.supports(
-          LayoutVersion.Feature.SNAPSHOT, imageVersion);
+      boolean supportSnapshot = NameNodeLayoutVersion.supports(Feature.SNAPSHOT,
+          imageVersion);
       if (supportSnapshot) {
         v.visit(ImageElement.SNAPSHOT_COUNTER, in.readInt());
         int numSnapshots = in.readInt();
@@ -198,8 +194,7 @@ class ImageLoaderCurrent implements ImageLoader {
         }
       }
       
-      if (NameNodeLayoutVersion.supports(
-          LayoutVersion.Feature.FSIMAGE_COMPRESSION, imageVersion)) {
+      if (NameNodeLayoutVersion.supports(Feature.FSIMAGE_COMPRESSION, imageVersion)) {
         boolean isCompressed = in.readBoolean();
         v.visit(ImageElement.IS_COMPRESSED, String.valueOf(isCompressed));
         if (isCompressed) {
@@ -221,13 +216,11 @@ class ImageLoaderCurrent implements ImageLoader {
 
       processINodesUC(in, v, skipBlocks);
 
-      if (NameNodeLayoutVersion.supports(
-          LayoutVersion.Feature.DELEGATION_TOKEN, imageVersion)) {
+      if (NameNodeLayoutVersion.supports(Feature.DELEGATION_TOKEN, imageVersion)) {
         processDelegationTokens(in, v);
       }
       
-      if (NameNodeLayoutVersion.supports(
-          LayoutVersion.Feature.CACHING, imageVersion)) {
+      if (NameNodeLayoutVersion.supports(Feature.CACHING, imageVersion)) {
         processCacheManagerState(in, v);
       }
       v.leaveEnclosingElement(); // FSImage
@@ -330,8 +323,7 @@ class ImageLoaderCurrent implements ImageLoader {
       String n = new String(name, "UTF8");
       v.visit(ImageElement.INODE_PATH, n);
       
-      if (NameNodeLayoutVersion.supports(
-          LayoutVersion.Feature.ADD_INODE_ID, imageVersion)) {
+      if (NameNodeLayoutVersion.supports(Feature.ADD_INODE_ID, imageVersion)) {
         long inodeId = in.readLong();
         v.visit(ImageElement.INODE_ID, inodeId);
       }
@@ -451,8 +443,7 @@ class ImageLoaderCurrent implements ImageLoader {
     v.visitEnclosingElement(ImageElement.INODES,
         ImageElement.NUM_INODES, numInodes);
     
-    if (NameNodeLayoutVersion.supports(
-        LayoutVersion.Feature.FSIMAGE_NAME_OPTIMIZATION, imageVersion)) {
+    if (NameNodeLayoutVersion.supports(Feature.FSIMAGE_NAME_OPTIMIZATION, imageVersion)) {
       if (!supportSnapshot) {
         processLocalNameINodes(in, v, numInodes, skipBlocks);
       } else {
@@ -593,8 +584,7 @@ class ImageLoaderCurrent implements ImageLoader {
     if (!useRoot) {
       if (in.readBoolean()) {
         v.visitEnclosingElement(ImageElement.SNAPSHOT_INODE_DIRECTORY_ATTRIBUTES);
-        if (NameNodeLayoutVersion.supports(
-            LayoutVersion.Feature.OPTIMIZE_SNAPSHOT_INODES, imageVersion)) {
+        if (NameNodeLayoutVersion.supports(Feature.OPTIMIZE_SNAPSHOT_INODES, imageVersion)) {
           processINodeDirectoryAttributes(in, v, currentINodeName);
         } else {
           processINode(in, v, true, currentINodeName, true);
@@ -688,10 +678,10 @@ class ImageLoaderCurrent implements ImageLoader {
   private void processINode(DataInputStream in, ImageVisitor v,
       boolean skipBlocks, String parentName, boolean isSnapshotCopy)
       throws IOException {
-    boolean supportSnapshot = NameNodeLayoutVersion.supports(
-        LayoutVersion.Feature.SNAPSHOT, imageVersion);
-    boolean supportInodeId = NameNodeLayoutVersion.supports(
-        LayoutVersion.Feature.ADD_INODE_ID, imageVersion);
+    boolean supportSnapshot = 
+        NameNodeLayoutVersion.supports(Feature.SNAPSHOT, imageVersion);
+    boolean supportInodeId = 
+        NameNodeLayoutVersion.supports(Feature.ADD_INODE_ID, imageVersion);
     
     v.visitEnclosingElement(ImageElement.INODE);
     final String pathName = readINodePath(in, parentName);
@@ -704,8 +694,7 @@ class ImageLoaderCurrent implements ImageLoader {
     }
     v.visit(ImageElement.REPLICATION, in.readShort());
     v.visit(ImageElement.MODIFICATION_TIME, formatDate(in.readLong()));
-    if(NameNodeLayoutVersion.supports(
-        LayoutVersion.Feature.FILE_ACCESS_TIME, imageVersion))
+    if(NameNodeLayoutVersion.supports(Feature.FILE_ACCESS_TIME, imageVersion))
       v.visit(ImageElement.ACCESS_TIME, formatDate(in.readLong()));
     v.visit(ImageElement.BLOCK_SIZE, in.readLong());
     int numBlocks = in.readInt();
@@ -734,8 +723,7 @@ class ImageLoaderCurrent implements ImageLoader {
         dirNodeMap.put(inodeId, pathName);
       }
       v.visit(ImageElement.NS_QUOTA, numBlocks == -1 ? in.readLong() : -1);
-      if (NameNodeLayoutVersion.supports(
-          LayoutVersion.Feature.DISKSPACE_QUOTA, imageVersion))
+      if (NameNodeLayoutVersion.supports(Feature.DISKSPACE_QUOTA, imageVersion))
         v.visit(ImageElement.DS_QUOTA, numBlocks == -1 ? in.readLong() : -1);
       if (supportSnapshot) {
         boolean snapshottable = in.readBoolean();
@@ -783,8 +771,7 @@ class ImageLoaderCurrent implements ImageLoader {
     v.visit(ImageElement.INODE_PATH, pathName);
     processPermission(in, v);
     v.visit(ImageElement.MODIFICATION_TIME, formatDate(in.readLong()));
-    if(NameNodeLayoutVersion.supports(
-        LayoutVersion.Feature.FILE_ACCESS_TIME, imageVersion)) {
+    if(NameNodeLayoutVersion.supports(Feature.FILE_ACCESS_TIME, imageVersion)) {
       v.visit(ImageElement.ACCESS_TIME, formatDate(in.readLong()));
     }
 
@@ -813,8 +800,7 @@ class ImageLoaderCurrent implements ImageLoader {
     v.visit(ImageElement.SNAPSHOT_FILE_SIZE, in.readLong());
     if (in.readBoolean()) {
       v.visitEnclosingElement(ImageElement.SNAPSHOT_INODE_FILE_ATTRIBUTES);
-      if (NameNodeLayoutVersion.supports(
-          LayoutVersion.Feature.OPTIMIZE_SNAPSHOT_INODES, imageVersion)) {
+      if (NameNodeLayoutVersion.supports(Feature.OPTIMIZE_SNAPSHOT_INODES, imageVersion)) {
         processINodeFileAttributes(in, v, currentINodeName);
       } else {
         processINode(in, v, true, currentINodeName, true);

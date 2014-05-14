@@ -81,7 +81,7 @@ public class OfflineImageViewer {
     "     analyzed (128GB by default).\n" +
     "    -step defines the granularity of the distribution. (2MB by default)\n" +
     "  * NameDistribution: This processor analyzes the file names\n" +
-    "    in the image and prints total number of file names and how frequently" +
+    "    in the image and prints total number of file names and how frequently\n" +
     "    file names are reused.\n" +
     "\n" + 
     "Required command line arguments:\n" +
