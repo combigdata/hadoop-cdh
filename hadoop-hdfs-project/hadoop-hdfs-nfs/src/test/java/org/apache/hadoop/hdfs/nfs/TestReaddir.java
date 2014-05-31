@@ -25,11 +25,11 @@ import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DFSTestUtil;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
+import org.apache.hadoop.hdfs.nfs.conf.NfsConfiguration;
 import org.apache.hadoop.hdfs.nfs.nfs3.Nfs3;
 import org.apache.hadoop.hdfs.nfs.nfs3.RpcProgramNfs3;
 import org.apache.hadoop.hdfs.protocol.HdfsFileStatus;
@@ -55,7 +55,7 @@ import org.mockito.Mockito;
  */
 public class TestReaddir {
 
-  static Configuration config = new Configuration();
+  static NfsConfiguration config = new NfsConfiguration();
   static MiniDFSCluster cluster = null;
   static DistributedFileSystem hdfs;
   static NameNode nn;
