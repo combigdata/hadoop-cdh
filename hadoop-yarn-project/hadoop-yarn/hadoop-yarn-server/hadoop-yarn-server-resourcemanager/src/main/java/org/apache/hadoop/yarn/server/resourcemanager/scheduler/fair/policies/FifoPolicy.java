@@ -89,6 +89,18 @@ public class FifoPolicy extends SchedulingPolicy {
   }
 
   @Override
+  public boolean checkIfUsageOverFairShare(Resource usage, Resource fairShare) {
+    throw new UnsupportedOperationException(
+        "FifoPolicy doesn't support checkIfUsageOverFairshare operation, " +
+            "as FifoPolicy only works for FSLeafQueue.");
+  }
+
+  @Override
+  public boolean checkIfAMResourceUsageOverLimit(Resource usage, Resource maxAMResource) {
+    return usage.getMemory() > maxAMResource.getMemory();
+  }
+
+  @Override
   public byte getApplicableDepth() {
     return SchedulingPolicy.DEPTH_LEAF;
   }
