@@ -1357,11 +1357,10 @@ public class UserGroupInformation {
    * 
    * @return an unmodifiable collection of tokens associated with user
    */
-  public Collection<Token<? extends TokenIdentifier>> getTokens() {
-    synchronized (subject) {
-      return Collections.unmodifiableCollection(
-          new ArrayList<Token<?>>(getCredentialsInternal().getAllTokens()));
-    }
+  public synchronized
+  Collection<Token<? extends TokenIdentifier>> getTokens() {
+    return Collections.unmodifiableCollection(
+        new ArrayList<Token<?>>(getCredentialsInternal().getAllTokens()));
   }
 
   /**
