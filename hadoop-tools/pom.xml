@@ -43,6 +43,7 @@
     <module>hadoop-openstack</module>
     <module>hadoop-sls</module>
     <module>hadoop-aws</module>
+    <module>hadoop-azure</module>
   </modules>
 
   <build>
