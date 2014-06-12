@@ -1154,8 +1154,8 @@ public class FairScheduler extends AbstractYarnScheduler {
   private boolean shouldAttemptPreemption() {
     if (preemptionEnabled) {
       return (preemptionUtilizationThreshold < Math.max(
-          (float) rootMetrics.getAvailableMB() / clusterCapacity.getMemory(),
-          (float) rootMetrics.getAvailableVirtualCores() /
+          (float) rootMetrics.getAllocatedMB() / clusterCapacity.getMemory(),
+          (float) rootMetrics.getAllocatedVirtualCores() /
               clusterCapacity.getVirtualCores()));
     }
     return false;
