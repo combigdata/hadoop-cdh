@@ -34,12 +34,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.*;
 
-import static org.hamcrest.CoreMatchers.not;
-import static org.junit.Assert.assertThat;
-
 public class TestAuthenticationFilter {
-
-  private static final long TOKEN_VALIDITY_SEC = 1000;
 
   @Test
   public void testGetConfiguration() throws Exception {
@@ -125,7 +120,7 @@ public class TestAuthenticationFilter {
       String param = request.getParameter("authenticated");
       if (param != null && param.equals("true")) {
         token = new AuthenticationToken("u", "p", "t");
-        token.setExpires((expired) ? 0 : System.currentTimeMillis() + TOKEN_VALIDITY_SEC);
+        token.setExpires((expired) ? 0 : System.currentTimeMillis() + 1000);
       } else {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
       }
@@ -141,8 +136,7 @@ public class TestAuthenticationFilter {
     try {
       FilterConfig config = Mockito.mock(FilterConfig.class);
       Mockito.when(config.getInitParameter(AuthenticationFilter.AUTH_TYPE)).thenReturn("simple");
-      Mockito.when(config.getInitParameter(AuthenticationFilter.AUTH_TOKEN_VALIDITY)).thenReturn(
-          (new Long(TOKEN_VALIDITY_SEC)).toString());
+      Mockito.when(config.getInitParameter(AuthenticationFilter.AUTH_TOKEN_VALIDITY)).thenReturn("1000");
       Mockito.when(config.getInitParameterNames()).thenReturn(
         new Vector<String>(Arrays.asList(AuthenticationFilter.AUTH_TYPE,
                                  AuthenticationFilter.AUTH_TOKEN_VALIDITY)).elements());
@@ -151,7 +145,7 @@ public class TestAuthenticationFilter {
       Assert.assertTrue(filter.isRandomSecret());
       Assert.assertNull(filter.getCookieDomain());
       Assert.assertNull(filter.getCookiePath());
-      Assert.assertEquals(TOKEN_VALIDITY_SEC, filter.getValidity());
+      Assert.assertEquals(1000, filter.getValidity());
     } finally {
       filter.destroy();
     }
@@ -268,7 +262,7 @@ public class TestAuthenticationFilter {
       filter.init(config);
 
       AuthenticationToken token = new AuthenticationToken("u", "p", DummyAuthenticationHandler.TYPE);
-      token.setExpires(System.currentTimeMillis() + TOKEN_VALIDITY_SEC);
+      token.setExpires(System.currentTimeMillis() + 1000);
       Signer signer = new Signer("secret".getBytes());
       String tokenSigned = signer.sign(token.toString());
 
@@ -301,7 +295,7 @@ public class TestAuthenticationFilter {
       filter.init(config);
 
       AuthenticationToken token = new AuthenticationToken("u", "p", "invalidtype");
-      token.setExpires(System.currentTimeMillis() - TOKEN_VALIDITY_SEC);
+      token.setExpires(System.currentTimeMillis() - 1000);
       Signer signer = new Signer("secret".getBytes());
       String tokenSigned = signer.sign(token.toString());
 
@@ -340,7 +334,7 @@ public class TestAuthenticationFilter {
       filter.init(config);
 
       AuthenticationToken token = new AuthenticationToken("u", "p", "invalidtype");
-      token.setExpires(System.currentTimeMillis() + TOKEN_VALIDITY_SEC);
+      token.setExpires(System.currentTimeMillis() + 1000);
       Signer signer = new Signer("secret".getBytes());
       String tokenSigned = signer.sign(token.toString());
 
@@ -413,7 +407,7 @@ public class TestAuthenticationFilter {
     Mockito.when(config.getInitParameter(AuthenticationFilter.AUTH_TYPE))
             .thenReturn(DummyAuthenticationHandler.class.getName());
     Mockito.when(config.getInitParameter(AuthenticationFilter
-            .AUTH_TOKEN_VALIDITY)).thenReturn(new Long(TOKEN_VALIDITY_SEC).toString());
+            .AUTH_TOKEN_VALIDITY)).thenReturn("1000");
     Mockito.when(config.getInitParameter(AuthenticationFilter
             .SIGNATURE_SECRET)).thenReturn("secret");
     Mockito.when(config.getInitParameterNames()).thenReturn(new
@@ -477,7 +471,8 @@ public class TestAuthenticationFilter {
         Signer signer = new Signer("secret".getBytes());
         String value = signer.verifyAndExtract(v);
         AuthenticationToken token = AuthenticationToken.parse(value);
-        assertThat(token.getExpires(), not(0L));
+        Assert.assertEquals(System.currentTimeMillis() + 1000 * 1000,
+                     token.getExpires(), 100);
 
         if (withDomainPath) {
           Assert.assertEquals(".foo.com", cookieMap.get("Domain"));
@@ -551,7 +546,7 @@ public class TestAuthenticationFilter {
       Mockito.when(request.getRequestURL()).thenReturn(new StringBuffer("http://foo:8080/bar"));
 
       AuthenticationToken token = new AuthenticationToken("u", "p", "t");
-      token.setExpires(System.currentTimeMillis() + TOKEN_VALIDITY_SEC);
+      token.setExpires(System.currentTimeMillis() + 1000);
       Signer signer = new Signer("secret".getBytes());
       String tokenSigned = signer.sign(token.toString());
 
@@ -601,7 +596,7 @@ public class TestAuthenticationFilter {
       Mockito.when(request.getRequestURL()).thenReturn(new StringBuffer("http://foo:8080/bar"));
 
       AuthenticationToken token = new AuthenticationToken("u", "p", DummyAuthenticationHandler.TYPE);
-      token.setExpires(System.currentTimeMillis() - TOKEN_VALIDITY_SEC);
+      token.setExpires(System.currentTimeMillis() - 1000);
       Signer signer = new Signer("secret".getBytes());
       String tokenSigned = signer.sign(token.toString());
 
@@ -663,7 +658,7 @@ public class TestAuthenticationFilter {
       Mockito.when(request.getRequestURL()).thenReturn(new StringBuffer("http://foo:8080/bar"));
 
       AuthenticationToken token = new AuthenticationToken("u", "p", "invalidtype");
-      token.setExpires(System.currentTimeMillis() + TOKEN_VALIDITY_SEC);
+      token.setExpires(System.currentTimeMillis() + 1000);
       Signer signer = new Signer("secret".getBytes());
       String tokenSigned = signer.sign(token.toString());
 
@@ -710,7 +705,7 @@ public class TestAuthenticationFilter {
       Mockito.reset(response);
 
       AuthenticationToken token = new AuthenticationToken("u", "p", "t");
-      token.setExpires(System.currentTimeMillis() + TOKEN_VALIDITY_SEC);
+      token.setExpires(System.currentTimeMillis() + 1000);
       Signer signer = new Signer("secret".getBytes());
       String tokenSigned = signer.sign(token.toString());
       Cookie cookie = new Cookie(AuthenticatedURL.AUTH_COOKIE, tokenSigned);
