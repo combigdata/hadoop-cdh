@@ -332,8 +332,7 @@ public class AuthenticationFilter implements Filter {
   public void doFilter(ServletRequest request, ServletResponse response, FilterChain filterChain)
       throws IOException, ServletException {
     boolean unauthorizedResponse = true;
-    int errCode = HttpServletResponse.SC_UNAUTHORIZED;
-    AuthenticationException authenticationEx = null;
+    String unauthorizedMsg = "";
     HttpServletRequest httpRequest = (HttpServletRequest) request;
     HttpServletResponse httpResponse = (HttpServletResponse) response;
     boolean isHttps = "https".equals(httpRequest.getScheme());
@@ -345,8 +344,6 @@ public class AuthenticationFilter implements Filter {
       }
       catch (AuthenticationException ex) {
         LOG.warn("AuthenticationToken ignored: " + ex.getMessage());
-        // will be sent back in a 401 unless filter authenticates
-        authenticationEx = ex;
         token = null;
       }
       if (authHandler.managementOperation(token, httpRequest, httpResponse)) {
@@ -395,20 +392,15 @@ public class AuthenticationFilter implements Filter {
         unauthorizedResponse = false;
       }
     } catch (AuthenticationException ex) {
-      // exception from the filter itself is fatal
-      errCode = HttpServletResponse.SC_FORBIDDEN;
-      authenticationEx = ex;
+      unauthorizedMsg = ex.toString();
       LOG.warn("Authentication exception: " + ex.getMessage(), ex);
     }
     if (unauthorizedResponse) {
       if (!httpResponse.isCommitted()) {
         createAuthCookie(httpResponse, "", getCookieDomain(),
                 getCookiePath(), 0, isHttps);
-        if (authenticationEx == null) {
-          httpResponse.sendError(errCode, "Authentication required");
-        } else {
-          httpResponse.sendError(errCode, authenticationEx.getMessage());
-        }
+        httpResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED,
+                unauthorizedMsg);
       }
     }
   }

@@ -63,8 +63,7 @@ public class TestPseudoAuthenticator {
       URL url = new URL(auth.getBaseURL());
       HttpURLConnection conn = (HttpURLConnection) url.openConnection();
       conn.connect();
-      Assert.assertEquals(HttpURLConnection.HTTP_FORBIDDEN, conn.getResponseCode());
-      Assert.assertEquals("Anonymous requests are disallowed", conn.getResponseMessage());
+      Assert.assertEquals(HttpURLConnection.HTTP_UNAUTHORIZED, conn.getResponseCode());
     } finally {
       auth.stop();
     }
