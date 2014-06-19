@@ -22,7 +22,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
-import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.concurrent.ConcurrentNavigableMap;
@@ -317,7 +317,7 @@ public class TestWrites {
       XDR createXdr = new XDR();
       createReq.serialize(createXdr);
       CREATE3Response createRsp = nfsd.create(createXdr.asReadOnlyWrap(),
-          securityHandler, InetAddress.getLocalHost());
+          securityHandler, new InetSocketAddress("localhost", 1234));
       FileHandle handle = createRsp.getObjHandle();
 
       // Test DATA_SYNC
@@ -330,7 +330,7 @@ public class TestWrites {
       XDR writeXdr = new XDR();
       writeReq.serialize(writeXdr);
       nfsd.write(writeXdr.asReadOnlyWrap(), null, 1, securityHandler,
-          InetAddress.getLocalHost());
+          new InetSocketAddress("localhost", 1234));
 
       waitWrite(nfsd, handle, 60000);
 
@@ -339,7 +339,7 @@ public class TestWrites {
       XDR readXdr = new XDR();
       readReq.serialize(readXdr);
       READ3Response readRsp = nfsd.read(readXdr.asReadOnlyWrap(),
-          securityHandler, InetAddress.getLocalHost());
+          securityHandler, new InetSocketAddress("localhost", 1234));
 
       assertTrue(Arrays.equals(buffer, readRsp.getData().array()));
 
@@ -351,7 +351,7 @@ public class TestWrites {
       XDR createXdr2 = new XDR();
       createReq2.serialize(createXdr2);
       CREATE3Response createRsp2 = nfsd.create(createXdr2.asReadOnlyWrap(),
-          securityHandler, InetAddress.getLocalHost());
+          securityHandler, new InetSocketAddress("localhost", 1234));
       FileHandle handle2 = createRsp2.getObjHandle();
 
       WRITE3Request writeReq2 = new WRITE3Request(handle2, 0, 10,
@@ -359,7 +359,7 @@ public class TestWrites {
       XDR writeXdr2 = new XDR();
       writeReq2.serialize(writeXdr2);
       nfsd.write(writeXdr2.asReadOnlyWrap(), null, 1, securityHandler,
-          InetAddress.getLocalHost());
+          new InetSocketAddress("localhost", 1234));
 
       waitWrite(nfsd, handle2, 60000);
 
@@ -368,7 +368,7 @@ public class TestWrites {
       XDR readXdr2 = new XDR();
       readReq2.serialize(readXdr2);
       READ3Response readRsp2 = nfsd.read(readXdr2.asReadOnlyWrap(),
-          securityHandler, InetAddress.getLocalHost());
+          securityHandler, new InetSocketAddress("localhost", 1234));
 
       assertTrue(Arrays.equals(buffer, readRsp2.getData().array()));
       // FILE_SYNC should sync the file size
