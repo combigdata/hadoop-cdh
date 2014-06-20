@@ -569,7 +569,8 @@ public class NameNode implements NameNodeStatusMXBean {
     
     pauseMonitor = new JvmPauseMonitor(conf);
     pauseMonitor.start();
-
+    metrics.getJvmMetrics().setPauseMonitor(pauseMonitor);
+    
     startCommonServices(conf);
   }
   
