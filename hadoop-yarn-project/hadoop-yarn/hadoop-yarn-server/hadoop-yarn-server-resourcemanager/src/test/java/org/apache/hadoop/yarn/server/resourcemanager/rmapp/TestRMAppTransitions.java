@@ -70,6 +70,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.security.ClientToAMTokenSec
 import org.apache.hadoop.yarn.server.resourcemanager.security.NMTokenSecretManagerInRM;
 import org.apache.hadoop.yarn.server.resourcemanager.security.RMContainerTokenSecretManager;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
@@ -167,7 +168,10 @@ public class TestRMAppTransitions {
   public TestRMAppTransitions(boolean isSecurityEnabled) {
     this.isSecurityEnabled = isSecurityEnabled;
   }
-  
+
+  @Rule
+  public TemporaryFolder tf = new TemporaryFolder();
+
   @Before
   public void setUp() throws Exception {
     conf = new YarnConfiguration();
@@ -208,7 +212,6 @@ public class TestRMAppTransitions {
     rmDispatcher.init(conf);
     rmDispatcher.start();
 
-    TemporaryFolder tf = new TemporaryFolder();
     killedHistoryFlagDir = new Path(tf.newFolder().toURI());
     conf.set(YarnConfiguration.YARN_AM_FAILURE_FLAG_DIR,
         killedHistoryFlagDir.toString());
