@@ -194,6 +194,7 @@ public interface ApplicationClientProtocol {
    */
   @Public
   @Stable
+  @Idempotent
   public GetApplicationReportResponse getApplicationReport(
       GetApplicationReportRequest request) 
   throws YarnException, IOException;
