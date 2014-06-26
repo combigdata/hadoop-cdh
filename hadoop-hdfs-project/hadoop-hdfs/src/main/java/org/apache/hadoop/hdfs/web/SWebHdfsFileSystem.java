@@ -42,6 +42,7 @@ public class SWebHdfsFileSystem extends WebHdfsFileSystem {
 
   @Override
   protected int getDefaultPort() {
-    return DFSConfigKeys.DFS_NAMENODE_HTTPS_PORT_DEFAULT;
+    return getConf().getInt(DFSConfigKeys.DFS_NAMENODE_HTTPS_PORT_KEY,
+        DFSConfigKeys.DFS_NAMENODE_HTTPS_PORT_DEFAULT);
   }
 }
