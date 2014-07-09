@@ -42,6 +42,9 @@ Release 2.5.0 - 2014-08-11
     YARN-2247. Made RM web services authenticate users via kerberos and delegation
     token. (Varun Vasudev via zjshen)
 
+    YARN-1366. Changed AMRMClient to re-register with RM and send outstanding requests
+    back to RM on work-preserving RM restart. (Rohith via jianhe)
+
   IMPROVEMENTS
 
     YARN-1479. Invalid NaN values in Hadoop REST API JSON response (Chen He via
