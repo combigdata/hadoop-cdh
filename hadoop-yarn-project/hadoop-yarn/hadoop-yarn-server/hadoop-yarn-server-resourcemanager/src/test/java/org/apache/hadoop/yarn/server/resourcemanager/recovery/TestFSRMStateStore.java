@@ -159,6 +159,7 @@ public class TestFSRMStateStore extends RMStateStoreTestBase {
       testRMDTSecretManagerStateStore(fsTester);
       testCheckVersion(fsTester);
       testAppDeletion(fsTester);
+      testDeleteStore(fsTester);
     } finally {
       cluster.shutdown();
     }

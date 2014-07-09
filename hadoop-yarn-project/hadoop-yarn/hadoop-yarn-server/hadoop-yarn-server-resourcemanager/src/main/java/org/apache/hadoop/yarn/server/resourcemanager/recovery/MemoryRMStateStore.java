@@ -248,4 +248,8 @@ public class MemoryRMStateStore extends RMStateStore {
     return null;
   }
 
+  @Override
+  public void deleteStore() throws Exception {
+  }
+
 }
