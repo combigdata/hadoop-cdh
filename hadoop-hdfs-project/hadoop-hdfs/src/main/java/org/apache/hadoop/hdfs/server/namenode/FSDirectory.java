@@ -1001,7 +1001,7 @@ public class FSDirectory implements Closeable {
                 dstIIP.getLatestSnapshotId(), collectedBlocks, removedINodes,
                 true).get(Quota.NAMESPACE);
             getFSNamesystem().removePathAndBlocks(src, collectedBlocks,
-                removedINodes);
+                removedINodes, false);
           }
         }
 
@@ -1345,7 +1345,7 @@ public class FSDirectory implements Closeable {
     fsImage.getEditLog().logDelete(src, now, logRetryCache);
     incrDeletedFileCount(filesRemoved);
     // Blocks/INodes will be handled later by the caller of this method
-    getFSNamesystem().removePathAndBlocks(src, null, null);
+    getFSNamesystem().removePathAndBlocks(src, null, null, true);
     return true;
   }
   
@@ -1417,7 +1417,7 @@ public class FSDirectory implements Closeable {
 
     if (filesRemoved >= 0) {
       getFSNamesystem().removePathAndBlocks(src, collectedBlocks, 
-          removedINodes);
+          removedINodes, false);
     }
   }
   
