@@ -143,6 +143,8 @@ public class FairScheduler extends AbstractYarnScheduler {
 
   // How often fair shares are re-calculated (ms)
   protected long UPDATE_INTERVAL = 500;
+  private final int UPDATE_DEBUG_FREQUENCY = 5;
+  private int updatesToSkipForDebug = UPDATE_DEBUG_FREQUENCY;
 
   // Aggregate metrics
   FSQueueMetrics rootMetrics;
@@ -301,6 +303,18 @@ public class FairScheduler extends AbstractYarnScheduler {
     // Recursively compute fair shares for all queues
     // and update metrics
     rootQueue.recomputeShares();
+
+    if (LOG.isDebugEnabled()) {
+      if (--updatesToSkipForDebug < 0) {
+        updatesToSkipForDebug = UPDATE_DEBUG_FREQUENCY;
+        LOG.debug("Cluster Capacity: " + clusterCapacity +
+            "  Allocations: " + rootMetrics.getAllocatedResources() +
+            "  Availability: " + Resource.newInstance(
+            rootMetrics.getAvailableMB(),
+            rootMetrics.getAvailableVirtualCores()) +
+            "  Demand: " + rootQueue.getDemand());
+      }
+    }
   }
 
   /**
@@ -919,14 +933,14 @@ public class FairScheduler extends AbstractYarnScheduler {
         // Update application requests
         application.updateResourceRequests(ask);
 
-        LOG.debug("allocate: post-update");
         application.showRequests();
       }
 
       if (LOG.isDebugEnabled()) {
-        LOG.debug("allocate:" +
+        LOG.debug("allocate: post-update" +
             " applicationAttemptId=" + appAttemptId +
-            " #ask=" + ask.size());
+            " #ask=" + ask.size() +
+            " reservation= " + application.getCurrentReservation());
 
         LOG.debug("Preempting " + application.getPreemptionContainers().size()
             + " container(s)");
