@@ -209,6 +209,9 @@ public class NameNode implements NameNodeStatusMXBean {
       + StartupOption.UPGRADE.getName() + 
         " [" + StartupOption.CLUSTERID.getName() + " cid]" +
         " [" + StartupOption.RENAMERESERVED.getName() + "<k-v pairs>] ] | \n\t["
+      + StartupOption.UPGRADEONLY.getName() + 
+        " [" + StartupOption.CLUSTERID.getName() + " cid]" +
+        " [" + StartupOption.RENAMERESERVED.getName() + "<k-v pairs>] ] | \n\t["
       + StartupOption.ROLLBACK.getName() + "] | \n\t["
       + StartupOption.ROLLINGUPGRADE.getName() + " "
       + RollingUpgradeStartupOption.getAllOptionString() + " ] | \n\t["
@@ -711,6 +714,7 @@ public class NameNode implements NameNodeStatusMXBean {
    * <li>{@link StartupOption#BACKUP BACKUP} - start backup node</li>
    * <li>{@link StartupOption#CHECKPOINT CHECKPOINT} - start checkpoint node</li>
    * <li>{@link StartupOption#UPGRADE UPGRADE} - start the cluster  
+   * <li>{@link StartupOption#UPGRADEONLY UPGRADEONLY} - upgrade the cluster  
    * upgrade and create a snapshot of the current file system state</li> 
    * <li>{@link StartupOption#RECOVER RECOVERY} - recover name node
    * metadata</li>
@@ -765,7 +769,8 @@ public class NameNode implements NameNodeStatusMXBean {
   }
 
   protected HAState createHAState(StartupOption startOpt) {
-    if (!haEnabled || startOpt == StartupOption.UPGRADE) {
+    if (!haEnabled || startOpt == StartupOption.UPGRADE 
+        || startOpt == StartupOption.UPGRADEONLY) {
       return ACTIVE_STATE;
     } else {
       return STANDBY_STATE;
@@ -1196,8 +1201,10 @@ public class NameNode implements NameNodeStatusMXBean {
         startOpt = StartupOption.BACKUP;
       } else if (StartupOption.CHECKPOINT.getName().equalsIgnoreCase(cmd)) {
         startOpt = StartupOption.CHECKPOINT;
-      } else if (StartupOption.UPGRADE.getName().equalsIgnoreCase(cmd)) {
-        startOpt = StartupOption.UPGRADE;
+      } else if (StartupOption.UPGRADE.getName().equalsIgnoreCase(cmd)
+          || StartupOption.UPGRADEONLY.getName().equalsIgnoreCase(cmd)) {
+        startOpt = StartupOption.UPGRADE.getName().equalsIgnoreCase(cmd) ? 
+            StartupOption.UPGRADE : StartupOption.UPGRADEONLY;
         /* Can be followed by CLUSTERID with a required parameter or
          * RENAMERESERVED with an optional parameter
          */
@@ -1408,6 +1415,12 @@ public class NameNode implements NameNodeStatusMXBean {
         printMetadataVersion(conf);
         terminate(0);
         return null; // avoid javac warning
+      }
+      case UPGRADEONLY: {
+        DefaultMetricsSystem.initialize("NameNode");
+        new NameNode(conf);
+        terminate(0);
+        return null;
       }
       default: {
         DefaultMetricsSystem.initialize("NameNode");
