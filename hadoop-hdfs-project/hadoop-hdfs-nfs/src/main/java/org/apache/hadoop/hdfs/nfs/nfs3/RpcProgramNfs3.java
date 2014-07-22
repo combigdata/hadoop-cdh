@@ -1037,17 +1037,19 @@ public class RpcProgramNfs3 extends RpcProgram implements Nfs3Interface {
         return new REMOVE3Response(Nfs3Status.NFS3ERR_STALE);
       }
 
+      WccData errWcc = new WccData(Nfs3Utils.getWccAttr(preOpDirAttr),
+          preOpDirAttr);
+      if (!checkAccessPrivilege(client, AccessPrivilege.READ_WRITE)) {
+        return new REMOVE3Response(Nfs3Status.NFS3ERR_ACCES, errWcc);
+      }
+
       String fileIdPath = dirFileIdPath + "/" + fileName;
       HdfsFileStatus fstat = Nfs3Utils.getFileStatus(dfsClient, fileIdPath);
       if (fstat == null) {
-        WccData dirWcc = new WccData(Nfs3Utils.getWccAttr(preOpDirAttr),
-            preOpDirAttr);
-        return new REMOVE3Response(Nfs3Status.NFS3ERR_NOENT, dirWcc);
+        return new REMOVE3Response(Nfs3Status.NFS3ERR_NOENT, errWcc);
       }
       if (fstat.isDir()) {
-        WccData dirWcc = new WccData(Nfs3Utils.getWccAttr(preOpDirAttr),
-            preOpDirAttr);
-        return new REMOVE3Response(Nfs3Status.NFS3ERR_ISDIR, dirWcc);
+        return new REMOVE3Response(Nfs3Status.NFS3ERR_ISDIR, errWcc);
       }
 
       boolean result = dfsClient.delete(fileIdPath, false);
