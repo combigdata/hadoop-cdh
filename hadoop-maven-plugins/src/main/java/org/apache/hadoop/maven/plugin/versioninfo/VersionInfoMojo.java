@@ -37,6 +37,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.TimeZone;
 
 /**
@@ -111,6 +112,10 @@ public class VersionInfoMojo extends AbstractMojo {
    * @throws Exception if any error occurs attempting to determine SCM
    */
   private SCM determineSCM() throws Exception {
+    Map<String, String> env = System.getenv();
+    if (env.containsKey("COMPONENT_HASH")) {
+        return SCM.GIT;
+    }
     Exec exec = new Exec(this);
     SCM scm = SCM.NONE;
     scmOut = new ArrayList<String>();
@@ -178,6 +183,10 @@ public class VersionInfoMojo extends AbstractMojo {
    * @return String URI of SCM
    */
   private String getSCMUri(SCM scm) {
+    Map<String, String> env = System.getenv();
+    if (env.containsKey("COMPONENT_HASH")) {
+        return "http://github.com/cloudera/hadoop";
+    }
     String uri = "Unknown";
     switch (scm) {
       case SVN:
@@ -209,6 +218,10 @@ public class VersionInfoMojo extends AbstractMojo {
    * @return String commit of SCM
    */
   private String getSCMCommit(SCM scm) {
+    Map<String, String> env = System.getenv();
+    if (env.containsKey("COMPONENT_HASH")) {
+        return env.get("COMPONENT_HASH");
+    }
     String commit = "Unknown";
     switch (scm) {
       case SVN:
@@ -238,6 +251,10 @@ public class VersionInfoMojo extends AbstractMojo {
    * @return String branch of SCM
    */
   private String getSCMBranch(SCM scm) {
+    Map<String, String> env = System.getenv();
+    if (env.containsKey("COMPONENT_HASH")) {
+        return "Unknown";
+    }
     String branch = "Unknown";
     switch (scm) {
       case SVN:
