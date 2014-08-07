@@ -84,6 +84,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.event.RMAppAt
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.event.RMAppAttemptUpdateSavedEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.ContainerAllocationExpirer;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.Allocation;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerUtils;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.YarnScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.AppAttemptAddedSchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.SchedulerEvent;
@@ -747,6 +748,32 @@ public class TestRMAppAttemptTransitions {
             applicationAttempt.getAppAttemptId(), 
             RMAppAttemptEventType.KILL));
     testAppAttemptKilledState(null, EMPTY_DIAGNOSTICS);
+  }
+
+  @Test
+  public void testAMCrashAtScheduled() {
+    // This is to test sending CONTAINER_FINISHED event at SCHEDULED state.
+    // Verify the state transition is correct.
+    scheduleApplicationAttempt();
+    ContainerStatus cs =
+        SchedulerUtils.createAbnormalContainerStatus(
+            BuilderUtils.newContainerId(
+                applicationAttempt.getAppAttemptId(), 1),
+            SchedulerUtils.LOST_CONTAINER);
+    // send CONTAINER_FINISHED event at SCHEDULED state,
+    // The state should be FINAL_SAVING with previous state SCHEDULED
+    applicationAttempt.handle(new RMAppAttemptContainerFinishedEvent(
+        applicationAttempt.getAppAttemptId(), cs));
+    // createApplicationAttemptState will return previous state (SCHEDULED),
+    // if the current state is FINAL_SAVING.
+    assertEquals(YarnApplicationAttemptState.SCHEDULED,
+        applicationAttempt.createApplicationAttemptState());
+    // send ATTEMPT_UPDATE_SAVED event,
+    // verify the state is changed to state FAILED.
+    sendAttemptUpdateSavedEvent(applicationAttempt);
+    assertEquals(RMAppAttemptState.FAILED,
+        applicationAttempt.getAppAttemptState());
+    verifyApplicationAttemptFinished(RMAppAttemptState.FAILED);
   }
 
   @Test
