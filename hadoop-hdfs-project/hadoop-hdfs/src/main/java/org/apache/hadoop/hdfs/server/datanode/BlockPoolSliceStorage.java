@@ -37,6 +37,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
@@ -138,13 +139,22 @@ public class BlockPoolSliceStorage extends Storage {
   void recoverTransitionRead(DataNode datanode, NamespaceInfo nsInfo,
       Collection<File> dataDirs, StartupOption startOpt) throws IOException {
     LOG.info("Analyzing storage directories for bpid " + nsInfo.getBlockPoolID());
+    Set<String> existingStorageDirs = new HashSet<String>();
+    for (int i = 0; i < getNumStorageDirs(); i++) {
+      existingStorageDirs.add(getStorageDir(i).getRoot().getAbsolutePath());
+    }
+
     // 1. For each BP data directory analyze the state and
     // check whether all is consistent before transitioning.
-    this.storageDirs = new ArrayList<StorageDirectory>(dataDirs.size());
     ArrayList<StorageState> dataDirStates = new ArrayList<StorageState>(
         dataDirs.size());
     for (Iterator<File> it = dataDirs.iterator(); it.hasNext();) {
       File dataDir = it.next();
+      if (existingStorageDirs.contains(dataDir.getAbsolutePath())) {
+        LOG.info("Storage directory " + dataDir + " has already been used.");
+        it.remove();
+        continue;
+      }
       StorageDirectory sd = new StorageDirectory(dataDir, null, true);
       StorageState curState;
       try {
