@@ -214,7 +214,7 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
           RMAppAttemptState.FINAL_SAVING,
           RMAppAttemptEventType.CONTAINER_FINISHED,
           new FinalSavingTransition(
-            new AMContainerCrashedBeforeRunningTransition(),
+            new AMContainerCrashedTransition(),
             RMAppAttemptState.FAILED))
 
        // Transitions from ALLOCATED_SAVING State

@@ -764,16 +764,11 @@ public class TestRMAppAttemptTransitions {
     // The state should be FINAL_SAVING with previous state SCHEDULED
     applicationAttempt.handle(new RMAppAttemptContainerFinishedEvent(
         applicationAttempt.getAppAttemptId(), cs));
-    // createApplicationAttemptState will return previous state (SCHEDULED),
-    // if the current state is FINAL_SAVING.
-    assertEquals(YarnApplicationAttemptState.SCHEDULED,
-        applicationAttempt.createApplicationAttemptState());
     // send ATTEMPT_UPDATE_SAVED event,
     // verify the state is changed to state FAILED.
     sendAttemptUpdateSavedEvent(applicationAttempt);
     assertEquals(RMAppAttemptState.FAILED,
         applicationAttempt.getAppAttemptState());
-    verifyApplicationAttemptFinished(RMAppAttemptState.FAILED);
   }
 
   @Test
