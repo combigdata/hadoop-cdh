@@ -18,6 +18,8 @@
 package org.apache.hadoop.fs.http.server;
 
 import org.apache.hadoop.hdfs.DFSConfigKeys;
+import org.apache.hadoop.security.token.delegation.web.DelegationTokenAuthenticator;
+import org.apache.hadoop.security.token.delegation.web.KerberosDelegationTokenAuthenticationHandler;
 import org.json.simple.JSONArray;
 import org.junit.Assert;
 
@@ -43,7 +45,6 @@ import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.XAttrCodec;
-import org.apache.hadoop.fs.http.client.HttpFSKerberosAuthenticator;
 import org.apache.hadoop.lib.server.Service;
 import org.apache.hadoop.lib.server.ServiceException;
 import org.apache.hadoop.lib.service.Groups;
@@ -681,7 +682,7 @@ public class TestHttpFSServer extends HFSTestCase {
 
     AuthenticationToken token =
       new AuthenticationToken("u", "p",
-        HttpFSKerberosAuthenticationHandlerForTesting.TYPE);
+          new KerberosDelegationTokenAuthenticationHandler().getType());
     token.setExpires(System.currentTimeMillis() + 100000000);
     Signer signer = new Signer("secret".getBytes());
     String tokenSigned = signer.sign(token.toString());
@@ -705,9 +706,9 @@ public class TestHttpFSServer extends HFSTestCase {
     JSONObject json = (JSONObject)
       new JSONParser().parse(new InputStreamReader(conn.getInputStream()));
     json = (JSONObject)
-      json.get(HttpFSKerberosAuthenticator.DELEGATION_TOKEN_JSON);
+      json.get(DelegationTokenAuthenticator.DELEGATION_TOKEN_JSON);
     String tokenStr = (String)
-        json.get(HttpFSKerberosAuthenticator.DELEGATION_TOKEN_URL_STRING_JSON);
+        json.get(DelegationTokenAuthenticator.DELEGATION_TOKEN_URL_STRING_JSON);
 
     url = new URL(TestJettyHelper.getJettyURL(),
                   "/webhdfs/v1/?op=GETHOMEDIRECTORY&delegation=" + tokenStr);
