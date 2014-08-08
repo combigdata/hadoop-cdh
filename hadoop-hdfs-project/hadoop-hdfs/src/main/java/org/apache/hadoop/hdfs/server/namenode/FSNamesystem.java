@@ -6090,7 +6090,6 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       blockManager.shutdown();
     }
   }
-  
 
   @Override // FSNamesystemMBean
   public int getNumLiveDataNodes() {
@@ -6135,6 +6134,15 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     "Number of datanodes marked stale due to delayed heartbeat"})
   public int getNumStaleDataNodes() {
     return getBlockManager().getDatanodeManager().getNumStaleNodes();
+  }
+
+  /**
+   * Storages are marked as "content stale" after NN restart or fails over and
+   * before NN receives the first Heartbeat followed by the first Blockreport.
+   */
+  @Override // FSNamesystemMBean
+  public int getNumStaleStorages() {
+    return getBlockManager().getDatanodeManager().getNumStaleStorages();
   }
 
   /**

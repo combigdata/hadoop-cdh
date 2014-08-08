@@ -532,7 +532,7 @@ class BPOfferService {
       LOG.info("DatanodeCommand action : DNA_REGISTER from " + actor.nnAddr
           + " with " + actor.state + " state");
       actor.reRegister();
-      return true;
+      return false;
     }
     synchronized (this) {
     if (actor == bpServiceToActive) {
