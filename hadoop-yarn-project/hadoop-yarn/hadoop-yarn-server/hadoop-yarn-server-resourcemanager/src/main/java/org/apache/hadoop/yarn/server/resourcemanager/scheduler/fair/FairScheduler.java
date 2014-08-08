@@ -148,6 +148,7 @@ public class FairScheduler extends AbstractYarnScheduler {
 
   // Aggregate metrics
   FSQueueMetrics rootMetrics;
+  FSOpDurations fsOpDurations;
 
   // Time when we last updated preemption vars
   protected long lastPreemptionUpdateTime;
@@ -277,8 +278,14 @@ public class FairScheduler extends AbstractYarnScheduler {
       while (true) {
         try {
           Thread.sleep(updateInterval);
+          long start = getClock().getTime();
           update();
           preemptTasksIfNecessary();
+          long duration = getClock().getTime() - start;
+          fsOpDurations.addUpdateThreadRunDuration(duration);
+        } catch (InterruptedException ie) {
+          LOG.warn("Update thread interrupted. Exiting.");
+          return;
         } catch (Exception e) {
           LOG.error("Exception in fair scheduler UpdateThread", e);
         }
@@ -292,6 +299,7 @@ public class FairScheduler extends AbstractYarnScheduler {
    * required resources per job.
    */
   protected synchronized void update() {
+    long start = getClock().getTime();
     updatePreemptionVariables(); // Determine if any queues merit preemption
 
     FSQueue rootQueue = queueMgr.getRootQueue();
@@ -315,6 +323,9 @@ public class FairScheduler extends AbstractYarnScheduler {
             "  Demand: " + rootQueue.getDemand());
       }
     }
+
+    long duration = getClock().getTime() - start;
+    fsOpDurations.addUpdateCallDuration(duration);
   }
 
   /**
@@ -323,7 +334,7 @@ public class FairScheduler extends AbstractYarnScheduler {
    * for each type of task.
    */
   private void updatePreemptionVariables() {
-    long now = clock.getTime();
+    long now = getClock().getTime();
     lastPreemptionUpdateTime = now;
     for (FSLeafQueue sched : queueMgr.getLeafQueues()) {
       if (!isStarvedForMinShare(sched)) {
@@ -350,7 +361,8 @@ public class FairScheduler extends AbstractYarnScheduler {
    * defined as being below half its fair share.
    */
   boolean isStarvedForFairShare(FSLeafQueue sched) {
-    Resource desiredFairShare = Resources.min(RESOURCE_CALCULATOR, clusterCapacity,
+    Resource desiredFairShare = Resources.min(RESOURCE_CALCULATOR,
+        clusterCapacity,
         Resources.multiply(sched.getFairShare(), .5), sched.getDemand());
     return Resources.lessThan(RESOURCE_CALCULATOR, clusterCapacity,
         sched.getResourceUsage(), desiredFairShare);
@@ -368,7 +380,7 @@ public class FairScheduler extends AbstractYarnScheduler {
       return;
     }
 
-    long curTime = clock.getTime();
+    long curTime = getClock().getTime();
     if (curTime - lastPreemptCheckTime < preemptionInterval) {
       return;
     }
@@ -396,6 +408,7 @@ public class FairScheduler extends AbstractYarnScheduler {
     if (scheds.isEmpty() || Resources.equals(toPreempt, Resources.none())) {
       return;
     }
+    long start = getClock().getTime();
 
     Map<RMContainer, FSSchedulerApp> apps = 
         new HashMap<RMContainer, FSSchedulerApp>();
@@ -464,6 +477,9 @@ public class FairScheduler extends AbstractYarnScheduler {
         Resources.subtractFrom(toPreempt, container.getContainer().getResource());
       }
     }
+
+    long duration = getClock().getTime() - start;
+    fsOpDurations.addPreemptCallDuration(duration);
   }
   
   private void warnOrKillContainer(RMContainer container, FSSchedulerApp app,
@@ -477,7 +493,7 @@ public class FairScheduler extends AbstractYarnScheduler {
     if (time != null) {
       // if we asked for preemption more than maxWaitTimeBeforeKill ms ago,
       // proceed with kill
-      if (time + waitTimeBeforeKill < clock.getTime()) {
+      if (time + waitTimeBeforeKill < getClock().getTime()) {
         ContainerStatus status =
           SchedulerUtils.createPreemptedContainerStatus(
             container.getContainerId(), SchedulerUtils.PREEMPTED_CONTAINER);
@@ -487,11 +503,11 @@ public class FairScheduler extends AbstractYarnScheduler {
         completedContainer(container, status, RMContainerEventType.KILL);
         LOG.info("Killing container" + container +
             " (after waiting for premption for " +
-            (clock.getTime() - time) + "ms)");
+            (getClock().getTime() - time) + "ms)");
       }
     } else {
       // track the request in the FSSchedulerApp itself
-      app.addPreemption(container, clock.getTime());
+      app.addPreemption(container, getClock().getTime());
     }
   }
 
@@ -672,7 +688,7 @@ public class FairScheduler extends AbstractYarnScheduler {
             rmContext);
     if (transferStateFromPreviousAttempt) {
       attempt.transferStateFromPreviousAttempt(application
-        .getCurrentAppAttempt());
+          .getCurrentAppAttempt());
     }
     application.setCurrentAppAttempt(attempt);
 
@@ -980,6 +996,7 @@ public class FairScheduler extends AbstractYarnScheduler {
    * Process a heartbeat update from a node.
    */
   private synchronized void nodeUpdate(RMNode nm) {
+    long start = getClock().getTime();
     if (LOG.isDebugEnabled()) {
       LOG.debug("nodeUpdate: " + nm + " cluster capacity: " + clusterCapacity);
     }
@@ -1016,9 +1033,13 @@ public class FairScheduler extends AbstractYarnScheduler {
     } else {
       attemptScheduling(node);
     }
+
+    long duration = getClock().getTime() - start;
+    fsOpDurations.addNodeUpdateDuration(duration);
   }
 
   void continuousSchedulingAttempt() {
+    long start = getClock().getTime();
     List<NodeId> nodeIdList = new ArrayList<NodeId>(nodes.keySet());
     // Sort the nodes by space available on them, so that we offer
     // containers on emptier nodes first, facilitating an even spread. This
@@ -1043,6 +1064,9 @@ public class FairScheduler extends AbstractYarnScheduler {
         }
       }
     }
+
+    long duration = getClock().getTime() - start;
+    fsOpDurations.addContinuousSchedulingRunDuration(duration);
   }
 
   /** Sort nodes by available resource */
@@ -1267,7 +1291,6 @@ public class FairScheduler extends AbstractYarnScheduler {
   @Override
   public synchronized void reinitialize(Configuration conf, RMContext rmContext)
       throws IOException {
-//<<<<<<< HEAD
     if (!initialized) {
       this.conf = new FairSchedulerConfiguration(conf);
       validateConf(this.conf);
@@ -1301,6 +1324,8 @@ public class FairScheduler extends AbstractYarnScheduler {
       }
 
       rootMetrics = FSQueueMetrics.forQueue("root", null, true, conf);
+      fsOpDurations = FSOpDurations.getInstance(true);
+
       this.rmContext = rmContext;
       // This stores per-application scheduling information
       this.applications =

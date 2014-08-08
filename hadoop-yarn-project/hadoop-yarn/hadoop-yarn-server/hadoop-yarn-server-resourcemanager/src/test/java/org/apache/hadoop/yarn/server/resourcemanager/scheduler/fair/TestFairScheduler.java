@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair;
 
+import org.apache.hadoop.metrics2.impl.MetricsCollectorImpl;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -2921,5 +2922,14 @@ public class TestFairScheduler extends FairSchedulerTestBase {
     ApplicationAttemptId appAttId =
         createSchedulingRequest(1024, 1, "queue1", "user1", 3);
     scheduler.moveApplication(appAttId.getApplicationId(), "queue2");
+  }
+
+  @Test
+  public void testPerfMetricsInited() throws IOException {
+    scheduler.reinitialize(conf, resourceManager.getRMContext());
+    MetricsCollectorImpl collector = new MetricsCollectorImpl();
+    scheduler.fsOpDurations.getMetrics(collector, true);
+    assertEquals("Incorrect number of perf metrics", 1,
+        collector.getRecords().size());
   }
 }
