@@ -292,6 +292,7 @@ public class TestFairScheduler extends FairSchedulerTestBase {
     // Have two queues which want entire cluster capacity
     createSchedulingRequest(10 * 1024, "queue1", "user1");
     createSchedulingRequest(10 * 1024, "queue2", "user1");
+    createSchedulingRequest(10 * 1024, "root.default", "user1");
 
     scheduler.update();
 
@@ -322,6 +323,7 @@ public class TestFairScheduler extends FairSchedulerTestBase {
     // Have two queues which want entire cluster capacity
     createSchedulingRequest(10 * 1024, "parent.queue2", "user1");
     createSchedulingRequest(10 * 1024, "parent.queue3", "user1");
+    createSchedulingRequest(10 * 1024, "root.default", "user1");
 
     scheduler.update();
 
@@ -766,8 +768,10 @@ public class TestFairScheduler extends FairSchedulerTestBase {
     scheduler.handle(nodeEvent1);
 
     // user1,user2 submit their apps to parentq and create user queues
-    scheduler.assignToQueue(rmApp1, "root.parentq", "user1");
-    scheduler.assignToQueue(rmApp2, "root.parentq", "user2");
+    createSchedulingRequest(10 * 1024, "root.parentq", "user1");
+    createSchedulingRequest(10 * 1024, "root.parentq", "user2");
+    // user3 submits app in default queue
+    createSchedulingRequest(10 * 1024, "root.default", "user3");
 
     scheduler.update();
 
@@ -1221,6 +1225,79 @@ public class TestFairScheduler extends FairSchedulerTestBase {
         scheduler.getSchedulerApp(app3).getPreemptionContainers().isEmpty());
     assertTrue("App4 should have no container to be preempted",
         scheduler.getSchedulerApp(app4).getPreemptionContainers().isEmpty());
+  }
+
+  @Test
+  public void testPreemptionIsNotDelayedToNextRound() throws Exception {
+    conf.setLong(FairSchedulerConfiguration.PREEMPTION_INTERVAL, 5000);
+    conf.setLong(FairSchedulerConfiguration.WAIT_TIME_BEFORE_KILL, 10000);
+    conf.set(FairSchedulerConfiguration.ALLOCATION_FILE, ALLOC_FILE);
+    conf.set(FairSchedulerConfiguration.USER_AS_DEFAULT_QUEUE, "false");
+
+    MockClock clock = new MockClock();
+    scheduler.setClock(clock);
+
+    PrintWriter out = new PrintWriter(new FileWriter(ALLOC_FILE));
+    out.println("<?xml version=\"1.0\"?>");
+    out.println("<allocations>");
+    out.println("<queue name=\"queueA\">");
+    out.println("<weight>8</weight>");
+    out.println("<queue name=\"queueA1\" />");
+    out.println("<queue name=\"queueA2\" />");
+    out.println("</queue>");
+    out.println("<queue name=\"queueB\">");
+    out.println("<weight>2</weight>");
+    out.println("</queue>");
+    out.print("<fairSharePreemptionTimeout>10</fairSharePreemptionTimeout>");
+    out.println("</allocations>");
+    out.close();
+
+    scheduler.init(conf);
+    scheduler.start();
+    scheduler.reinitialize(conf, resourceManager.getRMContext());
+
+    // Add a node of 8G
+    RMNode node1 = MockNodes.newNodeInfo(1,
+        Resources.createResource(8 * 1024, 8), 1, "127.0.0.1");
+    NodeAddedSchedulerEvent nodeEvent1 = new NodeAddedSchedulerEvent(node1);
+    scheduler.handle(nodeEvent1);
+
+    // Run apps in queueA.A1 and queueB
+    ApplicationAttemptId app1 = createSchedulingRequest(1 * 1024, 1,
+        "queueA.queueA1", "user1", 7, 1);
+    // createSchedulingRequestExistingApplication(1 * 1024, 1, 2, app1);
+    ApplicationAttemptId app2 = createSchedulingRequest(1 * 1024, 1, "queueB",
+        "user2", 1, 1);
+
+    scheduler.update();
+
+    NodeUpdateSchedulerEvent nodeUpdate1 = new NodeUpdateSchedulerEvent(node1);
+    for (int i = 0; i < 8; i++) {
+      scheduler.handle(nodeUpdate1);
+    }
+
+    // verify if the apps got the containers they requested
+    assertEquals(7, scheduler.getSchedulerApp(app1).getLiveContainers().size());
+    assertEquals(1, scheduler.getSchedulerApp(app2).getLiveContainers().size());
+
+    // Now submit an app in queueA.queueA2
+    ApplicationAttemptId app3 = createSchedulingRequest(1 * 1024, 1,
+        "queueA.queueA2", "user3", 7, 1);
+    scheduler.update();
+
+    // Let 11 sec pass
+    clock.tick(11);
+
+    scheduler.update();
+    Resource toPreempt = scheduler.resToPreempt(scheduler.getQueueManager()
+        .getLeafQueue("queueA.queueA2", false), clock.getTime());
+    assertEquals(3277, toPreempt.getMemory());
+
+    // verify if the 3 containers required by queueA2 are preempted in the same
+    // round
+    scheduler.preemptResources(toPreempt);
+    assertEquals(3, scheduler.getSchedulerApp(app1).getPreemptionContainers()
+        .size());
   }
 
   @Test (timeout = 5000)
@@ -2373,8 +2450,12 @@ public class TestFairScheduler extends FairSchedulerTestBase {
     scheduler.update();
 
     FSLeafQueue queue1 = scheduler.getQueueManager().getLeafQueue("queue1", true);
-    assertEquals("Queue queue1's fair share should be 10240",
-        10240, queue1.getFairShare().getMemory());
+    assertEquals("Queue queue1's fair share should be 0", 0, queue1
+        .getFairShare().getMemory());
+
+    createSchedulingRequest(1 * 1024, "root.default", "user1");
+    scheduler.update();
+    scheduler.handle(updateEvent);
 
     Resource amResource1 = Resource.newInstance(1024, 1);
     Resource amResource2 = Resource.newInstance(2048, 2);
@@ -2562,24 +2643,32 @@ public class TestFairScheduler extends FairSchedulerTestBase {
 
     FSLeafQueue queue1 =
         scheduler.getQueueManager().getLeafQueue("queue1", true);
-    assertEquals("Queue queue1's fair share should be 1366",
-        1366, queue1.getFairShare().getMemory());
+    assertEquals("Queue queue1's fair share should be 0", 0, queue1
+        .getFairShare().getMemory());
     FSLeafQueue queue2 =
         scheduler.getQueueManager().getLeafQueue("queue2", true);
-    assertEquals("Queue queue2's fair share should be 1366",
-        1366, queue2.getFairShare().getMemory());
+    assertEquals("Queue queue2's fair share should be 0", 0, queue2
+        .getFairShare().getMemory());
     FSLeafQueue queue3 =
         scheduler.getQueueManager().getLeafQueue("queue3", true);
-    assertEquals("Queue queue3's fair share should be 1366",
-        1366, queue3.getFairShare().getMemory());
+    assertEquals("Queue queue3's fair share should be 0", 0, queue3
+        .getFairShare().getMemory());
     FSLeafQueue queue4 =
         scheduler.getQueueManager().getLeafQueue("queue4", true);
-    assertEquals("Queue queue4's fair share should be 1366",
-        1366, queue4.getFairShare().getMemory());
+    assertEquals("Queue queue4's fair share should be 0", 0, queue4
+        .getFairShare().getMemory());
     FSLeafQueue queue5 =
         scheduler.getQueueManager().getLeafQueue("queue5", true);
-    assertEquals("Queue queue5's fair share should be 1366",
-        1366, queue5.getFairShare().getMemory());
+    assertEquals("Queue queue5's fair share should be 0", 0, queue5
+        .getFairShare().getMemory());
+
+    List<String> queues = Arrays.asList("root.default", "root.queue3",
+        "root.queue4", "root.queue5");
+    for (String queue : queues) {
+      createSchedulingRequest(1 * 1024, queue, "user1");
+      scheduler.update();
+      scheduler.handle(updateEvent);
+    }
 
     Resource amResource1 = Resource.newInstance(2048, 1);
     int amPriority = RMAppAttemptImpl.AM_CONTAINER_PRIORITY.getPriority();
