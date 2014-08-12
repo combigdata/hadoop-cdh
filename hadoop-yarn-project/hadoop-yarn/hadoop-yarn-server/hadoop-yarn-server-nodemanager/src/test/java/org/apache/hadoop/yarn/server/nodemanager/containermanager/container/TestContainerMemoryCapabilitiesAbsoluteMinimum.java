@@ -28,6 +28,8 @@ import org.apache.hadoop.yarn.event.EventHandler;
 import org.apache.hadoop.yarn.security.ContainerTokenIdentifier;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.monitor.ContainerStartMonitoringEvent;
 import org.apache.hadoop.yarn.server.nodemanager.metrics.NodeManagerMetrics;
+import org.apache.hadoop.yarn.server.nodemanager.recovery.NMNullStateStoreService;
+import org.apache.hadoop.yarn.server.nodemanager.recovery.NMStateStoreService;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -56,6 +58,7 @@ public class TestContainerMemoryCapabilitiesAbsoluteMinimum {
     EventHandler mockEventHandler = Mockito.mock(EventHandler.class);
     Mockito.when(mockDispatcher.getEventHandler()).thenReturn(mockEventHandler);
     NodeManagerMetrics mockMetrics = Mockito.mock(NodeManagerMetrics.class);
+    NMStateStoreService stateStore = new NMNullStateStoreService();
     ContainerTokenIdentifier containerToken = BuilderUtils
         .newContainerTokenIdentifier(BuilderUtils.newContainerToken(
             containerId, InetAddress.getByName("localhost")
@@ -63,7 +66,7 @@ public class TestContainerMemoryCapabilitiesAbsoluteMinimum {
             System.currentTimeMillis() + 10000, 123, "password".getBytes(),
             System.currentTimeMillis()));
     ContainerImpl container = new ContainerImpl(new YarnConfiguration(),
-        mockDispatcher, null, null, mockMetrics, containerToken);
+        mockDispatcher, stateStore, null, null, mockMetrics, containerToken);
     lt.transition(container, null);
     Mockito.verify(mockEventHandler, Mockito.times(1)).handle(captor.capture());
     Assert.assertEquals(memoryBytesExpected, captor.getValue().getPmemLimit());
