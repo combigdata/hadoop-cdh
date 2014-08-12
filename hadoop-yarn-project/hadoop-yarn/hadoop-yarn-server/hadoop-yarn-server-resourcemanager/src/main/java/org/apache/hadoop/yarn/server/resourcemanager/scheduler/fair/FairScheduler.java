@@ -117,7 +117,7 @@ import com.google.common.base.Preconditions;
 @Unstable
 @SuppressWarnings("unchecked")
 public class FairScheduler extends
-    AbstractYarnScheduler<FSSchedulerApp, FSSchedulerNode> {
+    AbstractYarnScheduler<FSAppAttempt, FSSchedulerNode> {
   private FairSchedulerConfiguration conf;
 
   private Resource incrAllocation;
@@ -432,8 +432,8 @@ public class FairScheduler extends
     try {
       // Reset preemptedResource for each app
       for (FSLeafQueue queue : getQueueManager().getLeafQueues()) {
-        for (AppSchedulable app : queue.getRunnableAppSchedulables()) {
-          app.getApp().resetPreemptedResources();
+        for (FSAppAttempt app : queue.getRunnableAppSchedulables()) {
+          app.resetPreemptedResources();
         }
       }
 
@@ -453,8 +453,8 @@ public class FairScheduler extends
     } finally {
       // Clear preemptedResources for each app
       for (FSLeafQueue queue : getQueueManager().getLeafQueues()) {
-        for (AppSchedulable app : queue.getRunnableAppSchedulables()) {
-          app.getApp().clearPreemptedResources();
+        for (FSAppAttempt app : queue.getRunnableAppSchedulables()) {
+          app.clearPreemptedResources();
         }
       }
     }
@@ -465,7 +465,7 @@ public class FairScheduler extends
   
   protected void warnOrKillContainer(RMContainer container) {
     ApplicationAttemptId appAttemptId = container.getApplicationAttemptId();
-    FSSchedulerApp app = getSchedulerApp(appAttemptId);
+    FSAppAttempt app = getSchedulerApp(appAttemptId);
     FSLeafQueue queue = app.getQueue();
     LOG.info("Preempting container (prio=" + container.getContainer().getPriority() +
         "res=" + container.getContainer().getResource() +
@@ -490,7 +490,7 @@ public class FairScheduler extends
             (getClock().getTime() - time) + "ms)");
       }
     } else {
-      // track the request in the FSSchedulerApp itself
+      // track the request in the FSAppAttempt itself
       app.addPreemption(container, getClock().getTime());
     }
   }
@@ -541,7 +541,7 @@ public class FairScheduler extends
   }
 
   // synchronized for sizeBasedWeight
-  public synchronized ResourceWeights getAppWeight(AppSchedulable app) {
+  public synchronized ResourceWeights getAppWeight(FSAppAttempt app) {
     double weight = 1.0;
     if (sizeBasedWeight) {
       // Set weight based on current memory demand
@@ -636,8 +636,8 @@ public class FairScheduler extends
       return;
     }
   
-    SchedulerApplication<FSSchedulerApp> application =
-        new SchedulerApplication<FSSchedulerApp>(queue, user);
+    SchedulerApplication<FSAppAttempt> application =
+        new SchedulerApplication<FSAppAttempt>(queue, user);
     applications.put(applicationId, application);
     queue.getMetrics().submitApp(user);
 
@@ -654,14 +654,14 @@ public class FairScheduler extends
   protected synchronized void addApplicationAttempt(
       ApplicationAttemptId applicationAttemptId,
       boolean transferStateFromPreviousAttempt,
-      boolean shouldNotifyAttemptAdded) {
-    SchedulerApplication<FSSchedulerApp> application =
+      boolean isAttemptRecovering) {
+    SchedulerApplication<FSAppAttempt> application =
         applications.get(applicationAttemptId.getApplicationId());
     String user = application.getUser();
     FSLeafQueue queue = (FSLeafQueue) application.getQueue();
 
-    FSSchedulerApp attempt =
-        new FSSchedulerApp(applicationAttemptId, user,
+    FSAppAttempt attempt =
+        new FSAppAttempt(this, applicationAttemptId, user,
             queue, new ActiveUsersManager(getRootQueueMetrics()),
             rmContext);
     if (transferStateFromPreviousAttempt) {
@@ -683,7 +683,7 @@ public class FairScheduler extends
     LOG.info("Added Application Attempt " + applicationAttemptId
         + " to scheduler from user: " + user);
 
-    if (shouldNotifyAttemptAdded) {
+    if (isAttemptRecovering) {
       rmContext.getDispatcher().getEventHandler().handle(
           new RMAppAttemptEvent(applicationAttemptId,
               RMAppAttemptEventType.ATTEMPT_ADDED));
@@ -735,7 +735,7 @@ public class FairScheduler extends
 
   private synchronized void removeApplication(ApplicationId applicationId,
       RMAppState finalState) {
-    SchedulerApplication<FSSchedulerApp> application =
+    SchedulerApplication<FSAppAttempt> application =
         applications.get(applicationId);
     if (application == null){
       LOG.warn("Couldn't find application " + applicationId);
@@ -750,9 +750,9 @@ public class FairScheduler extends
       RMAppAttemptState rmAppAttemptFinalState, boolean keepContainers) {
     LOG.info("Application " + applicationAttemptId + " is done." +
         " finalState=" + rmAppAttemptFinalState);
-    SchedulerApplication<FSSchedulerApp> application =
+    SchedulerApplication<FSAppAttempt> application =
         applications.get(applicationAttemptId.getApplicationId());
-    FSSchedulerApp attempt = getSchedulerApp(applicationAttemptId);
+    FSAppAttempt attempt = getSchedulerApp(applicationAttemptId);
 
     if (attempt == null || application == null) {
       LOG.info("Unknown application " + applicationAttemptId + " has completed!");
@@ -813,7 +813,7 @@ public class FairScheduler extends
     Container container = rmContainer.getContainer();
 
     // Get the application for the finished container
-    FSSchedulerApp application =
+    FSAppAttempt application =
         getCurrentAttemptForContainer(container.getId());
     ApplicationId appId =
         container.getId().getApplicationAttemptId().getApplicationId();
@@ -828,8 +828,7 @@ public class FairScheduler extends
     FSSchedulerNode node = getFSSchedulerNode(container.getNodeId());
 
     if (rmContainer.getState() == RMContainerState.RESERVED) {
-      application.unreserve(node, rmContainer.getReservedPriority());
-      node.unreserveResource(application);
+      application.unreserve(rmContainer.getReservedPriority(), node);
     } else {
       application.containerCompleted(rmContainer, containerStatus, event);
       node.releaseContainer(container);
@@ -889,7 +888,7 @@ public class FairScheduler extends
       List<ResourceRequest> ask, List<ContainerId> release, List<String> blacklistAdditions, List<String> blacklistRemovals) {
 
     // Make sure this application exists
-    FSSchedulerApp application = getSchedulerApp(appAttemptId);
+    FSAppAttempt application = getSchedulerApp(appAttemptId);
     if (application == null) {
       LOG.info("Calling allocate on removed " +
           "or non existant application " + appAttemptId);
@@ -967,7 +966,7 @@ public class FairScheduler extends
    */
   private void containerLaunchedOnNode(ContainerId containerId, FSSchedulerNode node) {
     // Get the application for the finished container
-    FSSchedulerApp application = getCurrentAttemptForContainer(containerId);
+    FSAppAttempt application = getCurrentAttemptForContainer(containerId);
     if (application == null) {
       LOG.info("Unknown application "
           + containerId.getApplicationAttemptId().getApplicationId()
@@ -1075,13 +1074,13 @@ public class FairScheduler extends
     // 1. Check for reserved applications
     // 2. Schedule if there are no reservations
 
-    AppSchedulable reservedAppSchedulable = node.getReservedAppSchedulable();
+    FSAppAttempt reservedAppSchedulable = node.getReservedAppSchedulable();
     if (reservedAppSchedulable != null) {
       Priority reservedPriority = node.getReservedContainer().getReservedPriority();
       if (!reservedAppSchedulable.hasContainerForNode(reservedPriority, node)) {
         // Don't hold the reservation if app can no longer use it
         LOG.info("Releasing reservation that cannot be satisfied for application "
-            + reservedAppSchedulable.getApp().getApplicationAttemptId()
+            + reservedAppSchedulable.getApplicationAttemptId()
             + " on node " + node);
         reservedAppSchedulable.unreserve(reservedPriority, node);
         reservedAppSchedulable = null;
@@ -1089,7 +1088,7 @@ public class FairScheduler extends
         // Reservation exists; try to fulfill the reservation
         if (LOG.isDebugEnabled()) {
           LOG.debug("Trying to fulfill reservation for application "
-              + reservedAppSchedulable.getApp().getApplicationAttemptId()
+              + reservedAppSchedulable.getApplicationAttemptId()
               + " on node: " + node);
         }
         
@@ -1114,8 +1113,8 @@ public class FairScheduler extends
     updateRootQueueMetrics();
   }
 
-  public FSSchedulerApp getSchedulerApp(ApplicationAttemptId appAttemptId) {
-    return (FSSchedulerApp) super.getApplicationAttempt(appAttemptId);
+  public FSAppAttempt getSchedulerApp(ApplicationAttemptId appAttemptId) {
+    return super.getApplicationAttempt(appAttemptId);
   }
   
   /**
@@ -1276,8 +1275,8 @@ public class FairScheduler extends
     fsOpDurations = FSOpDurations.getInstance(true);
 
     // This stores per-application scheduling information
-    this.applications =
-        new ConcurrentHashMap<ApplicationId,SchedulerApplication<FSSchedulerApp>>();
+    this.applications = new ConcurrentHashMap<
+        ApplicationId, SchedulerApplication<FSAppAttempt>>();
     this.eventLog = new FairSchedulerEventLog();
     eventLog.init(this.conf);
 
@@ -1377,7 +1376,7 @@ public class FairScheduler extends
 
   @Override
   public List<QueueUserACLInfo> getQueueUserAclInfo() {
-    UserGroupInformation user = null;
+    UserGroupInformation user;
     try {
       user = UserGroupInformation.getCurrentUser();
     } catch (IOException ioe) {
@@ -1439,11 +1438,11 @@ public class FairScheduler extends
   @Override
   public synchronized String moveApplication(ApplicationId appId,
       String queueName) throws YarnException {
-    SchedulerApplication<FSSchedulerApp> app = applications.get(appId);
+    SchedulerApplication<FSAppAttempt> app = applications.get(appId);
     if (app == null) {
       throw new YarnException("App to be moved " + appId + " not found.");
     }
-    FSSchedulerApp attempt = (FSSchedulerApp) app.getCurrentAppAttempt();
+    FSAppAttempt attempt = (FSAppAttempt) app.getCurrentAppAttempt();
     // To serialize with FairScheduler#allocate, synchronize on app attempt
     synchronized (attempt) {
       FSLeafQueue oldQueue = (FSLeafQueue) app.getQueue();
@@ -1456,8 +1455,7 @@ public class FairScheduler extends
         return oldQueue.getQueueName();
       }
       
-      if (oldQueue.getRunnableAppSchedulables().contains(
-          attempt.getAppSchedulable())) {
+      if (oldQueue.getRunnableAppSchedulables().contains(attempt)) {
         verifyMoveDoesNotViolateConstraints(attempt, oldQueue, targetQueue);
       }
       
@@ -1466,7 +1464,7 @@ public class FairScheduler extends
     }
   }
   
-  private void verifyMoveDoesNotViolateConstraints(FSSchedulerApp app,
+  private void verifyMoveDoesNotViolateConstraints(FSAppAttempt app,
       FSLeafQueue oldQueue, FSLeafQueue targetQueue) throws YarnException {
     String queueName = targetQueue.getQueueName();
     ApplicationAttemptId appAttId = app.getApplicationAttemptId();
@@ -1503,8 +1501,8 @@ public class FairScheduler extends
    * Helper for moveApplication, which has appropriate synchronization, so all
    * operations will be atomic.
    */
-  private void executeMove(SchedulerApplication<FSSchedulerApp> app,
-      FSSchedulerApp attempt, FSLeafQueue oldQueue, FSLeafQueue newQueue) {
+  private void executeMove(SchedulerApplication<FSAppAttempt> app,
+      FSAppAttempt attempt, FSLeafQueue oldQueue, FSLeafQueue newQueue) {
     boolean wasRunnable = oldQueue.removeApp(attempt);
     // if app was not runnable before, it may be runnable now
     boolean nowRunnable = maxRunningEnforcer.canAppBeRunnable(newQueue,
