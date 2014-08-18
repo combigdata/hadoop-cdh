@@ -163,7 +163,7 @@ public class INodeDirectory extends INodeWithAdditionalFields
     return quota;
   }
 
-  private int searchChildren(byte[] name) {
+  int searchChildren(byte[] name) {
     return children == null? -1: Collections.binarySearch(children, name);
   }
   
