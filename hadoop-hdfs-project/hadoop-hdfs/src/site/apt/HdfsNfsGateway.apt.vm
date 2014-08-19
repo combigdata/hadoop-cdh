@@ -229,7 +229,7 @@ HDFS NFS Gateway
    [[2]] Start package included portmap (needs root privileges):
 
 -------------------------
-     hadoop portmap
+     hdfs portmap
   
      OR
 
@@ -242,7 +242,7 @@ HDFS NFS Gateway
      the Hadoop cluster and the user starting the NFS gateway are same.
 
 -------------------------
-     hadoop nfs3
+     hdfs nfs3
 
      OR
 
