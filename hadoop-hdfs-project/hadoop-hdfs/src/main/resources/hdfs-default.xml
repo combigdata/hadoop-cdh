@@ -1915,5 +1915,4 @@
   </description>
 </property>
 
->>>>>>> f8c98c4... HDFS-6007. Update documentation about short-circuit local reads (iwasakims via cmccabe)
 </configuration>
