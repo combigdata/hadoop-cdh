@@ -845,6 +845,8 @@ public class FairScheduler extends
     Resources.addTo(clusterResource, node.getTotalCapability());
     updateRootQueueMetrics();
 
+    queueMgr.getRootQueue().setSteadyFairShare(clusterResource);
+    queueMgr.getRootQueue().recomputeSteadyShares();
     LOG.info("Added node " + node.getNodeAddress() +
         " cluster capacity: " + clusterResource);
   }
@@ -879,6 +881,8 @@ public class FairScheduler extends
     }
 
     nodes.remove(rmNode.getNodeID());
+    queueMgr.getRootQueue().setSteadyFairShare(clusterResource);
+    queueMgr.getRootQueue().recomputeSteadyShares();
     LOG.info("Removed node " + rmNode.getNodeAddress() +
         " cluster capacity: " + clusterResource);
   }
