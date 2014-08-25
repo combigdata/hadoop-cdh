@@ -442,8 +442,6 @@
   </description>
 </property>
 
-<<<<<<< HEAD
-=======
 <property>
   <name>mapreduce.map.memory.mb</name>
   <value>1024</value>
@@ -476,7 +474,6 @@
   </description>
 </property>
 
->>>>>>> cd9622f... MAPREDUCE-5130. Add missing job config options to mapred-default.xml (Ray Chiang via Sandy Ryza)
 <property>
   <name>mapred.child.java.opts</name>
   <value>-Xmx200m</value>
@@ -832,8 +829,6 @@
   A value of -1 indicates that there is no maximum.  </description>
 </property>
 
-<<<<<<< HEAD
-=======
 <property>
   <name>mapreduce.input.lineinputformat.linespermap</name>
   <value>1</value>
@@ -842,7 +837,6 @@
 </property>
 
 
->>>>>>> cd9622f... MAPREDUCE-5130. Add missing job config options to mapred-default.xml (Ray Chiang via Sandy Ryza)
 <property>
   <name>mapreduce.client.submit.file.replication</name>
   <value>10</value>
