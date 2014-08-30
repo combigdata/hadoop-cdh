@@ -51,6 +51,8 @@ import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.QueueACL;
 import org.apache.hadoop.yarn.api.records.QueueInfo;
 import org.apache.hadoop.yarn.api.records.QueueUserACLInfo;
+import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.ResourceOption;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
@@ -83,6 +85,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.AppRemovedS
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.ContainerExpiredSchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeAddedSchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeRemovedSchedulerEvent;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeResourceUpdateSchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeUpdateSchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.SchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.security.RMContainerTokenSecretManager;
@@ -759,12 +762,6 @@ public class CapacityScheduler extends
 
     FiCaSchedulerNode node = getNode(nm.getNodeID());
     
-    // Update resource if any change
-    if (SchedulerUtils.updateResourceIfChanged(node, nm, clusterResource,
-        LOG)) {
-      root.updateClusterResource(clusterResource);
-    }
-    
     List<UpdatedContainerInfo> containerInfoList = nm.pullContainerUpdates();
     List<ContainerStatus> newlyLaunchedContainers = new ArrayList<ContainerStatus>();
     List<ContainerStatus> completedContainers = new ArrayList<ContainerStatus>();
@@ -791,6 +788,15 @@ public class CapacityScheduler extends
       LOG.debug("Node being looked for scheduling " + nm
         + " availableResource: " + node.getAvailableResource());
     }
+  }
+  
+  /**
+   * Process resource update on a node.
+   */
+  private synchronized void updateNodeAndQueueResource(RMNode nm, 
+      ResourceOption resourceOption) {
+    updateNodeResource(nm, resourceOption);
+    root.updateClusterResource(clusterResource);
   }
 
   private synchronized void allocateContainersToNode(FiCaSchedulerNode node) {
@@ -860,6 +866,14 @@ public class CapacityScheduler extends
     {
       NodeRemovedSchedulerEvent nodeRemovedEvent = (NodeRemovedSchedulerEvent)event;
       removeNode(nodeRemovedEvent.getRemovedRMNode());
+    }
+    break;
+    case NODE_RESOURCE_UPDATE:
+    {
+      NodeResourceUpdateSchedulerEvent nodeResourceUpdatedEvent = 
+          (NodeResourceUpdateSchedulerEvent)event;
+      updateNodeAndQueueResource(nodeResourceUpdatedEvent.getRMNode(),
+        nodeResourceUpdatedEvent.getResourceOption());
     }
     break;
     case NODE_UPDATE:
