@@ -60,6 +60,8 @@ public abstract class ResourceOption {
   @Evolving
   protected abstract void setOverCommitTimeout(int overCommitTimeout);
   
+  @Private
+  @Evolving
   protected abstract void build();
   
   @Override
