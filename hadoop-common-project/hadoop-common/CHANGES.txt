@@ -1,6 +1,6 @@
 Hadoop Change Log
 
-Release 2.5.0 - 2014-08-11
+release 2.5.0 - 2014-08-11
 
   INCOMPATIBLE CHANGES
 
@@ -130,6 +130,9 @@ Release 2.5.0 - 2014-08-11
 
     HADOOP-10896. Update compatibility doc to capture visibility of 
     un-annotated classes/ methods. (kasha)
+
+    HADOOP-10863. KMS should have a blacklist for decrypting EEKs. 
+    (asuresh via tucu)
 
   OPTIMIZATIONS
 
