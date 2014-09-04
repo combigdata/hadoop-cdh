@@ -74,7 +74,7 @@ public class INodeDirectorySnapshottable extends INodeDirectory {
   /**
    * Snapshots of this directory in ascending order of snapshot names.
    * Note that snapshots in ascending order of snapshot id are stored in
-   * {@link INodeDirectoryWithSnapshot}.diffs (a private field).
+   * {@link DirectoryWithSnapshotFeature}.diffs (a private field).
    */
   private final List<Snapshot> snapshotsByNames = new ArrayList<Snapshot>();
 
