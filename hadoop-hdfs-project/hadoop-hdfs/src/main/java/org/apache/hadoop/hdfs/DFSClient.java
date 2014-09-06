@@ -3074,4 +3074,8 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
   DFSHedgedReadMetrics getHedgedReadMetrics() {
     return HEDGED_READ_METRIC;
   }
+
+  public KeyProviderCryptoExtension getKeyProvider() {
+    return provider;
+  }
 }
