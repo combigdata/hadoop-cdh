@@ -174,6 +174,10 @@ public class BlockPlacementPolicyDefault extends BlockPlacementPolicy {
       return getPipeline(writer,
           results.toArray(new DatanodeStorageInfo[results.size()]));
     } catch (NotEnoughReplicasException nr) {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Failed to choose with favored nodes (=" + favoredNodes
+            + "), disregard favored nodes hint and retry.", nr);
+      }
       // Fall back to regular block placement disregarding favored nodes hint
       return chooseTarget(src, numOfReplicas, writer, 
           new ArrayList<DatanodeStorageInfo>(numOfReplicas), false, 
@@ -462,6 +466,10 @@ public class BlockPlacementPolicyDefault extends BlockPlacementPolicy {
           excludedNodes, blocksize, maxReplicasPerRack, results,
           avoidStaleNodes, storageType);
     } catch (NotEnoughReplicasException e) {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Failed to choose remote rack (location = ~"
+            + localMachine.getNetworkLocation() + "), fallback to local rack", e);
+      }
       chooseRandom(numOfReplicas-(results.size()-oldNumOfReplicas),
                    localMachine.getNetworkLocation(), excludedNodes, blocksize, 
                    maxReplicasPerRack, results, avoidStaleNodes, storageType);
@@ -512,6 +520,9 @@ public class BlockPlacementPolicyDefault extends BlockPlacementPolicy {
       DatanodeDescriptor chosenNode = 
           (DatanodeDescriptor)clusterMap.chooseRandom(scope);
       if (excludedNodes.add(chosenNode)) { //was not in the excluded list
+        if (LOG.isDebugEnabled()) {
+          builder.append("\nNode ").append(NodeBase.getPath(chosenNode)).append(" [");
+        }
         numOfAvailableNodes--;
 
         final DatanodeStorageInfo[] storages = DFSUtil.shuffle(
@@ -530,6 +541,9 @@ public class BlockPlacementPolicyDefault extends BlockPlacementPolicy {
             break;
           }
         }
+        if (LOG.isDebugEnabled()) {
+          builder.append("\n]");
+        }
 
         // If no candidate storage was found on this DN then set badTarget.
         badTarget = (i == storages.length);
@@ -540,9 +554,11 @@ public class BlockPlacementPolicyDefault extends BlockPlacementPolicy {
       String detail = enableDebugLogging;
       if (LOG.isDebugEnabled()) {
         if (badTarget && builder != null) {
-          detail = builder.append("]").toString();
+          detail = builder.toString();
           builder.setLength(0);
-        } else detail = "";
+        } else {
+          detail = "";
+        }
       }
       throw new NotEnoughReplicasException(detail);
     }
@@ -576,14 +592,10 @@ public class BlockPlacementPolicyDefault extends BlockPlacementPolicy {
 
   private static void logNodeIsNotChosen(DatanodeStorageInfo storage, String reason) {
     if (LOG.isDebugEnabled()) {
-      final DatanodeDescriptor node = storage.getDatanodeDescriptor();
       // build the error message for later use.
       debugLoggingBuilder.get()
-          .append(node).append(": ")
-          .append("Storage ").append(storage)
-          .append("at node ").append(NodeBase.getPath(node))
-          .append(" is not chosen because ")
-          .append(reason);
+          .append("\n  Storage ").append(storage)
+          .append(" is not chosen since ").append(reason).append(".");
     }
   }
 
@@ -608,11 +620,10 @@ public class BlockPlacementPolicyDefault extends BlockPlacementPolicy {
                                boolean considerLoad,
                                List<DatanodeStorageInfo> results,
                                boolean avoidStaleNodes,
-                               StorageType storageType) {
-    if (storage.getStorageType() != storageType) {
-      logNodeIsNotChosen(storage,
-          "storage types do not match, where the expected storage type is "
-              + storageType);
+                               StorageType requiredStorageType) {
+    if (storage.getStorageType() != requiredStorageType) {
+      logNodeIsNotChosen(storage, "storage types do not match,"
+          + " where the required storage type is " + requiredStorageType);
       return false;
     }
     if (storage.getState() == State.READ_ONLY_SHARED) {
@@ -640,9 +651,14 @@ public class BlockPlacementPolicyDefault extends BlockPlacementPolicy {
     }
     
     final long requiredSize = blockSize * HdfsConstants.MIN_BLOCKS_FOR_WRITE;
-    final long scheduledSize = blockSize * node.getBlocksScheduled();
-    if (requiredSize > storage.getRemaining() - scheduledSize) {
-      logNodeIsNotChosen(storage, "the node does not have enough space ");
+    final long scheduledSize = blockSize * node.getBlocksScheduled(storage.getStorageType());
+    final long remaining = node.getRemaining(storage.getStorageType());
+    if (requiredSize > remaining - scheduledSize) {
+      logNodeIsNotChosen(storage, "the node does not have enough "
+          + storage.getStorageType() + " space"
+          + " (required=" + requiredSize
+          + ", scheduled=" + scheduledSize
+          + ", remaining=" + remaining + ")");
       return false;
     }
 
@@ -651,8 +667,8 @@ public class BlockPlacementPolicyDefault extends BlockPlacementPolicy {
       final double maxLoad = 2.0 * stats.getInServiceXceiverAverage();
       final int nodeLoad = node.getXceiverCount();
       if (nodeLoad > maxLoad) {
-        logNodeIsNotChosen(storage,
-            "the node is too busy (load:"+nodeLoad+" > "+maxLoad+") ");
+        logNodeIsNotChosen(storage, "the node is too busy (load: " + nodeLoad
+            + " > " + maxLoad + ") ");
         return false;
       }
     }
