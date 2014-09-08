@@ -25,6 +25,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.io.IOException;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.logging.Log;
@@ -44,6 +46,7 @@ import org.apache.hadoop.yarn.api.records.ResourceOption;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
+import org.apache.hadoop.yarn.proto.YarnServiceProtos.SchedulerResourceTypes;
 import org.apache.hadoop.yarn.server.api.protocolrecords.NMContainerStatus;
 import org.apache.hadoop.yarn.server.resourcemanager.RMAuditLogger;
 import org.apache.hadoop.yarn.server.resourcemanager.RMAuditLogger.AuditConstants;
@@ -448,5 +451,11 @@ public abstract class AbstractYarnScheduler
       LOG.warn("Update resource on node: " + node.getNodeName() 
           + " with the same resource: " + newResource);
     }
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public EnumSet<SchedulerResourceTypes> getSchedulingResourceTypes() {
+    return EnumSet.of(SchedulerResourceTypes.MEMORY);
   }
 }
