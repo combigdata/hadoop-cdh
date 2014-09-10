@@ -39,6 +39,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.BlockLocation;
+import org.apache.hadoop.fs.CommonConfigurationKeys;
 import org.apache.hadoop.fs.ContentSummary;
 import org.apache.hadoop.fs.DelegationTokenRenewer;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -91,6 +92,7 @@ import org.apache.hadoop.io.retry.RetryPolicy;
 import org.apache.hadoop.io.retry.RetryUtils;
 import org.apache.hadoop.ipc.RemoteException;
 import org.apache.hadoop.net.NetUtils;
+import org.apache.hadoop.security.AccessControlException;
 import org.apache.hadoop.security.SecurityUtil;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.authentication.client.AuthenticationException;
@@ -120,6 +122,11 @@ public class WebHdfsFileSystem extends FileSystem
 
   /** Delegation token kind */
   public static final Text TOKEN_KIND = new Text("WEBHDFS delegation");
+
+  @VisibleForTesting
+  public static final String CANT_FALLBACK_TO_INSECURE_MSG =
+      "The client is configured to only allow connecting to secure cluster";
+
   protected TokenAspect<? extends WebHdfsFileSystem> tokenAspect;
 
   private UserGroupInformation ugi;
@@ -130,6 +137,7 @@ public class WebHdfsFileSystem extends FileSystem
   private Path workingDir;
   private InetSocketAddress nnAddrs[];
   private int currentNNAddrIndex;
+  private boolean disallowFallbackToInsecureCluster;
 
   /**
    * Return the protocol scheme for the FileSystem.
@@ -213,7 +221,9 @@ public class WebHdfsFileSystem extends FileSystem
     }
 
     this.workingDir = getHomeDirectory();
-
+    this.disallowFallbackToInsecureCluster = !conf.getBoolean(
+        CommonConfigurationKeys.IPC_CLIENT_FALLBACK_TO_SIMPLE_AUTH_ALLOWED_KEY,
+        CommonConfigurationKeys.IPC_CLIENT_FALLBACK_TO_SIMPLE_AUTH_ALLOWED_DEFAULT);
     if (UserGroupInformation.isSecurityEnabled()) {
       tokenAspect.initDelegationToken(ugi);
     }
@@ -1024,7 +1034,13 @@ public class WebHdfsFileSystem extends FileSystem
     final HttpOpParam.Op op = GetOpParam.Op.GETDELEGATIONTOKEN;
     final Map<?, ?> m = run(op, null, new RenewerParam(renewer));
     final Token<DelegationTokenIdentifier> token = JsonUtil.toDelegationToken(m);
-    token.setService(tokenServiceName);
+    if (token != null) {
+      token.setService(tokenServiceName);
+    } else {
+      if (disallowFallbackToInsecureCluster) {
+        throw new AccessControlException(CANT_FALLBACK_TO_INSECURE_MSG);
+      }
+    }
     return token;
   }
 
