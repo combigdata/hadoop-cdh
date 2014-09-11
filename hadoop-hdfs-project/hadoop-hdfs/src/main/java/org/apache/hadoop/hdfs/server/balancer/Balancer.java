@@ -789,6 +789,8 @@ public class Balancer {
           (!srcBlockList.isEmpty() || blocksToReceive>0)) {
         PendingBlockMove pendingBlock = chooseNextBlockToMove();
         if (pendingBlock != null) {
+          // Reset no pending move counter
+          noPendingBlockIteration = 0;
           // move the block
           pendingBlock.scheduleBlockMove();
           continue;
