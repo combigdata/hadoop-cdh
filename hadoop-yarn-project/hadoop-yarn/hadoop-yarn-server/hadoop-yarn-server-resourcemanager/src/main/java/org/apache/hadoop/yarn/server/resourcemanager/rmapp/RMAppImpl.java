@@ -67,6 +67,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore.Appli
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore.RMState;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.Recoverable;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppNodeUpdateEvent.RMAppNodeUpdateType;
+import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.AggregateAppResourceUsage;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttempt;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttemptEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttemptEventType;
@@ -577,6 +578,10 @@ public class RMAppImpl implements RMApp, Recoverable {
             }
           }
         }
+
+        RMAppMetrics rmAppMetrics = getRMAppMetrics();
+        appUsageReport.setMemorySeconds(rmAppMetrics.getMemorySeconds());
+        appUsageReport.setVcoreSeconds(rmAppMetrics.getVcoreSeconds());
       }
 
       if (currentApplicationAttemptId == null) {
@@ -1162,7 +1167,6 @@ public class RMAppImpl implements RMApp, Recoverable {
 
     @Override
     public RMAppState transition(RMAppImpl app, RMAppEvent event) {
-
       if (!app.submissionContext.getUnmanagedAM()
           && app.getNumFailedAppAttempts() < app.maxAppAttempts) {
         boolean transferStateFromPreviousAttempt = false;
@@ -1266,6 +1270,8 @@ public class RMAppImpl implements RMApp, Recoverable {
     Resource resourcePreempted = Resource.newInstance(0, 0);
     int numAMContainerPreempted = 0;
     int numNonAMContainerPreempted = 0;
+    long memorySeconds = 0;
+    long vcoreSeconds = 0;
     for (RMAppAttempt attempt : attempts.values()) {
       if (null != attempt) {
         RMAppAttemptMetrics attemptMetrics =
@@ -1275,10 +1281,17 @@ public class RMAppImpl implements RMApp, Recoverable {
         numAMContainerPreempted += attemptMetrics.getIsPreempted() ? 1 : 0;
         numNonAMContainerPreempted +=
             attemptMetrics.getNumNonAMContainersPreempted();
+        // getAggregateAppResourceUsage() will calculate resource usage stats
+        // for both running and finished containers.
+        AggregateAppResourceUsage resUsage =
+            attempt.getRMAppAttemptMetrics().getAggregateAppResourceUsage();
+        memorySeconds += resUsage.getMemorySeconds();
+        vcoreSeconds += resUsage.getVcoreSeconds();
       }
     }
 
     return new RMAppMetrics(resourcePreempted,
-        numNonAMContainerPreempted, numAMContainerPreempted);
+        numNonAMContainerPreempted, numAMContainerPreempted,
+        memorySeconds, vcoreSeconds);
   }
 }
