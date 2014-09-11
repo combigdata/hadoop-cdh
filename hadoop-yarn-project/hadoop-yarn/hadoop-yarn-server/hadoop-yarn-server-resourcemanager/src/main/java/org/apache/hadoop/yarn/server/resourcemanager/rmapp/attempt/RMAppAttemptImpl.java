@@ -87,6 +87,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.event.RMAppAt
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.event.RMAppAttemptUpdateSavedEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainerImpl;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.Allocation;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerAppReport;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.YarnScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.AppAttemptAddedSchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.AppAttemptRemovedSchedulerEvent;
@@ -432,7 +433,8 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
     this.proxiedTrackingUrl = generateProxyUriWithScheme(null);
     this.maybeLastAttempt = maybeLastAttempt;
     this.stateMachine = stateMachineFactory.make(this);
-    this.attemptMetrics = new RMAppAttemptMetrics(applicationAttemptId);
+    this.attemptMetrics =
+        new RMAppAttemptMetrics(applicationAttemptId, rmContext);
   }
 
   @Override
@@ -706,6 +708,10 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
       if (report == null) {
         report = RMServerUtils.DUMMY_APPLICATION_RESOURCE_USAGE_REPORT;
       }
+      AggregateAppResourceUsage resUsage =
+          this.attemptMetrics.getAggregateAppResourceUsage();
+      report.setMemorySeconds(resUsage.getMemorySeconds());
+      report.setVcoreSeconds(resUsage.getVcoreSeconds());
       return report;
     } finally {
       this.readLock.unlock();
@@ -735,6 +741,8 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
     this.proxiedTrackingUrl = generateProxyUriWithScheme(originalTrackingUrl);
     this.finalStatus = attemptState.getFinalApplicationStatus();
     this.startTime = attemptState.getStartTime();
+    this.attemptMetrics.updateAggregateAppResourceUsage(
+        attemptState.getMemorySeconds(),attemptState.getVcoreSeconds());
   }
 
   public void transferStateFromPreviousAttempt(RMAppAttempt attempt) {
@@ -1019,12 +1027,14 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
     default:
       break;
     }
-
+    AggregateAppResourceUsage resUsage =
+        this.attemptMetrics.getAggregateAppResourceUsage();
     RMStateStore rmStore = rmContext.getStateStore();
     ApplicationAttemptState attemptState =
         new ApplicationAttemptState(applicationAttemptId, getMasterContainer(),
           rmStore.getCredentialsFromAppAttempt(this), startTime,
-          stateToBeStored, finalTrackingUrl, diags, finalStatus, exitStatus);
+          stateToBeStored, finalTrackingUrl, diags, finalStatus, exitStatus,
+          resUsage.getMemorySeconds(), resUsage.getVcoreSeconds());
     LOG.info("Updating application attempt " + applicationAttemptId
         + " with final state: " + targetedFinalState + ", and exit status: "
         + exitStatus);

@@ -162,7 +162,7 @@ public class FairSchedulerTestBase {
     RMAppAttempt rmAppAttempt = mock(RMAppAttempt.class);
     when(rmApp.getCurrentAppAttempt()).thenReturn(rmAppAttempt);
     when(rmAppAttempt.getRMAppAttemptMetrics()).thenReturn(
-        new RMAppAttemptMetrics(id));
+        new RMAppAttemptMetrics(id, resourceManager.getRMContext()));
     resourceManager.getRMContext().getRMApps()
         .put(id.getApplicationId(), rmApp);
     return id;
@@ -191,7 +191,7 @@ public class FairSchedulerTestBase {
     RMAppAttempt rmAppAttempt = mock(RMAppAttempt.class);
     when(rmApp.getCurrentAppAttempt()).thenReturn(rmAppAttempt);
     when(rmAppAttempt.getRMAppAttemptMetrics()).thenReturn(
-        new RMAppAttemptMetrics(id));
+        new RMAppAttemptMetrics(id,resourceManager.getRMContext()));
     resourceManager.getRMContext().getRMApps()
         .put(id.getApplicationId(), rmApp);
     return id;
