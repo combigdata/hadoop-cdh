@@ -541,7 +541,7 @@ public abstract class RMStateStore extends AbstractService {
   /**
    * Get the current epoch of RM and increment the value.
    */
-  public abstract int getAndIncrementEpoch() throws Exception;
+  public abstract long getAndIncrementEpoch() throws Exception;
   
   /**
    * Blocking API

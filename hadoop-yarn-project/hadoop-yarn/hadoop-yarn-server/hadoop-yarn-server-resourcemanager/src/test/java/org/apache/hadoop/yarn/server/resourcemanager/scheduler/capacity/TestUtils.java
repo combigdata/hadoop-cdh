@@ -170,7 +170,9 @@ public class TestUtils {
     ContainerId containerId = mock(ContainerId.class);
     doReturn(application.getApplicationAttemptId()).
     when(containerId).getApplicationAttemptId();
-    doReturn(application.getNewContainerId()).when(containerId).getId();
+    long id = application.getNewContainerId();
+    doReturn((int)id).when(containerId).getId();
+    doReturn(id).when(containerId).getContainerId();
     return containerId;
   }
   
