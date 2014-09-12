@@ -102,5 +102,5 @@ public interface RMContext {
 
   boolean isWorkPreservingRecoveryEnabled();
   
-  int getEpoch();
+  long getEpoch();
 }
