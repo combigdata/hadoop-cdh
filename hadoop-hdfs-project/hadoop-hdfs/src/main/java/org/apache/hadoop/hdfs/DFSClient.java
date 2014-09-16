@@ -1311,7 +1311,8 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
           " an encrypted file");
     }
     EncryptedKeyVersion ekv = EncryptedKeyVersion.createForDecryption(
-        feInfo.getEzKeyVersionName(), feInfo.getIV(),
+        //TODO: here we have to put the keyName to be provided by HDFS-6987
+        null, feInfo.getEzKeyVersionName(), feInfo.getIV(),
         feInfo.getEncryptedDataEncryptionKey());
     try {
       return provider.decryptEncryptedKey(ekv);
