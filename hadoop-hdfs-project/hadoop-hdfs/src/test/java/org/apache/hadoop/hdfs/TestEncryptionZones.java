@@ -112,6 +112,11 @@ public class TestEncryptionZones {
   protected FileSystemTestWrapper fsWrapper;
   protected FileContextTestWrapper fcWrapper;
 
+  protected String getKeyProviderURI() {
+    return JavaKeyStoreProvider.SCHEME_NAME + "://file" + testRootDir +
+        "/test.jks";
+  }
+
   @Before
   public void setup() throws Exception {
     conf = new HdfsConfiguration();
@@ -119,9 +124,7 @@ public class TestEncryptionZones {
     // Set up java key store
     String testRoot = fsHelper.getTestRootDir();
     testRootDir = new File(testRoot).getAbsoluteFile();
-    conf.set(KeyProviderFactory.KEY_PROVIDER_PATH,
-        JavaKeyStoreProvider.SCHEME_NAME + "://file" + testRootDir + "/test.jks"
-    );
+    conf.set(KeyProviderFactory.KEY_PROVIDER_PATH, getKeyProviderURI());
     conf.setBoolean(DFSConfigKeys.DFS_NAMENODE_DELEGATION_TOKEN_ALWAYS_USE_KEY, true);
     // Lower the batch size for testing
     conf.setInt(DFSConfigKeys.DFS_NAMENODE_LIST_ENCRYPTION_ZONES_NUM_RESPONSES,
