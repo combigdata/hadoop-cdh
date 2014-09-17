@@ -251,9 +251,8 @@ public class TestDFSClientFailover {
    */
   @Test
   public void testDoesntDnsResolveLogicalURI() throws Exception {
-    NameService spyNS = spyOnNameService();
-    
     FileSystem fs = HATestUtil.configureFailoverFs(cluster, conf);
+    NameService spyNS = spyOnNameService();
     String logicalHost = fs.getUri().getHost();
     Path qualifiedRoot = fs.makeQualified(new Path("/"));
     
@@ -270,8 +269,8 @@ public class TestDFSClientFailover {
    */
   @Test
   public void testFileContextDoesntDnsResolveLogicalURI() throws Exception {
-    NameService spyNS = spyOnNameService();
     FileSystem fs = HATestUtil.configureFailoverFs(cluster, conf);
+    NameService spyNS = spyOnNameService();
     String logicalHost = fs.getUri().getHost();
     Configuration haClientConf = fs.getConf();
     
