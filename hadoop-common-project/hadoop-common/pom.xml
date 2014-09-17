@@ -388,6 +388,7 @@
           <systemPropertyVariables>
             <startKdc>${startKdc}</startKdc>
             <kdc.resource.dir>${kdc.resource.dir}</kdc.resource.dir>
+            <runningWithNative>${runningWithNative}</runningWithNative>
           </systemPropertyVariables>
         </configuration>
       </plugin>
@@ -526,6 +527,7 @@
         <openssl.lib></openssl.lib>
         <openssl.include></openssl.include>
         <require.openssl>false</require.openssl>
+        <runningWithNative>true</runningWithNative>
       </properties>
       <build>
         <plugins>
@@ -645,6 +647,7 @@
         <openssl.lib></openssl.lib>
         <openssl.include></openssl.include>
         <require.openssl>false</require.openssl>
+        <runningWithNative>true</runningWithNative>
         <bundle.openssl.in.bin>true</bundle.openssl.in.bin>
       </properties>
       <build>
