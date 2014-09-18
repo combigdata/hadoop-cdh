@@ -1013,6 +1013,11 @@ public class FairScheduler extends
   }
   
   private synchronized void attemptScheduling(FSSchedulerNode node) {
+    if (rmContext.isWorkPreservingRecoveryEnabled()
+        && !rmContext.isSchedulerReadyForAllocatingContainers()) {
+      return;
+    }
+
     // Assign new containers...
     // 1. Check for reserved applications
     // 2. Schedule if there are no reservations
