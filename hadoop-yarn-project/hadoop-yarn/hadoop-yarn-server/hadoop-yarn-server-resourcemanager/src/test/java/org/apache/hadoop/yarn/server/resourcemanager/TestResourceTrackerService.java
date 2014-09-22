@@ -490,7 +490,7 @@ public class TestResourceTrackerService {
             ApplicationAttemptId.newInstance(app.getApplicationId(), 2), 1),
           ContainerState.COMPLETE, Resource.newInstance(1024, 1),
           "Dummy Completed", 0, Priority.newInstance(10), 1234);
-    rm.getResourceTrackerService().handleNMContainerStatus(report);
+    rm.getResourceTrackerService().handleNMContainerStatus(report, null);
     verify(handler, never()).handle((Event) any());
 
     // Case 1.2: Master container is null
@@ -501,7 +501,7 @@ public class TestResourceTrackerService {
           ContainerId.newInstance(currentAttempt.getAppAttemptId(), 0),
           ContainerState.COMPLETE, Resource.newInstance(1024, 1),
           "Dummy Completed", 0, Priority.newInstance(10), 1234);
-    rm.getResourceTrackerService().handleNMContainerStatus(report);
+    rm.getResourceTrackerService().handleNMContainerStatus(report, null);
     verify(handler, never()).handle((Event)any());
 
     // Case 2: Managed AM
@@ -514,7 +514,7 @@ public class TestResourceTrackerService {
           ContainerState.COMPLETE, Resource.newInstance(1024, 1),
           "Dummy Completed", 0, Priority.newInstance(10), 1234);
     try {
-      rm.getResourceTrackerService().handleNMContainerStatus(report);
+      rm.getResourceTrackerService().handleNMContainerStatus(report, null);
     } catch (Exception e) {
       // expected - ignore
     }
@@ -529,7 +529,7 @@ public class TestResourceTrackerService {
       ContainerState.COMPLETE, Resource.newInstance(1024, 1),
       "Dummy Completed", 0, Priority.newInstance(10), 1234);
     try {
-      rm.getResourceTrackerService().handleNMContainerStatus(report);
+      rm.getResourceTrackerService().handleNMContainerStatus(report, null);
     } catch (Exception e) {
       // expected - ignore
     }
