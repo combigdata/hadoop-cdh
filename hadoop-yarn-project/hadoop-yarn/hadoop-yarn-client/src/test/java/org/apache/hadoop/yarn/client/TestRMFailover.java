@@ -291,14 +291,8 @@ public class TestRMFailover extends ClientBaseWithFixes {
     // if uri is null, RMWebAppFilter will append a slash at the trail of the redirection url
     assertEquals(redirectURL,rm1Url+"/");
 
-    redirectURL = getRedirectURL(rm2Url + "/metrics");
-    assertEquals(redirectURL,rm1Url + "/metrics");
-
-    redirectURL = getRedirectURL(rm2Url + "/jmx?param1=value1+x&param2=y");
-    assertEquals(rm1Url + "/jmx?param1=value1+x&param2=y", redirectURL);
-
-    // standby RM links /conf, /stacks, /logLevel, /static, /logs,
-    // /cluster/cluster as well as webService
+    // standby RM links /conf, /stacks, /logLevel, /metrics, /jmx,
+    // /static, /logs, /cluster/cluster as well as webService
     // /ws/v1/cluster/info should not be redirected to active RM
     redirectURL = getRedirectURL(rm2Url + "/cluster/cluster");
     assertNull(redirectURL);
@@ -313,6 +307,12 @@ public class TestRMFailover extends ClientBaseWithFixes {
     assertNull(redirectURL);
 
     redirectURL = getRedirectURL(rm2Url + "/static");
+    assertNull(redirectURL);
+
+    redirectURL = getRedirectURL(rm2Url + "/metrics");
+    assertNull(redirectURL);
+
+    redirectURL = getRedirectURL(rm2Url + "/jmx");
     assertNull(redirectURL);
 
     redirectURL = getRedirectURL(rm2Url + "/logs");
