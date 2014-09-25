@@ -89,6 +89,7 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.ReconfigurableBase;
 import org.apache.hadoop.conf.ReconfigurationException;
+import org.apache.hadoop.conf.ReconfigurationTaskStatus;
 import org.apache.hadoop.fs.CommonConfigurationKeys;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
@@ -335,6 +336,21 @@ public class DataNode extends ReconfigurableBase
   private String dnUserName = null;
 
   /**
+   * Creates a dummy DataNode for testing purpose.
+   */
+  @VisibleForTesting
+  @InterfaceAudience.LimitedPrivate("HDFS")
+  DataNode(final Configuration conf) {
+    super(conf);
+    this.fileDescriptorPassingDisabledReason = null;
+    this.maxNumberOfBlocksToLog = 0;
+    this.confVersion = null;
+    this.usersWithLocalPathAccess = null;
+    this.connectToDnViaHostname = false;
+    this.getHdfsBlockLocationsEnabled = false;
+  }
+
+  /**
    * Create the DataNode given a configuration, an array of dataDirs,
    * and a namenode proxy
    */
@@ -476,7 +492,6 @@ public class DataNode extends ReconfigurableBase
    */
   private synchronized void refreshVolumes(String newVolumes) throws Exception {
     Configuration conf = getConf();
-    String oldVolumes = conf.get(DFS_DATANODE_DATA_DIR_KEY);
     conf.set(DFS_DATANODE_DATA_DIR_KEY, newVolumes);
     List<StorageLocation> locations = getStorageLocations(conf);
 
@@ -484,6 +499,7 @@ public class DataNode extends ReconfigurableBase
     dataDirs = locations;
     ChangedVolumes changedVolumes = parseChangedVolumes();
 
+    StringBuilder errorMessageBuilder = new StringBuilder();
     try {
       if (numOldDataDirs + changedVolumes.newLocations.size() -
           changedVolumes.deactivateLocations.size() <= 0) {
@@ -512,8 +528,13 @@ public class DataNode extends ReconfigurableBase
           // Clean all failed volumes.
           for (StorageLocation location : changedVolumes.newLocations) {
             if (!succeedVolumes.contains(location)) {
+              errorMessageBuilder.append("FAILED TO ADD:");
               failedVolumes.add(location);
+            } else {
+              errorMessageBuilder.append("ADDED:");
             }
+            errorMessageBuilder.append(location);
+            errorMessageBuilder.append("\n");
           }
           storage.removeVolumes(failedVolumes);
           data.removeVolumes(failedVolumes);
@@ -527,10 +548,12 @@ public class DataNode extends ReconfigurableBase
         data.removeVolumes(changedVolumes.deactivateLocations);
         storage.removeVolumes(changedVolumes.deactivateLocations);
       }
+
+      if (errorMessageBuilder.length() > 0) {
+        throw new IOException(errorMessageBuilder.toString());
+      }
     } catch (IOException e) {
-      LOG.warn("There is IOException when refreshing volumes! "
-          + "Recover configurations: " + DFS_DATANODE_DATA_DIR_KEY
-          + " = " + oldVolumes, e);
+      LOG.warn("There is IOException when refresh volumes! ", e);
       throw e;
     }
   }
@@ -1588,6 +1611,9 @@ public class DataNode extends ReconfigurableBase
     // before the restart prep is done.
     this.shouldRun = false;
     
+    // wait reconfiguration thread, if any, to exit
+    shutdownReconfigurationTask();
+
     // wait for all data receiver threads to exit
     if (this.threadGroup != null) {
       int sleepMs = 2;
@@ -2834,6 +2860,18 @@ public class DataNode extends ReconfigurableBase
     long uptime = ManagementFactory.getRuntimeMXBean().getUptime()/1000;
     return new DatanodeLocalInfo(VersionInfo.getVersion(),
         confVersion, uptime);
+  }
+
+  @Override // ClientDatanodeProtocol
+  public void startReconfiguration() throws IOException {
+    checkSuperuserPrivilege();
+    startReconfigurationTask();
+  }
+
+  @Override // ClientDatanodeProtocol
+  public ReconfigurationTaskStatus getReconfigurationStatus() throws IOException {
+    checkSuperuserPrivilege();
+    return getReconfigurationTaskStatus();
   }
 
   /**
