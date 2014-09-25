@@ -48,7 +48,8 @@ import com.google.common.base.Preconditions;
  * directory inodes.
  */
 @InterfaceAudience.Private
-public abstract class INode implements INodeAttributes, Diff.Element<byte[]> {
+public abstract class INode implements INodeAttributes, Diff.Element<byte[]>, 
+    AuthorizationProvider.INodeAuthorizationInfo {
   public static final Log LOG = LogFactory.getLog(INode.class);
 
   /** parent is either an {@link INodeDirectory} or an {@link INodeReference}.*/
@@ -83,7 +84,8 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]> {
    *          current inode.
    * @return user name
    */
-  abstract String getUserName(int snapshotId);
+  @Override
+  public abstract String getUserName(int snapshotId);
 
   /** The same as getUserName(Snapshot.CURRENT_STATE_ID). */
   @Override
@@ -108,7 +110,8 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]> {
    *          current inode.
    * @return group name
    */
-  abstract String getGroupName(int snapshotId);
+  @Override
+  public abstract String getGroupName(int snapshotId);
 
   /** The same as getGroupName(Snapshot.CURRENT_STATE_ID). */
   @Override
@@ -134,7 +137,8 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]> {
    *          current inode.
    * @return permission.
    */
-  abstract FsPermission getFsPermission(int snapshotId);
+  @Override
+  public abstract FsPermission getFsPermission(int snapshotId);
   
   /** The same as getFsPermission(Snapshot.CURRENT_STATE_ID). */
   @Override
@@ -153,7 +157,8 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]> {
     return this;
   }
 
-  abstract AclFeature getAclFeature(int snapshotId);
+  @Override
+  public abstract AclFeature getAclFeature(int snapshotId);
 
   @Override
   public final AclFeature getAclFeature() {
@@ -329,6 +334,7 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]> {
   /**
    * Check whether it's a directory
    */
+  @Override
   public boolean isDirectory() {
     return false;
   }
@@ -558,6 +564,7 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]> {
    */
   public abstract void setLocalName(byte[] name);
 
+  @Override
   public String getFullPathName() {
     // Get the full path name of this inode.
     return FSDirectory.getFullPathName(this);

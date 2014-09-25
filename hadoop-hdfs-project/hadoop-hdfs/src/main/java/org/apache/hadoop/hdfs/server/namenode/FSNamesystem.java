@@ -42,6 +42,7 @@ import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_NAMENODE_AUDIT_LOG_ASYNC_
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_NAMENODE_AUDIT_LOG_ASYNC_KEY;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_NAMENODE_AUDIT_LOG_TOKEN_TRACKING_ID_DEFAULT;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_NAMENODE_AUDIT_LOG_TOKEN_TRACKING_ID_KEY;
+import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_NAMENODE_AUTHORIZATION_PROVIDER_KEY;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_NAMENODE_CHECKPOINT_TXNS_DEFAULT;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_NAMENODE_CHECKPOINT_TXNS_KEY;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_NAMENODE_DEFAULT_AUDIT_LOGGER_NAME;
@@ -277,6 +278,7 @@ import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.security.token.delegation.DelegationKey;
 import org.apache.hadoop.util.Daemon;
 import org.apache.hadoop.util.DataChecksum;
+import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.util.Time;
 import org.apache.hadoop.util.VersionInfo;
@@ -570,6 +572,8 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
   protected void setImageLoaded(boolean flag) {
     imageLoaded = flag;
   }
+
+  private AuthorizationProvider authzProvider;
 
   /**
    * Block until the object is imageLoaded to be used.
@@ -1069,6 +1073,13 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     registerMXBean();
     DefaultMetricsSystem.instance().register(this);
     snapshotManager.registerMXBean();
+    authzProvider = ReflectionUtils.newInstance(conf.getClass(
+        DFS_NAMENODE_AUTHORIZATION_PROVIDER_KEY,
+        DefaultAuthorizationProvider.class,
+        AuthorizationProvider.class), conf);
+    authzProvider.start();
+    AuthorizationProvider.set(authzProvider);
+    snapshotManager.initAuthorizationProvider();
   }
   
   /** 
@@ -1076,6 +1087,10 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
    */
   void stopCommonServices() {
     writeLock();
+    if (authzProvider != null) {
+      // format does not start common services
+      authzProvider.stop();
+    }
     try {
       if (blockManager != null) blockManager.close();
     } finally {
