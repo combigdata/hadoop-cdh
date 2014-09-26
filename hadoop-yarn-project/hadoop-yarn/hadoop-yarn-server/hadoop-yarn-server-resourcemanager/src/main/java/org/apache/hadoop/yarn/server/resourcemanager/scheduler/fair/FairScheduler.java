@@ -123,13 +123,13 @@ import com.google.common.annotations.VisibleForTesting;
 @Unstable
 @SuppressWarnings("unchecked")
 public class FairScheduler extends AbstractYarnScheduler {
-  private boolean initialized;
+  private volatile boolean initialized;
   private FairSchedulerConfiguration conf;
   private Resource minimumAllocation;
   private Resource maximumAllocation;
   private Resource incrAllocation;
   private QueueManager queueMgr;
-  private Clock clock;
+  private volatile Clock clock;
   private boolean usePortForNodeName;
 
   private static final Log LOG = LogFactory.getLog(FairScheduler.class);
@@ -612,11 +612,11 @@ public class FairScheduler extends AbstractYarnScheduler {
     return clusterCapacity;
   }
 
-  public synchronized Clock getClock() {
+  public Clock getClock() {
     return clock;
   }
 
-  protected synchronized void setClock(Clock clock) {
+  protected void setClock(Clock clock) {
     this.clock = clock;
   }
 
@@ -1289,9 +1289,10 @@ public class FairScheduler extends AbstractYarnScheduler {
   }
 
   @Override
-  public synchronized void reinitialize(Configuration conf, RMContext rmContext)
+  public void reinitialize(Configuration conf, RMContext rmContext)
       throws IOException {
     if (!initialized) {
+      synchronized (this) {
       this.conf = new FairSchedulerConfiguration(conf);
       validateConf(this.conf);
       minimumAllocation = this.conf.getMinimumAllocation();
@@ -1370,7 +1371,8 @@ public class FairScheduler extends AbstractYarnScheduler {
         schedulingThread.setDaemon(true);
         schedulingThread.start();
       }
-      
+      }
+
       allocsLoader.init(conf);
       allocsLoader.setReloadListener(new AllocationReloadListener());
       // If we fail to load allocations file on initialize, we want to fail
