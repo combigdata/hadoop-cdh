@@ -38,6 +38,7 @@ import org.apache.hadoop.HadoopIllegalArgumentException;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.crypto.CipherSuite;
+import org.apache.hadoop.crypto.CryptoProtocolVersion;
 import org.apache.hadoop.fs.ContentSummary;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileEncryptionInfo;
@@ -2117,6 +2118,7 @@ public class FSDirectory implements Closeable {
                         xattr.getValue());
                 ezManager.unprotectedAddEncryptionZone(inode.getId(),
                     PBHelper.convert(ezProto.getSuite()),
+                    PBHelper.convert(ezProto.getCryptoProtocolVersion()),
                     ezProto.getKeyName());
               } catch (InvalidProtocolBufferException e) {
                 NameNode.LOG.warn("Error parsing protocol buffer of " +
@@ -2706,11 +2708,12 @@ public class FSDirectory implements Closeable {
     }
   }
 
-  XAttr createEncryptionZone(String src, CipherSuite suite, String keyName)
+  XAttr createEncryptionZone(String src, CipherSuite suite,
+      CryptoProtocolVersion version, String keyName)
     throws IOException {
     writeLock();
     try {
-      return ezManager.createEncryptionZone(src, suite, keyName);
+      return ezManager.createEncryptionZone(src, suite, version, keyName);
     } finally {
       writeUnlock();
     }
@@ -2794,8 +2797,9 @@ public class FSDirectory implements Closeable {
         }
       }
 
-      CipherSuite suite = encryptionZone.getSuite();
-      String keyName = encryptionZone.getKeyName();
+      final CryptoProtocolVersion version = encryptionZone.getVersion();
+      final CipherSuite suite = encryptionZone.getSuite();
+      final String keyName = encryptionZone.getKeyName();
 
       XAttr fileXAttr = unprotectedGetXAttrByName(inode, snapshotId,
           CRYPTO_XATTR_FILE_ENCRYPTION_INFO);
@@ -2811,7 +2815,7 @@ public class FSDirectory implements Closeable {
         HdfsProtos.PerFileEncryptionInfoProto fileProto =
             HdfsProtos.PerFileEncryptionInfoProto.parseFrom(
                 fileXAttr.getValue());
-        return PBHelper.convert(fileProto, suite, keyName);
+        return PBHelper.convert(fileProto, suite, version, keyName);
       } catch (InvalidProtocolBufferException e) {
         throw new IOException("Could not parse file encryption info for " +
             "inode " + inode, e);
@@ -2854,6 +2858,7 @@ public class FSDirectory implements Closeable {
             HdfsProtos.ZoneEncryptionInfoProto.parseFrom(xattr.getValue());
         ezManager.addEncryptionZone(inode.getId(),
             PBHelper.convert(ezProto.getSuite()),
+            PBHelper.convert(ezProto.getCryptoProtocolVersion()),
             ezProto.getKeyName());
       }
 
