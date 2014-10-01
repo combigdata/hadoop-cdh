@@ -62,7 +62,7 @@
     <jersey.version>1.9</jersey.version>
 
     <!-- jackson version -->
-    <jackson.version>1.9.13</jackson.version>
+    <jackson.version>1.8.8</jackson.version>
 
     <!-- ProtocolBuffer version, used to verify the protoc version and -->
     <!-- define the protobuf JAR version                               -->
