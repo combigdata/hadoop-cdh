@@ -209,8 +209,7 @@ class DirectoryCollection {
     float freePercentage =
         100 * (dir.getUsableSpace() / (float) dir.getTotalSpace());
     float usedPercentage = 100.0F - freePercentage;
-    if (usedPercentage > diskUtilizationPercentageCutoff
-        || usedPercentage >= 100.0F) {
+    if (usedPercentage > diskUtilizationPercentageCutoff) {
       return true;
     }
     return false;
