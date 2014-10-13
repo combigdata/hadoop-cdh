@@ -130,16 +130,16 @@ public class TestResourceTrackerService {
 
     rm.getNodesListManager().refreshNodes(conf);
 
+    checkDecommissionedNMCount(rm, ++metricCount);
+
     nodeHeartbeat = nm1.nodeHeartbeat(true);
     Assert.assertTrue(NodeAction.NORMAL.equals(nodeHeartbeat.getNodeAction()));
     Assert
-        .assertEquals(0, ClusterMetrics.getMetrics().getNumDecommisionedNMs());
+        .assertEquals(1, ClusterMetrics.getMetrics().getNumDecommisionedNMs());
 
     nodeHeartbeat = nm2.nodeHeartbeat(true);
     Assert.assertTrue("Node is not decommisioned.", NodeAction.SHUTDOWN
         .equals(nodeHeartbeat.getNodeAction()));
-
-    checkDecommissionedNMCount(rm, ++metricCount);
 
     nodeHeartbeat = nm3.nodeHeartbeat(true);
     Assert.assertTrue(NodeAction.NORMAL.equals(nodeHeartbeat.getNodeAction()));
@@ -177,17 +177,17 @@ public class TestResourceTrackerService {
 
     rm.getNodesListManager().refreshNodes(conf);
 
+    checkDecommissionedNMCount(rm, metricCount + 2);
+
     nodeHeartbeat = nm1.nodeHeartbeat(true);
     Assert.assertTrue(NodeAction.NORMAL.equals(nodeHeartbeat.getNodeAction()));
     nodeHeartbeat = nm2.nodeHeartbeat(true);
     Assert.assertTrue("The decommisioned metrics are not updated",
         NodeAction.SHUTDOWN.equals(nodeHeartbeat.getNodeAction()));
-    checkDecommissionedNMCount(rm, ++metricCount);
 
     nodeHeartbeat = nm3.nodeHeartbeat(true);
     Assert.assertTrue("The decommisioned metrics are not updated",
         NodeAction.SHUTDOWN.equals(nodeHeartbeat.getNodeAction()));
-    checkDecommissionedNMCount(rm, ++metricCount);
   }
 
   /**
@@ -215,6 +215,7 @@ public class TestResourceTrackerService {
     conf.set(YarnConfiguration.RM_NODES_INCLUDE_FILE_PATH, hostFile
         .getAbsolutePath());
     rm.getNodesListManager().refreshNodes(conf);
+    checkDecommissionedNMCount(rm, ++initialMetricCount);
     nodeHeartbeat = nm1.nodeHeartbeat(true);
     Assert.assertEquals(
         "Node should not have been decomissioned.",
@@ -224,7 +225,6 @@ public class TestResourceTrackerService {
     Assert.assertEquals("Node should have been decomissioned but is in state" +
         nodeHeartbeat.getNodeAction(),
         NodeAction.SHUTDOWN, nodeHeartbeat.getNodeAction());
-    checkDecommissionedNMCount(rm, ++initialMetricCount);
   }
   
   /**
@@ -252,6 +252,7 @@ public class TestResourceTrackerService {
     conf.set(YarnConfiguration.RM_NODES_EXCLUDE_FILE_PATH, hostFile
         .getAbsolutePath());
     rm.getNodesListManager().refreshNodes(conf);
+    checkDecommissionedNMCount(rm, ++initialMetricCount);
     nodeHeartbeat = nm1.nodeHeartbeat(true);
     Assert.assertEquals(
         "Node should not have been decomissioned.",
@@ -261,7 +262,6 @@ public class TestResourceTrackerService {
     Assert.assertEquals("Node should have been decomissioned but is in state" +
         nodeHeartbeat.getNodeAction(),
         NodeAction.SHUTDOWN, nodeHeartbeat.getNodeAction());
-    checkDecommissionedNMCount(rm, ++initialMetricCount);
   }
 
   @Test
