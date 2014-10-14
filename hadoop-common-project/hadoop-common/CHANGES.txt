@@ -1,6 +1,5 @@
 Hadoop Change Log
 
-release 2.5.0 - 2014-08-11
 
   INCOMPATIBLE CHANGES
 
