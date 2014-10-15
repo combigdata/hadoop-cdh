@@ -407,7 +407,7 @@ public class YARNRunner implements ClientProtocol {
     warnForJavaLibPath(conf.get(MRJobConfig.REDUCE_JAVA_OPTS,""), "reduce", 
         MRJobConfig.REDUCE_JAVA_OPTS, MRJobConfig.REDUCE_ENV);
     warnForJavaLibPath(conf.get(MRJobConfig.MAPRED_REDUCE_ADMIN_JAVA_OPTS,""), "reduce", 
-        MRJobConfig.MAPRED_REDUCE_ADMIN_JAVA_OPTS, MRJobConfig.MAPRED_ADMIN_USER_ENV);   
+        MRJobConfig.MAPRED_REDUCE_ADMIN_JAVA_OPTS, MRJobConfig.MAPRED_ADMIN_USER_ENV);
 
     // Add AM admin command opts before user command opts
     // so that it can be overridden by user
@@ -423,7 +423,18 @@ public class YARNRunner implements ClientProtocol {
     warnForJavaLibPath(mrAppMasterUserOptions, "app master", 
         MRJobConfig.MR_AM_COMMAND_OPTS, MRJobConfig.MR_AM_ENV);
     vargs.add(mrAppMasterUserOptions);
-    
+
+    if (jobConf.getBoolean(MRJobConfig.MR_AM_PROFILE,
+        MRJobConfig.DEFAULT_MR_AM_PROFILE)) {
+      final String profileParams = jobConf.get(MRJobConfig.MR_AM_PROFILE_PARAMS,
+          MRJobConfig.DEFAULT_TASK_PROFILE_PARAMS);
+      if (profileParams != null) {
+        vargs.add(String.format(profileParams,
+            ApplicationConstants.LOG_DIR_EXPANSION_VAR + Path.SEPARATOR
+                + TaskLog.LogName.PROFILE));
+      }
+    }
+
     vargs.add(MRJobConfig.APPLICATION_MASTER_CLASS);
     vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR +
         Path.SEPARATOR + ApplicationConstants.STDOUT);
