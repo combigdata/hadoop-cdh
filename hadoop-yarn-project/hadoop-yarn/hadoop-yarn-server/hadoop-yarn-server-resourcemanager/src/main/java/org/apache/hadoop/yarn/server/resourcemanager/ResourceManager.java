@@ -865,8 +865,14 @@ public class ResourceManager extends CompositeService implements Recoverable {
     this.rmLoginUGI.doAs(new PrivilegedExceptionAction<Void>() {
       @Override
       public Void run() throws Exception {
-        startActiveServices();
-        return null;
+        try {
+          startActiveServices();
+          return null;
+        } catch (Exception e) {
+          resetDispatcher();
+          createAndInitActiveServices();
+          throw e;
+        }
       }
     });
 
