@@ -79,4 +79,39 @@ public class TestComputeInvalidateWork {
       cluster.shutdown();
     }
   }
+
+  /**
+   * Reformatted DataNodes will replace the original UUID in the
+   * {@link DatanodeManager#datanodeMap}. This tests if block
+   * invalidation work on the original DataNode can be skipped.
+   */
+  @Test
+  public void testDatanodeReformat() throws Exception {
+    final Configuration conf = new HdfsConfiguration();
+    final int NUM_OF_DATANODES = 3;
+    final MiniDFSCluster cluster = new
+        MiniDFSCluster.Builder(conf).numDataNodes(NUM_OF_DATANODES).build();
+    try {
+      cluster.waitActive();
+      final FSNamesystem namesystem = cluster.getNamesystem();
+      final BlockManager bm = namesystem.getBlockManager();
+      final DatanodeDescriptor[] nodes = bm.getDatanodeManager().
+          getHeartbeatManager().getDatanodes();
+      assertEquals(nodes.length, NUM_OF_DATANODES);
+
+      namesystem.writeLock();
+      try {
+        Block block = new Block(0, 0, GenerationStamp.LAST_RESERVED_STAMP);
+        bm.addToInvalidates(block, nodes[0]);
+        // Change the datanode UUID to emulate a reformation
+        nodes[0].setDatanodeUuidForTesting("fortesting");
+        // Since UUID has changed, the invalidation work should be skipped
+        assertEquals(0, bm.computeInvalidateWork(1));
+      } finally {
+        namesystem.writeUnlock();
+      }
+    } finally {
+      cluster.shutdown();
+    }
+  }
 }
