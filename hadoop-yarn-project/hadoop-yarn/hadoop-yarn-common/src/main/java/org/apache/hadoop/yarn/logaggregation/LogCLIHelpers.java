@@ -81,8 +81,6 @@ public class LogCLIHelpers implements Configurable {
     }
 
     if (valueStream == null) {
-      System.out.println("Logs for container " + containerIdStr
-          + " are not present in this log-file.");
       return -1;
     }
 
