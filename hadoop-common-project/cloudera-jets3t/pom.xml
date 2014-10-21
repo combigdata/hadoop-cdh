@@ -17,13 +17,13 @@
   <parent>
     <groupId>org.apache.hadoop</groupId>
     <artifactId>hadoop-project</artifactId>
-    <version>2.0.0-cdh4.7.0</version>
+    <version>2.0.0-cdh4.7.1-SNAPSHOT</version>
     <relativePath>../../hadoop-project</relativePath>
   </parent>
 
   <groupId>org.apache.hadoop</groupId>
   <artifactId>cloudera-jets3t</artifactId>
-  <version>2.0.0-cdh4.7.0</version>
+  <version>2.0.0-cdh4.7.1-SNAPSHOT</version>
   <packaging>jar</packaging>
 
   <name>Jets3t Cloudera Dependencies</name>
