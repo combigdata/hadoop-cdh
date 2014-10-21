@@ -20,6 +20,7 @@ package org.apache.hadoop.yarn.server.nodemanager.containermanager.logaggregatio
 
 import java.io.IOException;
 import java.security.PrivilegedExceptionAction;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -29,8 +30,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileContext;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.UnsupportedFileSystemException;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -72,6 +75,7 @@ public class AppLogAggregatorImpl implements AppLogAggregator {
   private final AtomicBoolean appAggregationFinished = new AtomicBoolean();
   private final AtomicBoolean aborted = new AtomicBoolean();
   private final Map<ApplicationAccessType, String> appAcls;
+  private final FileContext lfs;
 
   private LogWriter writer = null;
 
@@ -80,7 +84,8 @@ public class AppLogAggregatorImpl implements AppLogAggregator {
       UserGroupInformation userUgi, LocalDirsHandlerService dirsHandler,
       Path remoteNodeLogFileForApp,
       ContainerLogsRetentionPolicy retentionPolicy,
-      Map<ApplicationAccessType, String> appAcls) {
+      Map<ApplicationAccessType, String> appAcls,
+      FileContext lfs) {
     this.dispatcher = dispatcher;
     this.conf = conf;
     this.delService = deletionService;
@@ -93,6 +98,7 @@ public class AppLogAggregatorImpl implements AppLogAggregator {
     this.retentionPolicy = retentionPolicy;
     this.pendingContainers = new LinkedBlockingQueue<ContainerId>();
     this.appAcls = appAcls;
+    this.lfs = lfs;
   }
 
   private void uploadLogsForContainer(ContainerId containerId) {
@@ -172,15 +178,25 @@ public class AppLogAggregatorImpl implements AppLogAggregator {
     }
 
     // Remove the local app-log-dirs
-    List<String> rootLogDirs = dirsHandler.getLogDirs();
-    Path[] localAppLogDirs = new Path[rootLogDirs.size()];
-    int index = 0;
-    for (String rootLogDir : rootLogDirs) {
-      localAppLogDirs[index] = new Path(rootLogDir, this.applicationId);
-      index++;
+    List<Path> localAppLogDirs = new ArrayList<Path>();
+    for (String rootLogDir : dirsHandler.getLogDirsForCleanup()) {
+      Path logPath = new Path(rootLogDir, applicationId);
+      try {
+        // check if log dir exists
+        lfs.getFileStatus(logPath);
+        localAppLogDirs.add(logPath);
+      } catch (UnsupportedFileSystemException ue) {
+        LOG.warn("Log dir " + rootLogDir + "is an unsupported file system", ue);
+        continue;
+      } catch (IOException fe) {
+        continue;
+      }
     }
-    this.delService.delete(this.userUgi.getShortUserName(), null,
-        localAppLogDirs);
+
+    if (localAppLogDirs.size() > 0) {
+      this.delService.delete(this.userUgi.getShortUserName(), null,
+        localAppLogDirs.toArray(new Path[localAppLogDirs.size()]));
+    }
 
     if (this.writer != null) {
       this.writer.close();
