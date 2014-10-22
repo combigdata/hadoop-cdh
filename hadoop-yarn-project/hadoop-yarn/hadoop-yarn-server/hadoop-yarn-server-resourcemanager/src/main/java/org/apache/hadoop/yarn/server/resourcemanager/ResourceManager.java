@@ -200,6 +200,9 @@ public class ResourceManager extends CompositeService implements Recoverable {
         .refresh();
 
     // Do refreshSuperUserGroupsConfiguration with loaded core-site.xml
+    // Or use RM specific configurations to overwrite the common ones first
+    // if they exist
+    RMServerUtils.processRMProxyUsersConf(conf);
     ProxyUsers.refreshSuperUserGroupsConfiguration(this.conf);
 
     // load yarn-site.xml
