@@ -49,10 +49,9 @@ import org.apache.hadoop.yarn.proto.YarnProtos.QueueACLProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.QueueStateProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.YarnApplicationAttemptStateProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.YarnApplicationStateProto;
-
-import com.google.protobuf.ByteString;
 import org.apache.hadoop.yarn.proto.YarnServiceProtos;
 
+import com.google.protobuf.ByteString;
 @Private
 @Unstable
 public class ProtoUtils {
