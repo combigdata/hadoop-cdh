@@ -64,6 +64,9 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 
+import com.google.common.annotations.VisibleForTesting;
+
+
 @Public
 @Evolving
 public class AggregatedLogFormat {
@@ -165,11 +168,11 @@ public class AggregatedLogFormat {
     public void write(DataOutputStream out) throws IOException {
       for (String rootLogDir : this.rootLogDirs) {
         File appLogDir =
-            new File(rootLogDir, 
+            new File(rootLogDir,
                 ConverterUtils.toString(
                     this.containerId.getApplicationAttemptId().
                         getApplicationId())
-                );
+            );
         File containerLogDir =
             new File(appLogDir, ConverterUtils.toString(this.containerId));
 
@@ -182,8 +185,16 @@ public class AggregatedLogFormat {
         Arrays.sort(logFiles);
         for (File logFile : logFiles) {
 
-          final long fileLength = logFile.length();
+          FileInputStream in = null;
+          try {
+            in = secureOpenFile(logFile);
+          } catch (IOException e) {
+            logErrorMessage(logFile, e);
+            IOUtils.cleanup(LOG, in);
+            continue;
+          }
 
+          final long fileLength = logFile.length();
           // Write the logFile Type
           out.writeUTF(logFile.getName());
 
@@ -191,9 +202,7 @@ public class AggregatedLogFormat {
           out.writeUTF(String.valueOf(fileLength));
 
           // Write the log itself
-          FileInputStream in = null;
           try {
-            in = SecureIOUtils.openForRead(logFile, getUser(), null);
             byte[] buf = new byte[65535];
             int len = 0;
             long bytesLeft = fileLength;
@@ -201,33 +210,41 @@ public class AggregatedLogFormat {
               //If buffer contents within fileLength, write
               if (len < bytesLeft) {
                 out.write(buf, 0, len);
-                bytesLeft-=len;
+                bytesLeft -= len;
               }
               //else only write contents within fileLength, then exit early
               else {
-                out.write(buf, 0, (int)bytesLeft);
+                out.write(buf, 0, (int) bytesLeft);
                 break;
               }
             }
             long newLength = logFile.length();
-            if(fileLength < newLength) {
-              LOG.warn("Aggregated logs truncated by approximately "+
-                  (newLength-fileLength) +" bytes.");
+            if (fileLength < newLength) {
+              LOG.warn("Aggregated logs truncated by approximately " +
+                  (newLength - fileLength) + " bytes.");
             }
           } catch (IOException e) {
-            String message = "Error aggregating log file. Log file : "
-                + logFile.getAbsolutePath() + e.getMessage(); 
-            LOG.error(message, e);
+            String message = logErrorMessage(logFile, e);
             out.write(message.getBytes());
           } finally {
-            if (in != null) {
-              in.close();
-            }
+            IOUtils.cleanup(LOG, in);
           }
         }
       }
     }
-    
+
+    @VisibleForTesting
+    public FileInputStream secureOpenFile(File logFile) throws IOException {
+      return SecureIOUtils.openForRead(logFile, getUser(), null);
+    }
+
+    private static String logErrorMessage(File logFile, Exception e) {
+      String message = "Error aggregating log file. Log file : "
+          + logFile.getAbsolutePath() + ". " + e.getMessage();
+      LOG.error(message, e);
+      return message;
+    }
+
     // Added for testing purpose.
     public String getUser() {
       return user;
