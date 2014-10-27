@@ -149,6 +149,13 @@ message GetDatanodeInfoResponseProto {
   required DatanodeLocalInfoProto localInfo = 1;
 }
 
+message TriggerBlockReportRequestProto {
+  required bool incremental = 1;
+}
+
+message TriggerBlockReportResponseProto {
+}
+
 /**
  * Protocol used from client to the Datanode.
  * See the request and response for details of rpc call.
@@ -192,4 +199,7 @@ service ClientDatanodeProtocolService {
 
   rpc getDatanodeInfo(GetDatanodeInfoRequestProto)
       returns(GetDatanodeInfoResponseProto);
+
+  rpc triggerBlockReport(TriggerBlockReportRequestProto)
+      returns(TriggerBlockReportResponseProto);
 }

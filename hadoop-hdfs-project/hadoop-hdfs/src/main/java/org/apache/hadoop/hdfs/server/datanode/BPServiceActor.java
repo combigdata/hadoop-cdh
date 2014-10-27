@@ -30,6 +30,7 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.ha.HAServiceProtocol.HAServiceState;
 import org.apache.hadoop.hdfs.DFSUtil;
 import org.apache.hadoop.hdfs.StorageType;
+import org.apache.hadoop.hdfs.client.BlockReportOptions;
 import org.apache.hadoop.hdfs.protocol.BlockListAsLongs;
 import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
@@ -899,6 +900,7 @@ class BPServiceActor implements Runnable {
     /**
      * Return the number of blocks on this storage that have pending
      * incremental block reports.
+     *
      * @return
      */
     int getBlockInfoCount() {
@@ -907,6 +909,7 @@ class BPServiceActor implements Runnable {
 
     /**
      * Dequeue and return all pending incremental block report state.
+     *
      * @return
      */
     ReceivedDeletedBlockInfo[] dequeueBlockInfos() {
@@ -921,6 +924,7 @@ class BPServiceActor implements Runnable {
     /**
      * Add blocks from blockArray to pendingIncrementalBR, unless the
      * block already exists in pendingIncrementalBR.
+     *
      * @param blockArray list of blocks to add.
      * @return the number of missing blocks that we added.
      */
@@ -937,6 +941,7 @@ class BPServiceActor implements Runnable {
 
     /**
      * Add pending incremental block report for a single block.
+     *
      * @param blockID
      * @param blockInfo
      */
@@ -950,10 +955,27 @@ class BPServiceActor implements Runnable {
      *
      * @param blockInfo
      * @return true if a report was removed, false if no report existed for
-     *         the given block.
+     * the given block.
      */
     boolean removeBlockInfo(ReceivedDeletedBlockInfo blockInfo) {
-      return (pendingIncrementalBR.remove(blockInfo.getBlock().getBlockId()) != null);
+      return (pendingIncrementalBR.remove(blockInfo.getBlock().getBlockId())
+          != null);
+    }
+  }
+
+  void triggerBlockReport(BlockReportOptions options) throws IOException {
+    if (options.isIncremental()) {
+      LOG.info(bpos.toString() + ": scheduling an incremental block report.");
+      synchronized(pendingIncrementalBRperStorage) {
+        sendImmediateIBR = true;
+        pendingIncrementalBRperStorage.notifyAll();
+      }
+    } else {
+      LOG.info(bpos.toString() + ": scheduling a full block report.");
+      synchronized(pendingIncrementalBRperStorage) {
+        lastBlockReport = 0;
+        pendingIncrementalBRperStorage.notifyAll();
+      }
     }
   }
 }
