@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.yarn.server.resourcemanager;
 
+import java.nio.ByteBuffer;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -63,6 +64,9 @@ public class RMContextImpl implements RMContext {
   
   private final ConcurrentMap<String, RMNode> inactiveNodes
     = new ConcurrentHashMap<String, RMNode>();
+
+  private final ConcurrentMap<ApplicationId, ByteBuffer> systemCredentials =
+      new ConcurrentHashMap<ApplicationId, ByteBuffer>();
 
   private boolean isHAEnabled;
   private boolean isWorkPreservingRecoveryEnabled;
@@ -407,5 +411,9 @@ public class RMContextImpl implements RMContext {
   @VisibleForTesting
   public void setSystemClock(Clock clock) {
     this.systemClock = clock;
+  }
+
+  public ConcurrentMap<ApplicationId, ByteBuffer> getSystemCredentialsForApps() {
+    return systemCredentials;
   }
 }
