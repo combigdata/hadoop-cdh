@@ -20,10 +20,9 @@ package org.apache.hadoop.hdfs.protocol;
 import java.io.IOException;
 import java.util.List;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
+import org.apache.hadoop.hdfs.client.BlockReportOptions;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.security.token.block.BlockTokenIdentifier;
 import org.apache.hadoop.hdfs.security.token.block.BlockTokenSelector;
@@ -146,4 +145,10 @@ public interface ClientDatanodeProtocol {
    * @return software/config version and uptime of the datanode
    */
   DatanodeLocalInfo getDatanodeInfo() throws IOException;
+
+  /**
+   * Trigger a new block report.
+   */
+  void triggerBlockReport(BlockReportOptions options)
+    throws IOException;
 }
