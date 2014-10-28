@@ -30,6 +30,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.junit.Before;
 import org.junit.Test;
 
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.AclEntry;
 import org.apache.hadoop.fs.permission.AclEntryScope;
 import org.apache.hadoop.fs.permission.AclEntryType;
@@ -403,7 +404,11 @@ public class TestFSPermissionChecker {
       fail("expected AccessControlException for user + " + user + ", path = " +
         path + ", access = " + access);
     } catch (AccessControlException e) {
-      // expected
+      assertTrue("Permission denied messages must carry the username",
+          e.getMessage().contains(user.getUserName().toString()));
+      assertTrue("Permission denied messages must carry the path parent",
+          e.getMessage().contains(
+              new Path(path).getParent().toUri().getPath()));
     }
   }
 
