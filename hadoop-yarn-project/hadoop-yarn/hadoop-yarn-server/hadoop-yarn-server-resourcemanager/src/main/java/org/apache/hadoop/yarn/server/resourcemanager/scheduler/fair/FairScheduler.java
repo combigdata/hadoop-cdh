@@ -1051,17 +1051,15 @@ public class FairScheduler extends AbstractYarnScheduler {
 
     // iterate all nodes
     for (NodeId nodeId : nodeIdList) {
-      if (nodes.containsKey(nodeId)) {
-        FSSchedulerNode node = nodes.get(nodeId);
-        try {
-          if (Resources.fitsIn(minimumAllocation,
-              node.getAvailableResource())) {
-            attemptScheduling(node);
-          }
-        } catch (Throwable ex) {
-          LOG.warn("Error while attempting scheduling for node " + node +
-              ": " + ex.toString(), ex);
+      FSSchedulerNode node = nodes.get(nodeId);
+      try {
+        if (node != null && Resources.fitsIn(minimumAllocation,
+            node.getAvailableResource())) {
+          attemptScheduling(node);
         }
+      } catch (Throwable ex) {
+        LOG.warn("Error while attempting scheduling for node " + node +
+            ": " + ex.toString(), ex);
       }
     }
 
