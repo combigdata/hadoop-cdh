@@ -28,6 +28,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
@@ -39,7 +40,6 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.service.AbstractService;
 import org.apache.hadoop.yarn.api.records.ApplicationAccessType;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -332,18 +332,6 @@ public class LogAggregationService extends AbstractService implements
       Credentials credentials, ContainerLogsRetentionPolicy logRetentionPolicy,
       Map<ApplicationAccessType, String> appAcls) {
 
-    if (UserGroupInformation.isSecurityEnabled()) {
-      Credentials systemCredentials =
-          context.getSystemCredentialsForApps().get(appId);
-      if (systemCredentials != null) {
-        LOG.info("Adding new framework tokens from RM for " + appId);
-        for (Token<?> token : systemCredentials.getAllTokens()) {
-          LOG.info("Adding new application-token for log-aggregation: " + token);
-        }
-        credentials = systemCredentials;
-      }
-    }
-
     // Get user's FileSystem credentials
     final UserGroupInformation userUgi =
         UserGroupInformation.createRemoteUser(user);
@@ -356,7 +344,7 @@ public class LogAggregationService extends AbstractService implements
         new AppLogAggregatorImpl(this.dispatcher, this.deletionService,
             getConfig(), appId, userUgi, dirsHandler,
             getRemoteNodeLogFileForApp(appId, user), logRetentionPolicy,
-            appAcls, getLocalFileContext(getConfig()));
+            appAcls, this.context, getLocalFileContext(getConfig()));
     if (this.appLogAggregators.putIfAbsent(appId, appLogAggregator) != null) {
       throw new YarnRuntimeException("Duplicate initApp for " + appId);
     }
@@ -459,6 +447,10 @@ public class LogAggregationService extends AbstractService implements
       default:
         ; // Ignore
     }
+  }
 
+  @VisibleForTesting
+  public ConcurrentMap<ApplicationId, AppLogAggregator> getAppLogAggregators() {
+    return this.appLogAggregators;
   }
 }
