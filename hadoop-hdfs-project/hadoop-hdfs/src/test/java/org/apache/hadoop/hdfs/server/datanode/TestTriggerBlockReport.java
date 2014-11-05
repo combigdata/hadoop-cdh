@@ -38,8 +38,10 @@ import org.apache.hadoop.hdfs.server.protocol.ReceivedDeletedBlockInfo;
 import org.apache.hadoop.hdfs.server.protocol.ReceivedDeletedBlockInfo.BlockStatus;
 import org.apache.hadoop.hdfs.server.protocol.StorageBlockReport;
 import org.apache.hadoop.hdfs.server.protocol.StorageReceivedDeletedBlocks;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mockito;
+
 
 /**
  * Test manually requesting that the DataNode send a block report.
@@ -64,11 +66,12 @@ public final class TestTriggerBlockReport {
             cluster.getDataNodes().get(0), cluster.getNameNode());
     DFSTestUtil.createFile(fs, new Path("/abc"), 16, (short) 1, 1L);
 
+    //
     // We should get 1 incremental block report.
-//    Mockito.verify(spy, timeout(60000).times(1)).blockReceivedAndDeleted(
-//        any(DatanodeRegistration.class),
-//        anyString(),
-//        any(StorageReceivedDeletedBlocks[].class));
+    // Mockito.verify(spy, timeout(60000).times(1)).blockReceivedAndDeleted(
+    //    any(DatanodeRegistration.class),
+    //    anyString(),
+    //    any(StorageReceivedDeletedBlocks[].class));
 
     // We should not receive any more incremental or incremental block reports,
     // since the interval we configured is so long.
@@ -79,10 +82,10 @@ public final class TestTriggerBlockReport {
           anyString(),
           any(StorageBlockReport[].class),
           Mockito.<BlockReportContext>anyObject());
-//      Mockito.verify(spy, times(1)).blockReceivedAndDeleted(
-//          any(DatanodeRegistration.class),
-//          anyString(),
-//          any(StorageReceivedDeletedBlocks[].class));
+      // Mockito.verify(spy, times(1)).blockReceivedAndDeleted(
+      //     any(DatanodeRegistration.class),
+      //     anyString(),
+      //     any(StorageReceivedDeletedBlocks[].class));
     }
 
     // Create a fake block deletion notification on the DataNode.
@@ -127,7 +130,8 @@ public final class TestTriggerBlockReport {
     testTriggerBlockReport(false);
   }
 
-  @Test
+  // Ignore the test because HDFS-7217 is not backported to CDH-5.2
+  @Ignore @Test
   public void testTriggerIncrementalBlockReport() throws Exception {
     testTriggerBlockReport(true);
   }
