@@ -256,6 +256,11 @@ public class SaslDataTransferServer {
    */
   private IOStreamPair getSaslStreams(Peer peer, OutputStream underlyingOut,
       InputStream underlyingIn, final DatanodeID datanodeId) throws IOException {
+    if (peer.hasSecureChannel() ||
+        dnConf.getTrustedChannelResolver().isTrusted(getPeerAddress(peer))) {
+      return new IOStreamPair(underlyingIn, underlyingOut);
+    }
+
     SaslPropertiesResolver saslPropsResolver = dnConf.getSaslPropsResolver();
     if (saslPropsResolver == null) {
       throw new IOException(String.format("Cannot create a secured " +
