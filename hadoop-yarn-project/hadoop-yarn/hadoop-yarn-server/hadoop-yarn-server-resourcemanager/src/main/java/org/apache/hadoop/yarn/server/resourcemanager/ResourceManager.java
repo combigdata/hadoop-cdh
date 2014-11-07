@@ -908,6 +908,7 @@ public class ResourceManager extends CompositeService implements Recoverable {
    * instance of {@link RMActiveServices} and initializes it.
    * @throws Exception
    */
+
   protected void createAndInitActiveServices() throws Exception {
     activeServices = new RMActiveServices(this);
     activeServices.init(conf);
