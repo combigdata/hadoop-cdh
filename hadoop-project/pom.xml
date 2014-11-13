@@ -326,7 +326,7 @@
       <dependency>
         <groupId>org.mortbay.jetty</groupId>
         <artifactId>jetty</artifactId>
-        <version>6.1.26.cloudera.3</version>
+        <version>6.1.26.cloudera.4</version>
         <exclusions>
           <exclusion>
             <groupId>org.mortbay.jetty</groupId>
@@ -337,7 +337,7 @@
       <dependency>
         <groupId>org.mortbay.jetty</groupId>
         <artifactId>jetty-util</artifactId>
-        <version>6.1.26.cloudera.3</version>
+        <version>6.1.26.cloudera.4</version>
       </dependency>
 
       <dependency>
@@ -412,7 +412,7 @@
       <dependency>
         <groupId>org.mortbay.jetty</groupId>
         <artifactId>jetty-servlet-tester</artifactId>
-        <version>6.1.26.cloudera.3</version>
+        <version>6.1.26.cloudera.4</version>
       </dependency>
       <dependency>
         <groupId>tomcat</groupId>
