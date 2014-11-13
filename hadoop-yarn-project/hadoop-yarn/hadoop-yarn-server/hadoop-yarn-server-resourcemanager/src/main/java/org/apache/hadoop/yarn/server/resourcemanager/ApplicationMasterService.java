@@ -345,6 +345,7 @@ public class ApplicationMasterService extends AbstractService implements
     // ApplicationDoesNotExistInCacheException before and after
     // RM work-preserving restart.
     if (rmApp.isAppFinalStateStored()) {
+      LOG.info(rmApp.getApplicationId() + " unregistered successfully. ");
       return FinishApplicationMasterResponse.newInstance(true);
     }
 
