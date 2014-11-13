@@ -333,7 +333,7 @@ public class LinuxContainerExecutor extends ContainerExecutor {
 
   @Override
   public int reacquireContainer(String user, ContainerId containerId)
-      throws IOException {
+      throws IOException, InterruptedException {
     try {
       return super.reacquireContainer(user, containerId);
     } finally {
