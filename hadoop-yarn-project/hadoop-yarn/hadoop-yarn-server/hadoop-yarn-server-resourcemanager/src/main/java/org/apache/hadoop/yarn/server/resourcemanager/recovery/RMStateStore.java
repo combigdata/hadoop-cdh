@@ -488,8 +488,8 @@ public abstract class RMStateStore extends AbstractService {
 
   @Override
   protected void serviceStop() throws Exception {
-    closeInternal();
     dispatcher.stop();
+    closeInternal();
   }
 
   /**
