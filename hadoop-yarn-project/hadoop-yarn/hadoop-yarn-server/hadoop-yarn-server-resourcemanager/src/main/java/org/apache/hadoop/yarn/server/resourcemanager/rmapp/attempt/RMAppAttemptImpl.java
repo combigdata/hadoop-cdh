@@ -66,6 +66,7 @@ import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.apache.hadoop.yarn.security.client.ClientToAMTokenIdentifier;
 import org.apache.hadoop.yarn.server.resourcemanager.ApplicationMasterService;
+import org.apache.hadoop.yarn.server.resourcemanager.ClusterMetrics;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 import org.apache.hadoop.yarn.server.resourcemanager.RMServerUtils;
 import org.apache.hadoop.yarn.server.resourcemanager.amlauncher.AMLauncherEvent;
@@ -156,8 +157,10 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
   private String proxiedTrackingUrl = "N/A";
   private long startTime = 0;
   private long finishTime = 0;
+  private long launchAMStartTime = 0;
+  private long launchAMEndTime = 0;
 
-  // Set to null initially. Will eventually get set 
+  // Set to null initially. Will eventually get set
   // if an RMAppAttemptUnregistrationEvent occurs
   private FinalApplicationStatus finalStatus = null;
   private final StringBuilder diagnostics = new StringBuilder();
@@ -1250,6 +1253,12 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
     @Override
     public void transition(RMAppAttemptImpl appAttempt,
                             RMAppAttemptEvent event) {
+      if (event.getType() == RMAppAttemptEventType.LAUNCHED) {
+        appAttempt.launchAMEndTime = System.currentTimeMillis();
+        long delay = appAttempt.launchAMEndTime -
+            appAttempt.launchAMStartTime;
+        ClusterMetrics.getMetrics().addAMLaunchDelay(delay);
+      }
       // Register with AMLivelinessMonitor
       appAttempt.attemptLaunched();
 
@@ -1336,7 +1345,8 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
     @Override
     public void transition(RMAppAttemptImpl appAttempt,
         RMAppAttemptEvent event) {
-
+      long delay = System.currentTimeMillis() - appAttempt.launchAMEndTime;
+      ClusterMetrics.getMetrics().addAMRegisterDelay(delay);
       RMAppAttemptRegistrationEvent registrationEvent
           = (RMAppAttemptRegistrationEvent) event;
       appAttempt.host = registrationEvent.getHost();
@@ -1803,6 +1813,7 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
   }
 
   private void launchAttempt(){
+    launchAMStartTime = System.currentTimeMillis();
     // Send event to launch the AM Container
     eventHandler.handle(new AMLauncherEvent(AMLauncherEventType.LAUNCH, this));
   }
