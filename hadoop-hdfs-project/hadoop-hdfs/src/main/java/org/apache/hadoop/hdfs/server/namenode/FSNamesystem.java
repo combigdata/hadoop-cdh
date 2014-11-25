@@ -500,6 +500,15 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
   /** Lock to protect FSNamesystem. */
   private final FSNamesystemLock fsLock;
 
+  /** 
+   * Checkpoint lock to protect FSNamesystem modification on standby NNs.
+   * Unlike fsLock, it does not affect block updates. On active NNs, this lock
+   * does not provide proper protection, because there are operations that
+   * modify both block and name system state.  Even on standby, fsLock is 
+   * used when block state changes need to be blocked.
+   */
+  private final ReentrantLock cpLock;
+
   /**
    * Used when this NN is in standby state to read from the shared edit log.
    */
@@ -773,6 +782,8 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     LOG.info("fsLock is fair:" + fair);
     fsLock = new FSNamesystemLock(fair);
     cond = fsLock.writeLock().newCondition();
+    cpLock = new ReentrantLock();
+
     this.fsImage = fsImage;
     try {
       resourceRecheckInterval = conf.getLong(
@@ -1528,6 +1539,22 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
   public int getWriteHoldCount() {
     return this.fsLock.getWriteHoldCount();
   }
+
+  /** Lock the checkpoint lock */
+  public void cpLock() {
+    this.cpLock.lock();
+  }
+
+  /** Lock the checkpoint lock interrupibly */
+  public void cpLockInterruptibly() throws InterruptedException {
+    this.cpLock.lockInterruptibly();
+  }
+
+  /** Unlock the checkpoint lock */
+  public void cpUnlock() {
+    this.cpLock.unlock();
+  }
+    
 
   NamespaceInfo getNamespaceInfo() {
     readLock();
@@ -5247,6 +5274,8 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       return; // Return previous response
     }
     boolean success = false;
+
+    cpLock();  // Block if a checkpointing is in progress on standby.
     readLock();
     try {
       checkOperation(OperationCategory.UNCHECKED);
@@ -5259,6 +5288,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       success = true;
     } finally {
       readUnlock();
+      cpUnlock();
       RetryCache.setState(cacheEntry, success);
     }
     LOG.info("New namespace image has been created");
@@ -5274,6 +5304,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       StandbyException {
     checkSuperuserPrivilege();
     checkOperation(OperationCategory.UNCHECKED);
+    cpLock();  // Block if a checkpointing is in progress on standby.
     writeLock();
     try {
       checkOperation(OperationCategory.UNCHECKED);
@@ -5288,6 +5319,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       return val;
     } finally {
       writeUnlock();
+      cpUnlock();
     }
   }
 
@@ -5298,12 +5330,14 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
   void finalizeUpgrade() throws IOException {
     checkSuperuserPrivilege();
     checkOperation(OperationCategory.UNCHECKED);
+    cpLock();  // Block if a checkpointing is in progress on standby.
     writeLock();
     try {
       checkOperation(OperationCategory.UNCHECKED);
       getFSImage().finalizeUpgrade(this.isHaEnabled() && inActiveState());
     } finally {
       writeUnlock();
+      cpUnlock();
     }
   }
 
@@ -7679,6 +7713,11 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
   @VisibleForTesting
   public ReentrantLock getLongReadLockForTests() {
     return fsLock.longReadLock;
+  }
+
+  @VisibleForTesting
+  public ReentrantLock getCpLockForTests() {
+    return cpLock;
   }
 
   @VisibleForTesting
