@@ -1115,6 +1115,9 @@ public class ZKRMStateStore extends RMStateStore {
     public void run() {
       try {
         while (true) {
+          if(isFencedState()) { 
+            break;
+          }
           doStoreMultiWithRetries(emptyOpList);
           Thread.sleep(zkSessionTimeout);
         }
@@ -1267,6 +1270,11 @@ public class ZKRMStateStore extends RMStateStore {
   public synchronized void storeOrUpdateAMRMTokenSecretManagerState(
       AMRMTokenSecretManagerState amrmTokenSecretManagerState,
       boolean isUpdate) {
+    if(isFencedState()) {
+      LOG.info("State store is in Fenced state. Can't store/update " +
+               "AMRMToken Secret Manager state.");
+      return;
+    }	
     AMRMTokenSecretManagerState data =
         AMRMTokenSecretManagerState.newInstance(amrmTokenSecretManagerState);
     byte[] stateData = data.getProto().toByteArray();
