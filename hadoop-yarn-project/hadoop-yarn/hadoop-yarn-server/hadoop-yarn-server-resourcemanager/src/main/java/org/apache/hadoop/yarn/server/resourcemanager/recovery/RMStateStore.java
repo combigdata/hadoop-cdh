@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.yarn.server.resourcemanager.recovery;
 
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -29,6 +30,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 
 import javax.crypto.SecretKey;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
@@ -93,7 +95,8 @@ public abstract class RMStateStore extends AbstractService {
   public static final Log LOG = LogFactory.getLog(RMStateStore.class);
 
   private enum RMStateStoreState {
-    DEFAULT
+    ACTIVE,
+    FENCED
   };
 
   private static final StateMachineFactory<RMStateStore,
@@ -104,33 +107,43 @@ public abstract class RMStateStore extends AbstractService {
                                                     RMStateStoreState,
                                                     RMStateStoreEventType,
                                                     RMStateStoreEvent>(
-      RMStateStoreState.DEFAULT)
-      .addTransition(RMStateStoreState.DEFAULT, RMStateStoreState.DEFAULT,
+      RMStateStoreState.ACTIVE)
+      .addTransition(RMStateStoreState.ACTIVE, RMStateStoreState.ACTIVE,
           RMStateStoreEventType.STORE_APP, new StoreAppTransition())
-      .addTransition(RMStateStoreState.DEFAULT, RMStateStoreState.DEFAULT,
+      .addTransition(RMStateStoreState.ACTIVE, RMStateStoreState.ACTIVE,
           RMStateStoreEventType.UPDATE_APP, new UpdateAppTransition())
-      .addTransition(RMStateStoreState.DEFAULT, RMStateStoreState.DEFAULT,
+      .addTransition(RMStateStoreState.ACTIVE, RMStateStoreState.ACTIVE,
           RMStateStoreEventType.REMOVE_APP, new RemoveAppTransition())
-      .addTransition(RMStateStoreState.DEFAULT, RMStateStoreState.DEFAULT,
+      .addTransition(RMStateStoreState.ACTIVE, RMStateStoreState.ACTIVE,
           RMStateStoreEventType.STORE_APP_ATTEMPT, new StoreAppAttemptTransition())
-      .addTransition(RMStateStoreState.DEFAULT, RMStateStoreState.DEFAULT,
+      .addTransition(RMStateStoreState.ACTIVE, RMStateStoreState.ACTIVE,
           RMStateStoreEventType.UPDATE_APP_ATTEMPT, new UpdateAppAttemptTransition())
-      .addTransition(RMStateStoreState.DEFAULT, RMStateStoreState.DEFAULT,
+      .addTransition(RMStateStoreState.ACTIVE, RMStateStoreState.FENCED,
+          RMStateStoreEventType.FENCED)
+      .addTransition(RMStateStoreState.FENCED, RMStateStoreState.FENCED,
+          EnumSet.of(
+          RMStateStoreEventType.STORE_APP,
+          RMStateStoreEventType.UPDATE_APP,
+          RMStateStoreEventType.REMOVE_APP,
+          RMStateStoreEventType.STORE_APP_ATTEMPT,
+          RMStateStoreEventType.UPDATE_APP_ATTEMPT,
+          RMStateStoreEventType.FENCED))
+      .addTransition(RMStateStoreState.ACTIVE, RMStateStoreState.ACTIVE,
           RMStateStoreEventType.STORE_MASTERKEY,
               new StoreRMDTMasterKeyTransition())
-      .addTransition(RMStateStoreState.DEFAULT, RMStateStoreState.DEFAULT,
+      .addTransition(RMStateStoreState.ACTIVE, RMStateStoreState.ACTIVE,
           RMStateStoreEventType.REMOVE_MASTERKEY,
               new RemoveRMDTMasterKeyTransition())
-      .addTransition(RMStateStoreState.DEFAULT, RMStateStoreState.DEFAULT,
+      .addTransition(RMStateStoreState.ACTIVE, RMStateStoreState.ACTIVE,
           RMStateStoreEventType.STORE_DELEGATION_TOKEN,
               new StoreRMDTTransition())
-      .addTransition(RMStateStoreState.DEFAULT, RMStateStoreState.DEFAULT,
+      .addTransition(RMStateStoreState.ACTIVE, RMStateStoreState.ACTIVE,
           RMStateStoreEventType.REMOVE_DELEGATION_TOKEN,
               new RemoveRMDTTransition())
-      .addTransition(RMStateStoreState.DEFAULT, RMStateStoreState.DEFAULT,
+      .addTransition(RMStateStoreState.ACTIVE, RMStateStoreState.ACTIVE,
           RMStateStoreEventType.UPDATE_DELEGATION_TOKEN,
               new UpdateRMDTTransition())
-       .addTransition(RMStateStoreState.DEFAULT, RMStateStoreState.DEFAULT,
+       .addTransition(RMStateStoreState.ACTIVE, RMStateStoreState.ACTIVE,
            RMStateStoreEventType.UPDATE_AMRM_TOKEN,
               new StoreOrUpdateAMRMTokenTransition());
 
@@ -588,6 +601,11 @@ public abstract class RMStateStore extends AbstractService {
     dispatcher.getEventHandler().handle(new RMStateUpdateAppEvent(appState));
   }
 
+  public synchronized void updateFencedState() {
+    this.stateMachine.doTransition(RMStateStoreEventType.FENCED,
+         new RMStateStoreEvent(RMStateStoreEventType.FENCED));
+  }
+
   /**
    * Blocking API
    * Derived classes must implement this method to store the state of an 
@@ -794,6 +812,11 @@ public abstract class RMStateStore extends AbstractService {
     }
     return credentials;
   }
+  
+  @VisibleForTesting
+  synchronized boolean isFencedState() {
+    return (RMStateStoreState.FENCED == this.stateMachine.getCurrentState());
+  }
 
   // Dispatcher related code
   protected void handleStoreEvent(RMStateStoreEvent event) {
@@ -828,6 +851,7 @@ public abstract class RMStateStore extends AbstractService {
    */
   protected void notifyStoreOperationFailed(Exception failureCause) {
     if (failureCause instanceof StoreFencedException) {
+      updateFencedState();
       Thread standByTransitionThread =
           new Thread(new StandByTransitionThread());
       standByTransitionThread.setName("StandByTransitionThread Handler");
