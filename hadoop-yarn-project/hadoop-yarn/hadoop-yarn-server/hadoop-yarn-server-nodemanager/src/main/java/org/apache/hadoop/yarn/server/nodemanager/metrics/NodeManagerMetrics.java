@@ -49,6 +49,9 @@ public class NodeManagerMetrics {
   @Metric("Container launch duration")
       MutableRate containerLaunchDuration;
 
+  private long allocatedMB;
+  private long availableMB;
+
   public static NodeManagerMetrics create() {
     return create(DefaultMetricsSystem.instance());
   }
@@ -94,22 +97,27 @@ public class NodeManagerMetrics {
 
   public void allocateContainer(Resource res) {
     allocatedContainers.incr();
-    allocatedGB.incr(res.getMemory() / 1024);
-    availableGB.decr(res.getMemory() / 1024);
+    allocatedMB = allocatedMB + res.getMemory();
+    allocatedGB.set((int)Math.ceil(allocatedMB/1024d));
+    availableMB = availableMB - res.getMemory();
+    availableGB.set((int)Math.floor(availableMB/1024d));
     allocatedVCores.incr(res.getVirtualCores());
     availableVCores.decr(res.getVirtualCores());
   }
 
   public void releaseContainer(Resource res) {
     allocatedContainers.decr();
-    allocatedGB.decr(res.getMemory() / 1024);
-    availableGB.incr(res.getMemory() / 1024);
+    allocatedMB = allocatedMB - res.getMemory();
+    allocatedGB.set((int)Math.ceil(allocatedMB/1024d));
+    availableMB = availableMB + res.getMemory();
+    availableGB.set((int)Math.floor(availableMB/1024d));
     allocatedVCores.decr(res.getVirtualCores());
     availableVCores.incr(res.getVirtualCores());
   }
 
   public void addResource(Resource res) {
-    availableGB.incr(res.getMemory() / 1024);
+    availableMB = availableMB + res.getMemory();
+    availableGB.incr((int)Math.floor(availableMB/1024d));
     availableVCores.incr(res.getVirtualCores());
   }
 
