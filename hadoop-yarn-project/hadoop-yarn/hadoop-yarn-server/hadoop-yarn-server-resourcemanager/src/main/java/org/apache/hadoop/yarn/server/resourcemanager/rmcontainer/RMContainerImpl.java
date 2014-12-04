@@ -286,8 +286,13 @@ public class RMContainerImpl implements RMContainer, Comparable<RMContainer> {
   public String getLogURL() {
     try {
       readLock.lock();
-      return WebAppUtils.getRunningLogURL("//" + container.getNodeHttpAddress(),
-          ConverterUtils.toString(containerId), user);
+      StringBuilder logURL = new StringBuilder();
+      logURL.append(WebAppUtils.getHttpSchemePrefix(rmContext
+          .getYarnConfiguration()));
+      logURL.append(WebAppUtils.getRunningLogURL(
+          container.getNodeHttpAddress(), ConverterUtils.toString(containerId),
+          user));
+      return logURL.toString();
     } finally {
       readLock.unlock();
     }
