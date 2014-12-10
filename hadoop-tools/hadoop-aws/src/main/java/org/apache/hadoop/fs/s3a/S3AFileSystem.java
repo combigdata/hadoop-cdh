@@ -1175,6 +1175,8 @@ public class S3AFileSystem extends FileSystem {
           case TRANSFER_PART_COMPLETED_EVENT:
             statistics.incrementWriteOps(1);
             break;
+          default:
+            break;
         }
       }
     };
@@ -1236,6 +1238,8 @@ public class S3AFileSystem extends FileSystem {
         switch (progressEvent.getEventType()) {
           case TRANSFER_PART_COMPLETED_EVENT:
             statistics.incrementWriteOps(1);
+            break;
+          default:
             break;
         }
       }
