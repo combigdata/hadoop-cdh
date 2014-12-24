@@ -475,11 +475,11 @@ public class ApplicationMaster {
       scriptPath = envs.get(DSConstants.DISTRIBUTEDSHELLSCRIPTLOCATION);
 
       if (envs.containsKey(DSConstants.DISTRIBUTEDSHELLSCRIPTTIMESTAMP)) {
-        shellScriptPathTimestamp = Long.valueOf(envs
+        shellScriptPathTimestamp = Long.parseLong(envs
             .get(DSConstants.DISTRIBUTEDSHELLSCRIPTTIMESTAMP));
       }
       if (envs.containsKey(DSConstants.DISTRIBUTEDSHELLSCRIPTLEN)) {
-        shellScriptPathLen = Long.valueOf(envs
+        shellScriptPathLen = Long.parseLong(envs
             .get(DSConstants.DISTRIBUTEDSHELLSCRIPTLEN));
       }
       if (!scriptPath.isEmpty()

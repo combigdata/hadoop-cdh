@@ -115,7 +115,7 @@ public class BuilderUtils {
   public static ApplicationId newApplicationId(RecordFactory recordFactory,
       long clustertimestamp, CharSequence id) {
     return ApplicationId.newInstance(clustertimestamp,
-        Integer.valueOf(id.toString()));
+        Integer.parseInt(id.toString()));
   }
 
   public static ApplicationId newApplicationId(RecordFactory recordFactory,
@@ -134,7 +134,7 @@ public class BuilderUtils {
 
   public static ApplicationId convert(long clustertimestamp, CharSequence id) {
     return ApplicationId.newInstance(clustertimestamp,
-        Integer.valueOf(id.toString()));
+        Integer.parseInt(id.toString()));
   }
 
   public static ContainerId newContainerId(ApplicationAttemptId appAttemptId,
