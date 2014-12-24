@@ -1268,22 +1268,12 @@ public class ZKRMStateStore extends RMStateStore {
 
   @Override
   public synchronized void storeOrUpdateAMRMTokenSecretManagerState(
-      AMRMTokenSecretManagerState amrmTokenSecretManagerState,
-      boolean isUpdate) {
-    if(isFencedState()) {
-      LOG.info("State store is in Fenced state. Can't store/update " +
-               "AMRMToken Secret Manager state.");
-      return;
-    }	
+      AMRMTokenSecretManagerState amrmTokenSecretManagerState, boolean isUpdate)
+      throws Exception {
     AMRMTokenSecretManagerState data =
         AMRMTokenSecretManagerState.newInstance(amrmTokenSecretManagerState);
     byte[] stateData = data.getProto().toByteArray();
-    try {
-      setDataWithRetries(amrmTokenSecretManagerRoot, stateData, -1);
-    } catch (Exception ex) {
-      LOG.info("Error storing info for AMRMTokenSecretManager", ex);
-      notifyStoreOperationFailed(ex);
-    }
+    setDataWithRetries(amrmTokenSecretManagerRoot, stateData, -1);
   }
 
   /**
