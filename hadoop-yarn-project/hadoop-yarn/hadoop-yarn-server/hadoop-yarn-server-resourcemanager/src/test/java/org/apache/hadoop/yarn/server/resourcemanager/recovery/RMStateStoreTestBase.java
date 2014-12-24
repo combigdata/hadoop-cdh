@@ -613,7 +613,8 @@ public class RMStateStoreTestBase extends ClientBaseWithFixes{
     AMRMTokenSecretManagerState state1 =
         AMRMTokenSecretManagerState.newInstance(
           firstMasterKeyData.getMasterKey(), null);
-    rmContext.getStateStore().storeOrUpdateAMRMTokenSecretManagerState(state1,
+    rmContext.getStateStore()
+        .storeOrUpdateAMRMTokenSecretManager(state1,
       false);
 
     // load state
@@ -632,7 +633,7 @@ public class RMStateStoreTestBase extends ClientBaseWithFixes{
         AMRMTokenSecretManagerState
           .newInstance(firstMasterKeyData.getMasterKey(),
             secondMasterKeyData.getMasterKey());
-    rmContext.getStateStore().storeOrUpdateAMRMTokenSecretManagerState(state2,
+    rmContext.getStateStore().storeOrUpdateAMRMTokenSecretManager(state2,
       true);
 
     // load state
