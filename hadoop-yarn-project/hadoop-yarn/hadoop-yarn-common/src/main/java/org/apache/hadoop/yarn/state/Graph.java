@@ -17,8 +17,10 @@
  */
 package org.apache.hadoop.yarn.state;
 
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -186,9 +188,10 @@ public class Graph {
   }
 
   public void save(String filepath) throws IOException {
-    FileWriter fout = new FileWriter(filepath);
-    fout.write(generateGraphViz());
-    fout.close();
+    try (OutputStreamWriter fout = new OutputStreamWriter(
+        new FileOutputStream(filepath), Charset.forName("UTF-8"));) {
+      fout.write(generateGraphViz());
+    }
   }
 
   public static List<Edge> combineEdges(List<Edge> edges) {
