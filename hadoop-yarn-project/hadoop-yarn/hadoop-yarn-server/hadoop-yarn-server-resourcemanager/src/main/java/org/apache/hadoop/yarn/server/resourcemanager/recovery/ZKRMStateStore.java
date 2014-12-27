@@ -1074,6 +1074,8 @@ public class ZKRMStateStore extends RMStateStore {
       switch (code) {
         case CONNECTIONLOSS:
         case OPERATIONTIMEOUT:
+        case SESSIONEXPIRED:
+        case SESSIONMOVED:
           return true;
         default:
           break;
@@ -1098,6 +1100,7 @@ public class ZKRMStateStore extends RMStateStore {
           if (shouldRetry(ke.code()) && ++retry < numRetries) {
             LOG.info("Retrying operation on ZK. Retry no. " + retry);
             Thread.sleep(zkRetryInterval);
+            createConnection();
             continue;
           }
           LOG.info("Maxed out ZK retries. Giving up!");
