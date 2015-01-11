@@ -840,17 +840,16 @@ public class RMAppImpl implements RMApp, Recoverable {
       RMAppRecoverEvent recoverEvent = (RMAppRecoverEvent) event;
       try {
         app.recover(recoverEvent.getRMState());
+        // The app has completed.
+        if (app.recoveredFinalState != null) {
+          app.recoverAppAttempts();
+          new FinalTransition(app.recoveredFinalState).transition(app, event);
+          return app.recoveredFinalState;
+        }
       } catch (Exception e) {
         String msg = app.applicationId + " failed to recover. " + e.getMessage();
         failToRecoverApp(app, event, msg, e);
         return RMAppState.FINAL_SAVING;
-      }
-
-      // The app has completed.
-      if (app.recoveredFinalState != null) {
-        app.recoverAppAttempts();
-        new FinalTransition(app.recoveredFinalState).transition(app, event);
-        return app.recoveredFinalState;
       }
 
       if (UserGroupInformation.isSecurityEnabled()) {
