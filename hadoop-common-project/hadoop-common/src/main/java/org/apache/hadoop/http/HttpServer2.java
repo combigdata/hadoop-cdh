@@ -306,6 +306,7 @@ public final class HttpServer2 implements FilterContainer {
           listener = HttpServer2.createDefaultChannelConnector();
         } else if ("https".equals(scheme)) {
           SslSocketConnector c = new SslSocketConnector();
+          c.setHeaderBufferSize(1024*64);
           c.setNeedClientAuth(needsClientAuth);
           c.setKeyPassword(keyPassword);
 
