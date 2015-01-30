@@ -233,6 +233,11 @@ public class CommonConfigurationKeysPublic {
     "ipc.server.tcpnodelay";
   /** Default value for IPC_SERVER_TCPNODELAY_KEY */
   public static final boolean IPC_SERVER_TCPNODELAY_DEFAULT = true;
+  /** See <a href="{@docRoot}/../core-default.html">core-default.xml</a> */
+  public static final String  IPC_SERVER_MAX_CONNECTIONS_KEY =
+    "ipc.server.max.connections";
+  /** Default value for IPC_SERVER_MAX_CONNECTIONS_KEY */
+  public static final int     IPC_SERVER_MAX_CONNECTIONS_DEFAULT = 0;
 
   /** Logs if a RPC is really slow compared to rest of RPCs. */
   public static final String IPC_SERVER_LOG_SLOW_RPC =
