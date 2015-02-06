@@ -164,6 +164,12 @@ public class RMWebServices {
     this.conf = conf;
   }
 
+  RMWebServices(ResourceManager rm, Configuration conf,
+      HttpServletResponse response) {
+    this(rm, conf);
+    this.response = response;
+  }
+
   protected Boolean hasAccess(RMApp app, HttpServletRequest hsr) {
     // Check for the authorization.
     UserGroupInformation callerUGI = getCallerUserGroupInformation(hsr, true);
@@ -454,6 +460,9 @@ public class RMWebServices {
     AppsInfo allApps = new AppsInfo();
     for (ApplicationReport report : appReports) {
       RMApp rmapp = apps.get(report.getApplicationId());
+      if (rmapp == null) {
+        continue;
+      }
 
       if (finalStatusQuery != null && !finalStatusQuery.isEmpty()) {
         FinalApplicationStatus.valueOf(finalStatusQuery);
