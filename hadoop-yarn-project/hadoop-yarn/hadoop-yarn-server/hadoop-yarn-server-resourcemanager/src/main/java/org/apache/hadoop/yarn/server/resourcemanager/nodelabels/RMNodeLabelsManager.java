@@ -31,11 +31,10 @@ import java.util.concurrent.ConcurrentMap;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.security.authorize.AccessControlList;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.Resource;
-import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.nodelabels.CommonNodeLabelsManager;
+import org.apache.hadoop.yarn.security.YarnAuthorizationProvider;
 import org.apache.hadoop.yarn.util.resource.Resources;
 
 import com.google.common.collect.ImmutableSet;
@@ -55,14 +54,12 @@ public class RMNodeLabelsManager extends CommonNodeLabelsManager {
 
   ConcurrentMap<String, Queue> queueCollections =
       new ConcurrentHashMap<String, Queue>();
-  protected AccessControlList adminAcl;
+  private YarnAuthorizationProvider authorizer;
   
   @Override
   protected void serviceInit(Configuration conf) throws Exception {
     super.serviceInit(conf);
-    adminAcl =
-        new AccessControlList(conf.get(YarnConfiguration.YARN_ADMIN_ACL,
-            YarnConfiguration.DEFAULT_YARN_ADMIN_ACL));
+    authorizer = YarnAuthorizationProvider.getInstance(conf);
   }
 
   @Override
@@ -447,7 +444,7 @@ public class RMNodeLabelsManager extends CommonNodeLabelsManager {
   public boolean checkAccess(UserGroupInformation user) {
     // make sure only admin can invoke
     // this method
-    if (adminAcl.isUserAllowed(user)) {
+    if (authorizer.isAdmin(user)) {
       return true;
     }
     return false;

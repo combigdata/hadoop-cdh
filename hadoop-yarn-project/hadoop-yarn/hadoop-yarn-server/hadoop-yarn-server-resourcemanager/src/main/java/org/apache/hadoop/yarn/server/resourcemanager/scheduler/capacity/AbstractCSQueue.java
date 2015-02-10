@@ -34,12 +34,17 @@ import org.apache.hadoop.yarn.api.records.QueueStatistics;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
+import org.apache.hadoop.yarn.security.AccessType;
+import org.apache.hadoop.yarn.security.PrivilegedEntity;
+import org.apache.hadoop.yarn.security.PrivilegedEntity.EntityType;
+import org.apache.hadoop.yarn.security.YarnAuthorizationProvider;
 import org.apache.hadoop.yarn.server.resourcemanager.nodelabels.RMNodeLabelsManager;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.QueueMetrics;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerUtils;
 import org.apache.hadoop.yarn.util.resource.ResourceCalculator;
 import org.apache.hadoop.yarn.util.resource.Resources;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 
 public abstract class AbstractCSQueue implements CSQueue {
@@ -60,7 +65,8 @@ public abstract class AbstractCSQueue implements CSQueue {
   final Resource maximumAllocation;
   QueueState state;
   final QueueMetrics metrics;
-  
+  protected final PrivilegedEntity queueEntity;
+
   final ResourceCalculator resourceCalculator;
   Set<String> accessibleLabels;
   RMNodeLabelsManager labelManager;
@@ -72,13 +78,14 @@ public abstract class AbstractCSQueue implements CSQueue {
   Map<String, Float> absoluteMaxCapacityByNodeLabels;
   Map<String, Float> maxCapacityByNodeLabels;
   
-  Map<QueueACL, AccessControlList> acls = 
-      new HashMap<QueueACL, AccessControlList>();
+  Map<AccessType, AccessControlList> acls = 
+      new HashMap<AccessType, AccessControlList>();
   boolean reservationsContinueLooking;
   
   private final RecordFactory recordFactory = 
       RecordFactoryProvider.getRecordFactory(null);
-  
+  protected YarnAuthorizationProvider authorizer = null;
+
   public AbstractCSQueue(CapacitySchedulerContext cs, 
       String queueName, CSQueue parent, CSQueue old) throws IOException {
     this.minimumAllocation = cs.getMinimumResourceCapability();
@@ -121,6 +128,8 @@ public abstract class AbstractCSQueue implements CSQueue {
     maxCapacityByNodeLabels =
         cs.getConfiguration().getMaximumNodeLabelCapacities(getQueuePath(),
             accessibleLabels, labelManager);
+    queueEntity = new PrivilegedEntity(EntityType.QUEUE, getQueuePath());
+    authorizer = YarnAuthorizationProvider.getInstance(cs.getConf());
   }
   
   @Override
@@ -176,7 +185,11 @@ public abstract class AbstractCSQueue implements CSQueue {
   public String getQueueName() {
     return queueName;
   }
-  
+
+  public PrivilegedEntity getPrivilegedEntity() {
+    return queueEntity;
+  }
+
   @Override
   public synchronized CSQueue getParent() {
     return parent;
@@ -190,22 +203,13 @@ public abstract class AbstractCSQueue implements CSQueue {
   public Set<String> getAccessibleNodeLabels() {
     return accessibleLabels;
   }
-  
+
   @Override
   public boolean hasAccess(QueueACL acl, UserGroupInformation user) {
-    synchronized (this) {
-      if (acls.get(acl).isUserAllowed(user)) {
-        return true;
-      }
-    }
-    
-    if (parent != null) {
-      return parent.hasAccess(acl, user);
-    }
-    
-    return false;
+    return authorizer.checkPermission(SchedulerUtils.toAccessType(acl),
+      queueEntity, user);
   }
-  
+
   @Override
   public synchronized void setUsedCapacity(float usedCapacity) {
     this.usedCapacity = usedCapacity;
@@ -246,7 +250,7 @@ public abstract class AbstractCSQueue implements CSQueue {
   
   synchronized void setupQueueConfigs(Resource clusterResource, float capacity,
       float absoluteCapacity, float maximumCapacity, float absoluteMaxCapacity,
-      QueueState state, Map<QueueACL, AccessControlList> acls,
+      QueueState state, Map<AccessType, AccessControlList> acls,
       Set<String> labels, String defaultLabelExpression,
       Map<String, Float> nodeLabelCapacities,
       Map<String, Float> maximumNodeLabelCapacities,
@@ -472,7 +476,7 @@ public abstract class AbstractCSQueue implements CSQueue {
   }
   
   @Private
-  public Map<QueueACL, AccessControlList> getACLs() {
+  public Map<AccessType, AccessControlList> getACLs() {
     return acls;
   }
 }
