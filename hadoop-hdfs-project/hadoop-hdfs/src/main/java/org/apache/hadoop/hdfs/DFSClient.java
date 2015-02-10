@@ -264,8 +264,6 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
   private static final DFSHedgedReadMetrics HEDGED_READ_METRIC =
       new DFSHedgedReadMetrics();
   private static ThreadPoolExecutor HEDGED_READ_THREAD_POOL;
-  @VisibleForTesting
-  KeyProvider provider;
   /**
    * DFSClient configuration 
    */
@@ -320,6 +318,8 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
     final long shortCircuitMmapCacheExpiryMs;
     final long shortCircuitMmapCacheRetryTimeout;
     final long shortCircuitCacheStaleThresholdMs;
+
+    final long keyProviderCacheExpiryMs;
 
     public Conf(Configuration conf) {
       // The hdfsTimeout is currently the same as the ipc timeout 
@@ -460,6 +460,10 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
       dfsclientSlowIoWarningThresholdMs = conf.getLong(
           DFSConfigKeys.DFS_CLIENT_SLOW_IO_WARNING_THRESHOLD_KEY,
           DFSConfigKeys.DFS_CLIENT_SLOW_IO_WARNING_THRESHOLD_DEFAULT);
+
+      keyProviderCacheExpiryMs = conf.getLong(
+          DFSConfigKeys.DFS_CLIENT_KEY_PROVIDER_CACHE_EXPIRY_MS,
+          DFSConfigKeys.DFS_CLIENT_KEY_PROVIDER_CACHE_EXPIRY_DEFAULT);
     }
 
     public boolean isUseLegacyBlockReaderLocal() {
@@ -597,14 +601,6 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
     this.authority = nameNodeUri == null? "null": nameNodeUri.getAuthority();
     this.clientName = "DFSClient_" + dfsClientConf.taskId + "_" + 
         DFSUtil.getRandom().nextInt()  + "_" + Thread.currentThread().getId();
-    provider = DFSUtil.createKeyProvider(conf);
-    if (LOG.isDebugEnabled()) {
-      if (provider == null) {
-        LOG.debug("No KeyProvider found.");
-      } else {
-        LOG.debug("Found KeyProvider: " + provider.toString());
-      }
-    }
     int numResponseToDrop = conf.getInt(
         DFSConfigKeys.DFS_CLIENT_TEST_DROP_NAMENODE_RESPONSE_NUM_KEY,
         DFSConfigKeys.DFS_CLIENT_TEST_DROP_NAMENODE_RESPONSE_NUM_DEFAULT);
@@ -921,18 +917,12 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
    */
   @Override
   public synchronized void close() throws IOException {
-    try {
-      if(clientRunning) {
-        closeAllFilesBeingWritten(false);
-        clientRunning = false;
-        getLeaseRenewer().closeClient(this);
-        // close connections to the namenode
-        closeConnectionToNamenode();
-      }
-    } finally {
-      if (provider != null) {
-        provider.close();
-      }
+    if(clientRunning) {
+      closeAllFilesBeingWritten(false);
+      clientRunning = false;
+      getLeaseRenewer().closeClient(this);
+      // close connections to the namenode
+      closeConnectionToNamenode();
     }
   }
 
@@ -1304,6 +1294,7 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
    */
   private KeyVersion decryptEncryptedDataEncryptionKey(FileEncryptionInfo
       feInfo) throws IOException {
+    KeyProvider provider = getKeyProvider();
     if (provider == null) {
       throw new IOException("No KeyProvider is configured, cannot access" +
           " an encrypted file");
@@ -3118,11 +3109,15 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
   }
 
   public KeyProvider getKeyProvider() {
-    return provider;
+    return clientContext.getKeyProviderCache().get(conf);
   }
 
   @VisibleForTesting
-  public void setKeyProvider(KeyProviderCryptoExtension provider) {
-    this.provider = provider;
+  public void setKeyProvider(KeyProvider provider) {
+    try {
+      clientContext.getKeyProviderCache().setKeyProvider(conf, provider);
+    } catch (IOException e) {
+     LOG.error("Could not set KeyProvider !!", e);
+    }
   }
 }
