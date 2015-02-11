@@ -535,6 +535,19 @@ public interface FsDatasetSpi<V extends FsVolumeSpi> extends FSDatasetMBean {
         StorageType targetStorageType) throws IOException;
 
   /**
+   * Set a block to be pinned on this datanode so that it cannot be moved
+   * by Balancer/Mover.
+   *
+   * It is a no-op when dfs.datanode.block-pinning.enabled is set to false.
+   */
+  public void setPinning(ExtendedBlock block) throws IOException;
+
+  /**
+   * Check whether the block was pinned
+   */
+  public boolean getPinning(ExtendedBlock block) throws IOException;
+
+  /**
    * Confirm whether the block is deleting
    */
   public boolean isDeletingBlock(String bpid, long blockId);
