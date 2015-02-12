@@ -352,7 +352,8 @@ public class ContainerManagerImpl extends CompositeService implements
           deletionService, dirsHandler);
     } else {
       return new NonAggregatingLogHandler(this.dispatcher, deletionService,
-                                          dirsHandler);
+                                          dirsHandler,
+                                          context.getNMStateStore());
     }
   }
 
