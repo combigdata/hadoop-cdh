@@ -244,7 +244,6 @@ public class TestLogAggregationService extends BaseContainerManagerTest {
     };
 
     checkEvents(appEventHandler, expectedEvents, true, "getType", "getApplicationID");
-    dispatcher.stop();
   }
 
   /* Test to verify fix for YARN-3793 */
@@ -363,7 +362,6 @@ public class TestLogAggregationService extends BaseContainerManagerTest {
             ApplicationEventType.APPLICATION_LOG_HANDLING_FINISHED)
     };
     checkEvents(appEventHandler, expectedEvents, true, "getType", "getApplicationID");
-    dispatcher.stop();
     logAggregationService.close();
   }
 
@@ -376,10 +374,6 @@ public class TestLogAggregationService extends BaseContainerManagerTest {
         this.remoteRootLogDir.getAbsolutePath());
     
     String[] fileNames = new String[] { "stdout", "stderr", "syslog" };
-    DrainDispatcher dispatcher = createDispatcher();
-    EventHandler<ApplicationEvent> appEventHandler = mock(EventHandler.class);
-    dispatcher.register(ApplicationEventType.class, appEventHandler);
-    
     LogAggregationService logAggregationService =
         new LogAggregationService(dispatcher, this.context, this.delSrvc,
                                   super.dirsHandler);
@@ -509,7 +503,6 @@ public class TestLogAggregationService extends BaseContainerManagerTest {
             ApplicationEventType.APPLICATION_LOG_HANDLING_FINISHED)
     };
     checkEvents(appEventHandler, expectedFinishedEvents, false, "getType", "getApplicationID");
-    dispatcher.stop();
   }
   
   @Test
@@ -586,8 +579,6 @@ public class TestLogAggregationService extends BaseContainerManagerTest {
     File aNewFile = new File(String.valueOf("tmp"+System.currentTimeMillis()));
     this.conf.set(YarnConfiguration.NM_REMOTE_APP_LOG_DIR, 
         aNewFile.getAbsolutePath());
-    
-    DrainDispatcher dispatcher = createDispatcher();
     LogAggregationService logAggregationService = spy(
         new LogAggregationService(dispatcher, this.context, this.delSrvc,
                                   super.dirsHandler));
@@ -1329,10 +1320,6 @@ public class TestLogAggregationService extends BaseContainerManagerTest {
     this.conf.set(YarnConfiguration.NM_REMOTE_APP_LOG_DIR,
       this.remoteRootLogDir.getAbsolutePath());
 
-    DrainDispatcher dispatcher = createDispatcher();
-    EventHandler<ApplicationEvent> appEventHandler = mock(EventHandler.class);
-    dispatcher.register(ApplicationEventType.class, appEventHandler);
-
     ApplicationId application1 = BuilderUtils.newApplicationId(1234, 1);
     ApplicationId application2 = BuilderUtils.newApplicationId(1234, 2);
     ApplicationId application3 = BuilderUtils.newApplicationId(1234, 3);
@@ -1489,7 +1476,6 @@ public class TestLogAggregationService extends BaseContainerManagerTest {
           ApplicationEventType.APPLICATION_LOG_HANDLING_FINISHED) };
     checkEvents(appEventHandler, expectedFinishedEvents, false, "getType",
       "getApplicationID");
-    dispatcher.stop();
   }
 
   @Test (timeout = 50000)
@@ -1525,10 +1511,6 @@ public class TestLogAggregationService extends BaseContainerManagerTest {
     // We could use it to test whether the previous aggregated log files will be aggregated
     // again in next cycle.
     this.conf.setLong(YarnConfiguration.DEBUG_NM_DELETE_DELAY_SEC, 3600);
-
-    DrainDispatcher dispatcher = createDispatcher();
-    EventHandler<ApplicationEvent> appEventHandler = mock(EventHandler.class);
-    dispatcher.register(ApplicationEventType.class, appEventHandler);
 
     ApplicationId application =
         BuilderUtils.newApplicationId(System.currentTimeMillis(), 1);
@@ -1636,7 +1618,6 @@ public class TestLogAggregationService extends BaseContainerManagerTest {
       new ContainerId[] { container }, logFiles3, 3, true);
     logAggregationService.stop();
     assertEquals(0, logAggregationService.getNumAggregators());
-    dispatcher.stop();
   }
 
 
@@ -1646,8 +1627,6 @@ public class TestLogAggregationService extends BaseContainerManagerTest {
     conf.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION,
       "kerberos");
     UserGroupInformation.setConfiguration(conf);
-    DrainDispatcher dispatcher = createDispatcher();
-    dispatcher.register(ApplicationEventType.class, appEventHandler);
 
     ApplicationId application1 = BuilderUtils.newApplicationId(1234, 1);
     Application mockApp = mock(Application.class);
@@ -1694,7 +1673,6 @@ public class TestLogAggregationService extends BaseContainerManagerTest {
       }
     }, 1000, 20000);
     logAggregationService.stop();
-    dispatcher.stop();
   }
 
   private int numOfLogsAvailable(LogAggregationService logAggregationService,
