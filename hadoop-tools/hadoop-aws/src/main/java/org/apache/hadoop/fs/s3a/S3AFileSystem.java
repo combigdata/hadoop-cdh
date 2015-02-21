@@ -76,6 +76,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class S3AFileSystem extends FileSystem {
+  /**
+   * Default blocksize as used in blocksize and FS status queries
+   */
+  public static final int DEFAULT_BLOCKSIZE = 32 * 1024 * 1024;
   private URI uri;
   private Path workingDir;
   private AmazonS3Client s3;
@@ -372,7 +376,7 @@ public class S3AFileSystem extends FileSystem {
     String srcKey = pathToKey(src);
     String dstKey = pathToKey(dst);
 
-    if (srcKey.length() == 0 || dstKey.length() == 0) {
+    if (srcKey.isEmpty() || dstKey.isEmpty()) {
       if (LOG.isDebugEnabled()) {
         LOG.debug("rename: src or dst are empty");
       }
@@ -601,7 +605,7 @@ public class S3AFileSystem extends FileSystem {
             objects = s3.listNextBatchOfObjects(objects);
             statistics.incrementReadOps(1);
           } else {
-            if (keys.size() > 0) {
+            if (!keys.isEmpty()) {
               DeleteObjectsRequest deleteRequest =
                   new DeleteObjectsRequest(bucket).withKeys(keys);
               s3.deleteObjects(deleteRequest);
@@ -689,7 +693,8 @@ public class S3AFileSystem extends FileSystem {
             }
           } else {
             result.add(new S3AFileStatus(summary.getSize(), 
-              dateToLong(summary.getLastModified()), keyPath));
+                dateToLong(summary.getLastModified()), keyPath,
+                getDefaultBlockSize(f.makeQualified(uri, workingDir))));
             if (LOG.isDebugEnabled()) {
               LOG.debug("Adding: fi: " + keyPath);
             }
@@ -815,13 +820,16 @@ public class S3AFileSystem extends FileSystem {
           if (LOG.isDebugEnabled()) {
             LOG.debug("Found exact file: fake directory");
           }
-          return new S3AFileStatus(true, true, f.makeQualified(uri, workingDir));
+          return new S3AFileStatus(true, true,
+              f.makeQualified(uri, workingDir));
         } else {
           if (LOG.isDebugEnabled()) {
             LOG.debug("Found exact file: normal file");
           }
-          return new S3AFileStatus(meta.getContentLength(), dateToLong(meta.getLastModified()),
-              f.makeQualified(uri, workingDir));
+          return new S3AFileStatus(meta.getContentLength(),
+              dateToLong(meta.getLastModified()),
+              f.makeQualified(uri, workingDir),
+              getDefaultBlockSize(f.makeQualified(uri, workingDir)));
         }
       } catch (AmazonServiceException e) {
         if (e.getStatusCode() != 404) {
@@ -848,8 +856,10 @@ public class S3AFileSystem extends FileSystem {
           } else {
             LOG.warn("Found file (with /): real file? should not happen: {}", key);
 
-            return new S3AFileStatus(meta.getContentLength(), dateToLong(meta.getLastModified()),
-                f.makeQualified(uri, workingDir));
+            return new S3AFileStatus(meta.getContentLength(),
+                dateToLong(meta.getLastModified()),
+                f.makeQualified(uri, workingDir),
+                getDefaultBlockSize(f.makeQualified(uri, workingDir)));
           }
         } catch (AmazonServiceException e) {
           if (e.getStatusCode() != 404) {
@@ -891,7 +901,8 @@ public class S3AFileSystem extends FileSystem {
           }
         }
 
-        return new S3AFileStatus(true, false, f.makeQualified(uri, workingDir));
+        return new S3AFileStatus(true, false,
+            f.makeQualified(uri, workingDir));
       }
     } catch (AmazonServiceException e) {
       if (e.getStatusCode() != 404) {
@@ -1063,7 +1074,8 @@ public class S3AFileSystem extends FileSystem {
           statistics.incrementWriteOps(1);
         }
       } catch (FileNotFoundException e) {
-      } catch (AmazonServiceException e) {}
+      } catch (AmazonServiceException e) {
+      }
 
       if (f.isRoot()) {
         break;
@@ -1112,7 +1124,7 @@ public class S3AFileSystem extends FileSystem {
   @Deprecated
   public long getDefaultBlockSize() {
     // default to 32MB: large enough to minimize the impact of seeks
-    return getConf().getLong(FS_S3A_BLOCK_SIZE, 32 * 1024 * 1024);
+    return getConf().getLong(FS_S3A_BLOCK_SIZE, DEFAULT_BLOCKSIZE);
   }
 
   private void printAmazonServiceException(AmazonServiceException ase) {
