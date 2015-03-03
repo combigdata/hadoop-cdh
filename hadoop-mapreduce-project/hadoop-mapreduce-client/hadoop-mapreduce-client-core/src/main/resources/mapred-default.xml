@@ -269,6 +269,22 @@
 </property>
 
 <property>
+  <name>mapreduce.job.running.map.limit</name>
+  <value>0</value>
+  <description>The maximum number of simultaneous map tasks per job.
+    There is no limit if this value is 0 or negative.
+  </description>
+</property>
+
+<property>
+  <name>mapreduce.job.running.reduce.limit</name>
+  <value>0</value>
+  <description>The maximum number of simultaneous reduce tasks per job.
+    There is no limit if this value is 0 or negative.
+  </description>
+</property>
+
+<property>
   <name>mapreduce.jobtracker.jobhistory.block.size</name>
   <value>3145728</value>
   <description>The block size of the job history file. Since the job recovery
