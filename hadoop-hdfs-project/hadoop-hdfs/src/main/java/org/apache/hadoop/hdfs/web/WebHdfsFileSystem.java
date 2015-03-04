@@ -93,10 +93,10 @@ import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.security.token.TokenSelector;
 import org.apache.hadoop.security.token.delegation.AbstractDelegationTokenSelector;
 import org.apache.hadoop.util.Progressable;
-import org.mortbay.util.ajax.JSON;
+import org.apache.hadoop.util.StringUtils;
+import org.codehaus.jackson.map.ObjectMapper;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
@@ -353,7 +353,8 @@ public class WebHdfsFileSystem extends FileSystem
               + "\" (parsed=\"" + parsed + "\")");
         }
       }
-      return (Map<?, ?>)JSON.parse(new InputStreamReader(in, Charsets.UTF_8));
+      ObjectMapper mapper = new ObjectMapper();
+      return mapper.reader(Map.class).readValue(in);
     } finally {
       in.close();
     }
@@ -663,7 +664,7 @@ public class WebHdfsFileSystem extends FileSystem
           try {
               ioe = ioe.getClass().getConstructor(String.class)
                     .newInstance(node + ": " + ioe.getMessage());
-          } catch (NoSuchMethodException | SecurityException 
+          } catch (NoSuchMethodException | SecurityException
                    | InstantiationException | IllegalAccessException
                    | IllegalArgumentException | InvocationTargetException e) {
           }
@@ -731,7 +732,7 @@ public class WebHdfsFileSystem extends FileSystem
     protected void updateURLParameters(Param<?, ?>... p) {
       this.parameters = p;
     }
-    
+
     @Override
     protected URL getUrl() throws IOException {
       if (excludeDatanodes.getValue() != null) {
@@ -1360,13 +1361,15 @@ public class WebHdfsFileSystem extends FileSystem
       @Override
       FileStatus[] decodeResponse(Map<?,?> json) {
         final Map<?, ?> rootmap = (Map<?, ?>)json.get(FileStatus.class.getSimpleName() + "es");
-        final Object[] array = (Object[])rootmap.get(FileStatus.class.getSimpleName());
+        final List<?> array = JsonUtil.getList(
+            rootmap, FileStatus.class.getSimpleName());
 
         //convert FileStatus
-        final FileStatus[] statuses = new FileStatus[array.length];
-        for (int i = 0; i < array.length; i++) {
-          final Map<?, ?> m = (Map<?, ?>)array[i];
-          statuses[i] = makeQualified(JsonUtil.toFileStatus(m, false), f);
+        final FileStatus[] statuses = new FileStatus[array.size()];
+        int i = 0;
+        for (Object object : array) {
+          final Map<?, ?> m = (Map<?, ?>) object;
+          statuses[i++] = makeQualified(JsonUtil.toFileStatus(m, false), f);
         }
         return statuses;
       }
@@ -1400,7 +1403,7 @@ public class WebHdfsFileSystem extends FileSystem
         // cluster that is insecure and doesn't have the fix of HDFS-6776
         // throws IOException with msg that starts with
         // ""Failed to get the token for" when requested for delegation
-        // token. Catch it here and return null delegation token if 
+        // token. Catch it here and return null delegation token if
         // fallback is allowed
         if (disallowFallbackToInsecureCluster) {
           throw new AccessControlException(CANT_FALLBACK_TO_INSECURE_MSG);
@@ -1432,7 +1435,7 @@ public class WebHdfsFileSystem extends FileSystem
         new TokenArgumentParam(token.encodeToUrlString())) {
       @Override
       Long decodeResponse(Map<?,?> json) throws IOException {
-        return (Long) json.get("long");
+        return ((Number) json.get("long")).longValue();
       }
     }.run();
   }
