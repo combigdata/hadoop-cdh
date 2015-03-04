@@ -58,7 +58,7 @@ import com.google.common.base.Preconditions;
 public class CryptoInputStream extends FilterInputStream implements 
     Seekable, PositionedReadable, ByteBufferReadable, HasFileDescriptor, 
     CanSetDropBehind, CanSetReadahead, HasEnhancedByteBufferAccess {
-  private static final byte[] oneByteBuf = new byte[1];
+  private final byte[] oneByteBuf = new byte[1];
   private final CryptoCodec codec;
   private final Decryptor decryptor;
   private final int bufferSize;
