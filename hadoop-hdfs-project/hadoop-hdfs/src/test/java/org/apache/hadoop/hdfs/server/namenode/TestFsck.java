@@ -1249,7 +1249,7 @@ public class TestFsck {
           .getBlockManager().getBlockCollection(eb.getLocalBlock())
           .getBlocks()[0].getDatanode(0);
       cluster.getNameNode().getNamesystem().getBlockManager()
-          .getDatanodeManager().startDecommission(dn);
+          .getDatanodeManager().getDecomManager().startDecommission(dn);
       String dnName = dn.getXferAddr();
 
       //wait for decommission start

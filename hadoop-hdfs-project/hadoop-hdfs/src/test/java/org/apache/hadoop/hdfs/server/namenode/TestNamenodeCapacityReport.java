@@ -28,8 +28,6 @@ import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.DFSOutputStream;
@@ -233,12 +231,12 @@ public class TestNamenodeCapacityReport {
         dnd.setLastUpdate(0L);
         BlockManagerTestUtil.checkHeartbeat(namesystem.getBlockManager());
         //Verify decommission of dead node won't impact nodesInService metrics.
-        dnm.startDecommission(dnd);
+        dnm.getDecomManager().startDecommission(dnd);
         expectedInServiceNodes--;
         assertEquals(expectedInServiceNodes, namesystem.getNumLiveDataNodes());
         assertEquals(expectedInServiceNodes, namesystem.getNumDatanodesInService());
         //Verify recommission of dead node won't impact nodesInService metrics.
-        dnm.stopDecommission(dnd);
+        dnm.getDecomManager().stopDecommission(dnd);
         assertEquals(expectedInServiceNodes, namesystem.getNumDatanodesInService());
       }
 
@@ -283,7 +281,7 @@ public class TestNamenodeCapacityReport {
         DatanodeDescriptor dnd =
             dnm.getDatanode(datanodes.get(i).getDatanodeId());
         expectedInServiceLoad -= dnd.getXceiverCount();
-        dnm.startDecommission(dnd);
+        dnm.getDecomManager().startDecommission(dnd);
         DataNodeTestUtils.triggerHeartbeat(datanodes.get(i));
         Thread.sleep(100);
         assertEquals(nodes, namesystem.getNumLiveDataNodes());
