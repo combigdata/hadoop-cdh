@@ -1322,5 +1322,10 @@ public class SimulatedFSDataset implements FsDatasetSpi<FsVolumeSpi> {
     // TODO Auto-generated method stub
     return null;
   }
+  
+  @Override
+  public boolean isDeletingBlock(String bpid, long blockId) {
+    throw new UnsupportedOperationException();
+  }
 }
 

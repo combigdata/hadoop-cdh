@@ -533,4 +533,9 @@ public interface FsDatasetSpi<V extends FsVolumeSpi> extends FSDatasetMBean {
      */
     public ReplicaInfo moveBlockAcrossStorage(final ExtendedBlock block,
         StorageType targetStorageType) throws IOException;
+
+  /**
+   * Confirm whether the block is deleting
+   */
+  public boolean isDeletingBlock(String bpid, long blockId);
 }

@@ -419,4 +419,9 @@ public class ExternalDatasetImpl implements FsDatasetSpi<ExternalVolumeImpl> {
   public long getNumBlocksFailedToUncache() {
     return 0;
   }
+  
+  @Override
+  public boolean isDeletingBlock(String bpid, long blockId) {
+    return false;
+  }
 }
