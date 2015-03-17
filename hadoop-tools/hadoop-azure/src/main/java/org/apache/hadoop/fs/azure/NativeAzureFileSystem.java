@@ -80,12 +80,10 @@ import com.microsoft.windowsazure.storage.blob.CloudBlob;
 import com.microsoft.windowsazure.storage.core.*;
 
 /**
- * <p>
  * A {@link FileSystem} for reading and writing files stored on <a
  * href="http://store.azure.com/">Windows Azure</a>. This implementation is
  * blob-based and stores files on Azure in their native form so they can be read
  * by other Azure tools.
- * </p>
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
@@ -217,9 +215,11 @@ public class NativeAzureFileSystem extends FileSystem {
     }
 
     /**
-     * Write to disk the information needed to redo folder rename, in JSON format.
-     * The file name will be wasb://<sourceFolderPrefix>/folderName-RenamePending.json
+     * Write to disk the information needed to redo folder rename,
+     * in JSON format. The file name will be
+     * {@code wasb://<sourceFolderPrefix>/folderName-RenamePending.json}
      * The file format will be:
+     * <pre>{@code
      * {
      *   FormatVersion: "1.0",
      *   OperationTime: "<YYYY-MM-DD HH:MM:SS.MMM>",
@@ -238,7 +238,7 @@ public class NativeAzureFileSystem extends FileSystem {
      *    "innerFile",
      *    "innerFile2"
      *  ]
-     * }
+     * } }</pre>
      * @throws IOException
      */
     public void writeFile(FileSystem fs) throws IOException {
@@ -910,9 +910,6 @@ public class NativeAzureFileSystem extends FileSystem {
      * The create also includes the name of the original key value which is
      * stored in the m_key member variable. This method should only be called
      * when the stream is closed.
-     * 
-     * @param anEncodedKey
-     *          Encoding of the original key stored in m_key member.
      */
     private void restoreKey() throws IOException {
       store.rename(getEncodedKey(), getKey());
@@ -1791,7 +1788,7 @@ public class NativeAzureFileSystem extends FileSystem {
    * 
    * @param permission
    *          The permission to mask.
-   * @param applyDefaultUmask
+   * @param applyMode
    *          Whether to also apply the default umask.
    * @return The masked persmission.
    */
@@ -2372,7 +2369,6 @@ public class NativeAzureFileSystem extends FileSystem {
    * recover the original key.
    * 
    * @param aKey
-   * @param numBuckets
    * @return Encoded version of the original key.
    */
   private static String encodeKey(String aKey) {

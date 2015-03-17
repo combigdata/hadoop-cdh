@@ -581,8 +581,6 @@ public class AzureNativeFileSystemStore implements NativeFileSystemStore {
    * Azure.
    * 
    * @throws AzureException
-   * @throws ConfigurationException
-   * 
    */
   private void configureAzureStorageSession() throws AzureException {
 
@@ -686,7 +684,7 @@ public class AzureNativeFileSystemStore implements NativeFileSystemStore {
    *           raised on errors communicating with Azure storage.
    * @throws IOException
    *           raised on errors performing I/O or setting up the session.
-   * @throws URISyntaxExceptions
+   * @throws URISyntaxException
    *           raised on creating mal-formed URI's.
    */
   private void connectUsingAnonymousCredentials(final URI uri)
@@ -1016,7 +1014,6 @@ public class AzureNativeFileSystemStore implements NativeFileSystemStore {
   /**
    * Checks if the given key in Azure Storage should be stored as a page
    * blob instead of block blob.
-   * @throws URISyntaxException
    */
   public boolean isPageBlobKey(String key) {
     return isKeyForDirectorySet(key, pageBlobDirs);
@@ -1735,7 +1732,7 @@ public class AzureNativeFileSystemStore implements NativeFileSystemStore {
    * the path and returns a path relative to the root directory of the
    * container.
    * 
-   * @param blob
+   * @param directory
    *          - adjust the key to this directory to a path relative to the root
    *          directory
    * 
@@ -2119,14 +2116,10 @@ public class AzureNativeFileSystemStore implements NativeFileSystemStore {
    * uses a in-order first traversal of blob directory structures to maintain
    * the sorted order of the blob names.
    * 
-   * @param dir
-   *          -- Azure blob directory
-   * 
-   * @param list
-   *          -- a list of file metadata objects for each non-directory blob.
-   * 
-   * @param maxListingLength
-   *          -- maximum length of the built up list.
+   * @param aCloudBlobDirectory Azure blob directory
+   * @param aFileMetadataList a list of file metadata objects for each
+   *                          non-directory blob.
+   * @param maxListingCount maximum length of the built up list.
    */
   private void buildUpList(CloudBlobDirectoryWrapper aCloudBlobDirectory,
       ArrayList<FileMetadata> aFileMetadataList, final int maxListingCount,
@@ -2297,8 +2290,7 @@ public class AzureNativeFileSystemStore implements NativeFileSystemStore {
    * swallow the error since what most probably happened is that
    * the first operation succeeded on the server.
    * @param blob The blob to delete.
-   * @param leaseID A string identifying the lease, or null if no
-   *        lease is to be used.
+   * @param lease Azure blob lease, or null if no lease is to be used.
    * @throws StorageException
    */
   private void safeDelete(CloudBlobWrapper blob, SelfRenewingLease lease) throws StorageException {
