@@ -323,6 +323,10 @@ public class INodesInPath {
     return inodes;
   }
   
+  int length() {
+    return inodes.length;
+  }
+
   /**
    * @return the i-th inode if i >= 0;
    *         otherwise, i < 0, return the (length + i)-th inode.
