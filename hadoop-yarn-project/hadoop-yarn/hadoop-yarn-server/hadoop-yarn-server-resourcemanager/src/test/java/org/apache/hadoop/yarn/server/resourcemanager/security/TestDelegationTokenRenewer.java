@@ -289,9 +289,16 @@ public class TestDelegationTokenRenewer {
    * exception
    */
   static class MyFS extends DistributedFileSystem {
-    
-    public MyFS() {}
-    public void close() {}
+    private static AtomicInteger instanceCounter = new AtomicInteger();
+    public MyFS() {
+      instanceCounter.incrementAndGet();
+    }
+    public void close() {
+      instanceCounter.decrementAndGet();
+    }
+    public static int getInstanceCounter() {
+      return instanceCounter.get();
+    }
     @Override
     public void initialize(URI uri, Configuration conf) throws IOException {}
     
@@ -300,6 +307,11 @@ public class TestDelegationTokenRenewer {
       MyToken result = createTokens(new Text(renewer));
       LOG.info("Called MYDFS.getdelegationtoken " + result);
       return result;
+    }
+
+    public Token<?>[] addDelegationTokens(
+        final String renewer, Credentials credentials) throws IOException {
+      return new Token<?>[0];
     }
   }
   
@@ -1049,7 +1061,7 @@ public class TestDelegationTokenRenewer {
   // renewed while all apps are running, and then cancelled when all apps
   // complete
   @Test (timeout = 30000)
-  public void testCancelWithMultipleAppSubmissions() throws Exception{
+  public void testCancelWithMultipleAppSubmissions() throws Exception {
     MockRM rm = new TestSecurityMockRM(conf, null);
     rm.start();
     final MockNM nm1 =
@@ -1063,10 +1075,10 @@ public class TestDelegationTokenRenewer {
     Text userText1 = new Text("user");
     DelegationTokenIdentifier dtId1 =
         new DelegationTokenIdentifier(userText1, new Text("renewer1"),
-          userText1);
+            userText1);
     final Token<DelegationTokenIdentifier> token1 =
         new Token<DelegationTokenIdentifier>(dtId1.getBytes(),
-          "password1".getBytes(), dtId1.getKind(), new Text("service1"));
+            "password1".getBytes(), dtId1.getKind(), new Text("service1"));
 
     Credentials credentials = new Credentials();
     credentials.addToken(token1.getService(), token1);
@@ -1078,7 +1090,7 @@ public class TestDelegationTokenRenewer {
 
     RMApp app1 =
         rm.submitApp(200, "name", "user", null, false, null, 2, credentials,
-          null, true, false, false, null, 0, null, true);
+            null, true, false, false, null, 0, null, true);
     MockAM am1 = MockRM.launchAndRegisterAM(app1, rm, nm1);
     rm.waitForState(app1.getApplicationId(), RMAppState.RUNNING);
 
@@ -1087,7 +1099,7 @@ public class TestDelegationTokenRenewer {
     Assert.assertTrue(dttr.referringAppIds.contains(app1.getApplicationId()));
     RMApp app2 =
         rm.submitApp(200, "name", "user", null, false, null, 2, credentials,
-          null, true, false, false, null, 0, null, true);
+            null, true, false, false, null, 0, null, true);
     MockAM am2 = MockRM.launchAndRegisterAM(app2, rm, nm1);
     rm.waitForState(app2.getApplicationId(), RMAppState.RUNNING);
     Assert.assertTrue(renewer.getAllTokens().containsKey(token1));
@@ -1105,7 +1117,7 @@ public class TestDelegationTokenRenewer {
 
     RMApp app3 =
         rm.submitApp(200, "name", "user", null, false, null, 2, credentials,
-          null, true, false, false, null, 0, null, true);
+            null, true, false, false, null, 0, null, true);
     MockAM am3 = MockRM.launchAndRegisterAM(app3, rm, nm1);
     rm.waitForState(app3.getApplicationId(), RMAppState.RUNNING);
     Assert.assertTrue(renewer.getAllTokens().containsKey(token1));
@@ -1126,5 +1138,17 @@ public class TestDelegationTokenRenewer {
     Assert.assertTrue(dttr.referringAppIds.isEmpty());
     Assert.assertTrue(dttr.isTimerCancelled());
     Assert.assertTrue(Renewer.cancelled);
+  }
+
+  // Test FileSystem memory leak in obtainSystemTokensForUser.
+  @Test
+  public void testFSLeakInObtainSystemTokensForUser() throws Exception{
+    Credentials credentials = new Credentials();
+    String user = "test";
+    int oldCounter = MyFS.getInstanceCounter();
+    delegationTokenRenewer.obtainSystemTokensForUser(user, credentials);
+    delegationTokenRenewer.obtainSystemTokensForUser(user, credentials);
+    delegationTokenRenewer.obtainSystemTokensForUser(user, credentials);
+    Assert.assertEquals(oldCounter, MyFS.getInstanceCounter());
   }
 }
