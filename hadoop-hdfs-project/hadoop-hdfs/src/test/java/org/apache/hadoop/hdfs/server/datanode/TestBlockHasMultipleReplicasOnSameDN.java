@@ -18,7 +18,6 @@
 package org.apache.hadoop.hdfs.server.datanode;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 
 
@@ -29,6 +28,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.*;
 import org.apache.hadoop.hdfs.protocol.*;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
+import org.apache.hadoop.hdfs.server.protocol.BlockReportContext;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeRegistration;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeStorage;
 import org.apache.hadoop.hdfs.server.protocol.StorageBlockReport;
@@ -106,7 +106,7 @@ public class TestBlockHasMultipleReplicasOnSameDN {
     DataNode dn = cluster.getDataNodes().get(0);
     DatanodeRegistration dnReg = dn.getDNRegistrationForBP(bpid);
     StorageBlockReport reports[] =
-        new StorageBlockReport[MiniDFSCluster.DIRS_PER_DATANODE];
+        new StorageBlockReport[cluster.getStoragesPerDatanode()];
 
     ArrayList<Block> blocks = new ArrayList<Block>();
 
@@ -114,7 +114,7 @@ public class TestBlockHasMultipleReplicasOnSameDN {
       blocks.add(locatedBlock.getBlock().getLocalBlock());
     }
 
-    for (int i = 0; i < MiniDFSCluster.DIRS_PER_DATANODE; ++i) {
+    for (int i = 0; i < cluster.getStoragesPerDatanode(); ++i) {
       BlockListAsLongs bll = new BlockListAsLongs(blocks, null);
       FsVolumeSpi v = dn.getFSDataset().getVolumes().get(i);
       DatanodeStorage dns = new DatanodeStorage(v.getStorageID());
@@ -122,7 +122,8 @@ public class TestBlockHasMultipleReplicasOnSameDN {
     }
 
     // Should not assert!
-    cluster.getNameNodeRpc().blockReport(dnReg, bpid, reports);
+    cluster.getNameNodeRpc().blockReport(dnReg, bpid, reports,
+        new BlockReportContext(1, 0, System.nanoTime()));
 
     // Get the block locations once again.
     locatedBlocks = client.getLocatedBlocks(filename, 0, BLOCK_SIZE * NUM_BLOCKS);
