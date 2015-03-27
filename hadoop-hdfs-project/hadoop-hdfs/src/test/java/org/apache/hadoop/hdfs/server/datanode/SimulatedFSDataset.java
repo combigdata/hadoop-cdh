@@ -81,7 +81,7 @@ public class SimulatedFSDataset implements FsDatasetSpi<FsVolumeSpi> {
     @Override
     public SimulatedFSDataset newInstance(DataNode datanode,
         DataStorage storage, Configuration conf) throws IOException {
-      return new SimulatedFSDataset(storage, conf);
+      return new SimulatedFSDataset(datanode, storage, conf);
     }
 
     @Override
@@ -421,8 +421,15 @@ public class SimulatedFSDataset implements FsDatasetSpi<FsVolumeSpi> {
       = new HashMap<String, Map<Block,BInfo>>();
   private final SimulatedStorage storage;
   private final String datanodeUuid;
+  private final DataNode datanode;
   
+
   public SimulatedFSDataset(DataStorage storage, Configuration conf) {
+    this(null, storage, conf);
+  }
+
+  public SimulatedFSDataset(DataNode datanode, DataStorage storage, Configuration conf) {
+    this.datanode = datanode;
     if (storage != null) {
       for (int i = 0; i < storage.getNumStorageDirs(); ++i) {
         storage.createStorageID(storage.getStorageDir(i), false);
@@ -628,6 +635,10 @@ public class SimulatedFSDataset implements FsDatasetSpi<FsVolumeSpi> {
       }
       storage.free(bpid, binfo.getNumBytes());
       map.remove(b);
+      if (datanode != null) {
+        datanode.notifyNamenodeDeletedBlock(new ExtendedBlock(bpid, b),
+            binfo.getStorageUuid());
+      }
     }
     if (error) {
       throw new IOException("Invalidate: Missing blocks.");
