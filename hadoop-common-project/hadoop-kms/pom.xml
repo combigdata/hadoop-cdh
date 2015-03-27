@@ -34,7 +34,7 @@
   <description>Apache Hadoop KMS</description>
 
   <properties>
-    <tomcat.version>6.0.36</tomcat.version>
+    <tomcat.version>${cdh.tomcat.version}</tomcat.version>
     <kms.tomcat.dist.dir>
       ${project.build.directory}/${project.artifactId}-${project.version}/share/hadoop/kms/tomcat
     </kms.tomcat.dist.dir>
