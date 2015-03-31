@@ -125,8 +125,7 @@ public class TestFairScheduler extends FairSchedulerTestBase {
   public void setUp() throws IOException {
     scheduler = new FairScheduler();
     conf = createConfiguration();
-    resourceManager = new ResourceManager();
-    resourceManager.init(conf);
+    resourceManager = new MockRM(conf);
 
     ((AsyncDispatcher)resourceManager.getRMContext().getDispatcher()).start();
     resourceManager.getRMContext().getStateStore().start();

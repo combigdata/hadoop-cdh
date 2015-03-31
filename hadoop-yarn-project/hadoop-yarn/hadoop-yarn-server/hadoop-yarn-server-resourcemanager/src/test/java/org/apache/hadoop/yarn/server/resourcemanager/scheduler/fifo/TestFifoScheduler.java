@@ -101,7 +101,7 @@ public class TestFifoScheduler {
     Configuration conf = new Configuration();
     conf.setClass(YarnConfiguration.RM_SCHEDULER, 
         FifoScheduler.class, ResourceScheduler.class);
-    resourceManager.init(conf);
+    resourceManager = new MockRM(conf);
   }
 
   @After
