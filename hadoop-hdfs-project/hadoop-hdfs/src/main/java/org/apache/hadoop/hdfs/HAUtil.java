@@ -310,12 +310,16 @@ public class HAUtil {
         Text alias =
             new Text(HA_DT_SERVICE_PREFIX + "//" + specificToken.getService());
         ugi.addToken(alias, specificToken);
-        LOG.debug("Mapped HA service delegation token for logical URI " +
-            haUri + " to namenode " + singleNNAddr);
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Mapped HA service delegation token for logical URI " +
+              haUri + " to namenode " + singleNNAddr);
+        }
       }
     } else {
-      LOG.debug("No HA service delegation token found for logical URI " +
-          haUri);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("No HA service delegation token found for logical URI " +
+            haUri);
+      }
     }
   }
 
