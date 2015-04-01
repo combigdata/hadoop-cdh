@@ -17,7 +17,12 @@
  */
 package org.apache.hadoop.hdfs;
 
+import java.io.DataOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.EnumSet;
 import java.util.Map;
@@ -27,6 +32,10 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.CreateFlag;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
+import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
+import org.apache.hadoop.hdfs.protocol.HdfsFileStatus;
+import org.apache.hadoop.hdfs.protocol.datatransfer.BlockConstructionStage;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.protocol.BlockListAsLongs;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants;
@@ -34,11 +43,16 @@ import org.apache.hadoop.hdfs.server.blockmanagement.BlockManager;
 import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeDescriptor;
 import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeManager;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeStorage;
+import org.apache.htrace.core.SpanId;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.internal.util.reflection.Whitebox;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.when;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.doReturn;
@@ -120,6 +134,38 @@ public class TestDFSOutputStream {
     }
     // Verify that only one DN has no data.
     assertEquals(1, 3 - numDataNodesWithData);
+  }
+
+  @Test
+  public void testCongestionBackoff() throws IOException {
+    DFSClient.Conf dfsClientConf = mock(DFSClient.Conf.class);
+    DFSClient client = mock(DFSClient.class);
+    when(client.getConf()).thenReturn(dfsClientConf);
+    client.clientRunning = true;
+    DistributedFileSystem fs = cluster.getFileSystem();
+    FSDataOutputStream os = fs.create(new Path("/foo"));
+    DFSOutputStream dos = (DFSOutputStream) Whitebox.getInternalState(os,
+        "wrappedStream");
+    DFSOutputStream.DataStreamer stream = (DFSOutputStream.DataStreamer)
+        Whitebox.getInternalState(dos, "streamer");
+
+    DataOutputStream blockStream = mock(DataOutputStream.class);
+    doThrow(new IOException()).when(blockStream).flush();
+    Whitebox.setInternalState(stream, "blockStream", blockStream);
+    Whitebox.setInternalState(stream, "stage",
+                              BlockConstructionStage.PIPELINE_CLOSE);
+    @SuppressWarnings("unchecked")
+    LinkedList<DFSOutputStream.Packet> dataQueue = (LinkedList<DFSOutputStream.Packet>)
+        Whitebox.getInternalState(dos, "dataQueue");
+    @SuppressWarnings("unchecked")
+    ArrayList<DatanodeInfo> congestedNodes = (ArrayList<DatanodeInfo>)
+        Whitebox.getInternalState(stream, "congestedNodes");
+    congestedNodes.add(mock(DatanodeInfo.class));
+    DFSOutputStream.Packet packet = mock(DFSOutputStream.Packet.class);
+    when(packet.getTraceParents()).thenReturn(new SpanId[] {});
+    dataQueue.add(packet);
+    stream.run();
+    Assert.assertTrue(congestedNodes.isEmpty());
   }
 
   @AfterClass
