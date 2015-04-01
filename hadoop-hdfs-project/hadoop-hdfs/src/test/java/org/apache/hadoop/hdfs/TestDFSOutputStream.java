@@ -17,18 +17,29 @@
  */
 package org.apache.hadoop.hdfs;
 
+import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FsTracer;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
+import org.apache.hadoop.hdfs.protocol.datatransfer.BlockConstructionStage;
+import org.apache.htrace.core.SpanId;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.internal.util.reflection.Whitebox;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.when;
+
 
 public class TestDFSOutputStream {
   static MiniDFSCluster cluster;
@@ -65,6 +76,38 @@ public class TestDFSOutputStream {
     }
     Assert.assertEquals(null, ex.get());
     dos.close();
+  }
+
+  @Test
+  public void testCongestionBackoff() throws IOException {
+    DFSClient.Conf dfsClientConf = mock(DFSClient.Conf.class);
+    DFSClient client = mock(DFSClient.class);
+    when(client.getConf()).thenReturn(dfsClientConf);
+    client.clientRunning = true;
+    DistributedFileSystem fs = cluster.getFileSystem();
+    FSDataOutputStream os = fs.create(new Path("/foo"));
+    DFSOutputStream dos = (DFSOutputStream) Whitebox.getInternalState(os,
+        "wrappedStream");
+    DFSOutputStream.DataStreamer stream = (DFSOutputStream.DataStreamer)
+        Whitebox.getInternalState(dos, "streamer");
+
+    DataOutputStream blockStream = mock(DataOutputStream.class);
+    doThrow(new IOException()).when(blockStream).flush();
+    Whitebox.setInternalState(stream, "blockStream", blockStream);
+    Whitebox.setInternalState(stream, "stage",
+                              BlockConstructionStage.PIPELINE_CLOSE);
+    @SuppressWarnings("unchecked")
+    LinkedList<DFSOutputStream.Packet> dataQueue = (LinkedList<DFSOutputStream.Packet>)
+        Whitebox.getInternalState(dos, "dataQueue");
+    @SuppressWarnings("unchecked")
+    ArrayList<DatanodeInfo> congestedNodes = (ArrayList<DatanodeInfo>)
+        Whitebox.getInternalState(stream, "congestedNodes");
+    congestedNodes.add(mock(DatanodeInfo.class));
+    DFSOutputStream.Packet packet = mock(DFSOutputStream.Packet.class);
+    when(packet.getTraceParents()).thenReturn(new SpanId[] {});
+    dataQueue.add(packet);
+    stream.run();
+    Assert.assertTrue(congestedNodes.isEmpty());
   }
 
   @AfterClass
