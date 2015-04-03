@@ -150,9 +150,7 @@ public class DatanodeProtocolServerSideTranslatorPB implements
     }
     try {
       cmd = impl.blockReport(PBHelper.convert(request.getRegistration()),
-          request.getBlockPoolId(), report,
-          request.hasContext() ?
-              PBHelper.convert(request.getContext()) : null);
+          request.getBlockPoolId(), report);
     } catch (IOException e) {
       throw new ServiceException(e);
     }

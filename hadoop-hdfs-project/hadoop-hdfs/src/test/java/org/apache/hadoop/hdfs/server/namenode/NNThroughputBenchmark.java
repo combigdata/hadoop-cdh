@@ -46,7 +46,6 @@ import org.apache.hadoop.hdfs.server.blockmanagement.BlockManagerTestUtil;
 import org.apache.hadoop.hdfs.server.datanode.DataNode;
 import org.apache.hadoop.hdfs.server.datanode.DataStorage;
 import org.apache.hadoop.hdfs.server.protocol.BlockCommand;
-import org.apache.hadoop.hdfs.server.protocol.BlockReportContext;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeCommand;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeProtocol;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeRegistration;
@@ -939,8 +938,7 @@ public class NNThroughputBenchmark implements Tool {
               new BlockListAsLongs(null, null).getBlockListAsLongs())
       };
       nameNodeProto.blockReport(dnRegistration, 
-          nameNode.getNamesystem().getBlockPoolId(), reports,
-              new BlockReportContext(1, 0, System.nanoTime()));
+          nameNode.getNamesystem().getBlockPoolId(), reports);
     }
 
     /**
@@ -1183,9 +1181,8 @@ public class NNThroughputBenchmark implements Tool {
       long start = Time.now();
       StorageBlockReport[] report = { new StorageBlockReport(
           dn.storage, dn.getBlockReportList()) };
-      nameNodeProto.blockReport(dn.dnRegistration,
-          nameNode.getNamesystem().getBlockPoolId(), report,
-          new BlockReportContext(1, 0, System.nanoTime()));
+      nameNodeProto.blockReport(dn.dnRegistration, nameNode.getNamesystem()
+          .getBlockPoolId(), report);
       long end = Time.now();
       return end-start;
     }
