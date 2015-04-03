@@ -91,9 +91,7 @@ import org.apache.hadoop.hdfs.server.datanode.SecureDataNodeStarter;
 import org.apache.hadoop.hdfs.server.datanode.SecureDataNodeStarter.SecureResources;
 import org.apache.hadoop.hdfs.server.datanode.SimulatedFSDataset;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
-import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.impl.FsDatasetUtil;
-import org.apache.hadoop.hdfs.server.datanode.fsdataset.impl.FsVolumeImpl;
 import org.apache.hadoop.hdfs.server.namenode.FSNamesystem;
 import org.apache.hadoop.hdfs.server.namenode.NameNode;
 import org.apache.hadoop.hdfs.server.namenode.NameNodeAdapter;
@@ -134,14 +132,10 @@ public class MiniDFSCluster {
   public static final String  DFS_NAMENODE_SAFEMODE_EXTENSION_TESTING_KEY
       = DFS_NAMENODE_SAFEMODE_EXTENSION_KEY + ".testing";
 
-  // Changing this default may break some tests that assume it is 2.
-  private static final int DEFAULT_STORAGES_PER_DATANODE = 2;
+  // Changing this value may break some tests that assume it is 2.
+  public static final int DIRS_PER_DATANODE = 2;
 
   static { DefaultMetricsSystem.setMiniClusterMode(true); }
-
-  public int getStoragesPerDatanode() {
-    return storagesPerDatanode;
-  }
 
   /**
    * Class to construct instances of MiniDFSClusters with specific options.
@@ -151,9 +145,7 @@ public class MiniDFSCluster {
     private int nameNodeHttpPort = 0;
     private final Configuration conf;
     private int numDataNodes = 1;
-    private StorageType[][] storageTypes = null;
-    private StorageType[] storageTypes1D = null;
-    private int storagesPerDatanode = DEFAULT_STORAGES_PER_DATANODE;
+    private StorageType storageType = StorageType.DEFAULT;
     private boolean format = true;
     private boolean manageNameDfsDirs = true;
     private boolean manageNameDfsSharedDirs = true;
@@ -164,8 +156,6 @@ public class MiniDFSCluster {
     private String[] racks = null; 
     private String [] hosts = null;
     private long [] simulatedCapacities = null;
-    private long [][] storageCapacities = null;
-    private long [] storageCapacities1D = null;
     private String clusterId = null;
     private boolean waitSafeMode = true;
     private boolean setupHostsFile = false;
@@ -204,50 +194,10 @@ public class MiniDFSCluster {
     }
 
     /**
-     * Default: DEFAULT_STORAGES_PER_DATANODE
+     * Default: StorageType.DEFAULT
      */
-    public Builder storagesPerDatanode(int numStorages) {
-      this.storagesPerDatanode = numStorages;
-      return this;
-    }
-
-    /**
-     * Set the same storage type configuration for each datanode.
-     * If storageTypes is uninitialized or passed null then
-     * StorageType.DEFAULT is used.
-     */
-    public Builder storageTypes(StorageType[] types) {
-      this.storageTypes1D = types;
-      return this;
-    }
-
-    /**
-     * Set custom storage type configuration for each datanode.
-     * If storageTypes is uninitialized or passed null then
-     * StorageType.DEFAULT is used.
-     */
-    public Builder storageTypes(StorageType[][] types) {
-      this.storageTypes = types;
-      return this;
-    }
-
-    /**
-     * Set the same storage capacity configuration for each datanode.
-     * If storageTypes is uninitialized or passed null then
-     * StorageType.DEFAULT is used.
-     */
-    public Builder storageCapacities(long[] capacities) {
-      this.storageCapacities1D = capacities;
-      return this;
-    }
-
-    /**
-     * Set custom storage capacity configuration for each datanode.
-     * If storageCapacities is uninitialized or passed null then
-     * capacity is limited by available disk space.
-     */
-    public Builder storageCapacities(long[][] capacities) {
-      this.storageCapacities = capacities;
+    public Builder storageType(StorageType type) {
+      this.storageType = type;
       return this;
     }
 
@@ -324,11 +274,6 @@ public class MiniDFSCluster {
     }
 
     /**
-     * Use SimulatedFSDataset and limit the capacity of each DN per
-     * the values passed in val.
-     *
-     * For limiting the capacity of volumes with real storage, see
-     * {@link FsVolumeImpl#setCapacityForTesting}
      * Default: null
      */
     public Builder simulatedCapacities(long[] val) {
@@ -425,37 +370,15 @@ public class MiniDFSCluster {
       builder.nnTopology = MiniDFSNNTopology.simpleSingleNN(
           builder.nameNodePort, builder.nameNodeHttpPort);
     }
-    assert builder.storageTypes == null ||
-           builder.storageTypes.length == builder.numDataNodes;
+    
     final int numNameNodes = builder.nnTopology.countNameNodes();
     LOG.info("starting cluster: numNameNodes=" + numNameNodes
         + ", numDataNodes=" + builder.numDataNodes);
     nameNodes = new NameNodeInfo[numNameNodes];
-    this.storagesPerDatanode = builder.storagesPerDatanode;
-
-    // Duplicate the storageType setting for each DN.
-    if (builder.storageTypes == null && builder.storageTypes1D != null) {
-      assert builder.storageTypes1D.length == storagesPerDatanode;
-      builder.storageTypes = new StorageType[builder.numDataNodes][storagesPerDatanode];
       
-      for (int i = 0; i < builder.numDataNodes; ++i) {
-        builder.storageTypes[i] = builder.storageTypes1D;
-      }
-    }
-
-    // Duplicate the storageCapacity setting for each DN.
-    if (builder.storageCapacities == null && builder.storageCapacities1D != null) {
-      assert builder.storageCapacities1D.length == storagesPerDatanode;
-      builder.storageCapacities = new long[builder.numDataNodes][storagesPerDatanode];
-
-      for (int i = 0; i < builder.numDataNodes; ++i) {
-        builder.storageCapacities[i] = builder.storageCapacities1D;
-      }
-    }
-
     initMiniDFSCluster(builder.conf,
                        builder.numDataNodes,
-                       builder.storageTypes,
+                       builder.storageType,
                        builder.format,
                        builder.manageNameDfsDirs,
                        builder.manageNameDfsSharedDirs,
@@ -465,7 +388,6 @@ public class MiniDFSCluster {
                        builder.dnOption,
                        builder.racks,
                        builder.hosts,
-                       builder.storageCapacities,
                        builder.simulatedCapacities,
                        builder.clusterId,
                        builder.waitSafeMode,
@@ -508,7 +430,6 @@ public class MiniDFSCluster {
   private boolean waitSafeMode = true;
   private boolean federation;
   private boolean checkExitOnShutdown = true;
-  protected final int storagesPerDatanode;
   
   /**
    * A unique instance identifier for the cluster. This
@@ -547,7 +468,6 @@ public class MiniDFSCluster {
    */
   public MiniDFSCluster() {
     nameNodes = new NameNodeInfo[0]; // No namenode in the cluster
-    storagesPerDatanode = DEFAULT_STORAGES_PER_DATANODE;
     synchronized (MiniDFSCluster.class) {
       instanceId = instanceCount++;
     }
@@ -558,8 +478,8 @@ public class MiniDFSCluster {
    * Servers will be started on free ports.
    * <p>
    * The caller must manage the creation of NameNode and DataNode directories
-   * and have already set {@link DFSConfigKeys#DFS_NAMENODE_NAME_DIR_KEY} and
-   * {@link DFSConfigKeys#DFS_DATANODE_DATA_DIR_KEY} in the given conf.
+   * and have already set {@link #DFS_NAMENODE_NAME_DIR_KEY} and 
+   * {@link #DFS_DATANODE_DATA_DIR_KEY} in the given conf.
    * 
    * @param conf the base configuration to use in starting the servers.  This
    *          will be modified as necessary.
@@ -633,8 +553,8 @@ public class MiniDFSCluster {
    * @param format if true, format the NameNode and DataNodes before starting 
    *          up
    * @param manageDfsDirs if true, the data directories for servers will be
-   *          created and {@link DFSConfigKeys#DFS_NAMENODE_NAME_DIR_KEY} and
-   *          {@link DFSConfigKeys#DFS_DATANODE_DATA_DIR_KEY} will be set in
+   *          created and {@link #DFS_NAMENODE_NAME_DIR_KEY} and 
+   *          {@link #DFS_DATANODE_DATA_DIR_KEY} will be set in 
    *          the conf
    * @param operation the operation with which to start the servers.  If null
    *          or StartupOption.FORMAT, then StartupOption.REGULAR will be used.
@@ -665,8 +585,8 @@ public class MiniDFSCluster {
    * @param numDataNodes Number of DataNodes to start; may be zero
    * @param format if true, format the NameNode and DataNodes before starting up
    * @param manageDfsDirs if true, the data directories for servers will be
-   *          created and {@link DFSConfigKeys#DFS_NAMENODE_NAME_DIR_KEY} and
-   *          {@link DFSConfigKeys#DFS_DATANODE_DATA_DIR_KEY} will be set in
+   *          created and {@link #DFS_NAMENODE_NAME_DIR_KEY} and 
+   *          {@link #DFS_DATANODE_DATA_DIR_KEY} will be set in 
    *          the conf
    * @param operation the operation with which to start the servers.  If null
    *          or StartupOption.FORMAT, then StartupOption.REGULAR will be used.
@@ -699,11 +619,11 @@ public class MiniDFSCluster {
    * @param numDataNodes Number of DataNodes to start; may be zero
    * @param format if true, format the NameNode and DataNodes before starting up
    * @param manageNameDfsDirs if true, the data directories for servers will be
-   *          created and {@link DFSConfigKeys#DFS_NAMENODE_NAME_DIR_KEY} and
-   *          {@link DFSConfigKeys#DFS_DATANODE_DATA_DIR_KEY} will be set in
+   *          created and {@link #DFS_NAMENODE_NAME_DIR_KEY} and 
+   *          {@link #DFS_DATANODE_DATA_DIR_KEY} will be set in 
    *          the conf
    * @param manageDataDfsDirs if true, the data directories for datanodes will
-   *          be created and {@link DFSConfigKeys#DFS_DATANODE_DATA_DIR_KEY}
+   *          be created and {@link #DFS_DATANODE_DATA_DIR_KEY} 
    *          set to same in the conf
    * @param operation the operation with which to start the servers.  If null
    *          or StartupOption.FORMAT, then StartupOption.REGULAR will be used.
@@ -722,22 +642,20 @@ public class MiniDFSCluster {
                         String[] racks, String hosts[],
                         long[] simulatedCapacities) throws IOException {
     this.nameNodes = new NameNodeInfo[1]; // Single namenode in the cluster
-    this.storagesPerDatanode = DEFAULT_STORAGES_PER_DATANODE;
-    initMiniDFSCluster(conf, numDataNodes, null, format,
-                       manageNameDfsDirs, true, manageDataDfsDirs, manageDataDfsDirs,
-                       operation, null, racks, hosts,
-                       null, simulatedCapacities, null, true, false,
-                       MiniDFSNNTopology.simpleSingleNN(nameNodePort, 0), true, false, false, null);
+    initMiniDFSCluster(conf, numDataNodes, StorageType.DEFAULT, format,
+        manageNameDfsDirs, true, manageDataDfsDirs, manageDataDfsDirs, 
+        operation, null, racks, hosts,
+        simulatedCapacities, null, true, false,
+        MiniDFSNNTopology.simpleSingleNN(nameNodePort, 0), true, false, false, null);
   }
 
   private void initMiniDFSCluster(
       Configuration conf,
-      int numDataNodes, StorageType[][] storageTypes, boolean format, boolean manageNameDfsDirs,
+      int numDataNodes, StorageType storageType, boolean format, boolean manageNameDfsDirs,
       boolean manageNameDfsSharedDirs, boolean enableManagedDfsDirsRedundancy,
       boolean manageDataDfsDirs, StartupOption startOpt,
       StartupOption dnStartOpt, String[] racks,
-      String[] hosts,
-      long[][] storageCapacities, long[] simulatedCapacities, String clusterId,
+      String[] hosts, long[] simulatedCapacities, String clusterId,
       boolean waitSafeMode, boolean setupHostsFile,
       MiniDFSNNTopology nnTopology, boolean checkExitOnShutdown,
       boolean checkDataNodeAddrConfig,
@@ -801,15 +719,15 @@ public class MiniDFSCluster {
             createPermissionsDiagnosisString(data_dir));
       }
     }
-
+    
     if (startOpt == StartupOption.RECOVER) {
       return;
     }
 
     // Start the DataNodes
-    startDataNodes(conf, numDataNodes, storageTypes, manageDataDfsDirs,
+    startDataNodes(conf, numDataNodes, storageType, manageDataDfsDirs,
         dnStartOpt != null ? dnStartOpt : startOpt,
-        racks, hosts, storageCapacities, simulatedCapacities, setupHostsFile,
+        racks, hosts, simulatedCapacities, setupHostsFile,
         checkDataNodeAddrConfig, checkDataNodeHostConfig, dnConfOverlays);
     waitClusterUp();
     //make sure ProxyUsers uses the latest conf
@@ -1176,18 +1094,15 @@ public class MiniDFSCluster {
     }
   }
 
-  String makeDataNodeDirs(int dnIndex, StorageType[] storageTypes) throws IOException {
+  String makeDataNodeDirs(int dnIndex, StorageType storageType) throws IOException {
     StringBuilder sb = new StringBuilder();
-    assert storageTypes == null || storageTypes.length == storagesPerDatanode;
-    for (int j = 0; j < storagesPerDatanode; ++j) {
+    for (int j = 0; j < DIRS_PER_DATANODE; ++j) {
       File dir = getInstanceStorageDir(dnIndex, j);
       dir.mkdirs();
       if (!dir.isDirectory()) {
         throw new IOException("Mkdirs failed to create directory for DataNode " + dir);
       }
-      sb.append((j > 0 ? "," : "") + "[" +
-          (storageTypes == null ? StorageType.DEFAULT : storageTypes[j]) +
-          "]" + fileAsURI(dir));
+      sb.append((j > 0 ? "," : "") + "[" + storageType + "]" + fileAsURI(dir));
     }
     return sb.toString();
   }
@@ -1206,7 +1121,7 @@ public class MiniDFSCluster {
    *          will be modified as necessary.
    * @param numDataNodes Number of DataNodes to start; may be zero
    * @param manageDfsDirs if true, the data directories for DataNodes will be
-   *          created and {@link DFSConfigKeys#DFS_DATANODE_DATA_DIR_KEY} will be set
+   *          created and {@link #DFS_DATANODE_DATA_DIR_KEY} will be set 
    *          in the conf
    * @param operation the operation with which to start the DataNodes.  If null
    *          or StartupOption.FORMAT, then StartupOption.REGULAR will be used.
@@ -1238,7 +1153,7 @@ public class MiniDFSCluster {
    *          will be modified as necessary.
    * @param numDataNodes Number of DataNodes to start; may be zero
    * @param manageDfsDirs if true, the data directories for DataNodes will be
-   *          created and {@link DFSConfigKeys#DFS_DATANODE_DATA_DIR_KEY} will be
+   *          created and {@link #DFS_DATANODE_DATA_DIR_KEY} will be 
    *          set in the conf
    * @param operation the operation with which to start the DataNodes.  If null
    *          or StartupOption.FORMAT, then StartupOption.REGULAR will be used.
@@ -1254,18 +1169,22 @@ public class MiniDFSCluster {
                              String[] racks, String[] hosts,
                              long[] simulatedCapacities,
                              boolean setupHostsFile) throws IOException {
-    startDataNodes(conf, numDataNodes, null, manageDfsDirs, operation, racks, hosts,
-        null, simulatedCapacities, setupHostsFile, false, false, null);
+    startDataNodes(conf, numDataNodes, StorageType.DEFAULT, manageDfsDirs, operation, racks, hosts,
+        simulatedCapacities, setupHostsFile, false, false, null);
   }
 
+  /**
+   * @see MiniDFSCluster#startDataNodes(Configuration, int, boolean, StartupOption,
+   * String[], String[], long[], boolean, boolean, boolean)
+   */
   public synchronized void startDataNodes(Configuration conf, int numDataNodes,
       boolean manageDfsDirs, StartupOption operation, 
       String[] racks, String[] hosts,
       long[] simulatedCapacities,
       boolean setupHostsFile,
       boolean checkDataNodeAddrConfig) throws IOException {
-    startDataNodes(conf, numDataNodes, null, manageDfsDirs, operation, racks, hosts,
-        null, simulatedCapacities, setupHostsFile, checkDataNodeAddrConfig, false, null);
+    startDataNodes(conf, numDataNodes, StorageType.DEFAULT, manageDfsDirs, operation, racks, hosts,
+        simulatedCapacities, setupHostsFile, checkDataNodeAddrConfig, false, null);
   }
 
   /**
@@ -1282,7 +1201,7 @@ public class MiniDFSCluster {
    *          will be modified as necessary.
    * @param numDataNodes Number of DataNodes to start; may be zero
    * @param manageDfsDirs if true, the data directories for DataNodes will be
-   *          created and {@link DFSConfigKeys#DFS_DATANODE_DATA_DIR_KEY} will be
+   *          created and {@link #DFS_DATANODE_DATA_DIR_KEY} will be 
    *          set in the conf
    * @param operation the operation with which to start the DataNodes.  If null
    *          or StartupOption.FORMAT, then StartupOption.REGULAR will be used.
@@ -1297,18 +1216,13 @@ public class MiniDFSCluster {
    * @throws IllegalStateException if NameNode has been shutdown
    */
   public synchronized void startDataNodes(Configuration conf, int numDataNodes,
-      StorageType[][] storageTypes, boolean manageDfsDirs, StartupOption operation,
+      StorageType storageType, boolean manageDfsDirs, StartupOption operation,
       String[] racks, String[] hosts,
-      long[][] storageCapacities,
       long[] simulatedCapacities,
       boolean setupHostsFile,
       boolean checkDataNodeAddrConfig,
       boolean checkDataNodeHostConfig,
       Configuration[] dnConfOverlays) throws IOException {
-    assert storageCapacities == null || simulatedCapacities == null;
-    assert storageTypes == null || storageTypes.length == numDataNodes;
-    assert storageCapacities == null || storageCapacities.length == numDataNodes;
-
     if (operation == StartupOption.RECOVER) {
       return;
     }
@@ -1360,7 +1274,7 @@ public class MiniDFSCluster {
                         operation != StartupOption.ROLLBACK) ?
         null : new String[] {operation.getName()};
     
-    DataNode[] dns = new DataNode[numDataNodes];
+    
     for (int i = curDatanodesNum; i < curDatanodesNum+numDataNodes; i++) {
       Configuration dnConf = new HdfsConfiguration(conf);
       if (dnConfOverlays != null) {
@@ -1369,7 +1283,7 @@ public class MiniDFSCluster {
       // Set up datanode address
       setupDatanodeAddress(dnConf, setupHostsFile, checkDataNodeAddrConfig);
       if (manageDfsDirs) {
-        String dirs = makeDataNodeDirs(i, storageTypes == null ? null : storageTypes[i]);
+        String dirs = makeDataNodeDirs(i, storageType);
         dnConf.set(DFS_DATANODE_DATA_DIR_KEY, dirs);
         conf.set(DFS_DATANODE_DATA_DIR_KEY, dirs);
       }
@@ -1451,24 +1365,10 @@ public class MiniDFSCluster {
       dn.runDatanodeDaemon();
       dataNodes.add(new DataNodeProperties(dn, newconf, dnArgs,
           secureResources, dn.getIpcPort()));
-      dns[i - curDatanodesNum] = dn;
     }
     curDatanodesNum += numDataNodes;
     this.numDataNodes += numDataNodes;
     waitActive();
-
-    if (storageCapacities != null) {
-      for (int i = curDatanodesNum; i < curDatanodesNum+numDataNodes; ++i) {
-        List<? extends FsVolumeSpi> volumes = dns[i].getFSDataset().getVolumes();
-        assert storageCapacities[i].length == storagesPerDatanode;
-        assert volumes.size() == storagesPerDatanode;
-
-        for (int j = 0; j < volumes.size(); ++j) {
-          FsVolumeImpl volume = (FsVolumeImpl) volumes.get(j);
-          volume.setCapacityForTesting(storageCapacities[i][j]);
-        }
-      }
-    }
   }
   
   
@@ -2325,7 +2225,7 @@ public class MiniDFSCluster {
   }
 
   /**
-   * Multiple-NameNode version of injectBlocks.
+   * Multiple-NameNode version of {@link #injectBlocks(Iterable[])}.
    */
   public void injectBlocks(int nameNodeIndex, int dataNodeIndex,
       Iterable<Block> blocksToInject) throws IOException {

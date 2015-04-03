@@ -58,7 +58,7 @@ public class TestStorageReport {
     conf = new HdfsConfiguration();
     cluster = new MiniDFSCluster.Builder(conf)
         .numDataNodes(REPL_FACTOR)
-        .storageTypes(new StorageType[] { storageType, storageType } )
+        .storageType(storageType)
         .build();
     fs = cluster.getFileSystem();
     bpid = cluster.getNamesystem().getBlockPoolId();

@@ -55,7 +55,6 @@ import org.apache.hadoop.hdfs.security.token.block.BlockTokenIdentifier;
 import org.apache.hadoop.hdfs.server.blockmanagement.BlockManagerTestUtil;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants;
 import org.apache.hadoop.hdfs.server.namenode.FSNamesystem;
-import org.apache.hadoop.hdfs.server.protocol.BlockReportContext;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeRegistration;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeStorage;
 import org.apache.hadoop.hdfs.server.protocol.NamenodeProtocols;
@@ -177,7 +176,7 @@ public class TestDataNodeVolumeFailure {
             new StorageBlockReport(dnStorage, blockList.getBlockListAsLongs());
     }
     
-    cluster.getNameNodeRpc().blockReport(dnR, bpid, reports, null);
+    cluster.getNameNodeRpc().blockReport(dnR, bpid, reports);
 
     // verify number of blocks and files...
     verify(filename, filesize);
