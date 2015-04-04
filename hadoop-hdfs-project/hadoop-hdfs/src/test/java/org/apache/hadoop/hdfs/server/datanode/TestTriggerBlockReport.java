@@ -32,7 +32,6 @@ import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.hdfs.client.BlockReportOptions;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.protocolPB.DatanodeProtocolClientSideTranslatorPB;
-import org.apache.hadoop.hdfs.server.protocol.BlockReportContext;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeRegistration;
 import org.apache.hadoop.hdfs.server.protocol.ReceivedDeletedBlockInfo;
 import org.apache.hadoop.hdfs.server.protocol.ReceivedDeletedBlockInfo.BlockStatus;
@@ -79,12 +78,11 @@ public final class TestTriggerBlockReport {
       Mockito.verify(spy, times(0)).blockReport(
           any(DatanodeRegistration.class),
           anyString(),
-          any(StorageBlockReport[].class),
-          Mockito.<BlockReportContext>anyObject());
-//      Mockito.verify(spy, times(1)).blockReceivedAndDeleted(
-//          any(DatanodeRegistration.class),
-//          anyString(),
-//          any(StorageReceivedDeletedBlocks[].class));
+          any(StorageBlockReport[].class));
+      // Mockito.verify(spy, times(1)).blockReceivedAndDeleted(
+      //     any(DatanodeRegistration.class),
+      //     anyString(),
+      //     any(StorageReceivedDeletedBlocks[].class));
     }
 
     // Create a fake block deletion notification on the DataNode.
@@ -117,8 +115,7 @@ public final class TestTriggerBlockReport {
       Mockito.verify(spy, timeout(60000)).blockReport(
           any(DatanodeRegistration.class),
           anyString(),
-          any(StorageBlockReport[].class),
-          Mockito.<BlockReportContext>anyObject());
+          any(StorageBlockReport[].class));
     }
 
     cluster.shutdown();
