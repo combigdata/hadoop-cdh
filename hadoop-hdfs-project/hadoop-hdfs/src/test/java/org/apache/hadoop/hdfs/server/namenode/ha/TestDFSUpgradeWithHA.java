@@ -566,7 +566,7 @@ public class TestDFSUpgradeWithHA {
       cluster.restartNameNode(1);
       
       checkNnPreviousDirExistence(cluster, 0, true);
-      checkNnPreviousDirExistence(cluster, 1, false);
+      checkNnPreviousDirExistence(cluster, 1, true);
       checkPreviousDirExistence(sharedDir, true);
       assertCTimesEqual(cluster);
       
@@ -638,7 +638,7 @@ public class TestDFSUpgradeWithHA {
       cluster.restartNameNode(1);
       
       checkNnPreviousDirExistence(cluster, 0, true);
-      checkNnPreviousDirExistence(cluster, 1, false);
+      checkNnPreviousDirExistence(cluster, 1, true);
       checkJnPreviousDirExistence(qjCluster, true);
       assertCTimesEqual(cluster);
       
