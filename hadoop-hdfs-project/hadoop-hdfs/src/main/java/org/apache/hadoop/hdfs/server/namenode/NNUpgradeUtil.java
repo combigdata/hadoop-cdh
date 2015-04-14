@@ -28,7 +28,7 @@ import org.apache.hadoop.hdfs.server.common.StorageInfo;
 
 import com.google.common.base.Preconditions;
 
-abstract class NNUpgradeUtil {
+public abstract class NNUpgradeUtil {
   
   private static final Log LOG = LogFactory.getLog(NNUpgradeUtil.class);
   
@@ -105,9 +105,19 @@ abstract class NNUpgradeUtil {
    */
   static void doPreUpgrade(StorageDirectory sd) throws IOException {
     LOG.info("Starting upgrade of storage directory " + sd.getRoot());
+
+    // rename current to tmp
+    renameCurToTmp(sd);
+  }
+
+  /**
+   * Rename the existing current dir to previous.tmp, and create a new empty
+   * current dir.
+   */
+  public static void renameCurToTmp(StorageDirectory sd) throws IOException {
     File curDir = sd.getCurrentDir();
     File prevDir = sd.getPreviousDir();
-    File tmpDir = sd.getPreviousTmp();
+    final File tmpDir = sd.getPreviousTmp();
 
     Preconditions.checkState(curDir.exists(),
         "Current directory must exist for preupgrade.");
@@ -119,7 +129,7 @@ abstract class NNUpgradeUtil {
 
     // rename current to tmp
     NNStorage.rename(curDir, tmpDir);
-    
+
     if (!curDir.mkdir()) {
       throw new IOException("Cannot create directory " + curDir);
     }
@@ -134,14 +144,14 @@ abstract class NNUpgradeUtil {
    * @param storage info about the new upgraded versions.
    * @throws IOException in the event of error
    */
-  static void doUpgrade(StorageDirectory sd, Storage storage) throws
-      IOException {
+  public static void doUpgrade(StorageDirectory sd, Storage storage)
+      throws IOException {
     LOG.info("Performing upgrade of storage directory " + sd.getRoot());
     try {
       // Write the version file, since saveFsImage only makes the
       // fsimage_<txid>, and the directory is otherwise empty.
       storage.writeProperties(sd);
-      
+
       File prevDir = sd.getPreviousDir();
       File tmpDir = sd.getPreviousTmp();
       Preconditions.checkState(!prevDir.exists(),
