@@ -96,6 +96,7 @@ public class DirectoryCollection {
   private long diskUtilizationSpaceCutoff;
 
   private Set<DirsChangeListener> dirsChangeListeners;
+  private int goodDirsDiskUtilizationPercentage;
 
   /**
    * Create collection for the directories specified. No check for free space.
@@ -316,6 +317,7 @@ public class DirectoryCollection {
         listener.onDirsChanged();
       }
     }
+    setGoodDirsDiskUtilizationPercentage();
     return setChanged;
   }
 
@@ -440,5 +442,33 @@ public class DirectoryCollection {
     diskUtilizationSpaceCutoff =
         diskUtilizationSpaceCutoff < 0 ? 0 : diskUtilizationSpaceCutoff;
     this.diskUtilizationSpaceCutoff = diskUtilizationSpaceCutoff;
+  }
+
+  private void setGoodDirsDiskUtilizationPercentage() {
+
+    long totalSpace = 0;
+    long usableSpace = 0;
+
+    for (String dir : localDirs) {
+      File f = new File(dir);
+      if (!f.isDirectory()) {
+        continue;
+      }
+      totalSpace += f.getTotalSpace();
+      usableSpace += f.getUsableSpace();
+    }
+    if (totalSpace != 0) {
+      long tmp = ((totalSpace - usableSpace) * 100) / totalSpace;
+      if (Integer.MIN_VALUE < tmp && Integer.MAX_VALUE > tmp) {
+        goodDirsDiskUtilizationPercentage = (int) tmp;
+      }
+    } else {
+      // got no good dirs
+      goodDirsDiskUtilizationPercentage = 0;
+    }
+  }
+
+  public int getGoodDirsDiskUtilizationPercentage() {
+    return goodDirsDiskUtilizationPercentage;
   }
 }

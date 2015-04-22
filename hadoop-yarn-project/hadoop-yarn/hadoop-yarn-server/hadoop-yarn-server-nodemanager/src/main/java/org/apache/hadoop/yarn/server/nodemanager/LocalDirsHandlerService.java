@@ -41,6 +41,7 @@ import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.server.nodemanager.DirectoryCollection.DirsChangeListener;
+import org.apache.hadoop.yarn.server.nodemanager.metrics.NodeManagerMetrics;
 
 /**
  * The class which provides functionality of checking the health of the local
@@ -86,6 +87,8 @@ public class LocalDirsHandlerService extends AbstractService {
   private long lastDisksCheckTime;
   
   private static String FILE_SCHEME = "file";
+
+  private NodeManagerMetrics nodeManagerMetrics = null;
 
   /**
    * Class which is used by the {@link Timer} class to periodically execute the
@@ -140,7 +143,12 @@ public class LocalDirsHandlerService extends AbstractService {
   }
 
   public LocalDirsHandlerService() {
+    this(null);
+  }
+
+  public LocalDirsHandlerService(NodeManagerMetrics nodeManagerMetrics) {
     super(LocalDirsHandlerService.class.getName());
+    this.nodeManagerMetrics = nodeManagerMetrics;
   }
 
   /**
@@ -450,6 +458,8 @@ public class LocalDirsHandlerService extends AbstractService {
       updateDirsAfterTest();
     }
 
+    updateMetrics();
+
     lastDisksCheckTime = System.currentTimeMillis();
   }
 
@@ -551,5 +561,16 @@ public class LocalDirsHandlerService extends AbstractService {
     String[] arrValidPaths = new String[validPaths.size()];
     validPaths.toArray(arrValidPaths);
     return arrValidPaths;
+  }
+
+  protected void updateMetrics() {
+    if (nodeManagerMetrics != null) {
+      nodeManagerMetrics.setBadLocalDirs(localDirs.getFailedDirs().size());
+      nodeManagerMetrics.setBadLogDirs(logDirs.getFailedDirs().size());
+      nodeManagerMetrics.setGoodLocalDirsDiskUtilizationPerc(
+          localDirs.getGoodDirsDiskUtilizationPercentage());
+      nodeManagerMetrics.setGoodLogDirsDiskUtilizationPerc(
+          logDirs.getGoodDirsDiskUtilizationPercentage());
+    }
   }
 }
