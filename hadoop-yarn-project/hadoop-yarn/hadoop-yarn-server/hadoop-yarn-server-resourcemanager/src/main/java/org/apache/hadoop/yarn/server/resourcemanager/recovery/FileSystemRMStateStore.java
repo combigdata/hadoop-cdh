@@ -527,6 +527,11 @@ public class FileSystemRMStateStore extends RMStateStore {
     }
   }
 
+  @Override
+  public synchronized void removeApplication(ApplicationId removeAppId)
+      throws Exception {
+  }
+
   private Path getAppDir(Path root, ApplicationId appId) {
     return getNodePath(root, appId.toString());
   }

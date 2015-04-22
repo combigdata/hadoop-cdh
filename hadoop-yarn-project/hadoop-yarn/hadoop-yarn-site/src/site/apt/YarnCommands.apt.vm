@@ -158,6 +158,7 @@ Usage: yarn [--config confdir] COMMAND
 
 -------
   Usage: yarn resourcemanager [-format-state-store]
+                              [-remove-application-from-state-store <appId>]
 -------
 
 *---------------+--------------+
@@ -167,6 +168,8 @@ Usage: yarn [--config confdir] COMMAND
 |                     | RMStateStore and is useful if past applications are no
 |                     | longer needed. This should be run only when the
 |                     | ResourceManager is not running.
+| -remove-application-from-state-store \<appId\> | Remove the application from
+| | RMStateStore. This should be run only when the ResourceManager is not running.
 *---------------+--------------+
 
 ** nodemanager
