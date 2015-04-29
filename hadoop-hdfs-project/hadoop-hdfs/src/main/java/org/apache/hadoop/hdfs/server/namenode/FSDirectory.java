@@ -1924,7 +1924,8 @@ public class FSDirectory implements Closeable {
    * @param src The full path name of the child node.
    * @throws QuotaExceededException is thrown if it violates quota limit
    */
-  private boolean addINode(String src, INode child
+  @VisibleForTesting
+  boolean addINode(String src, INode child
       ) throws QuotaExceededException, UnresolvedLinkException {
     byte[][] components = INode.getPathComponents(src);
     child.setLocalName(components[components.length-1]);
