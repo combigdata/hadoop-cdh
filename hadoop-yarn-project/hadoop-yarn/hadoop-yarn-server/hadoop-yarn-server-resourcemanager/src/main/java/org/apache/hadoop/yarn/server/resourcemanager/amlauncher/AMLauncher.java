@@ -27,6 +27,7 @@ import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.DataInputByteBuffer;
 import org.apache.hadoop.io.DataOutputBuffer;
@@ -197,7 +198,9 @@ public class AMLauncher implements Runnable {
     return container;
   }
 
-  private void setupTokens(
+  @Private
+  @VisibleForTesting
+  protected void setupTokens(
       ContainerLaunchContext container, ContainerId containerID)
       throws IOException {
     Map<String, String> environment = container.getEnvironment();
@@ -217,10 +220,12 @@ public class AMLauncher implements Runnable {
 
     Credentials credentials = new Credentials();
     DataInputByteBuffer dibb = new DataInputByteBuffer();
-    if (container.getTokens() != null) {
+    ByteBuffer tokens = container.getTokens();
+    if (tokens != null) {
       // TODO: Don't do this kind of checks everywhere.
-      dibb.reset(container.getTokens());
+      dibb.reset(tokens);
       credentials.readTokenStorageStream(dibb);
+      tokens.rewind();
     }
 
     // Add AMRMToken
