@@ -5599,12 +5599,18 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     public void run() {
       while (fsRunning && shouldRun) {
         try {
-          clearCorruptLazyPersistFiles();
+          if (!isInSafeMode()) {
+            clearCorruptLazyPersistFiles();
+          } else {
+            if (FSNamesystem.LOG.isDebugEnabled()) {
+              FSNamesystem.LOG
+                  .debug("Namenode is in safemode, skipping scrubbing of corrupted lazy-persist files.");
+            }
+          }
         } catch (Exception e) {
           FSNamesystem.LOG.error(
               "Ignoring exception in LazyPersistFileScrubber:", e);
         }
-
         try {
           Thread.sleep(scrubIntervalSec * 1000);
         } catch (InterruptedException e) {

@@ -50,6 +50,7 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.DFSClient;
+import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.DFSTestUtil;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
@@ -232,6 +233,7 @@ public abstract class LazyPersistTestCase {
                 LAZY_WRITER_INTERVAL_SEC);
     conf.setInt(DFS_DATANODE_RAM_DISK_LOW_WATERMARK_BYTES,
                 EVICTION_LOW_WATERMARK * BLOCK_SIZE);
+    conf.setInt(DFSConfigKeys.DFS_NAMENODE_SAFEMODE_MIN_DATANODES_KEY, 1);
 
     if (useSCR) {
       conf.setBoolean(DFS_CLIENT_READ_SHORTCIRCUIT_KEY, true);
