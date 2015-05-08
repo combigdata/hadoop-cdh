@@ -678,6 +678,9 @@ public class DFSOutputStream extends FSOutputSummer
               DFSClient.LOG.debug("Append to block " + block);
             }
             setupPipelineForAppendOrRecovery();
+            if (true == streamerClosed) {
+              continue;
+            }
             initDataStreaming();
           }
 
@@ -793,6 +796,7 @@ public class DFSOutputStream extends FSOutputSummer
           } else {
             setLastException(new IOException("DataStreamer Exception: ",e));
           }
+          assert !(e instanceof NullPointerException);
           hasError = true;
           if (errorIndex == -1 && restartingNodeIndex == -1) {
             // Not a datanode issue
