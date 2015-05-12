@@ -1562,9 +1562,6 @@ public abstract class Server {
     }
 
     private void doSaslReply(Message message) throws IOException {
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("Sending sasl message "+message);
-      }
       final Call saslCall = new Call(AuthProtocol.SASL.callId,
           RpcConstants.INVALID_RETRY_COUNT, null, this);
       final ByteArrayOutputStream saslResponse = new ByteArrayOutputStream();

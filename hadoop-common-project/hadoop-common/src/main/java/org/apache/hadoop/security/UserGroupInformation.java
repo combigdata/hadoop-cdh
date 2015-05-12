@@ -963,9 +963,6 @@ public class UserGroupInformation {
         .getPrivateCredentials(KerberosTicket.class);
     for (KerberosTicket ticket : tickets) {
       if (SecurityUtil.isOriginalTGT(ticket)) {
-        if (LOG.isDebugEnabled()) {
-          LOG.debug("Found tgt " + ticket);
-        }
         return ticket;
       }
     }
