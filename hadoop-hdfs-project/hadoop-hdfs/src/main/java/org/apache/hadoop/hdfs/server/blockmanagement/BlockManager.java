@@ -1757,6 +1757,9 @@ public class BlockManager {
       if (storageInfo.numBlocks() == 0) {
         // The first block report can be processed a lot more efficiently than
         // ordinary block reports.  This shortens restart times.
+        LOG.info("Processing first storage report for " +
+            storageInfo.getStorageID() + " from datanode " +
+            nodeID.getDatanodeUuid());
         processFirstBlockReport(storageInfo, newReport);
       } else {
         processReport(storageInfo, newReport);
@@ -1967,7 +1970,12 @@ public class BlockManager {
     while(itBR.hasNext()) {
       Block iblk = itBR.next();
       ReplicaState reportedState = itBR.getCurrentReplicaState();
-      
+
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Initial report of block " + iblk.getBlockName()
+            + " on " + storageInfo.getDatanodeDescriptor() + " size " +
+            iblk.getNumBytes() + " replicaState = " + reportedState);
+      }
       if (shouldPostponeBlocksFromFuture &&
           namesystem.isGenStampInFuture(iblk)) {
         queueReportedBlock(storageInfo, iblk, reportedState,
@@ -2165,8 +2173,8 @@ public class BlockManager {
     // Add replica if appropriate. If the replica was previously corrupt
     // but now okay, it might need to be updated.
     if (reportedState == ReplicaState.FINALIZED
-        && (!storedBlock.findDatanode(dn)
-        || corruptReplicas.isReplicaCorrupt(storedBlock, dn))) {
+        && (storedBlock.findStorageInfo(storageInfo) == -1 ||
+            corruptReplicas.isReplicaCorrupt(storedBlock, dn))) {
       toAdd.add(storedBlock);
     }
     return storedBlock;
@@ -2336,7 +2344,7 @@ public class BlockManager {
         storageInfo, ucBlock.reportedBlock, ucBlock.reportedState);
 
     if (ucBlock.reportedState == ReplicaState.FINALIZED &&
-        !block.findDatanode(storageInfo.getDatanodeDescriptor())) {
+        (block.findStorageInfo(storageInfo) < 0)) {
       addStoredBlock(block, storageInfo, null, true);
     }
   } 
