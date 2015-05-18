@@ -119,7 +119,6 @@ public class NamenodeFsck implements DataEncryptionKeyFactory {
   private final NameNode namenode;
   private final NetworkTopology networktopology;
   private final int totalDatanodes;
-  private final short minReplication;
   private final InetAddress remoteAddress;
 
   private String lostFound = null;
@@ -176,19 +175,17 @@ public class NamenodeFsck implements DataEncryptionKeyFactory {
    * @param pmap key=value[] map passed to the http servlet as url parameters
    * @param out output stream to write the fsck output
    * @param totalDatanodes number of live datanodes
-   * @param minReplication minimum replication
    * @param remoteAddress source address of the fsck request
    */
   NamenodeFsck(Configuration conf, NameNode namenode,
       NetworkTopology networktopology,
       Map<String,String[]> pmap, PrintWriter out,
-      int totalDatanodes, short minReplication, InetAddress remoteAddress) {
+      int totalDatanodes, InetAddress remoteAddress) {
     this.conf = conf;
     this.namenode = namenode;
     this.networktopology = networktopology;
     this.out = out;
     this.totalDatanodes = totalDatanodes;
-    this.minReplication = minReplication;
     this.remoteAddress = remoteAddress;
     this.bpPolicy = BlockPlacementPolicy.getInstance(conf, null,
         networktopology,
@@ -293,7 +290,6 @@ public class NamenodeFsck implements DataEncryptionKeyFactory {
     final long startTime = Time.now();
     try {
       if(blockIds != null) {
-
         String[] blocks = blockIds.split(" ");
         StringBuilder sb = new StringBuilder();
         sb.append("FSCK started by " +
@@ -512,7 +508,7 @@ public class NamenodeFsck implements DataEncryptionKeyFactory {
       res.totalReplicas += liveReplicas;
       short targetFileReplication = file.getReplication();
       res.numExpectedReplicas += targetFileReplication;
-      if(liveReplicas<minReplication){
+      if(liveReplicas < res.minReplication){
         res.numUnderMinReplicatedBlocks++;
       }
       if (liveReplicas > targetFileReplication) {
@@ -526,7 +522,7 @@ public class NamenodeFsck implements DataEncryptionKeyFactory {
         out.print("\n" + path + ": CORRUPT blockpool " + block.getBlockPoolId() +
             " block " + block.getBlockName()+"\n");
       }
-      if (liveReplicas >= minReplication)
+      if (liveReplicas >= res.minReplication)
         res.numMinReplicatedBlocks++;
       if (liveReplicas < targetFileReplication && liveReplicas > 0) {
         res.missingReplicas += (targetFileReplication - liveReplicas);
@@ -540,7 +536,8 @@ public class NamenodeFsck implements DataEncryptionKeyFactory {
                     targetFileReplication + " but found " +
                     liveReplicas + " replica(s).");
       }
-      // verify block placement policy
+
+      // count mis replicated blocks
       BlockPlacementStatus blockPlacementStatus = bpPolicy
           .verifyBlockPlacement(lBlk.getLocations(), targetFileReplication);
       if (!blockPlacementStatus.isPlacementPolicySatisfied()) {
@@ -940,7 +937,7 @@ public class NamenodeFsck implements DataEncryptionKeyFactory {
                 ((float) (numUnderMinReplicatedBlocks * 100) / (float) totalBlocks))
                 .append(" %)");
           }
-          res.append("\n  ").append("DFSConfigKeys.DFS_NAMENODE_REPLICATION_MIN_KEY:\t")
+          res.append("\n  ").append(DFSConfigKeys.DFS_NAMENODE_REPLICATION_MIN_KEY + ":\t")
              .append(minReplication);
         }
         if(corruptFiles>0) {
