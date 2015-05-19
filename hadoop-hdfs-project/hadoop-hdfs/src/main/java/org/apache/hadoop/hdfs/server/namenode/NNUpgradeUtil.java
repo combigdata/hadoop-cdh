@@ -18,19 +18,15 @@
 package org.apache.hadoop.hdfs.server.namenode;
 
 import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
-import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.server.common.Storage;
 import org.apache.hadoop.hdfs.server.common.Storage.StorageDirectory;
 import org.apache.hadoop.hdfs.server.common.StorageInfo;
 
 import com.google.common.base.Preconditions;
-import org.apache.hadoop.io.IOUtils;
 
 public abstract class NNUpgradeUtil {
   
@@ -103,48 +99,15 @@ public abstract class NNUpgradeUtil {
    * a call to any JM's or local storage dir's doPreUpgrade method fails, then
    * doUpgrade will not be called for any JM. The existing current dir is
    * renamed to previous.tmp, and then a new, empty current dir is created.
-   *
-   * @param conf configuration for creating {@link EditLogFileOutputStream}
+   * 
    * @param sd the storage directory to perform the pre-upgrade procedure.
    * @throws IOException in the event of error
    */
-  static void doPreUpgrade(Configuration conf, StorageDirectory sd)
-      throws IOException {
+  static void doPreUpgrade(StorageDirectory sd) throws IOException {
     LOG.info("Starting upgrade of storage directory " + sd.getRoot());
 
     // rename current to tmp
     renameCurToTmp(sd);
-
-    final File curDir = sd.getCurrentDir();
-    final File tmpDir = sd.getPreviousTmp();
-    List<String> fileNameList = IOUtils.listDirectory(tmpDir, new FilenameFilter() {
-      @Override
-      public boolean accept(File dir, String name) {
-        return dir.equals(tmpDir)
-            && name.startsWith(NNStorage.NameNodeFile.EDITS.getName());
-      }
-    });
-
-    for (String s : fileNameList) {
-      File prevFile = new File(tmpDir, s);
-      Preconditions.checkState(prevFile.canRead(),
-          "Edits log file " + s + " is not readable.");
-      File newFile = new File(curDir, prevFile.getName());
-      Preconditions.checkState(newFile.createNewFile(),
-          "Cannot create new edits log file in " + curDir);
-      EditLogFileInputStream in = new EditLogFileInputStream(prevFile);
-      EditLogFileOutputStream out =
-          new EditLogFileOutputStream(conf, newFile, 512*1024);
-      FSEditLogOp logOp = in.nextValidOp();
-      while (logOp != null) {
-        out.write(logOp);
-        logOp = in.nextOp();
-      }
-      out.setReadyToFlush();
-      out.flushAndSync(true);
-      out.close();
-      in.close();
-    }
   }
 
   /**
