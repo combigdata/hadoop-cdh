@@ -51,7 +51,7 @@ public class TestJettyHelper implements MethodRule {
     this.keyStorePassword = keyStorePassword;
   }
 
-  private static ThreadLocal<TestJettyHelper> TEST_JETTY_TL =
+  private static final ThreadLocal<TestJettyHelper> TEST_JETTY_TL =
       new InheritableThreadLocal<TestJettyHelper>();
 
   @Override
