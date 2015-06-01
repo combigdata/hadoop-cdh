@@ -784,8 +784,9 @@ public class CommonConfigurationKeysPublic {
    */
   public static final String HADOOP_SHELL_MISSING_DEFAULT_FS_WARNING_KEY =
       "hadoop.shell.missing.defaultFs.warning";
+  // CLOUDERA-BUILD: enable the shell warnings by default.
   public static final boolean HADOOP_SHELL_MISSING_DEFAULT_FS_WARNING_DEFAULT =
-      false;
+      true;
 
   /**
    * @see
