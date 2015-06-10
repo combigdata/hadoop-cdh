@@ -34,6 +34,7 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.crypto.CryptoFSDataInputStream;
 import org.apache.hadoop.fs.crypto.CryptoFSDataOutputStream;
 import org.apache.hadoop.io.IOUtils;
+import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.security.TokenCache;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.LimitInputStream;
@@ -49,7 +50,7 @@ public class CryptoUtils {
 
   private static final Log LOG = LogFactory.getLog(CryptoUtils.class);
 
-  public static boolean isEncryptedSpillEnabled(Configuration conf) {
+  public static boolean isShuffleEncrypted(Configuration conf) {
     return conf.getBoolean(MRJobConfig.MR_ENCRYPTED_INTERMEDIATE_DATA,
         MRJobConfig.DEFAULT_MR_ENCRYPTED_INTERMEDIATE_DATA);
   }
@@ -63,7 +64,7 @@ public class CryptoUtils {
    */
   public static byte[] createIV(Configuration conf) throws IOException {
     CryptoCodec cryptoCodec = CryptoCodec.getInstance(conf);
-    if (isEncryptedSpillEnabled(conf)) {
+    if (isShuffleEncrypted(conf)) {
       byte[] iv = new byte[cryptoCodec.getCipherSuite().getAlgorithmBlockSize()];
       cryptoCodec.generateSecureRandom(iv);
       return iv;
@@ -74,13 +75,13 @@ public class CryptoUtils {
 
   public static int cryptoPadding(Configuration conf) {
     // Sizeof(IV) + long(start-offset)
-    return isEncryptedSpillEnabled(conf) ? CryptoCodec.getInstance(conf)
+    return isShuffleEncrypted(conf) ? CryptoCodec.getInstance(conf)
         .getCipherSuite().getAlgorithmBlockSize() + 8 : 0;
   }
 
   private static byte[] getEncryptionKey() throws IOException {
-    return TokenCache.getEncryptedSpillKey(UserGroupInformation.getCurrentUser()
-            .getCredentials());
+    return TokenCache.getShuffleSecretKey(UserGroupInformation.getCurrentUser()
+        .getCredentials());
   }
 
   private static int getBufferSize(Configuration conf) {
@@ -101,7 +102,7 @@ public class CryptoUtils {
    */
   public static FSDataOutputStream wrapIfNecessary(Configuration conf,
       FSDataOutputStream out) throws IOException {
-    if (isEncryptedSpillEnabled(conf)) {
+    if (isShuffleEncrypted(conf)) {
       out.write(ByteBuffer.allocate(8).putLong(out.getPos()).array());
       byte[] iv = createIV(conf);
       out.write(iv);
@@ -136,7 +137,7 @@ public class CryptoUtils {
    */
   public static InputStream wrapIfNecessary(Configuration conf, InputStream in,
       long length) throws IOException {
-    if (isEncryptedSpillEnabled(conf)) {
+    if (isShuffleEncrypted(conf)) {
       int bufferSize = getBufferSize(conf);
       if (length > -1) {
         in = new LimitInputStream(in, length);
@@ -173,7 +174,7 @@ public class CryptoUtils {
    */
   public static FSDataInputStream wrapIfNecessary(Configuration conf,
       FSDataInputStream in) throws IOException {
-    if (isEncryptedSpillEnabled(conf)) {
+    if (isShuffleEncrypted(conf)) {
       CryptoCodec cryptoCodec = CryptoCodec.getInstance(conf);
       int bufferSize = getBufferSize(conf);
       // Not going to be used... but still has to be read...
