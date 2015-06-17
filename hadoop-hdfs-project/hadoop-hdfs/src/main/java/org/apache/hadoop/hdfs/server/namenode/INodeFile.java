@@ -322,7 +322,7 @@ public class INodeFile extends INodeWithAdditionalFields
       sf.getDiffs().saveSelf2Snapshot(latestSnapshotId, this, null);
     }
   }
-  
+
   public FileDiffList getDiffs() {
     FileWithSnapshotFeature sf = this.getFileWithSnapshotFeature();
     if (sf != null) {
@@ -512,13 +512,13 @@ public class INodeFile extends INodeWithAdditionalFields
     setBlocks(BlockInfo.EMPTY_ARRAY);
     clear();
     removedINodes.add(this);
-    
+
     FileWithSnapshotFeature sf = getFileWithSnapshotFeature();
     if (sf != null) {
       sf.clearDiffs();
     }
   }
-  
+
   @Override
   public String getName() {
     // Get the full path name of this inode.
@@ -540,7 +540,7 @@ public class INodeFile extends INodeWithAdditionalFields
         dsDelta = diskspaceConsumed();
       } else if (last < lastSnapshotId) {
         dsDelta = computeFileSize(true, false) * getFileReplication();
-      } else {      
+      } else {
         int sid = fileDiffList.getSnapshotById(lastSnapshotId);
         dsDelta = diskspaceConsumed(sid);
       }
@@ -665,7 +665,7 @@ public class INodeFile extends INodeWithAdditionalFields
       return diskspaceConsumed();
     }
   }
-  
+
   /**
    * Return the penultimate allocated block for this file.
    */

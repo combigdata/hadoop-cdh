@@ -43,6 +43,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import org.apache.commons.logging.impl.Log4JLogger;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.ContentSummary;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.hdfs.AddBlockFlag;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
@@ -62,6 +63,7 @@ import org.apache.hadoop.hdfs.server.blockmanagement.BlockManager.StatefulBlockI
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.BlockUCState;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.ReplicaState;
 import org.apache.hadoop.hdfs.server.namenode.FSClusterStats;
+import org.apache.hadoop.hdfs.server.namenode.FSNamesystem;
 import org.apache.hadoop.hdfs.server.namenode.NameNode;
 import org.apache.hadoop.hdfs.server.namenode.Namesystem;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeStorage;
@@ -76,6 +78,7 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.mockito.Mockito;
 
 public class TestReplicationPolicy {
   {
@@ -244,7 +247,7 @@ public class TestReplicationPolicy {
   @Test
   public void testChooseTarget1() throws Exception {
     updateHeartbeatWithUsage(dataNodes[0],
-        2*HdfsConstants.MIN_BLOCKS_FOR_WRITE*BLOCK_SIZE, 0L, 
+        2*HdfsConstants.MIN_BLOCKS_FOR_WRITE*BLOCK_SIZE, 0L,
         HdfsConstants.MIN_BLOCKS_FOR_WRITE*BLOCK_SIZE, 0L,
         0L, 0L, 4, 0); // overloaded
 
@@ -782,7 +785,7 @@ public class TestReplicationPolicy {
       assertEquals(targets.length, 3);
       assertTrue(isOnSameRack(targets[0], staleNodeInfo));
       
-      // Step 3. Set 2 stale datanodes back to healthy nodes, 
+      // Step 3. Set 2 stale datanodes back to healthy nodes,
       // still have 2 stale nodes
       for (int i = 2; i < 4; i++) {
         DataNode dn = miniCluster.getDataNodes().get(i);
@@ -901,7 +904,11 @@ public class TestReplicationPolicy {
     assertEquals(targets.length, 2);
     assertTrue(isOnSameRack(targets[0], dataNodes[2]));
   }
-  
+
+  private BlockInfo genBlockInfo(long id) {
+    return new BlockInfo(new Block(id), (short) 3);
+  }
+
   /**
    * Test for the high priority blocks are processed before the low priority
    * blocks.
@@ -920,15 +927,18 @@ public class TestReplicationPolicy {
           .getNamesystem().getBlockManager().neededReplications;
       for (int i = 0; i < 100; i++) {
         // Adding the blocks directly to normal priority
-        neededReplications.add(new Block(random.nextLong()), 2, 0, 3);
+
+        neededReplications.add(genBlockInfo(ThreadLocalRandom.current().
+            nextLong()), 2, 0, 3);
       }
       // Lets wait for the replication interval, to start process normal
       // priority blocks
       Thread.sleep(DFS_NAMENODE_REPLICATION_INTERVAL);
       
       // Adding the block directly to high priority list
-      neededReplications.add(new Block(random.nextLong()), 1, 0, 3);
-      
+      neededReplications.add(genBlockInfo(ThreadLocalRandom.current().
+          nextLong()), 1, 0, 3);
+
       // Lets wait for the replication interval
       Thread.sleep(DFS_NAMENODE_REPLICATION_INTERVAL);
 
@@ -950,25 +960,31 @@ public class TestReplicationPolicy {
 
     for (int i = 0; i < 5; i++) {
       // Adding QUEUE_HIGHEST_PRIORITY block
-      underReplicatedBlocks.add(new Block(random.nextLong()), 1, 0, 3);
+      underReplicatedBlocks.add(genBlockInfo(ThreadLocalRandom.current().
+          nextLong()), 1, 0, 3);
 
       // Adding QUEUE_VERY_UNDER_REPLICATED block
-      underReplicatedBlocks.add(new Block(random.nextLong()), 2, 0, 7);
+      underReplicatedBlocks.add(genBlockInfo(ThreadLocalRandom.current().
+          nextLong()), 2, 0, 7);
 
       // Adding QUEUE_REPLICAS_BADLY_DISTRIBUTED block
-      underReplicatedBlocks.add(new Block(random.nextLong()), 6, 0, 6);
+      underReplicatedBlocks.add(genBlockInfo(ThreadLocalRandom.current().
+          nextLong()), 6, 0, 6);
 
       // Adding QUEUE_UNDER_REPLICATED block
-      underReplicatedBlocks.add(new Block(random.nextLong()), 5, 0, 6);
+      underReplicatedBlocks.add(genBlockInfo(ThreadLocalRandom.current().
+          nextLong()), 5, 0, 6);
 
       // Adding QUEUE_WITH_CORRUPT_BLOCKS block
-      underReplicatedBlocks.add(new Block(random.nextLong()), 0, 0, 3);
+      underReplicatedBlocks.add(genBlockInfo(ThreadLocalRandom.current().
+          nextLong()), 0, 0, 3);
     }
 
     // Choose 6 blocks from UnderReplicatedBlocks. Then it should pick 5 blocks
     // from
     // QUEUE_HIGHEST_PRIORITY and 1 block from QUEUE_VERY_UNDER_REPLICATED.
-    List<List<Block>> chosenBlocks = underReplicatedBlocks.chooseUnderReplicatedBlocks(6);
+    List<List<BlockInfo>> chosenBlocks =
+        underReplicatedBlocks.chooseUnderReplicatedBlocks(6);
     assertTheChosenBlocks(chosenBlocks, 5, 1, 0, 0, 0);
 
     // Choose 10 blocks from UnderReplicatedBlocks. Then it should pick 4 blocks from
@@ -978,7 +994,8 @@ public class TestReplicationPolicy {
     assertTheChosenBlocks(chosenBlocks, 0, 4, 5, 1, 0);
 
     // Adding QUEUE_HIGHEST_PRIORITY
-    underReplicatedBlocks.add(new Block(random.nextLong()), 1, 0, 3);
+    underReplicatedBlocks.add(genBlockInfo(ThreadLocalRandom.current().
+        nextLong()), 1, 0, 3);
 
     // Choose 10 blocks from UnderReplicatedBlocks. Then it should pick 1 block from
     // QUEUE_HIGHEST_PRIORITY, 4 blocks from QUEUE_REPLICAS_BADLY_DISTRIBUTED
@@ -996,9 +1013,17 @@ public class TestReplicationPolicy {
   
   /** asserts the chosen blocks with expected priority blocks */
   private void assertTheChosenBlocks(
-      List<List<Block>> chosenBlocks, int firstPrioritySize,
+      List<List<BlockInfo>> chosenBlocks, int firstPrioritySize,
       int secondPrioritySize, int thirdPrioritySize, int fourthPrioritySize,
       int fifthPrioritySize) {
+    int level = 0;
+    for (List<BlockInfo> blocks : chosenBlocks) {
+      System.out.print("Level: " + level + ", blocks: ");
+      for (BlockInfo block : blocks) {
+        System.out.print(block + " ");
+      }
+      System.out.println(" ");
+    }
     assertEquals(
         "Not returned the expected number of QUEUE_HIGHEST_PRIORITY blocks",
         firstPrioritySize, chosenBlocks.get(

@@ -17,11 +17,8 @@
  */
 package org.apache.hadoop.hdfs.server.namenode;
 
-import java.io.PrintStream;
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.util.List;
-
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
@@ -29,10 +26,10 @@ import org.apache.hadoop.fs.ContentSummary;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.fs.permission.PermissionStatus;
-import org.apache.hadoop.hdfs.server.blockmanagement.BlockStoragePolicySuite;
 import org.apache.hadoop.hdfs.DFSUtil;
-import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.protocol.QuotaExceededException;
+import org.apache.hadoop.hdfs.server.blockmanagement.BlockInfo;
+import org.apache.hadoop.hdfs.server.blockmanagement.BlockStoragePolicySuite;
 import org.apache.hadoop.hdfs.server.namenode.INodeReference.DstReference;
 import org.apache.hadoop.hdfs.server.namenode.INodeReference.WithName;
 import org.apache.hadoop.hdfs.server.namenode.snapshot.Snapshot;
@@ -40,8 +37,10 @@ import org.apache.hadoop.hdfs.util.Diff;
 import org.apache.hadoop.util.ChunkedArrayList;
 import org.apache.hadoop.util.StringUtils;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
+import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.List;
 
 /**
  * We keep an in-memory representation of the file/block hierarchy.
@@ -49,7 +48,7 @@ import com.google.common.base.Preconditions;
  * directory inodes.
  */
 @InterfaceAudience.Private
-public abstract class INode implements INodeAttributes, Diff.Element<byte[]>, 
+public abstract class INode implements INodeAttributes, Diff.Element<byte[]>,
     AuthorizationProvider.INodeAuthorizationInfo {
   public static final Log LOG = LogFactory.getLog(INode.class);
 
@@ -455,9 +454,9 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]>,
    * 2.4 To clean {@link INodeDirectory} with snapshot: delete the corresponding 
    * snapshot in its diff list. Recursively clean its children.
    * </pre>
-   * 
+   *
    * @param snapshotId
-   *          The id of the snapshot to delete. 
+   *          The id of the snapshot to delete.
    *          {@link Snapshot#CURRENT_STATE_ID} means to delete the current
    *          file/directory.
    * @param priorSnapshotId
@@ -468,21 +467,21 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]>,
    *          blocks collected from the descents for further block
    *          deletion/update will be added to the given map.
    * @param removedINodes
-   *          INodes collected from the descents for further cleaning up of 
+   *          INodes collected from the descents for further cleaning up of
    *          inodeMap
    * @return quota usage delta when deleting a snapshot
    */
   public abstract Quota.Counts cleanSubtree(final int snapshotId,
       int priorSnapshotId, BlocksMapUpdateInfo collectedBlocks,
       List<INode> removedINodes);
-  
+
   /**
    * Destroy self and clear everything! If the INode is a file, this method
    * collects its blocks for further block deletion. If the INode is a
    * directory, the method goes down the subtree and collects blocks from the
    * descents, and clears its parent/children references as well. The method
    * also clears the diff list if the INode contains snapshot diff list.
-   * 
+   *
    * @param collectedBlocks
    *          blocks collected from the descents for further block
    *          deletion/update will be added to this map.
@@ -521,12 +520,12 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]>,
   public abstract ContentSummaryComputationContext computeContentSummary(
       ContentSummaryComputationContext summary);
 
-  
+
   /**
    * Check and add namespace/diskspace consumed to itself and the ancestors.
    * @throws QuotaExceededException if quote is violated.
    */
-  public void addSpaceConsumed(long nsDelta, long dsDelta, boolean verify) 
+  public void addSpaceConsumed(long nsDelta, long dsDelta, boolean verify)
       throws QuotaExceededException {
     addSpaceConsumed2Parent(nsDelta, dsDelta, verify);
   }
@@ -535,7 +534,7 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]>,
    * Check and add namespace/diskspace consumed to itself and the ancestors.
    * @throws QuotaExceededException if quote is violated.
    */
-  void addSpaceConsumed2Parent(long nsDelta, long dsDelta, boolean verify) 
+  void addSpaceConsumed2Parent(long nsDelta, long dsDelta, boolean verify)
       throws QuotaExceededException {
     if (parent != null) {
       parent.addSpaceConsumed(nsDelta, dsDelta, verify);
@@ -549,12 +548,12 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]>,
   public Quota.Counts getQuotaCounts() {
     return Quota.Counts.newInstance(-1, -1);
   }
-  
+
   public final boolean isQuotaSet() {
     final Quota.Counts q = getQuotaCounts();
     return q.get(Quota.NAMESPACE) >= 0 || q.get(Quota.DISKSPACE) >= 0;
   }
-  
+
   /**
    * Count subtree {@link Quota#NAMESPACE} and {@link Quota#DISKSPACE} usages.
    */
@@ -582,7 +581,7 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]>,
    * creation time of the snapshot associated with the {@link WithName} node.
    * We do not count in the size of the diff list.  
    * <pre>
-   * 
+   *
    * @param counts The subtree counts for returning.
    * @param useCache Whether to use cached quota usage. Note that 
    *                 {@link WithName} node never uses cache for its subtree.
@@ -599,7 +598,7 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]>,
       boolean useCache) {
     return computeQuotaUsage(counts, useCache, Snapshot.CURRENT_STATE_ID);
   }
-  
+
   /**
    * @return null if the local name is null; otherwise, return the local name.
    */
@@ -842,7 +841,7 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]>,
     out.print(getParentString());
     out.print(", " + getPermissionStatus(snapshotId));
   }
-  
+
   /**
    * Information used for updating the blocksMap when deleting files.
    */
@@ -850,16 +849,16 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]>,
     /**
      * The list of blocks that need to be removed from blocksMap
      */
-    private final List<Block> toDeleteList;
-    
+    private final List<BlockInfo> toDeleteList;
+
     public BlocksMapUpdateInfo() {
-      toDeleteList = new ChunkedArrayList<Block>();
+      toDeleteList = new ChunkedArrayList<BlockInfo>();
     }
     
     /**
      * @return The list of blocks that need to be removed from blocksMap
      */
-    public List<Block> getToDeleteList() {
+    public List<BlockInfo> getToDeleteList() {
       return toDeleteList;
     }
     
@@ -868,12 +867,16 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]>,
      * {@link BlocksMapUpdateInfo#toDeleteList}
      * @param toDelete the to-be-deleted block
      */
-    public void addDeleteBlock(Block toDelete) {
-      if (toDelete != null) {
-        toDeleteList.add(toDelete);
-      }
+    public void addDeleteBlock(BlockInfo toDelete) {
+      assert toDelete != null : "toDelete is null";
+      toDeleteList.add(toDelete);
     }
-    
+
+    public void removeDeleteBlock(BlockInfo block) {
+      assert block != null : "block is null";
+      toDeleteList.remove(block);
+    }
+
     /**
      * Clear {@link BlocksMapUpdateInfo#toDeleteList}
      */

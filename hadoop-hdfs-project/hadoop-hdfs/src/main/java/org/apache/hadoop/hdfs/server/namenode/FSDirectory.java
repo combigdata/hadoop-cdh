@@ -991,7 +991,7 @@ public class FSDirectory implements Closeable {
    * @throws QuotaExceededException
    * @throws SnapshotAccessControlException 
    */
-  Block[] setReplication(String src, short replication, short[] blockRepls)
+  BlockInfo[] setReplication(String src, short replication, short[] blockRepls)
       throws QuotaExceededException, UnresolvedLinkException,
       SnapshotAccessControlException {
     writeLock();
@@ -1002,7 +1002,7 @@ public class FSDirectory implements Closeable {
     }
   }
 
-  Block[] unprotectedSetReplication(String src, short replication,
+  BlockInfo[] unprotectedSetReplication(String src, short replication,
       short[] blockRepls) throws QuotaExceededException,
       UnresolvedLinkException, SnapshotAccessControlException {
     assert hasWriteLock();
