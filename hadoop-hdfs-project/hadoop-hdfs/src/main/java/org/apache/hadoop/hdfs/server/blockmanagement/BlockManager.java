@@ -1410,7 +1410,6 @@ public class BlockManager implements BlockStatsMXBean {
             // abandoned block or block reopened for append
             if(bc == null || (bc.isUnderConstruction() && block.equals(bc.getLastBlock()))) {
               neededReplications.remove(block, priority); // remove from neededReplications
-              neededReplications.decrementReplicationIndex(priority);
               continue;
             }
 
@@ -1440,7 +1439,6 @@ public class BlockManager implements BlockStatsMXBean {
               if ( (pendingReplications.getNumReplicas(block) > 0) ||
                    (isPlacementPolicySatisfied(block)) ) {
                 neededReplications.remove(block, priority); // remove from neededReplications
-                neededReplications.decrementReplicationIndex(priority);
                 blockLog.info("BLOCK* Removing {} from neededReplications as" +
                         " it has enough replicas", block);
                 continue;
@@ -1497,7 +1495,6 @@ public class BlockManager implements BlockStatsMXBean {
           if(bc == null || (bc.isUnderConstruction() && block.equals(bc.getLastBlock()))) {
             neededReplications.remove(block, priority); // remove from neededReplications
             rw.targets = null;
-            neededReplications.decrementReplicationIndex(priority);
             continue;
           }
           requiredReplication = bc.getBlockReplication();
@@ -1511,7 +1508,6 @@ public class BlockManager implements BlockStatsMXBean {
             if ( (pendingReplications.getNumReplicas(block) > 0) ||
                  (isPlacementPolicySatisfied(block)) ) {
               neededReplications.remove(block, priority); // remove from neededReplications
-              neededReplications.decrementReplicationIndex(priority);
               rw.targets = null;
               blockLog.info("BLOCK* Removing {} from neededReplications as" +
                       " it has enough replicas", block);
@@ -1544,7 +1540,6 @@ public class BlockManager implements BlockStatsMXBean {
           // remove from neededReplications
           if(numEffectiveReplicas + targets.length >= requiredReplication) {
             neededReplications.remove(block, priority); // remove from neededReplications
-            neededReplications.decrementReplicationIndex(priority);
           }
         }
       }
