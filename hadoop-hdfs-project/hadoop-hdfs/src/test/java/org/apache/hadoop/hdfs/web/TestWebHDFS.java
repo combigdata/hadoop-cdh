@@ -19,6 +19,7 @@
 package org.apache.hadoop.hdfs.web;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -30,6 +31,7 @@ import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.security.PrivilegedExceptionAction;
@@ -589,6 +591,62 @@ public class TestWebHDFS {
         cluster.shutdown();
       }
     }
+  }
+
+  @Test(timeout = 30000)
+  public void testGetHomeDirectory() throws Exception {
+
+    MiniDFSCluster cluster = null;
+    try {
+      Configuration conf = new Configuration();
+      cluster = new MiniDFSCluster.Builder(conf).build();
+      cluster.waitActive();
+      DistributedFileSystem hdfs = cluster.getFileSystem();
+
+      final URI uri = new URI(WebHdfsFileSystem.SCHEME + "://"
+          + cluster.getHttpUri(0).replace("http://", ""));
+      final Configuration confTemp = new Configuration();
+
+      {
+        WebHdfsFileSystem webhdfs = (WebHdfsFileSystem) FileSystem.get(uri,
+            confTemp);
+
+        assertEquals(hdfs.getHomeDirectory().toUri().getPath(), webhdfs
+            .getHomeDirectory().toUri().getPath());
+
+        webhdfs.close();
+      }
+
+      {
+        WebHdfsFileSystem webhdfs = createWebHDFSAsTestUser(confTemp, uri,
+            "XXX");
+
+        assertNotEquals(hdfs.getHomeDirectory().toUri().getPath(), webhdfs
+            .getHomeDirectory().toUri().getPath());
+
+        webhdfs.close();
+      }
+
+    } finally {
+      if (cluster != null)
+        cluster.shutdown();
+    }
+  }
+
+  private WebHdfsFileSystem createWebHDFSAsTestUser(final Configuration conf,
+      final URI uri, final String userName) throws Exception {
+
+    final UserGroupInformation ugi = UserGroupInformation.createUserForTesting(
+        userName, new String[] { "supergroup" });
+
+    return ugi.doAs(new PrivilegedExceptionAction<WebHdfsFileSystem>() {
+      @Override
+      public WebHdfsFileSystem run() throws IOException {
+        WebHdfsFileSystem webhdfs = (WebHdfsFileSystem) FileSystem.get(uri,
+            conf);
+        return webhdfs;
+      }
+    });
   }
 
   @Test(timeout=90000)

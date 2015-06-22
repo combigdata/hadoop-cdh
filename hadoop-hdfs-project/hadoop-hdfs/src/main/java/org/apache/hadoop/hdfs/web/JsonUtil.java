@@ -730,7 +730,17 @@ public class JsonUtil {
     finalMap.put("XAttrNames", ret);
     return mapper.writeValueAsString(finalMap);
   }
-  
+
+  static String getPath(final Map<?, ?> json)
+      throws IOException {
+    if (json == null) {
+      return null;
+    }
+
+    String path = (String) json.get("Path");
+    return path;
+  }
+
   public static byte[] getXAttr(final Map<?, ?> json, final String name) 
       throws IOException {
     if (json == null) {
