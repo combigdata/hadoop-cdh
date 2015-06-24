@@ -1502,10 +1502,22 @@ public abstract class TaskAttemptImpl implements
       taskAttempt.container = container;
       // this is a _real_ Task (classic Hadoop mapred flavor):
       taskAttempt.remoteTask = taskAttempt.createRemoteTask();
+
+      /*
+       * CDH5.4.0 includes YARN-2312 that bumps up the container-id from 32
+       * to 64 bits to include the RM epoch so container-ids are unique
+       * across RM restarts. MR JVMId is also updated to use the 64-bit
+       * version of container-id leading to failures on rolling upgrade from
+       * CDH5.3.x to CDH5.4.y (y < 3).
+       *
+       * For 5.4.z (z > 2), let us use the 32-bit version of container-id
+       * for JVMId#jvmId to ensure rolling upgrades from 5.3.x
+       * to 5.4.x work. This shouldn't interfere with 5.5 and beyond.
+       */
       taskAttempt.jvmID =
           new WrappedJvmID(taskAttempt.remoteTask.getTaskID().getJobID(),
               taskAttempt.remoteTask.isMapTask(),
-              taskAttempt.container.getId().getContainerId());
+              taskAttempt.container.getId().getId());
       taskAttempt.taskAttemptListener.registerPendingTask(
           taskAttempt.remoteTask, taskAttempt.jvmID);
 
