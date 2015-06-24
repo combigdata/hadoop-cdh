@@ -18,6 +18,8 @@
 
 package org.apache.hadoop.mapred;
 
+import com.google.common.primitives.Ints;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -99,20 +101,36 @@ class JVMId extends ID {
                  append(SEPARATOR).
                  append(idFormat.format(id));
   }
-  
+
   @Override
   public int hashCode() {
     return jobId.hashCode() * 11 + id;
   }
   
-  @Override
-  public void readFields(DataInput in) throws IOException {
-    super.readFields(in);
+  public void readFieldsJvmIdAsLong(DataInput in) throws IOException {
+    /*
+     * CDH5.4.[0-2] use a 64-bit identifier for the id, and rolling upgrades
+     * to those releases would lead to a failed checkedCast.
+     *
+     * CDH5.3.x and CDH5.4.3+ use a 32-bit identifier and this checkedCast
+     * always succeeds.
+     */
+    this.id = Ints.checkedCast(in.readLong());
+    this.jobId.readFields(in);
+    this.isMap = in.readBoolean();
+  }
+
+  public void readFieldsJvmIdAsInt(DataInput in) throws IOException {
+    this.id = in.readInt();
     this.jobId.readFields(in);
     this.isMap = in.readBoolean();
   }
 
   @Override
+  public void readFields(DataInput in) throws IOException {
+    readFieldsJvmIdAsInt(in);
+  }
+
   public void write(DataOutput out) throws IOException {
     super.write(out);
     jobId.write(out);
