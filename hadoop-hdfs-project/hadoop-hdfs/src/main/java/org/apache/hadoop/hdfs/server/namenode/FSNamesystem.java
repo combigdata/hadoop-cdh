@@ -8019,6 +8019,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     this.dir = dir;
   }
   /** @return the cache manager. */
+  @Override
   public CacheManager getCacheManager() {
     return cacheManager;
   }
