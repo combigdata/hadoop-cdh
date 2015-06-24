@@ -134,10 +134,20 @@ class JVMId {
                  append(idFormat.format(jvmId));
   }
 
-  public void readFields(DataInput in) throws IOException {
+  public void readFieldsJvmIdAsLong(DataInput in) throws IOException {
     this.jvmId = in.readLong();
     this.jobId.readFields(in);
     this.isMap = in.readBoolean();
+  }
+
+  public void readFieldsJvmIdAsInt(DataInput in) throws IOException {
+    this.jvmId = in.readInt();
+    this.jobId.readFields(in);
+    this.isMap = in.readBoolean();
+  }
+
+  public void readFields(DataInput in) throws IOException {
+    readFieldsJvmIdAsLong(in);
   }
 
   public void write(DataOutput out) throws IOException {
