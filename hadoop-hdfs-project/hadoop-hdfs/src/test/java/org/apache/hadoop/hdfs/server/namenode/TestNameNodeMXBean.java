@@ -39,6 +39,12 @@ import org.apache.hadoop.util.VersionInfo;
 import org.junit.Test;
 import org.mortbay.util.ajax.JSON;
 
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
 /**
  * Class for testing {@link NameNodeMXBean} implementation
  */
@@ -184,6 +190,8 @@ public class TestNameNodeMXBean {
       assertEquals(NativeIO.POSIX.getCacheManipulator().getMemlockLimit() * 
           cluster.getDataNodes().size(),
               mbs.getAttribute(mxbeanName, "CacheCapacity"));
+      assertNull("RollingUpgradeInfo should be null when there is no rolling"
+          + " upgrade", mbs.getAttribute(mxbeanName, "RollingUpgradeStatus"));
     } finally {
       if (cluster != null) {
         for (URI dir : cluster.getNameDirs(0)) {
