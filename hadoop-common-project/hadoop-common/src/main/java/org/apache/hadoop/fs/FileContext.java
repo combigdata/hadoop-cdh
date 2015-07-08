@@ -60,6 +60,8 @@ import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.ShutdownHookManager;
 import org.apache.htrace.core.Tracer;
 
+import com.google.common.base.Preconditions;
+
 /**
  * The FileContext class provides an interface to the application writer for
  * using the Hadoop file system.
@@ -275,6 +277,7 @@ public class FileContext {
    * has been deliberately declared private.
    */
   Path fixRelativePart(Path p) {
+    Preconditions.checkNotNull(p, "path cannot be null");
     if (p.isUriPathAbsolute()) {
       return p;
     } else {
