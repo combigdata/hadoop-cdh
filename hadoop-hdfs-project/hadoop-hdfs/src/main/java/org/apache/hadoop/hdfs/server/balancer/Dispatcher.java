@@ -352,6 +352,7 @@ public class Dispatcher {
         sendRequest(out, eb, accessToken);
         receiveResponse(in);
         nnc.getBytesMoved().addAndGet(block.getNumBytes());
+        target.getDDatanode().setHasSuccess();
         LOG.info("Successfully moved " + this);
       } catch (IOException e) {
         LOG.warn("Failed to move " + this, e);
@@ -552,6 +553,7 @@ public class Dispatcher {
     /** blocks being moved but not confirmed yet */
     private final List<PendingMove> pendings;
     private volatile boolean hasFailure = false;
+    private volatile boolean hasSuccess = false;
     private ExecutorService moveExecutor;
 
     @Override
@@ -634,6 +636,10 @@ public class Dispatcher {
 
     void setHasFailure() {
       this.hasFailure = true;
+    }
+
+    void setHasSuccess() {
+      this.hasSuccess = true;
     }
   }
 
@@ -1074,6 +1080,18 @@ public class Dispatcher {
       } catch (InterruptedException ignored) {
       }
     }
+  }
+
+  /**
+   * @return true if some moves are success.
+   */
+  public static boolean checkForSuccess(
+      Iterable<? extends StorageGroup> targets) {
+    boolean hasSuccess = false;
+    for (StorageGroup t : targets) {
+      hasSuccess |= t.getDDatanode().hasSuccess;
+    }
+    return hasSuccess;
   }
 
   /**
