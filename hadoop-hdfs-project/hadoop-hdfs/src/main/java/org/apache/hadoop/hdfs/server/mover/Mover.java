@@ -267,10 +267,14 @@ public class Mover {
       // wait for pending move to finish and retry the failed migration
       boolean hasFailed = Dispatcher.waitForMoveCompletion(storages.targets
           .values());
-      if (hasFailed) {
+      boolean hasSuccess = Dispatcher.checkForSuccess(storages.targets
+          .values());
+      if (hasFailed && !hasSuccess) {
         if (retryCount.get() == retryMaxAttempts) {
-          throw new IOException("Failed to move some block's after "
+          result.setRetryFailed();
+          LOG.error("Failed to move some block's after "
               + retryMaxAttempts + " retries.");
+          return result;
         } else {
           retryCount.incrementAndGet();
         }
@@ -712,10 +716,12 @@ public class Mover {
 
     private boolean hasRemaining;
     private boolean noBlockMoved;
+    private boolean retryFailed;
 
     Result() {
       hasRemaining = false;
       noBlockMoved = true;
+      retryFailed = false;
     }
 
     boolean isHasRemaining() {
@@ -734,16 +740,25 @@ public class Mover {
       this.noBlockMoved = noBlockMoved;
     }
 
+    void setRetryFailed() {
+      this.retryFailed = true;
+    }
+
     /**
-     * @return SUCCESS if all moves are success and there is no remaining move.
+     * @return NO_MOVE_PROGRESS if no progress in move after some retry. Return
+     *         SUCCESS if all moves are success and there is no remaining move.
      *         Return NO_MOVE_BLOCK if there moves available but all the moves
      *         cannot be scheduled. Otherwise, return IN_PROGRESS since there
      *         must be some remaining moves.
      */
     ExitStatus getExitStatus() {
-      return !isHasRemaining() ? ExitStatus.SUCCESS
-          : isNoBlockMoved() ? ExitStatus.NO_MOVE_BLOCK
-              : ExitStatus.IN_PROGRESS;
+      if (retryFailed) {
+        return ExitStatus.NO_MOVE_PROGRESS;
+      } else {
+        return !isHasRemaining() ? ExitStatus.SUCCESS
+            : isNoBlockMoved() ? ExitStatus.NO_MOVE_BLOCK
+                : ExitStatus.IN_PROGRESS;
+      }
     }
 
   }
