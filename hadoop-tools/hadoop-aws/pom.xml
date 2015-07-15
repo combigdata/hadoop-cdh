@@ -158,15 +158,25 @@
       <artifactId>jackson-annotations</artifactId>
     </dependency>
 
+      <!-- If joda-time is not a dependency here, it will *not* be included in the
+	   uber/shaded jar. Instead, artifacts that have dependency on this .jar
+	   should add exclusions for joda-time.
+      -->
+    <dependency>
+      <groupId>joda-time</groupId>
+      <artifactId>joda-time</artifactId>
+      <version>2.2</version>
+    </dependency>
+
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk</artifactId>
       <scope>compile</scope>
       <exclusions>
         <exclusion>
-          <groupId>joda-time</groupId>
-          <artifactId>joda-time</artifactId>
-        </exclusion>
+	  <groupId>joda-time</groupId>
+	  <artifactId>joda-time</artifactId>
+	</exclusion>
       </exclusions>
     </dependency>
 
