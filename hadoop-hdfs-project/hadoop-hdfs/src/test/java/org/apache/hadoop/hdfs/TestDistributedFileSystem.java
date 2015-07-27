@@ -1107,7 +1107,8 @@ public class TestDistributedFileSystem {
       try {
         byte[] buf = new byte[10 * 1024 * 1024];
         peer.getOutputStream().write(buf);
-        Assert.fail("write should timeout");
+        long delta = Time.now() - start;
+        Assert.fail("write finish in " + delta + " ms" + "but should timedout");
       } catch (SocketTimeoutException ste) {
         long delta = Time.now() - start;
 
