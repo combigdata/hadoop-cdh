@@ -161,7 +161,7 @@
 
     <dependency>
       <groupId>com.amazonaws</groupId>
-      <artifactId>aws-java-sdk</artifactId>
+      <artifactId>aws-java-sdk-s3</artifactId>
       <scope>compile</scope>
       <!-- If you exclude joda time here, it will *not* be included in the
 	   uber/shaded jar.  It happened to work with older versions of
