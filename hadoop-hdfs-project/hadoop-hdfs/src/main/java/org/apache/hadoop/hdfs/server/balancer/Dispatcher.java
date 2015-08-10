@@ -287,9 +287,7 @@ public class Dispatcher {
 
     /** Dispatch the move to the proxy source & wait for the response. */
     private void dispatch() {
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("Start moving " + this);
-      }
+      LOG.info("Start moving " + this);
 
       Socket sock = new Socket();
       DataOutputStream out = null;
@@ -544,6 +542,7 @@ public class Dispatcher {
 
     synchronized private void activateDelay(long delta) {
       delayUntil = Time.monotonicNow() + delta;
+      LOG.info(this + " activateDelay " + delta/1000.0 + " seconds");
     }
 
     synchronized private boolean isDelayActive() {
@@ -620,6 +619,11 @@ public class Dispatcher {
     private long getBlockList() throws IOException {
       final long size = Math.min(MAX_BLOCKS_SIZE_TO_FETCH, blocksToReceive);
       final BlocksWithLocations newBlocks = nnc.getBlocks(getDatanodeInfo(), size);
+      if (LOG.isTraceEnabled()) {
+        LOG.trace("getBlocks(" + getDatanodeInfo() + ", "
+            + StringUtils.TraditionalBinaryPrefix.long2String(size, "B", 2)
+            + ") returns " + newBlocks.getBlocks().length + " blocks.");
+      }
 
       long bytesReceived = 0;
       for (BlockWithLocations blk : newBlocks.getBlocks()) {
@@ -641,7 +645,9 @@ public class Dispatcher {
             }
           }
           if (!srcBlocks.contains(block) && isGoodBlockCandidate(block)) {
-            // filter bad candidates
+            if (LOG.isTraceEnabled()) {
+              LOG.trace("Add " + block + " to " + this);
+            }
             srcBlocks.add(block);
           }
         }
@@ -733,6 +739,11 @@ public class Dispatcher {
       int noPendingMoveIteration = 0;
       while (!isTimeUp && getScheduledSize() > 0
           && (!srcBlocks.isEmpty() || blocksToReceive > 0)) {
+        if (LOG.isTraceEnabled()) {
+          LOG.trace(this + " blocksToReceive=" + blocksToReceive
+              + ", scheduledSize=" + getScheduledSize()
+              + ", srcBlocks#=" + srcBlocks.size());
+        }
         final PendingMove p = chooseNextMove();
         if (p != null) {
           // Reset no pending move counter
@@ -760,12 +771,16 @@ public class Dispatcher {
           // in case no blocks can be moved for source node's task,
           // jump out of while-loop after 5 iterations.
           if (noPendingMoveIteration >= MAX_NO_PENDING_MOVE_ITERATIONS) {
+            LOG.info("Failed to find a pending move "  + noPendingMoveIteration
+                + " times.  Skipping " + this);
             resetScheduledSize();
           }
         }
 
         // check if time is up or not
         if (Time.monotonicNow() - startTime > MAX_ITERATION_TIME) {
+          LOG.info("Time up (max time=" + MAX_ITERATION_TIME/1000
+              + " seconds).  Skipping " + this);
           isTimeUp = true;
           continue;
         }
