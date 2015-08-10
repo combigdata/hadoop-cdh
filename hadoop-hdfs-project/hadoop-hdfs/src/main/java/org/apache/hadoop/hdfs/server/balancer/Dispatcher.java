@@ -112,8 +112,9 @@ public class Dispatcher {
 
   private NetworkTopology cluster;
 
-  private final ExecutorService moveExecutor;
   private final ExecutorService dispatchExecutor;
+
+  private final Allocator moverThreadAllocator;
 
   /** The maximum number of concurrent blocks moves at a datanode */
   private final int maxConcurrentMovesPerNode;
@@ -125,6 +126,30 @@ public class Dispatcher {
    * amount of time, the Source should give up choosing the next possible move.
    */
   private final int maxNoMoveInterval;
+
+  static class Allocator {
+    private final int max;
+    private int count = 0;
+
+    Allocator(int max) {
+      this.max = max;
+    }
+
+    synchronized int allocate(int n) {
+      final int remaining = max - count;
+      if (remaining <= 0) {
+        return 0;
+      } else {
+        final int allocated = remaining < n? remaining: n;
+        count += allocated;
+        return allocated;
+      }
+    }
+
+    synchronized void reset() {
+      count = 0;
+    }
+  }
 
   private static class GlobalBlockMap {
     private final Map<Block, DBlock> map = new HashMap<Block, DBlock>();
@@ -527,7 +552,7 @@ public class Dispatcher {
     /** blocks being moved but not confirmed yet */
     private final List<PendingMove> pendings;
     private volatile boolean hasFailure = false;
-    private final int maxConcurrentMoves;
+    private ExecutorService moveExecutor;
 
     @Override
     public String toString() {
@@ -536,12 +561,26 @@ public class Dispatcher {
 
     private DDatanode(DatanodeInfo datanode, int maxConcurrentMoves) {
       this.datanode = datanode;
-      this.maxConcurrentMoves = maxConcurrentMoves;
       this.pendings = new ArrayList<PendingMove>(maxConcurrentMoves);
     }
 
     public DatanodeInfo getDatanodeInfo() {
       return datanode;
+    }
+
+    synchronized ExecutorService initMoveExecutor(int poolSize) {
+      return moveExecutor = Executors.newFixedThreadPool(poolSize);
+    }
+
+    synchronized ExecutorService getMoveExecutor() {
+      return moveExecutor;
+    }
+
+    synchronized void shutdownMoveExecutor() {
+      if (moveExecutor != null) {
+        moveExecutor.shutdown();
+        moveExecutor = null;
+      }
     }
 
     private static <G extends StorageGroup> void put(StorageType storageType,
@@ -575,11 +614,6 @@ public class Dispatcher {
       return true;
     }
 
-    /** Check if the node can schedule more blocks to move */
-    synchronized boolean isPendingQNotFull() {
-      return pendings.size() < maxConcurrentMoves;
-    }
-
     /** Check if all the dispatched moves are done */
     synchronized boolean isPendingQEmpty() {
       return pendings.isEmpty();
@@ -587,7 +621,7 @@ public class Dispatcher {
 
     /** Add a scheduled block move to the node */
     synchronized boolean addPendingBlock(PendingMove pendingBlock) {
-      if (!isDelayActive() && isPendingQNotFull()) {
+      if (!isDelayActive()) {
         return pendings.add(pendingBlock);
       }
       return false;
@@ -745,11 +779,9 @@ public class Dispatcher {
       }
     }
 
-    private static final int SOURCE_BLOCKS_MIN_SIZE = 5;
-
     /** @return if should fetch more blocks from namenode */
     private boolean shouldFetchMoreBlocks() {
-      return srcBlocks.size() < SOURCE_BLOCKS_MIN_SIZE && blocksToReceive > 0;
+      return blocksToReceive > 0;
     }
 
     private static final long MAX_ITERATION_TIME = 20 * 60 * 1000L; // 20 mins
@@ -772,7 +804,7 @@ public class Dispatcher {
               + ", scheduledSize=" + getScheduledSize()
               + ", srcBlocks#=" + srcBlocks.size());
         }
-       final PendingMove p = chooseNextMove();
+        final PendingMove p = chooseNextMove();
         if (p != null) {
           // Reset previous move timestamp
           previousMoveTimestamp = Time.monotonicNow();
@@ -857,9 +889,9 @@ public class Dispatcher {
 
     this.cluster = NetworkTopology.getInstance(conf);
 
-    this.moveExecutor = Executors.newFixedThreadPool(moverThreads);
     this.dispatchExecutor = dispatcherThreads == 0? null
         : Executors.newFixedThreadPool(dispatcherThreads);
+    this.moverThreadAllocator = new Allocator(moverThreads);
     this.maxConcurrentMovesPerNode = maxConcurrentMovesPerNode;
     this.blockMoveTimeout = blockMoveTimeout;
     this.maxNoMoveInterval = maxNoMoveInterval;
@@ -948,8 +980,22 @@ public class Dispatcher {
     return new DDatanode(datanode, maxConcurrentMovesPerNode);
   }
 
+
   public void executePendingMove(final PendingMove p) {
     // move the block
+    final DDatanode targetDn = p.target.getDDatanode();
+    ExecutorService moveExecutor = targetDn.getMoveExecutor();
+    if (moveExecutor == null) {
+      final int nThreads = moverThreadAllocator.allocate(maxConcurrentMovesPerNode);
+      if (nThreads > 0) {
+        moveExecutor = targetDn.initMoveExecutor(nThreads);
+      }
+    }
+    if (moveExecutor == null) {
+      LOG.warn("No mover threads available: skip moving " + p);
+      return;
+    }
+
     moveExecutor.execute(new Runnable() {
       @Override
       public void run() {
@@ -1129,6 +1175,11 @@ public class Dispatcher {
     cluster = NetworkTopology.getInstance(conf);
     storageGroupMap.clear();
     sources.clear();
+
+    moverThreadAllocator.reset();
+    for(StorageGroup t : targets) {
+      t.getDDatanode().shutdownMoveExecutor();
+    }
     targets.clear();
     globalBlocks.removeAllButRetain(movedBlocks);
     movedBlocks.cleanup();
@@ -1150,7 +1201,6 @@ public class Dispatcher {
     if (dispatchExecutor != null) {
       dispatchExecutor.shutdownNow();
     }
-    moveExecutor.shutdownNow();
   }
 
   static class Util {
