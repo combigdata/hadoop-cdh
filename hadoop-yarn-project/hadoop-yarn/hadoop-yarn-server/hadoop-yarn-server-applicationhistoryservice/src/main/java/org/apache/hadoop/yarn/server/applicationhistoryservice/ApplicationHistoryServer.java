@@ -33,6 +33,7 @@ import org.apache.hadoop.security.SecurityUtil;
 import org.apache.hadoop.service.CompositeService;
 import org.apache.hadoop.service.Service;
 import org.apache.hadoop.util.ExitUtil;
+import org.apache.hadoop.util.JvmPauseMonitor;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.ShutdownHookManager;
 import org.apache.hadoop.util.StringUtils;
@@ -72,6 +73,7 @@ public class ApplicationHistoryServer extends CompositeService {
   private TimelineDelegationTokenSecretManagerService secretManagerService;
   private TimelineDataManager timelineDataManager;
   private WebApp webApp;
+  private JvmPauseMonitor pauseMonitor;
 
   public ApplicationHistoryServer() {
     super(ApplicationHistoryServer.class.getName());
@@ -95,7 +97,9 @@ public class ApplicationHistoryServer extends CompositeService {
     addService((Service) historyManager);
 
     DefaultMetricsSystem.initialize("ApplicationHistoryServer");
-    JvmMetrics.initSingleton("ApplicationHistoryServer", null);
+    JvmMetrics jm = JvmMetrics.initSingleton("ApplicationHistoryServer", null);
+    pauseMonitor = new JvmPauseMonitor(conf);
+    jm.setPauseMonitor(pauseMonitor);
     super.serviceInit(conf);
   }
 
@@ -107,8 +111,11 @@ public class ApplicationHistoryServer extends CompositeService {
       throw new YarnRuntimeException("Failed to login", ie);
     }
 
-    startWebApp();
+    if (pauseMonitor != null) {
+      pauseMonitor.start();
+    }
     super.serviceStart();
+    startWebApp();
   }
 
   @Override
@@ -116,7 +123,9 @@ public class ApplicationHistoryServer extends CompositeService {
     if (webApp != null) {
       webApp.stop();
     }
-
+    if (pauseMonitor != null) {
+      pauseMonitor.stop();
+    }
     DefaultMetricsSystem.shutdown();
     super.serviceStop();
   }
