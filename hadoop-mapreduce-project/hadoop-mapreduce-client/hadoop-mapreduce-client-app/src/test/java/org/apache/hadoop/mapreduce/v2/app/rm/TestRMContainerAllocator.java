@@ -1723,12 +1723,7 @@ public class TestRMContainerAllocator {
         }
       }, 100, 10000);
       // run the scheduler
-      try {
-        super.heartbeat();
-      } catch (Exception e) {
-        LOG.error("error in heartbeat ", e);
-        throw new YarnRuntimeException(e);
-      }
+      super.heartbeat();
 
       List<TaskAttemptContainerAssignedEvent> result
         = new ArrayList<TaskAttemptContainerAssignedEvent>(events);
@@ -1778,7 +1773,7 @@ public class TestRMContainerAllocator {
     @Override
     protected AllocateResponse makeRemoteRequest() throws IOException,
       YarnException {
-      throw new YarnRuntimeException("for testing");
+      throw new IOException("for testing");
     }
   }
 
@@ -2341,7 +2336,7 @@ public class TestRMContainerAllocator {
     try {
       allocator.schedule();
       Assert.fail("Should Have Exception");
-    } catch (YarnRuntimeException e) {
+    } catch (RMContainerAllocationException e) {
       Assert.assertTrue(e.getMessage().contains("Could not contact RM after"));
     }
     dispatcher.await();
@@ -2349,6 +2344,43 @@ public class TestRMContainerAllocator {
         allocator.jobEvents.size());
     JobEvent event = allocator.jobEvents.get(0); 
     Assert.assertTrue("Should Reboot", event.getType().equals(JobEventType.JOB_AM_REBOOT));
+  }
+
+  @Test(expected = RMContainerAllocationException.class)
+  public void testAttemptNotFoundCausesRMCommunicatorException()
+      throws Exception {
+
+    Configuration conf = new Configuration();
+    MyResourceManager rm = new MyResourceManager(conf);
+    rm.start();
+    DrainDispatcher dispatcher = (DrainDispatcher) rm.getRMContext()
+        .getDispatcher();
+
+    // Submit the application
+    RMApp app = rm.submitApp(1024);
+    dispatcher.await();
+
+    MockNM amNodeManager = rm.registerNode("amNM:1234", 2048);
+    amNodeManager.nodeHeartbeat(true);
+    dispatcher.await();
+
+    ApplicationAttemptId appAttemptId = app.getCurrentAppAttempt()
+        .getAppAttemptId();
+    rm.sendAMLaunched(appAttemptId);
+    dispatcher.await();
+
+    JobId jobId = MRBuilderUtils.newJobId(appAttemptId.getApplicationId(), 0);
+    Job mockJob = mock(Job.class);
+    when(mockJob.getReport()).thenReturn(
+        MRBuilderUtils.newJobReport(jobId, "job", "user", JobState.RUNNING, 0,
+            0, 0, 0, 0, 0, 0, "jobfile", null, false, ""));
+    MyContainerAllocator allocator = new MyContainerAllocator(rm, conf,
+        appAttemptId, mockJob);
+
+    // Now kill the application
+    rm.killApp(app.getApplicationId());
+
+    allocator.schedule();
   }
 
   public static void main(String[] args) throws Exception {
