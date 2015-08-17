@@ -204,4 +204,13 @@ public interface FSNamesystemMBean {
    * @return Number of ENTERING_MAINTENANCE data nodes
    */
   int getNumEnteringMaintenanceDataNodes();
+
+  /**
+   * Returns the length of the wait Queue for the FSNameSystemLock.
+   *
+   * A larger number here indicates lots of threads are waiting for
+   * FSNameSystemLock.
+   * @return int - Number of Threads waiting to acquire FSNameSystemLock
+   */
+  int getFsLockQueueLength();
 }

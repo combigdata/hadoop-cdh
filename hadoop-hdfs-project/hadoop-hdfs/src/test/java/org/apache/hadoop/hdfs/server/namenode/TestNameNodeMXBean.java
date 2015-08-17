@@ -32,6 +32,7 @@ import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
 import com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileUtil;
@@ -226,7 +227,7 @@ public class TestNameNodeMXBean {
       // This will cause the first dir to fail.
       File failedNameDir = new File(nameDirUris.iterator().next());
       assertEquals(0, FileUtil.chmod(
-        new File(failedNameDir, "current").getAbsolutePath(), "000"));
+          new File(failedNameDir, "current").getAbsolutePath(), "000"));
       cluster.getNameNodeRpc().rollEditLog();
       
       nameDirStatuses = (String) (mbs.getAttribute(mxbeanName,
@@ -514,6 +515,25 @@ public class TestNameNodeMXBean {
       String topUsers =
           (String) (mbs.getAttribute(mxbeanNameFsns, "TopUserOpCounts"));
       assertNotNull("Expected TopUserOpCounts bean!", topUsers);
+    } finally {
+      if (cluster != null) {
+        cluster.shutdown();
+      }
+    }
+  }
+
+  @Test(timeout = 120000)
+  public void testQueueLength() throws Exception {
+    final Configuration conf = new Configuration();
+    MiniDFSCluster cluster = null;
+    try {
+      cluster = new MiniDFSCluster.Builder(conf).numDataNodes(0).build();
+      cluster.waitActive();
+      MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
+      ObjectName mxbeanNameFs =
+          new ObjectName("Hadoop:service=NameNode,name=FSNamesystem");
+      int queueLength = (int) mbs.getAttribute(mxbeanNameFs, "LockQueueLength");
+      assertEquals(0, queueLength);
     } finally {
       if (cluster != null) {
         cluster.shutdown();
