@@ -45,6 +45,7 @@ import org.apache.hadoop.yarn.server.MiniYARNCluster;
 import org.apache.hadoop.yarn.server.resourcemanager.AdminService;
 import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
 import org.apache.hadoop.yarn.server.webproxy.WebAppProxyServer;
+import org.apache.hadoop.yarn.webapp.YarnWebParams;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -337,4 +338,17 @@ public class TestRMFailover extends ClientBaseWithFixes {
     return fieldHeader;
   }
 
+  static String getRefreshURL(String url) {
+    String redirectUrl = null;
+    try {
+      HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+      // do not automatically follow the redirection
+      // otherwise we get too many redirections exception
+      conn.setInstanceFollowRedirects(false);
+      redirectUrl = conn.getHeaderField("Refresh");
+    } catch (Exception e) {
+      // throw new RuntimeException(e);
+    }
+    return redirectUrl;
+  }
 }
