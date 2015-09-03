@@ -667,6 +667,15 @@ public class AdminService extends CompositeService implements
     }
   }
 
+  public String getHAZookeeperConnectionState() {
+    if (!rmContext.isHAEnabled()) {
+      return "ResourceManager HA is not enabled.";
+    } else if (!autoFailoverEnabled) {
+      return "Auto Failover is not enabled.";
+    }
+    return this.embeddedElector.getHAZookeeperConnectionState();
+  }
+
   private YarnException logAndWrapException(IOException ioe, String user,
       String argName, String msg) throws YarnException {
     LOG.info("Exception " + msg, ioe);

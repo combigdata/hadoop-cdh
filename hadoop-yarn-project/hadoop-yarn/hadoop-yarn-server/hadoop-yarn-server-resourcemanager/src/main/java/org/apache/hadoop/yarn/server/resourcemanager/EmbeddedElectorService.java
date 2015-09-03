@@ -201,4 +201,8 @@ public class EmbeddedElectorService extends AbstractService
     elector.quitElection(false);
     elector.joinElection(localActiveNodeInfo);
   }
+
+  public String getHAZookeeperConnectionState() {
+    return elector.getHAZookeeperConnectionState();
+  }
 }
