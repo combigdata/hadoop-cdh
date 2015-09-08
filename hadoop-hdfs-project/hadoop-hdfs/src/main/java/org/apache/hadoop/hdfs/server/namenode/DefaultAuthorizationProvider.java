@@ -21,7 +21,6 @@ import com.google.common.base.Preconditions;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.fs.UnresolvedLinkException;
-import org.apache.hadoop.fs.permission.AclEntry;
 import org.apache.hadoop.fs.permission.AclEntryScope;
 import org.apache.hadoop.fs.permission.AclEntryType;
 import org.apache.hadoop.fs.permission.FsAction;
@@ -29,9 +28,7 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.server.namenode.snapshot.Snapshot;
 import org.apache.hadoop.hdfs.util.ReadOnlyList;
 import org.apache.hadoop.security.AccessControlException;
-import org.apache.hadoop.util.StringUtils;
 
-import java.util.List;
 import java.util.Set;
 import java.util.Stack;
 
@@ -386,8 +383,15 @@ public class DefaultAuthorizationProvider
       return;
     }
 
-    throw new AccessControlException("Permission denied by sticky bit setting:" 
-        + " user=" + user + ", inode=" + inode);
+    final String path = inode.getFullPathName();
+    throw new AccessControlException(String.format(
+            "Permission denied by sticky bit: user=%s, path=\"%s\":%s:%s:%s%s, " +
+            "parent=\"%s\":%s:%s:%s%s", user,
+            path, inode.getUserName(), inode.getGroupName(),
+            inode.isDirectory() ? "d" : "-", inode.getFsPermission().toString(),
+            path.substring(0, path.length() - inode.toString().length() - 1 ),
+            parent.getUserName(), parent.getGroupName(),
+            parent.isDirectory() ? "d" : "-", parent.getFsPermission().toString()));
   }
 
   /**
