@@ -550,6 +550,11 @@ public class AppLogAggregatorImpl implements AppLogAggregator {
     this.notifyAll();
   }
 
+  @Override
+  public void disableLogAggregation() {
+    this.logAggregationDisabled = true;
+  }
+
   @Private
   @VisibleForTesting
   // This is only used for testing.
