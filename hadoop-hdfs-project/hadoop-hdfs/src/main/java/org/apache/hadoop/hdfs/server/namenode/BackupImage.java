@@ -25,7 +25,6 @@ import java.util.zip.Checksum;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants;
 import org.apache.hadoop.hdfs.server.common.InconsistentFSStateException;
 import org.apache.hadoop.hdfs.server.common.Storage.StorageDirectory;
@@ -95,9 +94,6 @@ public class BackupImage extends FSImage {
     super(conf);
     storage.setDisablePreUpgradableLayoutCheck(true);
     bnState = BNState.DROP_UNTIL_NEXT_ROLL;
-    quotaInitThreads = conf.getInt(
-        DFSConfigKeys.DFS_NAMENODE_QUOTA_INIT_THREADS_KEY,
-        DFSConfigKeys.DFS_NAMENODE_QUOTA_INIT_THREADS_DEFAULT);
   }
   
   void setNamesystem(FSNamesystem fsn) {
@@ -236,7 +232,7 @@ public class BackupImage extends FSImage {
       }
       lastAppliedTxId = logLoader.getLastAppliedTxId();
 
-      FSImage.updateCountForQuota(namesystem.dir.rootDir, quotaInitThreads);
+      namesystem.dir.updateCountForQuota();
     } finally {
       backupInputStream.clear();
     }
