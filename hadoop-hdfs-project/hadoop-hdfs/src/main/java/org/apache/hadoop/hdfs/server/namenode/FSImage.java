@@ -27,8 +27,6 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.RecursiveAction;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -59,7 +57,6 @@ import org.apache.hadoop.hdfs.server.common.Util;
 import org.apache.hadoop.hdfs.server.namenode.FSImageStorageInspector.FSImageFile;
 import org.apache.hadoop.hdfs.server.namenode.NNStorage.NameNodeDirType;
 import org.apache.hadoop.hdfs.server.namenode.NNStorage.NameNodeFile;
-import org.apache.hadoop.hdfs.server.namenode.snapshot.Snapshot;
 import org.apache.hadoop.hdfs.server.namenode.startupprogress.Phase;
 import org.apache.hadoop.hdfs.server.namenode.startupprogress.StartupProgress;
 import org.apache.hadoop.hdfs.server.protocol.CheckpointCommand;
@@ -69,7 +66,6 @@ import org.apache.hadoop.hdfs.server.protocol.NamenodeRegistration;
 import org.apache.hadoop.hdfs.server.protocol.NamespaceInfo;
 import org.apache.hadoop.hdfs.util.Canceler;
 import org.apache.hadoop.hdfs.util.MD5FileUtils;
-import org.apache.hadoop.hdfs.util.ReadOnlyList;
 import org.apache.hadoop.io.MD5Hash;
 import org.apache.hadoop.util.Time;
 
@@ -154,10 +150,6 @@ public class FSImage implements Closeable {
                        DFSConfigKeys.DFS_NAMENODE_NAME_DIR_RESTORE_DEFAULT)) {
       storage.setRestoreFailedStorage(true);
     }
-
-    this.quotaInitThreads = conf.getInt(
-        DFSConfigKeys.DFS_NAMENODE_QUOTA_INIT_THREADS_KEY,
-        DFSConfigKeys.DFS_NAMENODE_QUOTA_INIT_THREADS_DEFAULT);
 
     this.editLog = FSEditLog.newInstance(conf, storage, editsDirs);
     archivalManager = new NNStorageRetentionManager(conf, storage, editLog);
@@ -915,99 +907,9 @@ public class FSImage implements Closeable {
       }
     } finally {
       FSEditLog.closeAllStreams(editStreams);
-      // update the counts
-      updateCountForQuota(target.dir.rootDir, quotaInitThreads);
     }
     prog.endPhase(Phase.LOADING_EDITS);
     return lastAppliedTxId - prevLastAppliedTxId;
-  }
-
-  /**
-   * Update the count of each directory with quota in the namespace.
-   * A directory's count is defined as the total number inodes in the tree
-   * rooted at the directory.
-   * 
-   * This is an update of existing state of the filesystem and does not
-   * throw QuotaExceededException.
-   */
-  static void updateCountForQuota(INodeDirectory root, int threads) {
-    threads = (threads < 1) ? 1 : threads;
-    LOG.info("Initializing quota with " + threads + " thread(s)");
-    long start = Time.now();
-    Quota.Counts counts = Quota.Counts.newInstance();
-    ForkJoinPool p = new ForkJoinPool(threads);
-    RecursiveAction task = new InitQuotaTask(root, counts);
-    p.execute(task);
-    task.join();
-    p.shutdown();
-    LOG.info("Quota initialization completed in " + (Time.now() - start) +
-        " milliseconds\n" + counts);
-  }
-
-  /**
-   * parallel initialization using fork-join.
-   */
-  private static class InitQuotaTask extends RecursiveAction {
-    private final INodeDirectory dir;
-    private final Quota.Counts counts;
-
-    public InitQuotaTask(INodeDirectory dir, Quota.Counts counts) {
-      this.dir = dir;
-      this.counts = counts;
-    }
-
-    public void compute() {
-      Quota.Counts myCounts = Quota.Counts.newInstance();
-      dir.computeQuotaUsage4CurrentDirectory(myCounts);
-
-      ReadOnlyList<INode> children =
-          dir.getChildrenList(Snapshot.CURRENT_STATE_ID);
-
-      if (children.size() > 0) {
-        List<InitQuotaTask> subtasks = new ArrayList<InitQuotaTask>();
-        for (INode child : children) {
-          if (child.isDirectory()) {
-            subtasks.add(new InitQuotaTask(child.asDirectory(), myCounts));
-          } else {
-            // file or symlink. count using the local counts variable
-            child.computeQuotaUsage(myCounts, false, Snapshot.CURRENT_STATE_ID);
-          }
-        }
-        // invoke and wait for completion
-        invokeAll(subtasks);
-      }
-
-      if (dir.isQuotaSet()) {
-        // check if quota is violated. It indicates a software bug.
-        final Quota.Counts q = dir.getQuotaCounts();
-
-        final long nsConsumed = myCounts.get(Quota.NAMESPACE);
-        final long nsQuota = q.get(Quota.NAMESPACE);
-        if (Quota.isViolated(nsQuota, nsConsumed)) {
-          LOG.warn("Namespace quota violation in image for "
-              + dir.getFullPathName()
-              + " quota = " + nsQuota + " < consumed = " + nsConsumed);
-        }
-
-        final long ssConsumed = myCounts.get(Quota.DISKSPACE);
-        final long ssQuota = q.get(Quota.DISKSPACE);
-        if (Quota.isViolated(ssQuota, ssConsumed)) {
-          LOG.warn("Storagespace quota violation in image for "
-              + dir.getFullPathName()
-              + " quota = " + ssQuota + " < consumed = " + ssConsumed);
-        }
-
-        if (LOG.isDebugEnabled()) {
-          LOG.debug("Setting quota for " + dir + "\n" + myCounts);
-        }
-        dir.getDirectoryWithQuotaFeature()
-            .setSpaceConsumed(nsConsumed, ssConsumed);
-      }
-
-      synchronized(counts) {
-        counts.add(myCounts);
-      }
-    }
   }
 
   /**
