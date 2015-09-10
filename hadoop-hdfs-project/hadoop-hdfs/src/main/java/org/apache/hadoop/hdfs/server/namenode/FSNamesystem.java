@@ -1314,6 +1314,8 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
         getFSImage().editLog.openForWrite();
       }
 
+      // Initialize the quota.
+      dir.updateCountForQuota();
       // Enable quota checks.
       dir.enableQuotaChecks();
       dir.ezManager.startReencryptThreads();

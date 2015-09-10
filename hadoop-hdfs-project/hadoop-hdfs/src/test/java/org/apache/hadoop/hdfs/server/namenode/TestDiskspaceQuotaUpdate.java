@@ -256,13 +256,13 @@ public class TestDiskspaceQuotaUpdate {
     HashMap<String, Long> dsMap = new HashMap<String, Long>();
     scanDirsWithQuota(root, nsMap, dsMap, false);
 
-    FSImage.updateCountForQuota(root, 1);
+    fsdir.updateCountForQuota(1);
     scanDirsWithQuota(root, nsMap, dsMap, true);
 
-    FSImage.updateCountForQuota(root, 2);
+    fsdir.updateCountForQuota(2);
     scanDirsWithQuota(root, nsMap, dsMap, true);
 
-    FSImage.updateCountForQuota(root, 4);
+    fsdir.updateCountForQuota(4);
     scanDirsWithQuota(root, nsMap, dsMap, true);
   }
 
