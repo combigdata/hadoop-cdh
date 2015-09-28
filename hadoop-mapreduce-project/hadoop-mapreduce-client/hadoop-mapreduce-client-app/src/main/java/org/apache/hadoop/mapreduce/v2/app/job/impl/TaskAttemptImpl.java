@@ -1475,7 +1475,9 @@ public abstract class TaskAttemptImpl implements
 
   private static void
       sendJHStartEventForAssignedFailTask(TaskAttemptImpl taskAttempt) {
-    TaskAttemptContainerLaunchedEvent event;
+    if (null == taskAttempt.container) {
+      return;
+    }
     taskAttempt.launchTime = taskAttempt.clock.getTime();
 
     InetSocketAddress nodeHttpInetAddr =
