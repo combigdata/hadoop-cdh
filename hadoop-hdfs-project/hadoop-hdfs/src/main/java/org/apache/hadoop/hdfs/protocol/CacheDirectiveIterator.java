@@ -25,10 +25,11 @@ import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.fs.BatchedRemoteIterator;
 import org.apache.hadoop.fs.InvalidRequestException;
 import org.apache.hadoop.ipc.RemoteException;
+import org.apache.htrace.Sampler;
+import org.apache.htrace.Trace;
+import org.apache.htrace.TraceScope;
 
 import com.google.common.base.Preconditions;
-import org.apache.htrace.core.TraceScope;
-import org.apache.htrace.core.Tracer;
 
 /**
  * CacheDirectiveIterator is a remote iterator that iterates cache directives.
@@ -41,14 +42,14 @@ public class CacheDirectiveIterator
 
   private CacheDirectiveInfo filter;
   private final ClientProtocol namenode;
-  private final Tracer tracer;
+  private final Sampler<?> traceSampler;
 
   public CacheDirectiveIterator(ClientProtocol namenode,
-      CacheDirectiveInfo filter, Tracer tracer) {
+      CacheDirectiveInfo filter, Sampler<?> traceSampler) {
     super(0L);
     this.namenode = namenode;
     this.filter = filter;
-    this.tracer = tracer;
+    this.traceSampler = traceSampler;
   }
 
   private static CacheDirectiveInfo removeIdFromFilter(CacheDirectiveInfo filter) {
@@ -93,7 +94,7 @@ public class CacheDirectiveIterator
   public BatchedEntries<CacheDirectiveEntry> makeRequest(Long prevKey)
       throws IOException {
     BatchedEntries<CacheDirectiveEntry> entries = null;
-    TraceScope scope = tracer.newScope("listCacheDirectives");
+    TraceScope scope = Trace.startSpan("listCacheDirectives", traceSampler);
     try {
       entries = namenode.listCacheDirectives(prevKey, filter);
     } catch (IOException e) {

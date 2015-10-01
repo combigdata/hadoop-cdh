@@ -46,8 +46,9 @@ import org.apache.hadoop.io.ReadaheadPool.ReadaheadRequest;
 import org.apache.hadoop.io.nativeio.NativeIO;
 import org.apache.hadoop.net.SocketOutputStream;
 import org.apache.hadoop.util.DataChecksum;
-import org.apache.htrace.core.Sampler;
-import org.apache.htrace.core.TraceScope;
+import org.apache.htrace.Sampler;
+import org.apache.htrace.Trace;
+import org.apache.htrace.TraceScope;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -699,8 +700,8 @@ class BlockSender implements java.io.Closeable {
    */
   long sendBlock(DataOutputStream out, OutputStream baseStream, 
                  DataTransferThrottler throttler) throws IOException {
-    TraceScope scope = datanode.tracer.
-        newScope("sendBlock_" + block.getBlockId());
+    TraceScope scope =
+        Trace.startSpan("sendBlock_" + block.getBlockId(), Sampler.NEVER);
     try {
       return doSendBlock(out, baseStream, throttler);
     } finally {

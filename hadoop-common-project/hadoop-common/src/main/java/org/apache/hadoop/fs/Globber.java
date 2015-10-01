@@ -28,8 +28,9 @@ import org.apache.commons.logging.Log;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 
-import org.apache.htrace.core.TraceScope;
-import org.apache.htrace.core.Tracer;
+import org.apache.htrace.Span;
+import org.apache.htrace.Trace;
+import org.apache.htrace.TraceScope;
 
 @InterfaceAudience.Private
 @InterfaceStability.Unstable
@@ -40,14 +41,12 @@ class Globber {
   private final FileContext fc;
   private final Path pathPattern;
   private final PathFilter filter;
-  private final Tracer tracer;
   
   public Globber(FileSystem fs, Path pathPattern, PathFilter filter) {
     this.fs = fs;
     this.fc = null;
     this.pathPattern = pathPattern;
     this.filter = filter;
-    this.tracer = fs.getTracer();
   }
 
   public Globber(FileContext fc, Path pathPattern, PathFilter filter) {
@@ -55,7 +54,6 @@ class Globber {
     this.fc = fc;
     this.pathPattern = pathPattern;
     this.filter = filter;
-    this.tracer = fc.getTracer();
   }
 
   private FileStatus getFileStatus(Path path) throws IOException {
@@ -142,8 +140,11 @@ class Globber {
   }
 
   public FileStatus[] glob() throws IOException {
-    TraceScope scope = tracer.newScope("Globber#glob");
-    scope.addKVAnnotation("pattern", pathPattern.toUri().getPath());
+    TraceScope scope = Trace.startSpan("Globber#glob");
+    Span span = scope.getSpan();
+    if (span != null) {
+      span.addKVAnnotation("pattern", pathPattern.toUri().getPath());
+    }
     try {
       return doGlob();
     } finally {

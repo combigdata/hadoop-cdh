@@ -89,8 +89,7 @@ import org.apache.hadoop.util.ProtoUtil;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.util.Time;
-import org.apache.htrace.core.Span;
-import org.apache.htrace.core.Tracer;
+import org.apache.htrace.Trace;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -698,9 +697,8 @@ public class Client {
         if (LOG.isDebugEnabled()) {
           LOG.debug("Connecting to "+server);
         }
-        Span span = Tracer.getCurrentSpan();
-        if (span != null) {
-          span.addTimelineAnnotation("IPC client connecting to " + server);
+        if (Trace.isTracing()) {
+          Trace.addTimelineAnnotation("IPC client connecting to " + server);
         }
         short numRetries = 0;
         Random rand = null;
@@ -773,9 +771,8 @@ public class Client {
           // update last activity time
           touch();
 
-          span = Tracer.getCurrentSpan();
-          if (span != null) {
-            span.addTimelineAnnotation("IPC client connected to " + server);
+          if (Trace.isTracing()) {
+            Trace.addTimelineAnnotation("IPC client connected to " + server);
           }
 
           // start the receiver thread after the socket connection has been set

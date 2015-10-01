@@ -51,8 +51,9 @@ import org.apache.hadoop.hdfs.shortcircuit.ClientMmap;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.DataChecksum;
-import org.apache.htrace.core.TraceScope;
-import org.apache.htrace.core.Tracer;
+import org.apache.htrace.Sampler;
+import org.apache.htrace.Trace;
+import org.apache.htrace.TraceScope;
 
 import com.google.common.annotations.VisibleForTesting;
 
@@ -123,8 +124,6 @@ public class RemoteBlockReader2  implements BlockReader {
 
   private boolean sentStatusCode = false;
   
-  private final Tracer tracer;
-
   byte[] skipBuf = null;
   ByteBuffer checksumBytes = null;
   /** Amount of unread data in the current received packet */
@@ -148,8 +147,8 @@ public class RemoteBlockReader2  implements BlockReader {
     }
 
     if (curDataSlice == null || curDataSlice.remaining() == 0 && bytesNeededToFinish > 0) {
-      TraceScope scope = tracer.newScope(
-          "RemoteBlockReader2#readNextPacket(" + blockId + ")");
+      TraceScope scope = Trace.startSpan(
+          "RemoteBlockReader2#readNextPacket(" + blockId + ")", Sampler.NEVER);
       try {
         readNextPacket();
       } finally {
@@ -176,8 +175,8 @@ public class RemoteBlockReader2  implements BlockReader {
   @Override
   public int read(ByteBuffer buf) throws IOException {
     if (curDataSlice == null || curDataSlice.remaining() == 0 && bytesNeededToFinish > 0) {
-      TraceScope scope = tracer.newScope(
-          "RemoteBlockReader2#readNextPacket(" + blockId + ")");
+      TraceScope scope = Trace.startSpan(
+          "RemoteBlockReader2#readNextPacket(" + blockId + ")", Sampler.NEVER);
       try {
         readNextPacket();
       } finally {
@@ -294,7 +293,7 @@ public class RemoteBlockReader2  implements BlockReader {
   protected RemoteBlockReader2(String file, String bpid, long blockId,
       DataChecksum checksum, boolean verifyChecksum,
       long startOffset, long firstChunkOffset, long bytesToRead, Peer peer,
-      DatanodeID datanodeID, PeerCache peerCache, Tracer tracer) {
+      DatanodeID datanodeID, PeerCache peerCache) {
     this.isLocal = DFSClient.isLocalAddress(NetUtils.
         createSocketAddr(datanodeID.getXferAddr()));
     // Path is used only for printing block and file information in debug
@@ -315,7 +314,6 @@ public class RemoteBlockReader2  implements BlockReader {
     this.bytesNeededToFinish = bytesToRead + (startOffset - firstChunkOffset);
     bytesPerChecksum = this.checksum.getBytesPerChecksum();
     checksumSize = this.checksum.getChecksumSize();
-    this.tracer = tracer;
   }
 
 
@@ -410,8 +408,7 @@ public class RemoteBlockReader2  implements BlockReader {
                                      String clientName,
                                      Peer peer, DatanodeID datanodeID,
                                      PeerCache peerCache,
-                                     CachingStrategy cachingStrategy,
-                                     Tracer tracer) throws IOException {
+                                     CachingStrategy cachingStrategy) throws IOException {
     // in and out will be closed when sock is closed (by the caller)
     final DataOutputStream out = new DataOutputStream(new BufferedOutputStream(
           peer.getOutputStream()));
@@ -444,7 +441,7 @@ public class RemoteBlockReader2  implements BlockReader {
 
     return new RemoteBlockReader2(file, block.getBlockPoolId(), block.getBlockId(),
         checksum, verifyChecksum, startOffset, firstChunkOffset, len, peer,
-        datanodeID, peerCache, tracer);
+        datanodeID, peerCache);
   }
 
   static void checkSuccess(

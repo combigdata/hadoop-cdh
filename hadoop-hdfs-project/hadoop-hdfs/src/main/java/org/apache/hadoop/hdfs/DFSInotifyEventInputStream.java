@@ -26,8 +26,9 @@ import org.apache.hadoop.hdfs.inotify.EventBatchList;
 import org.apache.hadoop.hdfs.inotify.MissingEventsException;
 import org.apache.hadoop.hdfs.protocol.ClientProtocol;
 import org.apache.hadoop.util.Time;
-import org.apache.htrace.core.TraceScope;
-import org.apache.htrace.core.Tracer;
+import org.apache.htrace.Sampler;
+import org.apache.htrace.Trace;
+import org.apache.htrace.TraceScope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,6 +47,11 @@ public class DFSInotifyEventInputStream {
   public static Logger LOG = LoggerFactory.getLogger(DFSInotifyEventInputStream
       .class);
 
+  /**
+   * The trace sampler to use when making RPCs to the NameNode.
+   */
+  private final Sampler<?> traceSampler;
+
   private final ClientProtocol namenode;
   private Iterator<EventBatch> it;
   private long lastReadTxid;
@@ -59,22 +65,20 @@ public class DFSInotifyEventInputStream {
    */
   private Random rng = new Random();
 
-  private final Tracer tracer;
-
   private static final int INITIAL_WAIT_MS = 10;
 
-  DFSInotifyEventInputStream(ClientProtocol namenode, Tracer tracer)
+  DFSInotifyEventInputStream(Sampler<?> traceSampler, ClientProtocol namenode)
         throws IOException {
     // Only consider new transaction IDs.
-    this(namenode, tracer, namenode.getCurrentEditLogTxid());
+    this(traceSampler, namenode, namenode.getCurrentEditLogTxid());
   }
 
-  DFSInotifyEventInputStream(ClientProtocol namenode,
-        Tracer tracer, long lastReadTxid) throws IOException {
+  DFSInotifyEventInputStream(Sampler traceSampler, ClientProtocol namenode,
+        long lastReadTxid) throws IOException {
+    this.traceSampler = traceSampler;
     this.namenode = namenode;
     this.it = Iterators.emptyIterator();
     this.lastReadTxid = lastReadTxid;
-    this.tracer = tracer;
   }
 
   /**
@@ -94,7 +98,8 @@ public class DFSInotifyEventInputStream {
    * The next available batch of events will be returned.
    */
   public EventBatch poll() throws IOException, MissingEventsException {
-    TraceScope scope = tracer.newScope("inotifyPoll");
+    TraceScope scope =
+        Trace.startSpan("inotifyPoll", traceSampler);
     try {
       // need to keep retrying until the NN sends us the latest committed txid
       if (lastReadTxid == -1) {
@@ -175,7 +180,7 @@ public class DFSInotifyEventInputStream {
    */
   public EventBatch poll(long time, TimeUnit tu) throws IOException,
       InterruptedException, MissingEventsException {
-    TraceScope scope = tracer.newScope("inotifyPollWithTimeout");
+    TraceScope scope = Trace.startSpan("inotifyPollWithTimeout", traceSampler);
     EventBatch next = null;
     try {
       long initialTime = Time.monotonicNow();
@@ -212,7 +217,7 @@ public class DFSInotifyEventInputStream {
    */
   public EventBatch take() throws IOException, InterruptedException,
       MissingEventsException {
-    TraceScope scope = tracer.newScope("inotifyTake");
+    TraceScope scope = Trace.startSpan("inotifyTake", traceSampler);
     EventBatch next = null;
     try {
       int nextWaitMin = INITIAL_WAIT_MS;
