@@ -407,7 +407,7 @@ class NameNodeRpcServer implements NamenodeProtocols {
         UnresolvedPathException.class);
     clientRpcServer.setTracer(nn.tracer);
     if (serviceRpcServer != null) {
-      serviceRpcServer.setTracer(nn.tracer);
+      clientRpcServer.setTracer(nn.tracer);
     }
  }
 

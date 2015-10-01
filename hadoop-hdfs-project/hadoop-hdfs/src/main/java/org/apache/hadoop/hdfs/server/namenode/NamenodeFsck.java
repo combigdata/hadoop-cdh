@@ -71,7 +71,6 @@ import org.apache.hadoop.net.NodeBase;
 import org.apache.hadoop.security.AccessControlException;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
-import org.apache.hadoop.tracing.TraceUtils;
 import org.apache.hadoop.util.Time;
 import org.apache.htrace.core.Tracer;
 
@@ -186,7 +185,7 @@ public class NamenodeFsck implements DataEncryptionKeyFactory {
         namenode.getNamesystem().getBlockManager().getDatanodeManager()
         .getHost2DatanodeMap());
     this.tracer = new Tracer.Builder("NamenodeFsck").
-        conf(TraceUtils.wrapHadoopConf("namenode.fsck.htrace.", conf)).
+        conf(TraceUtils.wrapHadoopConf("namenode.htrace.", conf)).
         build();
     
     for (Iterator<String> it = pmap.keySet().iterator(); it.hasNext();) {
