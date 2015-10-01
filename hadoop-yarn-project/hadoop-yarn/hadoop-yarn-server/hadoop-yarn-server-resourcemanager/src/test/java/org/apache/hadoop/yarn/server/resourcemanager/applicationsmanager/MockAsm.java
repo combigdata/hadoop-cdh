@@ -193,7 +193,9 @@ public abstract class MockAsm extends MockApps {
 
     @Override
     public LogAggregationStatus getLogAggregationStatusForAppReport() {
-      throw new UnsupportedOperationException("Not supported yet.");
+      // CLOUDERA-BUILD change needed because of CDH-32319
+      // throw new UnsupportedOperationException("Not supported yet.");
+      return null;
     }
   }
 
