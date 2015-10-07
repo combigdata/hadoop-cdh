@@ -190,6 +190,10 @@ public class OfflineImageViewerPB {
                 new PrintStream(new WriterOutputStream(out)), delimiter, tempPath)) {
           writer.visit(new RandomAccessFile(inputFile, "r"));
         }
+      } else {
+        System.err.println("Invalid processor specified : " + processor);
+        printUsage();
+        return -1;
       }
       return 0;
     } catch (EOFException e) {
