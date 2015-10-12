@@ -511,6 +511,7 @@ public abstract class AbstractYarnScheduler
     }
   }
 
+  @Override
   public SchedulerNode getSchedulerNode(NodeId nodeId) {
     return nodes.get(nodeId);
   }

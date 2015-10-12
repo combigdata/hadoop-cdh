@@ -392,6 +392,16 @@ public class TestAMRestart {
     testAMBlacklistPreventRestartOnSameNode(true, conf);
   }
 
+  @Test(timeout = 100000)
+  public void testAMBlacklistPreventsRestartOnSameNodeForMinicluster()
+      throws Exception {
+    YarnConfiguration conf = new YarnConfiguration();
+    conf.setBoolean(YarnConfiguration.AM_BLACKLISTING_ENABLED, true);
+    conf.setBoolean(YarnConfiguration.RM_SCHEDULER_INCLUDE_PORT_IN_NODE_NAME,
+        true);
+    testAMBlacklistPreventRestartOnSameNode(true, conf);
+  }
+
   /**
    * Tests AM blacklisting. In the multi-node mode (i.e. singleNode = false),
    * it tests the blacklisting behavior so that the AM container gets allocated

@@ -272,4 +272,13 @@ public interface YarnScheduler extends EventHandler<SchedulerEvent> {
    * @return an EnumSet containing the resource types
    */
   public EnumSet<SchedulerResourceTypes> getSchedulingResourceTypes();
+
+  /**
+   * Get SchedulerNode corresponds to nodeId.
+   *
+   * @param nodeId the node id of RMNode
+   *
+   * @return SchedulerNode corresponds to nodeId
+   */
+  SchedulerNode getSchedulerNode(NodeId nodeId);
 }
