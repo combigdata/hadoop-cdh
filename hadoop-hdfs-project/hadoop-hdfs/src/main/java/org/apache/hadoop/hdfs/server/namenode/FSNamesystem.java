@@ -92,6 +92,7 @@ import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_STORAGE_POLICY_ENABLED_DE
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_SUPPORT_APPEND_DEFAULT;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_SUPPORT_APPEND_KEY;
 import static org.apache.hadoop.hdfs.server.common.HdfsServerConstants.SECURITY_XATTR_UNREADABLE_BY_SUPERUSER;
+import static org.apache.hadoop.util.Time.monotonicNow;
 import static org.apache.hadoop.util.Time.now;
 
 import java.io.BufferedWriter;
@@ -1604,6 +1605,11 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     return Util.stringCollectionAsURIs(dirNames);
   }
 
+  /** Threshold (ms) for long holding write lock report. */
+  static final short WRITELOCK_REPORTING_THRESHOLD = 1000;
+  /** Last time stamp for write lock. Keep the longest one for multi-entrance.*/
+  private long writeLockHeldTimeStamp;
+
   @Override
   public void readLock() {
     this.fsLock.readLock().lock();
@@ -1615,14 +1621,30 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
   @Override
   public void writeLock() {
     this.fsLock.writeLock().lock();
+    if (fsLock.getWriteHoldCount() == 1) {
+      writeLockHeldTimeStamp = monotonicNow();
+    }
   }
   @Override
   public void writeLockInterruptibly() throws InterruptedException {
     this.fsLock.writeLock().lockInterruptibly();
+    if (fsLock.getWriteHoldCount() == 1) {
+      writeLockHeldTimeStamp = monotonicNow();
+    }
   }
   @Override
   public void writeUnlock() {
+    final boolean needReport = fsLock.getWriteHoldCount() == 1 &&
+        fsLock.isWriteLockedByCurrentThread();
     this.fsLock.writeLock().unlock();
+
+    if (needReport) {
+      long writeLockInterval = monotonicNow() - writeLockHeldTimeStamp;
+      if (writeLockInterval >= WRITELOCK_REPORTING_THRESHOLD) {
+        LOG.info("FSNamesystem write lock held for " + writeLockInterval +
+            " ms via\n" + StringUtils.getStackTrace(Thread.currentThread()));
+      }
+    }
   }
   @Override
   public boolean hasWriteLock() {
