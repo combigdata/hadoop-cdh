@@ -102,7 +102,11 @@ public class RetryInvocationHandler<T> implements RpcInvocationHandler {
         Object ret = invokeMethod(method, args);
         hasMadeASuccessfulCall = true;
         return ret;
-      } catch (Exception e) {
+      } catch (Exception ex) {
+        if (Thread.currentThread().isInterrupted()) {
+          // If interrupted, do not retry.
+          throw ex;
+        }
         boolean isIdempotentOrAtMostOnce = proxyProvider.getInterface()
             .getMethod(method.getName(), method.getParameterTypes())
             .isAnnotationPresent(Idempotent.class);
@@ -111,15 +115,15 @@ public class RetryInvocationHandler<T> implements RpcInvocationHandler {
               .getMethod(method.getName(), method.getParameterTypes())
               .isAnnotationPresent(AtMostOnce.class);
         }
-        RetryAction action = policy.shouldRetry(e, retries++,
+        RetryAction action = policy.shouldRetry(ex, retries++,
             invocationFailoverCount, isIdempotentOrAtMostOnce);
         if (action.action == RetryAction.RetryDecision.FAIL) {
           if (action.reason != null) {
             LOG.warn("Exception while invoking " + currentProxy.proxy.getClass()
                 + "." + method.getName() + " over " + currentProxy.proxyInfo
-                + ". Not retrying because " + action.reason, e);
+                + ". Not retrying because " + action.reason, ex);
           }
-          throw e;
+          throw ex;
         } else { // retry or failover
           // avoid logging the failover if this is the first call on this
           // proxy object, and we successfully achieve the failover without
@@ -137,13 +141,13 @@ public class RetryInvocationHandler<T> implements RpcInvocationHandler {
               msg += " after " + invocationFailoverCount + " fail over attempts"; 
             }
             msg += ". Trying to fail over " + formatSleepMessage(action.delayMillis);
-            LOG.info(msg, e);
+            LOG.info(msg, ex);
           } else {
             if(LOG.isDebugEnabled()) {
               LOG.debug("Exception while invoking " + method.getName()
                   + " of class " + currentProxy.proxy.getClass().getSimpleName()
                   + " over " + currentProxy.proxyInfo + ". Retrying "
-                  + formatSleepMessage(action.delayMillis), e);
+                  + formatSleepMessage(action.delayMillis), ex);
             }
           }
           
