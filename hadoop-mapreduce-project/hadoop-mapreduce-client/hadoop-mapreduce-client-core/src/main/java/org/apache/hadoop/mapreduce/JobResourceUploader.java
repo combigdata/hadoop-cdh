@@ -194,7 +194,7 @@ class JobResourceUploader {
 
     FileSystem remoteFs = null;
     remoteFs = originalPath.getFileSystem(conf);
-    if (FileUtil.compareFs(remoteFs, jtFs)) {
+    if (compareFs(remoteFs, jtFs)) {
       return originalPath;
     }
     // this might have name collisions. copy will throw an exception
@@ -203,6 +203,48 @@ class JobResourceUploader {
     FileUtil.copy(remoteFs, originalPath, jtFs, newPath, false, conf);
     jtFs.setReplication(newPath, replication);
     return newPath;
+  }
+
+  // CLOUDERA-BUILD. This was moved to FileUtil in Common, but we had to put it
+  // back due to a NoSuchMethodError during a rolling upgrade, because we have
+  // a newer MR2 with an older Common, which doesn't have the method.
+  private boolean compareFs(FileSystem srcFs, FileSystem destFs) {
+    if (srcFs==null || destFs==null) {
+      return false;
+    }
+    URI srcUri = srcFs.getUri();
+    URI dstUri = destFs.getUri();
+    if (srcUri.getScheme()==null) {
+      return false;
+    }
+    if (!srcUri.getScheme().equals(dstUri.getScheme())) {
+      return false;
+    }
+    String srcHost = srcUri.getHost();
+    String dstHost = dstUri.getHost();
+    if ((srcHost!=null) && (dstHost!=null)) {
+      if (srcHost.equals(dstHost)) {
+        return srcUri.getPort()==dstUri.getPort();
+      }
+      try {
+        srcHost = InetAddress.getByName(srcHost).getCanonicalHostName();
+        dstHost = InetAddress.getByName(dstHost).getCanonicalHostName();
+      } catch (UnknownHostException ue) {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Could not compare file-systems. Unknown host: ", ue);
+        }
+        return false;
+      }
+      if (!srcHost.equals(dstHost)) {
+        return false;
+      }
+    } else if (srcHost==null && dstHost!=null) {
+      return false;
+    } else if (srcHost!=null) {
+      return false;
+    }
+    // check for ports
+    return srcUri.getPort()==dstUri.getPort();
   }
 
   private void copyJar(Path originalJarPath, Path submitJarFile,
