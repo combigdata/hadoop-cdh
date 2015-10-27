@@ -1782,7 +1782,9 @@ public class DFSOutputStream extends FSOutputSummer
     NetUtils.connect(sock, isa, client.getRandomLocalInterfaceAddr(), client.getConf().socketTimeout);
     sock.setTcpNoDelay(client.getConf().getDataTransferTcpNoDelay());
     sock.setSoTimeout(timeout);
-    sock.setSendBufferSize(HdfsConstants.DEFAULT_DATA_SOCKET_SIZE);
+    if (client.getConf().socketSendBufferSize > 0) {
+      sock.setSendBufferSize(client.getConf().socketSendBufferSize);
+    }
     if(DFSClient.LOG.isDebugEnabled()) {
       DFSClient.LOG.debug("Send buf size " + sock.getSendBufferSize());
     }
