@@ -1171,6 +1171,10 @@ public class ResourceLocalizationService extends CompositeService
           delService.delete(context.getUser(),
               null, paths.toArray(new Path[paths.size()]));
         }
+        if (!paths.isEmpty()) {
+          delService.delete(context.getUser(),
+              null, paths.toArray(new Path[paths.size()]));
+        }
         delService.delete(null, nmPrivateCTokensPath, new Path[] {});
       }
     }
