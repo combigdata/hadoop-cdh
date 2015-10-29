@@ -934,6 +934,7 @@ public class TestFairScheduler extends FairSchedulerTestBase {
     scheduler.addApplicationAttempt(attemptId, false, false);
     List<ResourceRequest> asks = new ArrayList<ResourceRequest>();
     asks.add(createResourceRequest(2048, node2.getRackName(), 1, 1, false));
+    asks.add(createResourceRequest(2048, ResourceRequest.ANY, 1, 1, false));
 
     scheduler.allocate(attemptId, asks, new ArrayList<ContainerId>(), null,
             null);
