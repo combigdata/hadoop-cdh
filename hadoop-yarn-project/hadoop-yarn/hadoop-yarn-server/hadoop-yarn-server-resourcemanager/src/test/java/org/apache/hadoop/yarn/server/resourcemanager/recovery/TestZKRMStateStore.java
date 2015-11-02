@@ -19,8 +19,12 @@
 package org.apache.hadoop.yarn.server.resourcemanager.recovery;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
@@ -34,6 +38,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.ha.HAServiceProtocol;
 import org.apache.hadoop.ha.HAServiceProtocol.StateChangeRequestInfo;
 import org.apache.hadoop.service.Service;
+import org.apache.hadoop.service.ServiceStateException;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
@@ -47,6 +52,7 @@ import org.apache.hadoop.yarn.conf.HAUtil;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.records.Version;
 import org.apache.hadoop.yarn.server.records.impl.pb.VersionPBImpl;
+import org.apache.hadoop.yarn.server.resourcemanager.RMZKUtils;
 import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.records.ApplicationStateData;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMApp;
@@ -62,6 +68,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttemptS
 import org.apache.hadoop.yarn.server.resourcemanager.security.ClientToAMTokenSecretManagerInRM;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.data.Stat;
 import org.junit.Assert;
 import org.junit.Test;
@@ -75,7 +82,7 @@ public class TestZKRMStateStore extends RMStateStoreTestBase {
 
     ZooKeeper client;
     TestZKRMStateStoreInternal store;
-    String workingZnode;
+    String workingZnode =  "/jira/issue/3077/rmstore";
 
     class TestZKRMStateStoreInternal extends ZKRMStateStore {
 
@@ -105,14 +112,25 @@ public class TestZKRMStateStore extends RMStateStoreTestBase {
       }
     }
 
-    public RMStateStore getRMStateStore() throws Exception {
+    public RMStateStore getRMStateStore(ZooKeeper zk) throws Exception {
       YarnConfiguration conf = new YarnConfiguration();
-      workingZnode = "/jira/issue/3077/rmstore";
       conf.set(YarnConfiguration.RM_ZK_ADDRESS, hostPort);
       conf.set(YarnConfiguration.ZK_RM_STATE_STORE_PARENT_PATH, workingZnode);
-      this.client = createClient();
+      if (null == zk) {
+        this.client = createClient();
+      } else {
+        this.client = zk;
+      }
       this.store = new TestZKRMStateStoreInternal(conf, workingZnode);
       return this.store;
+    }
+
+    public String getWorkingZNode() {
+      return workingZnode;
+    }
+
+    public RMStateStore getRMStateStore() throws Exception {
+      return getRMStateStore(null);
     }
 
     @Override
@@ -251,6 +269,24 @@ public class TestZKRMStateStore extends RMStateStoreTestBase {
     store.close();
   }
   
+  @Test
+  public void testNoAuthExceptionInNonHAMode() throws Exception {
+    TestZKRMStateStoreTester zkTester = new TestZKRMStateStoreTester();
+    String appRoot = zkTester.getWorkingZNode() + "/ZKRMStateRoot/RMAppRoot" ;
+    ZooKeeper zk = spy(createClient());
+    doThrow(new KeeperException.NoAuthException()).when(zk).
+        create(appRoot, null, RMZKUtils.getZKAcls(new Configuration()),
+            CreateMode.PERSISTENT);
+    try {
+      zkTester.getRMStateStore(zk);
+      fail("Expected exception to be thrown");
+    } catch(ServiceStateException e) {
+      assertNotNull(e.getCause());
+      assertTrue("Expected NoAuthException",
+          e.getCause() instanceof KeeperException.NoAuthException);
+    }
+  }
+
   @Test
   public void testFencedState() throws Exception {
     TestZKRMStateStoreTester zkTester = new TestZKRMStateStoreTester();
