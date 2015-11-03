@@ -300,8 +300,9 @@ public class ZKRMStateStore extends RMStateStore {
     // ensure root dirs exist
     createRootDirRecursively(znodeWorkingPath);
     createRootDir(zkRootNodePath);
+    setRootNodeAcls();
+    deleteFencingNodePath();
     if (HAUtil.isHAEnabled(getConfig())){
-      fence();
       verifyActiveStatusThread = new VerifyActiveStatusThread();
       verifyActiveStatusThread.start();
     }
@@ -346,31 +347,41 @@ public class ZKRMStateStore extends RMStateStore {
     LOG.debug(builder.toString());
   }
 
-  private synchronized void fence() throws Exception {
-    if (LOG.isTraceEnabled()) {
-      logRootNodeAcls("Before fencing\n");
-    }
-
-    new ZKAction<Void>() {
-      @Override
-      public Void run() throws KeeperException, InterruptedException {
-        zkClient.setACL(zkRootNodePath, zkRootNodeAcl, -1);
-        return null;
-      }
-    }.runWithRetries();
-
-    // delete fencingnodepath
+  private void deleteFencingNodePath() throws Exception {
     new ZKAction<Void>() {
       @Override
       public Void run() throws KeeperException, InterruptedException {
         try {
           zkClient.multi(Collections.singletonList(deleteFencingNodePathOp));
         } catch (KeeperException.NoNodeException nne) {
-          LOG.info("Fencing node " + fencingNodePath + " doesn't exist to delete");
+          LOG.info("Fencing node " + fencingNodePath +
+              " doesn't exist to delete");
         }
         return null;
       }
     }.runWithRetries();
+  }
+
+  private void setAcl(final String zkPath, final List<ACL> acl)
+      throws Exception {
+    new ZKAction<Void>() {
+      @Override
+      public Void run() throws KeeperException, InterruptedException {
+        zkClient.setACL(zkPath, acl, -1);
+        return null;
+      }
+    }.runWithRetries();
+  }
+
+  private void setRootNodeAcls() throws Exception {
+    if (LOG.isTraceEnabled()) {
+      logRootNodeAcls("Before fencing\n");
+    }
+    if (HAUtil.isHAEnabled(getConfig())) {
+      setAcl(zkRootNodePath, zkRootNodeAcl);
+    } else {
+      setAcl(zkRootNodePath, zkAcl);
+    }
 
     if (LOG.isTraceEnabled()) {
       logRootNodeAcls("After fencing\n");
@@ -1028,7 +1039,8 @@ public class ZKRMStateStore extends RMStateStore {
     }.runWithRetries();
   }
 
-  private List<ACL> getACLWithRetries(
+  @VisibleForTesting
+  List<ACL> getACLWithRetries(
       final String path, final Stat stat) throws Exception {
     return new ZKAction<List<ACL>>() {
       @Override
