@@ -921,7 +921,7 @@ public class FifoScheduler extends
     updateMaximumAllocation(node, false);
     
     // Update cluster metrics
-    Resources.subtractFrom(clusterResource, node.getRMNode().getTotalCapability());
+    Resources.subtractFrom(clusterResource, node.getTotalResource());
   }
 
   @Override
