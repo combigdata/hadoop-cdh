@@ -78,16 +78,22 @@ public class JvmPauseMonitor {
     Preconditions.checkState(monitorThread == null,
         "Already started");
     monitorThread = new Daemon(new Monitor());
-    monitorThread.start();
+    if (shouldRun) {
+      monitorThread.start();
+    } else {
+      LOG.warn("stop() was called before start() completed");
+    }
   }
   
   public void stop() {
     shouldRun = false;
-    monitorThread.interrupt();
-    try {
-      monitorThread.join();
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
+    if (isStarted()) {
+      monitorThread.interrupt();
+      try {
+        monitorThread.join();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
     }
   }
 
