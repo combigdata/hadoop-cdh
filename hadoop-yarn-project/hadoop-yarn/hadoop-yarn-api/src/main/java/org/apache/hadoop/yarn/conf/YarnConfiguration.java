@@ -380,17 +380,17 @@ public class YarnConfiguration extends Configuration {
   public static final boolean DEFAULT_RM_AMLAUNCHER_LOG_COMMAND = false;
 
   //Delegation token related keys
-  public static final String  DELEGATION_KEY_UPDATE_INTERVAL_KEY = 
+  public static final String  DELEGATION_KEY_UPDATE_INTERVAL_KEY =
     RM_PREFIX + "delegation.key.update-interval";
-  public static final long    DELEGATION_KEY_UPDATE_INTERVAL_DEFAULT = 
+  public static final long    DELEGATION_KEY_UPDATE_INTERVAL_DEFAULT =
     24*60*60*1000; // 1 day
-  public static final String  DELEGATION_TOKEN_RENEW_INTERVAL_KEY = 
+  public static final String  DELEGATION_TOKEN_RENEW_INTERVAL_KEY =
     RM_PREFIX + "delegation.token.renew-interval";
-  public static final long    DELEGATION_TOKEN_RENEW_INTERVAL_DEFAULT = 
+  public static final long    DELEGATION_TOKEN_RENEW_INTERVAL_DEFAULT =
     24*60*60*1000;  // 1 day
-  public static final String  DELEGATION_TOKEN_MAX_LIFETIME_KEY = 
+  public static final String  DELEGATION_TOKEN_MAX_LIFETIME_KEY =
      RM_PREFIX + "delegation.token.max-lifetime";
-  public static final long    DELEGATION_TOKEN_MAX_LIFETIME_DEFAULT = 
+  public static final long    DELEGATION_TOKEN_MAX_LIFETIME_DEFAULT =
     7*24*60*60*1000; // 7 days
   
   public static final String RECOVERY_ENABLED = RM_PREFIX + "recovery.enabled";
@@ -932,7 +932,7 @@ public class YarnConfiguration extends Configuration {
   public static final int DEFAULT_NM_WEBAPP_HTTPS_PORT = 8044;
   public static final String DEFAULT_NM_WEBAPP_HTTPS_ADDRESS = "0.0.0.0:"
       + DEFAULT_NM_WEBAPP_HTTPS_PORT; 
-  
+
   /** How often to monitor containers.*/
   public final static String NM_CONTAINER_MON_INTERVAL_MS =
     NM_PREFIX + "container-monitor.interval-ms";
@@ -1635,7 +1635,27 @@ public class YarnConfiguration extends Configuration {
   public static final String YARN_HTTP_POLICY_KEY = YARN_PREFIX + "http.policy";
   public static final String YARN_HTTP_POLICY_DEFAULT = HttpConfig.Policy.HTTP_ONLY
       .name();
-  
+
+
+  /**
+   * Max time to wait for NM to connection to RM.
+   * When not set, proxy will fall back to use value of
+   * RESOURCEMANAGER_CONNECT_MAX_WAIT_MS.
+   */
+  public static final String NM_RESOURCEMANAGER_CONNECT_MAX_WAIT_MS =
+      YARN_PREFIX + "nodemanager.resourcemanager.connect.max-wait.ms";
+
+  /**
+   * Time interval between each NM attempt to connection to RM.
+   * When not set, proxy will fall back to use value of
+   * RESOURCEMANAGER_CONNECT_RETRY_INTERVAL_MS.
+   */
+  public static final String NM_RESOURCEMANAGER_CONNECT_RETRY_INTERVAL_MS =
+      YARN_PREFIX + "nodemanager.resourcemanager.connect.retry-interval.ms";
+
+  /**
+   * Node-labels configurations
+   */
   public static final String NODE_LABELS_PREFIX = YARN_PREFIX + "node-labels.";
 
   /**
@@ -1644,7 +1664,7 @@ public class YarnConfiguration extends Configuration {
    */
   public static final String RM_NODE_LABELS_MANAGER_CLASS = NODE_LABELS_PREFIX
       + "manager-class";
-  
+
   /** URI for NodeLabelManager */
   public static final String FS_NODE_LABELS_STORE_ROOT_DIR = NODE_LABELS_PREFIX
       + "fs-store.root-dir";
