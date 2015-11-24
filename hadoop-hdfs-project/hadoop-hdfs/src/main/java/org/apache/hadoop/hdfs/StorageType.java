@@ -60,6 +60,10 @@ public enum StorageType {
     return Arrays.asList(VALUES);
   }
 
+  public static StorageType parseStorageType(int i) {
+    return VALUES[i];
+  }
+  
   public static List<StorageType> getMovableTypes() {
     List<StorageType> movableTypes = new ArrayList<StorageType>();
     for (StorageType t : VALUES) {
