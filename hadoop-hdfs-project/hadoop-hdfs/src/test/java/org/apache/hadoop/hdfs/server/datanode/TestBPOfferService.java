@@ -178,7 +178,7 @@ public class TestBPOfferService {
     BPOfferService bpos = setupBPOSForNNs(mockNN1, mockNN2);
     bpos.start();
     try {
-      waitForInitialization(bpos);
+      waitForBothActors(bpos);
       
       // The DN should have register to both NNs.
       Mockito.verify(mockNN1).registerDatanode(
@@ -203,6 +203,7 @@ public class TestBPOfferService {
 
     } finally {
       bpos.stop();
+      bpos.join();
     }
   }
 
@@ -233,6 +234,7 @@ public class TestBPOfferService {
 
     } finally {
       bpos.stop();
+      bpos.join();
     }
     
     // Should ignore the delete command from the standby
@@ -258,6 +260,7 @@ public class TestBPOfferService {
       waitForOneToFail(bpos);
     } finally {
       bpos.stop();
+      bpos.join();
     }
   }
   
@@ -305,6 +308,7 @@ public class TestBPOfferService {
 
     } finally {
       bpos.stop();
+      bpos.join();
     }
   }
 
@@ -347,6 +351,7 @@ public class TestBPOfferService {
       waitForBlockReport(mockNN1, mockNN2);
     } finally {
       bpos.stop();
+      bpos.join();
     }
   }
 
@@ -398,6 +403,27 @@ public class TestBPOfferService {
       @Override
       public Boolean get() {
         return bpos.isAlive() && bpos.isInitialized();
+      }
+    }, 100, 10000);
+  }
+
+  private void waitForBothActors(final BPOfferService bpos)
+      throws Exception {
+    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+      @Override
+      public Boolean get() {
+        List<BPServiceActor> actors = bpos.getBPServiceActors();
+
+        return bpos.isAlive() && getRegisteredActors(actors) == 2;
+      }
+      private int getRegisteredActors(List<BPServiceActor> actors) {
+        int regActors = 0;
+        for (BPServiceActor actor : actors) {
+          if (actor.getBpRegistration() != null) {
+            regActors++;
+          }
+        }
+        return regActors;
       }
     }, 100, 10000);
   }
@@ -538,6 +564,7 @@ public class TestBPOfferService {
           difference < 5000);
     } finally {
       bpos.stop();
+      bpos.join();
     }
   }
 
@@ -577,6 +604,7 @@ public class TestBPOfferService {
           + " processing ", difference < 5000);
     } finally {
       bpos.stop();
+      bpos.join();
     }
   }
   /**
@@ -622,6 +650,7 @@ public class TestBPOfferService {
           + "when errorReport threw IOException", secondCallTime != 0);
     } finally {
       bpos.stop();
+      bpos.join();
     }
   } 
 
@@ -673,6 +702,7 @@ public class TestBPOfferService {
           .reportBadBlocks(Mockito.any(LocatedBlock[].class));
     } finally {
       bpos.stop();
+      bpos.join();
     }
   }
 }
