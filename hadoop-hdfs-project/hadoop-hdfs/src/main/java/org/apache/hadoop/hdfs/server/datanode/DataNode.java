@@ -44,6 +44,8 @@ import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_DATANODE_PLUGINS_KEY;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_DATANODE_SCAN_PERIOD_HOURS_DEFAULT;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_DATANODE_SCAN_PERIOD_HOURS_KEY;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_DATANODE_STARTUP_KEY;
+import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_DATANODE_BALANCE_MAX_NUM_CONCURRENT_MOVES_KEY;
+import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_DATANODE_BALANCE_MAX_NUM_CONCURRENT_MOVES_DEFAULT;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_MAX_NUM_BLOCKS_TO_LOG_DEFAULT;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_MAX_NUM_BLOCKS_TO_LOG_KEY;
 import static org.apache.hadoop.util.ExitUtil.terminate;
@@ -281,7 +283,9 @@ public class DataNode extends ReconfigurableBase
   /** A list of property that are reconfigurable at runtime. */
   private static final List<String> RECONFIGURABLE_PROPERTIES =
       Collections.unmodifiableList(
-          Arrays.asList(DFS_DATANODE_DATA_DIR_KEY));
+          Arrays.asList(
+              DFS_DATANODE_DATA_DIR_KEY,
+              DFS_DATANODE_BALANCE_MAX_NUM_CONCURRENT_MOVES_KEY));
 
   private static final String DATANODE_HTRACE_PREFIX = "datanode.htrace.";
 
@@ -509,6 +513,38 @@ public class DataNode extends ReconfigurableBase
             throw new ReconfigurationException(property, newVal,
                 getConf().get(property), rootException);
           }
+        }
+      }
+    } else if (property.equals(
+        DFS_DATANODE_BALANCE_MAX_NUM_CONCURRENT_MOVES_KEY)) {
+      ReconfigurationException rootException = null;
+      try {
+        LOG.info("Reconfiguring " + property + " to " + newVal);
+        int movers;
+        if (newVal == null) {
+          // set to default
+          movers = DFS_DATANODE_BALANCE_MAX_NUM_CONCURRENT_MOVES_DEFAULT;
+        } else {
+          movers = Integer.parseInt(newVal);
+          if (movers <= 0) {
+            rootException = new ReconfigurationException(
+                property,
+                newVal,
+                getConf().get(property),
+                new IllegalArgumentException(
+                    "balancer max concurrent movers must be larger than 0"));
+          }
+        }
+        xserver.updateBalancerMaxConcurrentMovers(movers);
+      } catch(NumberFormatException nfe) {
+        rootException = new ReconfigurationException(
+            property, newVal, getConf().get(property), nfe);
+      } finally {
+        if (rootException != null) {
+          LOG.warn(String.format(
+              "Exception in updating balancer max concurrent movers %s to %s",
+              property, newVal), rootException);
+          throw rootException;
         }
       }
     } else {
