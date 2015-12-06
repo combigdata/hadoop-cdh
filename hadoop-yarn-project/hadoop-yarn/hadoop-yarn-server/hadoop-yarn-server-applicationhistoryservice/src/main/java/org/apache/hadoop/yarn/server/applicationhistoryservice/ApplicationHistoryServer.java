@@ -98,7 +98,8 @@ public class ApplicationHistoryServer extends CompositeService {
 
     DefaultMetricsSystem.initialize("ApplicationHistoryServer");
     JvmMetrics jm = JvmMetrics.initSingleton("ApplicationHistoryServer", null);
-    pauseMonitor = new JvmPauseMonitor(conf);
+    pauseMonitor = new JvmPauseMonitor();
+    addService(pauseMonitor);
     jm.setPauseMonitor(pauseMonitor);
     super.serviceInit(conf);
   }
@@ -111,9 +112,6 @@ public class ApplicationHistoryServer extends CompositeService {
       throw new YarnRuntimeException("Failed to login", ie);
     }
 
-    if (pauseMonitor != null) {
-      pauseMonitor.start();
-    }
     super.serviceStart();
     startWebApp();
   }
@@ -122,9 +120,6 @@ public class ApplicationHistoryServer extends CompositeService {
   protected void serviceStop() throws Exception {
     if (webApp != null) {
       webApp.stop();
-    }
-    if (pauseMonitor != null) {
-      pauseMonitor.stop();
     }
     DefaultMetricsSystem.shutdown();
     super.serviceStop();

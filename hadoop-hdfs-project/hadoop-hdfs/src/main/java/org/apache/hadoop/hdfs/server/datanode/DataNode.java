@@ -1136,7 +1136,8 @@ public class DataNode extends ReconfigurableBase
     registerMXBean();
     initDataXceiver(conf);
     startInfoServer(conf);
-    pauseMonitor = new JvmPauseMonitor(conf);
+    pauseMonitor = new JvmPauseMonitor();
+    pauseMonitor.init(conf);
     pauseMonitor.start();
   
     // BlockPoolTokenSecretManager is required to create ipc server.
