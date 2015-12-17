@@ -169,7 +169,7 @@ public class NameNodeProxies {
             NameNode.getAddress(nameNodeUri));
       }
       return new ProxyAndInfo<T>(proxy, dtService,
-          NameNode.getAddress(nameNodeUri));
+          NameNode.getAddressCheckLogical(conf, nameNodeUri));
     }
   }
   
