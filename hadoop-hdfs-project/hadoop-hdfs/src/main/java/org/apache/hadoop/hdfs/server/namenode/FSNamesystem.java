@@ -7697,6 +7697,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     return dir;
   }
   /** @return the cache manager. */
+  @Override
   public CacheManager getCacheManager() {
     return cacheManager;
   }

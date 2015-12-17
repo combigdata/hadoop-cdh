@@ -748,8 +748,10 @@ class BPServiceActor implements Runnable {
         List<DatanodeCommand> cmds = blockReport();
         processCommand(cmds == null ? null : cmds.toArray(new DatanodeCommand[cmds.size()]));
 
-        DatanodeCommand cmd = cacheReport();
-        processCommand(new DatanodeCommand[]{ cmd });
+        if (!dn.areCacheReportsDisabledForTests()) {
+          DatanodeCommand cmd = cacheReport();
+          processCommand(new DatanodeCommand[]{ cmd });
+        }
 
         // Now safe to start scanning the block pool.
         // If it has already been started, this is a no-op.

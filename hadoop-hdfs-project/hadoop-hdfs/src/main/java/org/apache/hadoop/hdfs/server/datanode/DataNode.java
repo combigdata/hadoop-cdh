@@ -291,6 +291,7 @@ public class DataNode extends ReconfigurableBase
   ThreadGroup threadGroup = null;
   private DNConf dnConf;
   private volatile boolean heartbeatsDisabledForTests = false;
+  private volatile boolean cacheReportsDisabledForTests = false;
   private DataStorage storage = null;
 
   private HttpServer2 infoServer = null;
@@ -1008,13 +1009,25 @@ public class DataNode extends ReconfigurableBase
 
   
   // used only for testing
+  @VisibleForTesting
   void setHeartbeatsDisabledForTests(
       boolean heartbeatsDisabledForTests) {
     this.heartbeatsDisabledForTests = heartbeatsDisabledForTests;
   }
-  
+
+  @VisibleForTesting
   boolean areHeartbeatsDisabledForTests() {
     return this.heartbeatsDisabledForTests;
+  }
+
+  @VisibleForTesting
+  void setCacheReportsDisabledForTest(boolean disabled) {
+    this.cacheReportsDisabledForTests = disabled;
+  }
+
+  @VisibleForTesting
+  boolean areCacheReportsDisabledForTests() {
+    return this.cacheReportsDisabledForTests;
   }
 
   /**
