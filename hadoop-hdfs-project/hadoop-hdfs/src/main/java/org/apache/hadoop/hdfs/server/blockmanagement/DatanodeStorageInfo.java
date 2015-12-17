@@ -119,7 +119,7 @@ public class DatanodeStorageInfo {
     this.state = s.getState();
   }
 
-  int getBlockReportCount() {
+  public int getBlockReportCount() {
     return blockReportCount;
   }
 
@@ -177,6 +177,7 @@ public class DatanodeStorageInfo {
     return getState() == State.FAILED && !blocks.isEmpty();
   }
 
+  @VisibleForTesting
   public String getStorageID() {
     return storageID;
   }
