@@ -715,7 +715,7 @@ public class FSEditLog implements LogsPurgeable {
   public void logOpenFile(String path, INodeFile newNode, boolean overwrite,
       boolean toLogRpcIds) {
     Preconditions.checkArgument(newNode.isUnderConstruction());
-    PermissionStatus permissions = newNode.getPermissionStatus();
+    PermissionStatus permissions = newNode.getFsimagePermissionStatus();
     AddOp op = AddOp.getInstance(cache.get())
       .reset()
       .setInodeId(newNode.getId())
@@ -731,7 +731,7 @@ public class FSEditLog implements LogsPurgeable {
           newNode.getFileUnderConstructionFeature().getClientMachine())
       .setOverwrite(overwrite);
 
-    AclFeature f = newNode.getAclFeature();
+    AclFeature f = newNode.getFsimageAclFeature();
     if (f != null) {
       op.setAclEntries(AclStorage.readINodeLogicalAcl(newNode));
     }
@@ -756,7 +756,7 @@ public class FSEditLog implements LogsPurgeable {
       .setAccessTime(newNode.getAccessTime())
       .setBlockSize(newNode.getPreferredBlockSize())
       .setBlocks(newNode.getBlocks())
-      .setPermissionStatus(newNode.getPermissionStatus());
+      .setPermissionStatus(newNode.getFsimagePermissionStatus());
     
     logEdit(op);
   }
@@ -785,7 +785,7 @@ public class FSEditLog implements LogsPurgeable {
    * Add create directory record to edit log
    */
   public void logMkDir(String path, INode newNode) {
-    PermissionStatus permissions = newNode.getPermissionStatus();
+    PermissionStatus permissions = newNode.getFsimagePermissionStatus();
     MkdirOp op = MkdirOp.getInstance(cache.get())
       .reset()
       .setInodeId(newNode.getId())
@@ -793,7 +793,7 @@ public class FSEditLog implements LogsPurgeable {
       .setTimestamp(newNode.getModificationTime())
       .setPermissionStatus(permissions);
 
-    AclFeature f = newNode.getAclFeature();
+    AclFeature f = newNode.getFsimageAclFeature();
     if (f != null) {
       op.setAclEntries(AclStorage.readINodeLogicalAcl(newNode));
     }
@@ -945,7 +945,7 @@ public class FSEditLog implements LogsPurgeable {
       .setValue(value)
       .setModificationTime(mtime)
       .setAccessTime(atime)
-      .setPermissionStatus(node.getPermissionStatus());
+      .setPermissionStatus(node.getFsimagePermissionStatus());
     logRpcIds(op, toLogRpcIds);
     logEdit(op);
   }
