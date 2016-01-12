@@ -170,4 +170,10 @@ public interface ClientDatanodeProtocol {
    */
   void triggerBlockReport(BlockReportOptions options)
     throws IOException;
+
+  /**
+   * Submit a disk balancer plan for execution.
+   */
+  void submitDiskBalancerPlan(String planID, long planVersion, long bandwidth,
+                              String plan) throws IOException;
 }

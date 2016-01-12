@@ -163,6 +163,23 @@ message TriggerBlockReportRequestProto {
 message TriggerBlockReportResponseProto {
 }
 
+/**
+ * This message allows a client to submit a disk
+ * balancer plan to a data node.
+ */
+message SubmitDiskBalancerPlanRequestProto {
+    required string planID = 1; // A hash of the plan like SHA512
+    required string plan = 2; // Json String that describes the plan
+    optional uint64 planVersion = 3; // Plan version number
+    optional uint64 maxDiskBandwidth = 4; // optional bandwidth control.
+}
+
+/**
+ * Response from the DataNode on Plan Submit request
+ */
+message SubmitDiskBalancerPlanResponseProto {
+}
+
 /** Query the running status of reconfiguration process */
 message GetReconfigurationStatusRequestProto {
 }
@@ -244,4 +261,10 @@ service ClientDatanodeProtocolService {
 
   rpc triggerBlockReport(TriggerBlockReportRequestProto)
       returns(TriggerBlockReportResponseProto);
+
+  /**
+  * Submit a disk balancer plan for execution
+  */
+  rpc submitDiskBalancerPlan(SubmitDiskBalancerPlanRequestProto)
+  returns (SubmitDiskBalancerPlanResponseProto);
 }
