@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -66,6 +67,7 @@ public class AppSchedulingInfo {
   final Map<Priority, Map<String, ResourceRequest>> requests =
     new HashMap<Priority, Map<String, ResourceRequest>>();
   private Set<String> blacklist = new HashSet<String>();
+  private AtomicBoolean userBlacklistChanged = new AtomicBoolean(false);
 
   //private final ApplicationStore store;
   private ActiveUsersManager activeUsersManager;
@@ -198,17 +200,33 @@ public class AppSchedulingInfo {
    * @param blacklistAdditions resources to be added to the blacklist
    * @param blacklistRemovals resources to be removed from the blacklist
    */
-  synchronized public void updateBlacklist(
+  public void updateBlacklist(
       List<String> blacklistAdditions, List<String> blacklistRemovals) {
-    // Add to blacklist
-    if (blacklistAdditions != null) {
-      blacklist.addAll(blacklistAdditions);
+    if (updateUserOrAMBlacklist(blacklist, blacklistAdditions,
+        blacklistRemovals)) {
+      userBlacklistChanged.set(true);
     }
+  }
 
-    // Remove from blacklist
-    if (blacklistRemovals != null) {
-      blacklist.removeAll(blacklistRemovals);
+  boolean updateUserOrAMBlacklist(Set<String> blacklist,
+      List<String> blacklistAdditions, List<String> blacklistRemovals) {
+    boolean changed = false;
+    synchronized (blacklist) {
+      if (blacklistAdditions != null) {
+        changed = blacklist.addAll(blacklistAdditions);
+      }
+
+      if (blacklistRemovals != null) {
+        if (blacklist.removeAll(blacklistRemovals)) {
+          changed = true;
+        }
+      }
     }
+    return changed;
+  }
+
+  public boolean getAndResetBlacklistChanged() {
+    return userBlacklistChanged.getAndSet(false);
   }
 
   synchronized public Collection<Priority> getPriorities() {
@@ -291,9 +309,6 @@ public class AppSchedulingInfo {
   /**
    * The {@link ResourceScheduler} is allocating data-local resources to the
    * application.
-   * 
-   * @param allocatedContainers
-   *          resources allocated to the application
    */
   synchronized private void allocateNodeLocal(SchedulerNode node,
       Priority priority, ResourceRequest nodeLocalRequest, Container container,
@@ -324,9 +339,6 @@ public class AppSchedulingInfo {
   /**
    * The {@link ResourceScheduler} is allocating data-local resources to the
    * application.
-   * 
-   * @param allocatedContainers
-   *          resources allocated to the application
    */
   synchronized private void allocateRackLocal(SchedulerNode node,
       Priority priority, ResourceRequest rackLocalRequest, Container container,
@@ -349,9 +361,6 @@ public class AppSchedulingInfo {
   /**
    * The {@link ResourceScheduler} is allocating data-local resources to the
    * application.
-   * 
-   * @param allocatedContainers
-   *          resources allocated to the application
    */
   synchronized private void allocateOffSwitch(SchedulerNode node,
       Priority priority, ResourceRequest offSwitchRequest, Container container,
