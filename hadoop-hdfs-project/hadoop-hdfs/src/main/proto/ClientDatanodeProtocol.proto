@@ -180,6 +180,20 @@ message SubmitDiskBalancerPlanRequestProto {
 message SubmitDiskBalancerPlanResponseProto {
 }
 
+/**
+ * This message describes a request to cancel an
+ * outstanding disk balancer plan
+ */
+message CancelPlanRequestProto {
+    required string planID = 1;
+}
+
+/**
+ * This is the response for the cancellation request
+ */
+message CancelPlanResponseProto {
+}
+
 /** Query the running status of reconfiguration process */
 message GetReconfigurationStatusRequestProto {
 }
@@ -267,4 +281,10 @@ service ClientDatanodeProtocolService {
   */
   rpc submitDiskBalancerPlan(SubmitDiskBalancerPlanRequestProto)
   returns (SubmitDiskBalancerPlanResponseProto);
+
+  /**
+   * Cancel an executing plan
+   */
+  rpc cancelDiskBalancerPlan(CancelPlanRequestProto)
+      returns (CancelPlanResponseProto);
 }
