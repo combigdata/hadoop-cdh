@@ -58,6 +58,8 @@ import org.apache.hadoop.hdfs.protocol.proto.ClientDatanodeProtocolProtos.Submit
 import org.apache.hadoop.hdfs.protocol.proto.ClientDatanodeProtocolProtos.SubmitDiskBalancerPlanResponseProto;
 import org.apache.hadoop.hdfs.protocol.proto.ClientDatanodeProtocolProtos.CancelPlanRequestProto;
 import org.apache.hadoop.hdfs.protocol.proto.ClientDatanodeProtocolProtos.CancelPlanResponseProto;
+import org.apache.hadoop.hdfs.protocol.proto.ClientDatanodeProtocolProtos.QueryPlanStatusRequestProto;
+import org.apache.hadoop.hdfs.protocol.proto.ClientDatanodeProtocolProtos.QueryPlanStatusResponseProto;
 import org.apache.hadoop.hdfs.security.token.block.BlockTokenIdentifier;
 import org.apache.hadoop.security.proto.SecurityProtos.TokenProto;
 import org.apache.hadoop.security.token.Token;
@@ -66,6 +68,7 @@ import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcController;
 import com.google.protobuf.ServiceException;
+import org.apache.hadoop.hdfs.server.datanode.WorkStatus;
 
 /**
  * Implementation for protobuf service that forwards requests
@@ -323,4 +326,24 @@ public class ClientDatanodeProtocolServerSideTranslatorPB implements
     }
   }
 
+  /**
+   * Gets the status of an executing Plan.
+   */
+  @Override
+  public QueryPlanStatusResponseProto queryDiskBalancerPlan(
+      RpcController controller,  QueryPlanStatusRequestProto request)
+      throws ServiceException {
+    try {
+      WorkStatus result = impl.queryDiskBalancerPlan();
+      return QueryPlanStatusResponseProto
+          .newBuilder()
+          .setResult(result.getResult())
+          .setPlanID(result.getPlanID())
+          .setStatus(result.getStatus())
+          .setCurrentStatus(result.getCurrentState())
+          .build();
+    } catch (Exception e) {
+      throw new ServiceException(e);
+    }
+  }
 }

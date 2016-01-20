@@ -29,6 +29,7 @@ import org.apache.hadoop.hdfs.client.BlockReportOptions;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.security.token.block.BlockTokenIdentifier;
 import org.apache.hadoop.hdfs.security.token.block.BlockTokenSelector;
+import org.apache.hadoop.hdfs.server.datanode.WorkStatus;
 import org.apache.hadoop.security.KerberosInfo;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenInfo;
@@ -182,4 +183,9 @@ public interface ClientDatanodeProtocol {
    * @param planID - A SHA512 hash of the plan string.
    */
   void cancelDiskBalancePlan(String planID) throws IOException;
+
+  /**
+   * Gets the status of an executing diskbalancer Plan.
+   */
+  WorkStatus queryDiskBalancerPlan() throws IOException;
 }
