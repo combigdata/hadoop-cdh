@@ -1978,10 +1978,10 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
       // am container.
       ContainerId amId =
           masterContainer == null ? null : masterContainer.getId();
-      attemptReport = ApplicationAttemptReport.newInstance(this
-          .getAppAttemptId(), this.getHost(), this.getRpcPort(), this
-          .getTrackingUrl(), this.getOriginalTrackingUrl(), this.getDiagnostics(),
-          YarnApplicationAttemptState .valueOf(this.getState().toString()), amId);
+      attemptReport = ApplicationAttemptReport.newInstance(
+          this.getAppAttemptId(), this.getHost(), this.getRpcPort(),
+          this.getTrackingUrl(), this.getOriginalTrackingUrl(),
+          this.getDiagnostics(), createApplicationAttemptState(), amId);
     } finally {
       this.readLock.unlock();
     }
