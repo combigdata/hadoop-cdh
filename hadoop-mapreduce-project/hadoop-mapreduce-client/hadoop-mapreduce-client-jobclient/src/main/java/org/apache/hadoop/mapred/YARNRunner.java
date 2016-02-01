@@ -710,4 +710,15 @@ public class YARNRunner implements ClientProtocol {
                envConf + " config settings.");
     }
   }
+
+  public void close() throws IOException {
+    if (resMgrDelegate != null) {
+      resMgrDelegate.close();
+      resMgrDelegate = null;
+    }
+    if (clientCache != null) {
+      clientCache.close();
+      clientCache = null;
+    }
+  }
 }
