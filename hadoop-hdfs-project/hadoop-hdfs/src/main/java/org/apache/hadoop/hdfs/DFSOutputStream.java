@@ -1843,6 +1843,7 @@ public class DFSOutputStream extends FSOutputSummer
     final Socket sock = client.socketFactory.createSocket();
     final int timeout = client.getDatanodeReadTimeout(length);
     NetUtils.connect(sock, isa, client.getRandomLocalInterfaceAddr(), client.getConf().socketTimeout);
+    sock.setTcpNoDelay(client.getConf().getDataTransferTcpNoDelay());
     sock.setSoTimeout(timeout);
     if (client.getConf().socketSendBufferSize > 0) {
       sock.setSendBufferSize(client.getConf().socketSendBufferSize);
