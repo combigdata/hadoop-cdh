@@ -168,6 +168,11 @@ public class DFSConfigKeys extends CommonConfigurationKeys {
   public static final String  DFS_DATANODE_DUPLICATE_REPLICA_DELETION = "dfs.datanode.duplicate.replica.deletion";
   public static final boolean DFS_DATANODE_DUPLICATE_REPLICA_DELETION_DEFAULT = true;
 
+  public static final String DFS_DATA_TRANSFER_CLIENT_TCPNODELAY_KEY =
+      "dfs.data.transfer.client.tcpnodelay";
+  public static final boolean DFS_DATA_TRANSFER_CLIENT_TCPNODELAY_DEFAULT =
+      true;
+
   public static final String  DFS_NAMENODE_PATH_BASED_CACHE_BLOCK_MAP_ALLOCATION_PERCENT =
     "dfs.namenode.path.based.cache.block.map.allocation.percent";
   public static final float    DFS_NAMENODE_PATH_BASED_CACHE_BLOCK_MAP_ALLOCATION_PERCENT_DEFAULT = 0.25f;
