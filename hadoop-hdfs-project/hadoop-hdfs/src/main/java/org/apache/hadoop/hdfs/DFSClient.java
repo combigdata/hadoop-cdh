@@ -59,6 +59,8 @@ import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_CLIENT_WRITE_EXCLUDE_NODE
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_CLIENT_WRITE_PACKET_SIZE_DEFAULT;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_CLIENT_WRITE_PACKET_SIZE_KEY;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_DATANODE_SOCKET_WRITE_TIMEOUT_KEY;
+import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_DATA_TRANSFER_CLIENT_TCPNODELAY_DEFAULT;
+import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_DATA_TRANSFER_CLIENT_TCPNODELAY_KEY;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_REPLICATION_DEFAULT;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_REPLICATION_KEY;
 
@@ -331,6 +333,8 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
     public BlockReaderFactory.FailureInjector brfFailureInjector =
       new BlockReaderFactory.FailureInjector();
 
+    private final boolean dataTransferTcpNoDelay;
+
     public Conf(Configuration conf) {
       // The hdfsTimeout is currently the same as the ipc timeout 
       hdfsTimeout = Client.getTimeout(conf);
@@ -356,6 +360,9 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
           CommonConfigurationKeysPublic.IO_FILE_BUFFER_SIZE_KEY,
           CommonConfigurationKeysPublic.IO_FILE_BUFFER_SIZE_DEFAULT);
       defaultChecksumOpt = getChecksumOptFromConf(conf);
+      dataTransferTcpNoDelay = conf.getBoolean(
+          DFS_DATA_TRANSFER_CLIENT_TCPNODELAY_KEY,
+          DFS_DATA_TRANSFER_CLIENT_TCPNODELAY_DEFAULT);
       socketTimeout = conf.getInt(DFS_CLIENT_SOCKET_TIMEOUT_KEY,
           HdfsServerConstants.READ_TIMEOUT);
       /** dfs.write.packet.size is an internal config variable */
@@ -556,6 +563,13 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
             + ", effective=null");
       }
       return dataChecksum;
+    }
+
+    /**
+     * @return whether TCP_NODELAY should be set on client sockets
+     */
+    public boolean getDataTransferTcpNoDelay() {
+      return dataTransferTcpNoDelay;
     }
   }
  
@@ -2252,6 +2266,7 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
         LOG.debug("Connecting to datanode " + dnAddr);
       }
       NetUtils.connect(sock, NetUtils.createSocketAddr(dnAddr), timeout);
+      sock.setTcpNoDelay(getConf().getDataTransferTcpNoDelay());
       sock.setSoTimeout(timeout);
   
       OutputStream unbufOut = NetUtils.getOutputStream(sock);
