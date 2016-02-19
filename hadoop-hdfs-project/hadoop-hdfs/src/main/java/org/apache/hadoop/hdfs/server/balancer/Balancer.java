@@ -184,6 +184,8 @@ public class Balancer {
       + "\tExcludes the specified datanodes."
       + "\n\t[-include [-f <hosts-file> | <comma-separated list of hosts>]]"
       + "\tIncludes only the specified datanodes."
+      + "\n\t[-source [-f <hosts-file> | <comma-separated list of hosts>]]"
+      + "\tPick only the specified datanodes as source nodes."
       + "\n\t[-idleiterations <idleiterations>]"
       + "\tNumber of consecutive idle iterations (-1 for Infinite) before "
       + "exit."
