@@ -70,7 +70,7 @@ import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcController;
 import com.google.protobuf.ServiceException;
-import org.apache.hadoop.hdfs.server.datanode.WorkStatus;
+import org.apache.hadoop.hdfs.server.datanode.DiskBalancerWorkStatus;
 
 /**
  * Implementation for protobuf service that forwards requests
@@ -336,7 +336,7 @@ public class ClientDatanodeProtocolServerSideTranslatorPB implements
       RpcController controller, QueryPlanStatusRequestProto request)
       throws ServiceException {
     try {
-      WorkStatus result = impl.queryDiskBalancerPlan();
+      DiskBalancerWorkStatus result = impl.queryDiskBalancerPlan();
       return QueryPlanStatusResponseProto
           .newBuilder()
           .setResult(result.getResult())

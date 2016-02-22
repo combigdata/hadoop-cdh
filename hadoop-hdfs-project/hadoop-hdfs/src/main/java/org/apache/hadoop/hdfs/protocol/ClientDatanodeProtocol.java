@@ -29,7 +29,7 @@ import org.apache.hadoop.hdfs.client.BlockReportOptions;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.security.token.block.BlockTokenIdentifier;
 import org.apache.hadoop.hdfs.security.token.block.BlockTokenSelector;
-import org.apache.hadoop.hdfs.server.datanode.WorkStatus;
+import org.apache.hadoop.hdfs.server.datanode.DiskBalancerWorkStatus;
 import org.apache.hadoop.security.KerberosInfo;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenInfo;
@@ -187,7 +187,7 @@ public interface ClientDatanodeProtocol {
   /**
    * Gets the status of an executing diskbalancer Plan.
    */
-  WorkStatus queryDiskBalancerPlan() throws IOException;
+  DiskBalancerWorkStatus queryDiskBalancerPlan() throws IOException;
 
   /**
    * Gets a run-time configuration value from running diskbalancer instance.
