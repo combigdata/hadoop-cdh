@@ -26,6 +26,7 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.event.Dispatcher;
 import org.apache.hadoop.yarn.event.EventHandler;
 import org.apache.hadoop.yarn.security.ContainerTokenIdentifier;
+import org.apache.hadoop.yarn.server.nodemanager.NodeManager;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.monitor.ContainerStartMonitoringEvent;
 import org.apache.hadoop.yarn.server.nodemanager.metrics.NodeManagerMetrics;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
@@ -40,6 +41,10 @@ public class TestContainerMemoryCapabilitiesAbsoluteMinimum {
   @SuppressWarnings("unchecked")
   private void testMinimumMemory(int memoryMbSet, long memoryBytesExpected)
       throws Exception {
+    NodeManager nm = new NodeManager();
+    YarnConfiguration conf = new YarnConfiguration();
+    nm.init(conf);
+
     ContainerImpl.LaunchTransition lt = new ContainerImpl.LaunchTransition();
 
     ArgumentCaptor<ContainerStartMonitoringEvent> captor =
@@ -62,8 +67,8 @@ public class TestContainerMemoryCapabilitiesAbsoluteMinimum {
             .getCanonicalHostName(), 1234, "u", resource,
             System.currentTimeMillis() + 10000, 123, "password".getBytes(),
             System.currentTimeMillis()));
-    ContainerImpl container = new ContainerImpl(new YarnConfiguration(),
-        mockDispatcher, null, null, null, mockMetrics, containerToken);
+    ContainerImpl container = new ContainerImpl(conf,
+        mockDispatcher, null, null, mockMetrics, containerToken, nm.getNMContext());
     lt.transition(container, null);
     Mockito.verify(mockEventHandler, Mockito.times(1)).handle(captor.capture());
     Assert.assertEquals(memoryBytesExpected, captor.getValue().getPmemLimit());
