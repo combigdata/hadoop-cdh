@@ -69,6 +69,7 @@ import org.apache.hadoop.hdfs.protocol.proto.ClientDatanodeProtocolProtos.StartR
 import org.apache.hadoop.hdfs.protocol.proto.ClientDatanodeProtocolProtos.TriggerBlockReportRequestProto;
 import org.apache.hadoop.hdfs.security.token.block.BlockTokenIdentifier;
 import org.apache.hadoop.hdfs.server.datanode.DiskBalancerWorkStatus;
+import org.apache.hadoop.hdfs.server.datanode.DiskBalancerWorkStatus.Result;
 import org.apache.hadoop.ipc.ProtobufHelper;
 import org.apache.hadoop.ipc.ProtobufRpcEngine;
 import org.apache.hadoop.ipc.ProtocolMetaInterface;
@@ -430,10 +431,14 @@ public class ClientDatanodeProtocolTranslatorPB implements
           QueryPlanStatusRequestProto.newBuilder().build();
       QueryPlanStatusResponseProto response =
           rpcProxy.queryDiskBalancerPlan(NULL_CONTROLLER, request);
-      return new DiskBalancerWorkStatus(response.hasResult() ?
-          response.getResult() : 0,
+      DiskBalancerWorkStatus.Result result = Result.NO_PLAN;
+      if(response.hasResult()) {
+        result = DiskBalancerWorkStatus.Result.values()[
+            response.getResult()];
+      }
+
+      return new DiskBalancerWorkStatus(result,
           response.hasPlanID() ? response.getPlanID() : null,
-          response.hasStatus() ? response.getStatus() : null,
           response.hasCurrentStatus() ? response.getCurrentStatus() : null);
     } catch (ServiceException e) {
       throw ProtobufHelper.getRemoteException(e);
