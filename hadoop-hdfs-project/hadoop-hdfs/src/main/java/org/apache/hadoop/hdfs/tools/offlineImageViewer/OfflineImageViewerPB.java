@@ -67,6 +67,8 @@ public class OfflineImageViewerPB {
       + "  * XML: This processor creates an XML document with all elements of\n"
       + "    the fsimage enumerated, suitable for further analysis by XML\n"
       + "    tools.\n"
+      + "  * reverseXML: This processor takes an XML file and creates a\n"
+      + "    binary fsimage containing the same elements.\n"
       + "  * FileDistribution: This processor analyzes the file size\n"
       + "    distribution in the image.\n"
       + "    -maxSize specifies the range [0, maxSize] of file sizes to be\n"
@@ -80,15 +82,18 @@ public class OfflineImageViewerPB {
       + "    changed via the -delimiter argument.\n"
       + "\n"
       + "Required command line arguments:\n"
-      + "-i,--inputFile <arg>   FSImage file to process.\n"
+      + "-i,--inputFile <arg>   FSImage or XML file to process.\n"
       + "\n"
       + "Optional command line arguments:\n"
       + "-o,--outputFile <arg>  Name of output file. If the specified\n"
       + "                       file exists, it will be overwritten.\n"
       + "                       (output to stdout by default)\n"
+      + "                       If the input file was an XML file, we\n"
+      + "                       will also create an <outputFile>.md5 file.\n"
       + "-p,--processor <arg>   Select which type of processor to apply\n"
-      + "                       against image file. (XML|FileDistribution|Web|Delimited)\n"
-      + "                       (Web by default)\n"
+      + "                       against image file. (XML|FileDistribution|\n"
+      + "                       ReverseXML|Web|Delimited)\n"
+      + "                       The default is Web.\n"
       + "-delimiter <arg>       Delimiting string to use with Delimited processor.  \n"
       + "-t,--temp <arg>        Use temporary dir to cache intermediate result to generate\n"
       + "                       Delimited outputs. If not set, Delimited processor constructs\n"
@@ -183,6 +188,15 @@ public class OfflineImageViewerPB {
       } else if (processor.equals("XML")) {
         new PBImageXmlWriter(conf, out).visit(new RandomAccessFile(inputFile,
             "r"));
+      } else if (processor.equals("ReverseXML")) {
+        try {
+          OfflineImageReconstructor.run(inputFile, outputFile);
+        } catch (Exception e) {
+          System.err.println("OfflineImageReconstructor failed: " +
+              e.getMessage());
+          e.printStackTrace(System.err);
+          System.exit(1);
+        }
       } else if (processor.equals("Web")) {
         String addr = cmd.getOptionValue("addr", "localhost:5978");
         WebImageViewer viewer = new WebImageViewer(NetUtils.createSocketAddr
