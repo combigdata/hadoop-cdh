@@ -327,7 +327,6 @@ public class TestInterDatanodeProtocol {
     try {
       cluster = new MiniDFSCluster.Builder(conf).numDataNodes(3).build();
       cluster.waitActive();
-      String bpid = cluster.getNamesystem().getBlockPoolId();
 
       //create a file
       DistributedFileSystem dfs = cluster.getFileSystem();
@@ -377,9 +376,11 @@ public class TestInterDatanodeProtocol {
       }
 
       //update
-      final String storageID = fsdataset.updateReplicaUnderRecovery(
-          new ExtendedBlock(b.getBlockPoolId(), rri), recoveryid, newlength);
-      assertTrue(storageID != null);
+      final Replica r = fsdataset.updateReplicaUnderRecovery(
+          new ExtendedBlock(b.getBlockPoolId(), rri), recoveryid,
+          newlength);
+      assertTrue(r != null);
+      assertTrue(r.getStorageUuid() != null);
 
     } finally {
       if (cluster != null) cluster.shutdown();
