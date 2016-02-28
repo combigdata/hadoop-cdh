@@ -41,6 +41,8 @@ import org.apache.hadoop.fs.FileContext;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azure.AzureBlobStorageTestAccount.CreateOptions;
+import org.apache.hadoop.security.ProviderUtils;
+import org.apache.hadoop.security.alias.CredentialProviderFactory;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
@@ -417,5 +419,40 @@ public class TestWasbUriAndConfiguration {
     } finally {
       FileSystem.closeAll();
     }
+  }
+
+  @Test
+  public void testCredentialProviderPathExclusions() throws Exception {
+    String providerPath =
+        "user:///,jceks://wasb/user/hrt_qa/sqoopdbpasswd.jceks," +
+        "jceks://hdfs@nn1.example.com/my/path/test.jceks";
+    Configuration config = new Configuration();
+    config.set(CredentialProviderFactory.CREDENTIAL_PROVIDER_PATH,
+        providerPath);
+    String newPath = "user:///,jceks://hdfs@nn1.example.com/my/path/test.jceks";
+
+    excludeAndTestExpectations(config, newPath);
+  }
+
+  @Test
+  public void testExcludeAllProviderTypesFromConfig() throws Exception {
+    String providerPath =
+        "jceks://wasb/tmp/test.jceks," +
+        "jceks://wasb@/my/path/test.jceks";
+    Configuration config = new Configuration();
+    config.set(CredentialProviderFactory.CREDENTIAL_PROVIDER_PATH,
+        providerPath);
+    String newPath = null;
+
+    excludeAndTestExpectations(config, newPath);
+  }
+
+  void excludeAndTestExpectations(Configuration config, String newPath)
+    throws Exception {
+    Configuration conf = ProviderUtils.excludeIncompatibleCredentialProviders(
+        config, NativeAzureFileSystem.class);
+    String effectivePath = conf.get(
+        CredentialProviderFactory.CREDENTIAL_PROVIDER_PATH, null);
+    assertEquals(newPath, effectivePath);
   }
 }
