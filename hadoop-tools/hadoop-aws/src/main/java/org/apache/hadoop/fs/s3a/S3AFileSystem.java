@@ -69,6 +69,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.security.ProviderUtils;
 import org.apache.hadoop.util.Progressable;
 
 import static org.apache.hadoop.fs.s3a.Constants.*;
@@ -364,9 +365,11 @@ public class S3AFileSystem extends FileSystem {
         accessKey = userInfo;
       }
     }
+    Configuration c = ProviderUtils.excludeIncompatibleCredentialProviders(
+          conf, S3AFileSystem.class);
     if (accessKey == null) {
       try {
-        char[] key = conf.getPassword(ACCESS_KEY);
+        char[] key = c.getPassword(ACCESS_KEY);
         if (key == null) {
           key = conf.getPassword(DEPRECATED_ACCESS_KEY);
         }
@@ -379,7 +382,7 @@ public class S3AFileSystem extends FileSystem {
     }
     if (secretKey == null) {
       try {
-        char[] pass = conf.getPassword(SECRET_KEY);
+        char[] pass = c.getPassword(SECRET_KEY);
         if (pass == null) {
           pass = conf.getPassword(DEPRECATED_SECRET_KEY);
         }
@@ -1119,8 +1122,8 @@ public class S3AFileSystem extends FileSystem {
           || objects.getObjectSummaries().size() > 0) {
         if (LOG.isDebugEnabled()) {
           LOG.debug("Found path as directory (with /): " +
-            objects.getCommonPrefixes().size() + "/" +
-            objects.getObjectSummaries().size());
+              objects.getCommonPrefixes().size() + "/" +
+              objects.getObjectSummaries().size());
 
           for (S3ObjectSummary summary : objects.getObjectSummaries()) {
             LOG.debug("Summary: " + summary.getKey() + " " + summary.getSize());
