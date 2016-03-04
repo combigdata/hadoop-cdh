@@ -71,6 +71,7 @@ import org.apache.hadoop.hdfs.server.datanode.SimulatedFSDataset;
 import org.apache.hadoop.http.HttpConfig;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.minikdc.MiniKdc;
+import org.apache.hadoop.security.authentication.util.KerberosName;
 import org.apache.hadoop.security.SecurityUtil;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.ssl.KeyStoreTestUtil;
@@ -154,6 +155,7 @@ public class TestBalancer {
     SecurityUtil.setAuthenticationMethod(
         UserGroupInformation.AuthenticationMethod.KERBEROS, conf);
     UserGroupInformation.setConfiguration(conf);
+    KerberosName.resetDefaultRealm();
     assertTrue("Expected configuration to enable security",
         UserGroupInformation.isSecurityEnabled());
 
@@ -1590,10 +1592,10 @@ public class TestBalancer {
   @Test(timeout = 300000)
   public void testBalancerWithKeytabs() throws Exception {
     final Configuration conf = new HdfsConfiguration();
-    initSecureConf(conf);
-    final UserGroupInformation ugi = UserGroupInformation.loginUserFromKeytabAndReturnUGI(
-        principal, keytabFile.getAbsolutePath());
     try {
+      initSecureConf(conf);
+      final UserGroupInformation ugi = UserGroupInformation.loginUserFromKeytabAndReturnUGI(
+          principal, keytabFile.getAbsolutePath());
       ugi.doAs(new PrivilegedExceptionAction<Void>() {
         @Override
         public Void run() throws Exception {
