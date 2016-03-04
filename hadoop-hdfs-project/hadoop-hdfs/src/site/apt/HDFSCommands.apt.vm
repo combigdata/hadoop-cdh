@@ -169,6 +169,8 @@ HDFS Commands Guide
    Note that the <<<blockpool>>> policy is more strict than the <<<datanode>>>
    policy.
 
+   Besides the above command options, a pinning feature is introduced starting from 2.7.0 to prevent certain replicas from getting moved by balancer/mover. This pinning feature is disabled by default, and can be enabled by configuration property "dfs.datanode.block-pinning.enabled". When enabled, this feature only affects blocks that are written to favored nodes specified in the create() call. This feature is useful when we want to maintain the data locality, for applications such as HBase regionserver.
+
 ** <<<datanode>>>
 
    Runs a HDFS datanode.
@@ -384,7 +386,9 @@ HDFS Commands Guide
 | -f \<local file\>  | Specify a local file containing a list of HDFS files/dirs to migrate.
 *--------------------+--------------------------------------------------------+
 
-  Note that, when both -p and -f options are omitted, the default path is the root directory.
+   Note that, when both -p and -f options are omitted, the default path is the root directory.
+
+   In addition, a pinning feature is introduced starting from 2.7.0 to prevent certain replicas from getting moved by balancer/mover. This pinning feature is disabled by default, and can be enabled by configuration property "dfs.datanode.block-pinning.enabled". When enabled, this feature only affects blocks that are written to favored nodes specified in the create() call. This feature is useful when we want to maintain the data locality, for applications such as HBase regionserver.
 
 ** <<<namenode>>>
 
