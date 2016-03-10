@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.io.RandomAccessFile;
 import java.io.StringReader;
 import java.io.StringWriter;
@@ -68,6 +69,7 @@ import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants.SafeModeAction;
 import org.apache.hadoop.hdfs.server.namenode.FSImageTestUtil;
+import org.apache.hadoop.hdfs.server.namenode.NameNodeLayoutVersion;
 import org.apache.hadoop.hdfs.web.WebHdfsFileSystem;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.net.NetUtils;
@@ -533,9 +535,8 @@ public class TestOfflineImageViewer {
       hdfs.setSafeMode(SafeModeAction.SAFEMODE_ENTER, false);
       hdfs.saveNamespace();
       // Determine location of fsimage file
-      fsimageFile =
-          FSImageTestUtil.findLatestImageFile(FSImageTestUtil
-              .getFSImage(cluster.getNameNode()).getStorage().getStorageDir(0));
+      fsimageFile = FSImageTestUtil.findLatestImageFile(
+          FSImageTestUtil.getFSImage(cluster.getNameNode()).getStorage().getStorageDir(0));
       if (fsimageFile == null) {
         throw new RuntimeException("Didn't generate or can't find fsimage");
       }
@@ -548,10 +549,41 @@ public class TestOfflineImageViewer {
     // Run the test with params -maxSize 23 and -step 4, it will not throw
     // ArrayIndexOutOfBoundsException with index 6 when deals with
     // 21 byte size file.
-    int status =
-        OfflineImageViewerPB.run(new String[] {"-i",
-            fsimageFile.getAbsolutePath(), "-o", "-", "-p",
-            "FileDistribution", "-maxSize", "23", "-step", "4"});
+    int status = OfflineImageViewerPB.run(
+        new String[] { "-i", fsimageFile.getAbsolutePath(), "-o", "-", "-p",
+            "FileDistribution", "-maxSize", "23", "-step", "4" });
     assertEquals(0, status);
+  }
+
+  /**
+   * Tests that the ReverseXML processor doesn't accept XML files with the wrong
+   * layoutVersion.
+   */
+  @Test
+  public void testReverseXmlWrongLayoutVersion() throws Throwable {
+    File imageWrongVersion = new File(tempDir, "imageWrongVersion.xml");
+    PrintWriter writer = new PrintWriter(imageWrongVersion, "UTF-8");
+    try {
+      writer.println("<?xml version=\"1.0\"?>");
+      writer.println("<fsimage>");
+      writer.println("<version>");
+      writer.println(String.format("<layoutVersion>%d</layoutVersion>",
+          NameNodeLayoutVersion.CURRENT_LAYOUT_VERSION + 1));
+      writer.println("<onDiskVersion>1</onDiskVersion>");
+      writer.println("<oivRevision>" +
+          "545bbef596c06af1c3c8dca1ce29096a64608478</oivRevision>");
+      writer.println("</version>");
+      writer.println("</fsimage>");
+    } finally {
+      writer.close();
+    }
+    try {
+      OfflineImageReconstructor.run(imageWrongVersion.getAbsolutePath(),
+          imageWrongVersion.getAbsolutePath() + ".out"); 
+      Assert.fail("Expected OfflineImageReconstructor to fail with " +
+          "version mismatch.");
+    } catch (Throwable t) {
+      GenericTestUtils.assertExceptionContains("Layout version mismatch.", t);
+    }
   }
 }
