@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.yarn.server.resourcemanager.scheduler.fifo;
 
+import org.apache.commons.math3.analysis.function.Add;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -286,10 +287,10 @@ public class TestFifoScheduler {
         mock(SystemMetricsPublisher.class));
 
     FifoScheduler scheduler = new FifoScheduler(){
-      @SuppressWarnings("unused")
-      public Map<NodeId, FiCaSchedulerNode> getNodes(){
-        return nodes;
-      }
+//      @SuppressWarnings("unused")
+//      public Map<NodeId, FiCaSchedulerNode> getNodes(){
+//        return nodes;
+//      }
     };
     scheduler.setRMContext(rmContext);
     scheduler.init(conf);
@@ -300,11 +301,7 @@ public class TestFifoScheduler {
     NodeAddedSchedulerEvent nodeEvent1 = new NodeAddedSchedulerEvent(node0);
     scheduler.handle(nodeEvent1);
     
-    Method method = scheduler.getClass().getDeclaredMethod("getNodes");
-    @SuppressWarnings("unchecked")
-    Map<NodeId, FiCaSchedulerNode> schedulerNodes = 
-        (Map<NodeId, FiCaSchedulerNode>) method.invoke(scheduler);
-    assertEquals(schedulerNodes.values().size(), 1);
+    assertEquals(scheduler.getNumClusterNodes(), 1);
     
     Resource newResource = Resources.createResource(1024, 4);
     
@@ -314,9 +311,9 @@ public class TestFifoScheduler {
     scheduler.handle(node0ResourceUpdate);
     
     // SchedulerNode's total resource and available resource are changed.
-    assertEquals(schedulerNodes.get(node0.getNodeID()).getTotalResource()
-        .getMemory(), 1024);
-    assertEquals(schedulerNodes.get(node0.getNodeID()).
+    assertEquals(1024, scheduler.getNodeTracker().getNode(node0.getNodeID())
+        .getTotalResource().getMemory());
+    assertEquals(1024, scheduler.getNodeTracker().getNode(node0.getNodeID()).
         getAvailableResource().getMemory(), 1024);
     QueueInfo queueInfo = scheduler.getQueueInfo(null, false, false);
     Assert.assertEquals(0.0f, queueInfo.getCurrentCapacity(), 0.0f);
