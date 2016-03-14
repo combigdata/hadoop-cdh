@@ -158,9 +158,9 @@ public class Block implements Writable, Comparable<Block> {
    */
   @Override
   public String toString() {
-    StringBuilder sb = new StringBuilder();
-    this.appendStringTo(sb);
-    return sb.toString();
+    sb.append(BLOCK_FILE_PREFIX).
+       append(b.blockId).append("_").
+       append(b.generationStamp);
   }
 
   public void appendStringTo(StringBuilder sb) {
