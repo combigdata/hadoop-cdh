@@ -193,6 +193,8 @@ public class TestResourceLocalizationService {
       FileUtils.deleteDirectory(new File(basedir.toString()));
     } catch (IOException e) {
       // ignore
+    } catch (IllegalArgumentException e) {
+      // ignore
     }
   }
   
