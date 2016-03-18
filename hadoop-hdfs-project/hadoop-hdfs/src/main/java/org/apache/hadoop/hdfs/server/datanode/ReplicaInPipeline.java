@@ -166,6 +166,14 @@ public class ReplicaInPipeline extends ReplicaInfo
     return new ChunkChecksum(getBytesOnDisk(), lastChecksum);
   }
 
+  public void interruptThread() {
+    Thread thread = writer.get();
+    if (thread != null && thread != Thread.currentThread()
+        && thread.isAlive()) {
+      thread.interrupt();
+    }
+  }
+
   @Override  // Object
   public boolean equals(Object o) {
     return super.equals(o);
