@@ -23,6 +23,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 
@@ -383,5 +384,19 @@ public class EncryptionZoneManager {
     }
     final boolean hasMore = (numResponses < tailMap.size());
     return new BatchedListEntries<EncryptionZone>(zones, hasMore);
+  }
+
+  /**
+   * @return a list of all key names.
+   */
+  String[] getKeyNames() {
+    assert dir.hasReadLock();
+    String[] ret = new String[encryptionZones.size()];
+    int index = 0;
+    for (Map.Entry<Long, EncryptionZoneInt> entry : encryptionZones
+        .entrySet()) {
+      ret[index] = entry.getValue().getKeyName();
+    }
+    return ret;
   }
 }
