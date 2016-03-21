@@ -125,6 +125,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -308,6 +310,7 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 /***************************************************
  * FSNamesystem does the actual bookkeeping work for the
@@ -456,6 +459,12 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
   // A daemon to periodically clean up corrupt lazyPersist files
   // from the name space.
   Daemon lazyPersistFileScrubber = null;
+
+  // Executor to warm up EDEK cache
+  private ExecutorService edekCacheLoader = null;
+  private final int edekCacheLoaderDelay;
+  private final int edekCacheLoaderInterval;
+
   /**
    * When an active namenode will roll its own edit log, in # edits
    */
@@ -914,6 +923,13 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
             DFS_NAMENODE_LAZY_PERSIST_FILE_SCRUB_INTERVAL_SEC + " must be non-zero.");
       }
 
+      this.edekCacheLoaderDelay = conf.getInt(
+          DFSConfigKeys.DFS_NAMENODE_EDEKCACHELOADER_INITIAL_DELAY_MS_KEY,
+          DFSConfigKeys.DFS_NAMENODE_EDEKCACHELOADER_INITIAL_DELAY_MS_DEFAULT);
+      this.edekCacheLoaderInterval = conf.getInt(
+          DFSConfigKeys.DFS_NAMENODE_EDEKCACHELOADER_INTERVAL_MS_KEY,
+          DFSConfigKeys.DFS_NAMENODE_EDEKCACHELOADER_INTERVAL_MS_DEFAULT);
+
       // For testing purposes, allow the DT secret manager to be started regardless
       // of whether security is enabled.
       alwaysUseDelegationTokensForTests = conf.getBoolean(
@@ -1259,6 +1275,14 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
 
       cacheManager.startMonitorThread();
       blockManager.getDatanodeManager().setShouldSendCachingCommands(true);
+      if (provider != null) {
+        edekCacheLoader = Executors.newSingleThreadExecutor(
+            new ThreadFactoryBuilder().setDaemon(true)
+                .setNameFormat("Warm Up EDEK Cache Thread #%d")
+                .build());
+        warmUpEdekCache(edekCacheLoader,
+            edekCacheLoaderDelay, edekCacheLoaderInterval);
+      }
     } finally {
       startingActiveService = false;
       checkSafeMode();
@@ -1305,6 +1329,9 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       if (nnrmthread != null) {
         ((NameNodeResourceMonitor) nnrmthread.getRunnable()).stopMonitor();
         nnrmthread.interrupt();
+      }
+      if (edekCacheLoader != null) {
+        edekCacheLoader.shutdownNow();
       }
       if (nnEditLogRoller != null) {
         ((NameNodeEditLogRoller)nnEditLogRoller.getRunnable()).stop();
@@ -9567,6 +9594,88 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
         asyncAppender.addAppender(appender);
       }
       logger.addAppender(asyncAppender);        
+    }
+  }
+
+  /**
+   * Proactively warm up the edek cache. We'll get all the edek key names,
+   * then launch up a separate thread to warm them up.
+   */
+  private void warmUpEdekCache(final ExecutorService executor,
+      final int delay, final int interval) {
+    dir.readLock();
+    try {
+      String[] edeks = dir.ezManager.getKeyNames();
+      executor.execute(
+          new EDEKCacheLoader(edeks, getProvider(), delay, interval));
+    } finally {
+      dir.readUnlock();
+    }
+  }
+
+  /**
+   * EDEKCacheLoader is being run in a separate thread to loop through all the
+   * EDEKs and warm them up in the KMS cache.
+   */
+  class EDEKCacheLoader implements Runnable {
+    private final String[] keyNames;
+    private final KeyProviderCryptoExtension kp;
+    private int initialDelay;
+    private int retryInterval;
+
+    EDEKCacheLoader(final String[] names, final KeyProviderCryptoExtension kp,
+        final int delay, final int interval) {
+      this.keyNames = names;
+      this.kp = kp;
+      this.initialDelay = delay;
+      this.retryInterval = interval;
+    }
+
+    @Override
+    public void run() {
+      NameNode.LOG.info("Warming up {} EDEKs... (initialDelay={}, "
+          + "retryInterval={})", keyNames.length, initialDelay, retryInterval);
+      try {
+        Thread.sleep(initialDelay);
+      } catch (InterruptedException ie) {
+        NameNode.LOG.info("EDEKCacheLoader interrupted before warming up.");
+        return;
+      }
+
+      final int logCoolDown = 10000; // periodically print error log (if any)
+      int sinceLastLog = logCoolDown; // always print the first failure
+      boolean success = false;
+      IOException lastSeenIOE = null;
+      while (true) {
+        try {
+          kp.warmUpEncryptedKeys(keyNames);
+          NameNode.LOG
+              .info("Successfully warmed up {} EDEKs.", keyNames.length);
+          success = true;
+          break;
+        } catch (IOException ioe) {
+          lastSeenIOE = ioe;
+          if (sinceLastLog >= logCoolDown) {
+            NameNode.LOG.info("Failed to warm up EDEKs.", ioe);
+            sinceLastLog = 0;
+          } else {
+            NameNode.LOG.debug("Failed to warm up EDEKs.", ioe);
+          }
+        }
+        try {
+          Thread.sleep(retryInterval);
+        } catch (InterruptedException ie) {
+          NameNode.LOG.info("EDEKCacheLoader interrupted during retry.");
+          break;
+        }
+        sinceLastLog += retryInterval;
+      }
+      if (!success) {
+        NameNode.LOG.warn("Unable to warm up EDEKs.");
+        if (lastSeenIOE != null) {
+          NameNode.LOG.warn("Last seen exception:", lastSeenIOE);
+        }
+      }
     }
   }
 }
