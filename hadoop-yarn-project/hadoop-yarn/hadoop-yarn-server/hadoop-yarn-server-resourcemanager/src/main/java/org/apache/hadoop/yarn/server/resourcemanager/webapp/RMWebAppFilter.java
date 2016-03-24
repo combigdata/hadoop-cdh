@@ -23,6 +23,8 @@ import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.Charset;
+import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
@@ -37,6 +39,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.http.HtmlQuoting;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.webapp.YarnWebParams;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.utils.URLEncodedUtils;
 
 import com.google.common.collect.Sets;
 import com.google.inject.Injector;
@@ -82,22 +86,40 @@ public class RMWebAppFilter extends GuiceContainer {
       HttpServletResponse response, FilterChain chain) throws IOException,
       ServletException {
     response.setCharacterEncoding("UTF-8");
-    String uri = HtmlQuoting.quoteHtmlChars(request.getRequestURI());
+    String htmlEscapedUri = HtmlQuoting.quoteHtmlChars(request.getRequestURI());
 
-    if (uri == null) {
-      uri = "/";
+    if (htmlEscapedUri == null) {
+      htmlEscapedUri = "/";
     }
+
+    String uriWithQueryString = htmlEscapedUri;
+    String htmlEscapedUriWithQueryString = htmlEscapedUri;
+
+    String queryString = request.getQueryString();
+    if (queryString != null && !queryString.isEmpty()) {
+      String reqEncoding = request.getCharacterEncoding();
+      if (reqEncoding == null || reqEncoding.isEmpty()) {
+        reqEncoding = "ISO-8859-1";
+      }
+      Charset encoding = Charset.forName(reqEncoding);
+      List<NameValuePair> params = URLEncodedUtils.parse(queryString, encoding);
+      String urlEncodedQueryString = URLEncodedUtils.format(params, encoding);
+      uriWithQueryString += "?" + urlEncodedQueryString;
+      htmlEscapedUriWithQueryString = HtmlQuoting.quoteHtmlChars(
+          request.getRequestURI() + "?" + urlEncodedQueryString);
+    }
+
     RMWebApp rmWebApp = injector.getInstance(RMWebApp.class);
     rmWebApp.checkIfStandbyRM();
     if (rmWebApp.isStandby()
-        && shouldRedirect(rmWebApp, uri)) {
+        && shouldRedirect(rmWebApp, htmlEscapedUri)) {
 
       String redirectPath = rmWebApp.getRedirectPath();
 
       if (redirectPath != null && !redirectPath.isEmpty()) {
-        redirectPath += uri;
-        String redirectMsg =
-            "This is standby RM. The redirect url is: " + redirectPath;
+        redirectPath += uriWithQueryString;
+        String redirectMsg = "This is standby RM. The redirect url is: "
+            + htmlEscapedUriWithQueryString;
         PrintWriter out = response.getWriter();
         out.println(redirectMsg);
         response.setHeader("Location", redirectPath);
@@ -118,7 +140,7 @@ public class RMWebAppFilter extends GuiceContainer {
         int next = calculateExponentialTime(retryInterval);
 
         String redirectUrl =
-            appendOrReplaceParamter(path + uri,
+            appendOrReplaceParamter(path + uriWithQueryString,
               YarnWebParams.NEXT_REFRESH_INTERVAL + "=" + (retryInterval + 1));
         if (redirectUrl == null || next > MAX_SLEEP_TIME) {
           doRetry = false;
