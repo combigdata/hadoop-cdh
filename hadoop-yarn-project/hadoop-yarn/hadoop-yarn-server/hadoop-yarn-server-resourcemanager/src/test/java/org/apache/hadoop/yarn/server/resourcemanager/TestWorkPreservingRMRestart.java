@@ -84,15 +84,10 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-
 import com.google.common.base.Supplier;
 
-
 @SuppressWarnings({"rawtypes", "unchecked"})
-@RunWith(value = Parameterized.class)
-public class TestWorkPreservingRMRestart {
+public class TestWorkPreservingRMRestart extends ParameterizedSchedulerTestBase {
 
   private YarnConfiguration conf;
   private Class<?> schedulerClass;
@@ -100,15 +95,15 @@ public class TestWorkPreservingRMRestart {
   MockRM rm2 = null;
 
   @Before
-  public void setup() throws UnknownHostException {
+  public void setup() throws UnknownHostException, ClassNotFoundException {
     Logger rootLogger = LogManager.getRootLogger();
     rootLogger.setLevel(Level.DEBUG);
     conf = new YarnConfiguration();
     UserGroupInformation.setConfiguration(conf);
     conf.set(YarnConfiguration.RECOVERY_ENABLED, "true");
     conf.set(YarnConfiguration.RM_STORE, MemoryRMStateStore.class.getName());
-    conf.setClass(YarnConfiguration.RM_SCHEDULER, schedulerClass,
-      ResourceScheduler.class);
+    schedulerClass = conf.getClass(YarnConfiguration.RM_SCHEDULER,
+        Class.forName(YarnConfiguration.DEFAULT_RM_SCHEDULER));
     conf.setBoolean(YarnConfiguration.RM_WORK_PRESERVING_RECOVERY_ENABLED, true);
     conf.setLong(YarnConfiguration.RM_WORK_PRESERVING_RECOVERY_SCHEDULING_WAIT_MS, 0);
     DefaultMetricsSystem.setMiniClusterMode(true);
@@ -124,14 +119,7 @@ public class TestWorkPreservingRMRestart {
     }
   }
 
-  @Parameterized.Parameters
-  public static Collection<Object[]> getTestParameters() {
-    return Arrays.asList(new Object[][] { { CapacityScheduler.class },
-        { FifoScheduler.class }, {FairScheduler.class } });
-  }
-
-  public TestWorkPreservingRMRestart(Class<?> schedulerClass) {
-    this.schedulerClass = schedulerClass;
+  public TestWorkPreservingRMRestart() {
   }
 
   // Test common scheduler state including SchedulerAttempt, SchedulerNode,

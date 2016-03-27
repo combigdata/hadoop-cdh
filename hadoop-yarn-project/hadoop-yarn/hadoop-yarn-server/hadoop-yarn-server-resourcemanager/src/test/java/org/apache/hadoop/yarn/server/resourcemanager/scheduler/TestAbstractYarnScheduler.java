@@ -86,10 +86,6 @@ import static org.mockito.Mockito.when;
 @SuppressWarnings("unchecked")
 public class TestAbstractYarnScheduler extends ParameterizedSchedulerTestBase {
 
-  public TestAbstractYarnScheduler(SchedulerType type) {
-    super(type);
-  }
-
   @Test
   public void testMaximimumAllocationMemory() throws Exception {
     final int node1MaxMemory = 15 * 1024;
@@ -271,7 +267,6 @@ public class TestAbstractYarnScheduler extends ParameterizedSchedulerTestBase {
     Resource configuredMaximumResource = Resource.newInstance
         (configuredMaxMemory, configuredMaxVCores);
 
-    configureScheduler();
     YarnConfiguration conf = getConf();
     conf.setInt(YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES,
         configuredMaxVCores);
@@ -326,7 +321,6 @@ public class TestAbstractYarnScheduler extends ParameterizedSchedulerTestBase {
     Resource configuredMaximumResource = Resource.newInstance
         (configuredMaxMemory, configuredMaxVCores);
 
-    configureScheduler();
     YarnConfiguration conf = getConf();
     conf.setInt(YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES,
         configuredMaxVCores);
