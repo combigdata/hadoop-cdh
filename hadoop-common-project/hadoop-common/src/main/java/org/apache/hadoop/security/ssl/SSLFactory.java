@@ -22,6 +22,8 @@ import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.authentication.client.ConnectionConfigurator;
 import org.apache.hadoop.util.ReflectionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import static org.apache.hadoop.util.PlatformName.IBM_JAVA;
 
 import javax.net.ssl.HostnameVerifier;
@@ -33,6 +35,11 @@ import javax.net.ssl.SSLSocketFactory;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.security.GeneralSecurityException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * Factory that creates SSLEngine and SSLSocketFactory instances using
@@ -47,6 +54,7 @@ import java.security.GeneralSecurityException;
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
 public class SSLFactory implements ConnectionConfigurator {
+  static final Logger LOG = LoggerFactory.getLogger(SSLFactory.class);
 
   @InterfaceAudience.Private
   public static enum Mode { CLIENT, SERVER }
@@ -70,6 +78,8 @@ public class SSLFactory implements ConnectionConfigurator {
       "hadoop.ssl.enabled.protocols";
   public static final String DEFAULT_SSL_ENABLED_PROTOCOLS =
       "TLSv1,SSLv2Hello,TLSv1.1,TLSv1.2";
+  public static final String SSL_SERVER_EXCLUDE_CIPHER_LIST =
+      "ssl.server.exclude.cipher.list";
 
   private Configuration conf;
   private Mode mode;
@@ -79,6 +89,7 @@ public class SSLFactory implements ConnectionConfigurator {
   private KeyStoresFactory keystoresFactory;
 
   private String[] enabledProtocols = null;
+  private List<String> excludeCiphers;
 
   /**
    * Creates an SSLFactory.
@@ -104,6 +115,14 @@ public class SSLFactory implements ConnectionConfigurator {
 
     enabledProtocols = conf.getStrings(SSL_ENABLED_PROTOCOLS,
         DEFAULT_SSL_ENABLED_PROTOCOLS);
+    String excludeCiphersConf =
+        sslConf.get(SSL_SERVER_EXCLUDE_CIPHER_LIST, "");
+    if (excludeCiphersConf.isEmpty()) {
+      excludeCiphers = new LinkedList<String>();
+    } else {
+      LOG.debug("will exclude cipher suites: {}", excludeCiphersConf);
+      excludeCiphers = Arrays.asList(excludeCiphersConf.split(","));
+    }
   }
 
   private Configuration readSSLConfiguration(Mode mode) {
@@ -194,9 +213,30 @@ public class SSLFactory implements ConnectionConfigurator {
     } else {
       sslEngine.setUseClientMode(false);
       sslEngine.setNeedClientAuth(requireClientCert);
+      disableExcludedCiphers(sslEngine);
     }
     sslEngine.setEnabledProtocols(enabledProtocols);
     return sslEngine;
+  }
+
+  private void disableExcludedCiphers(SSLEngine sslEngine) {
+    String[] cipherSuites = sslEngine.getEnabledCipherSuites();
+
+    ArrayList<String> defaultEnabledCipherSuites =
+        new ArrayList<String>(Arrays.asList(cipherSuites));
+    Iterator iterator = excludeCiphers.iterator();
+
+    while(iterator.hasNext()) {
+      String cipherName = (String)iterator.next();
+      if(defaultEnabledCipherSuites.contains(cipherName)) {
+        defaultEnabledCipherSuites.remove(cipherName);
+        LOG.debug("Disabling cipher suite {}.", cipherName);
+      }
+    }
+
+    cipherSuites = defaultEnabledCipherSuites.toArray(
+        new String[defaultEnabledCipherSuites.size()]);
+    sslEngine.setEnabledCipherSuites(cipherSuites);
   }
 
   /**
