@@ -58,8 +58,8 @@ import org.apache.hadoop.hdfs.server.datanode.DataNodeTestUtils;
 import org.apache.hadoop.hdfs.tools.DFSAdmin;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 /**
@@ -79,8 +79,8 @@ public class TestDecommissioningStatus {
 
   final ArrayList<String> decommissionedNodes = new ArrayList<String>(numDatanodes);
   
-  @BeforeClass
-  public static void setUp() throws Exception {
+  @Before
+  public void setUp() throws Exception {
     conf = new HdfsConfiguration();
     conf.setBoolean(DFSConfigKeys.DFS_NAMENODE_REPLICATION_CONSIDERLOAD_KEY,
         false);
@@ -114,8 +114,8 @@ public class TestDecommissioningStatus {
     Logger.getLogger(DecommissionManager.class).setLevel(Level.DEBUG);
   }
 
-  @AfterClass
-  public static void tearDown() throws Exception {
+  @After
+  public void tearDown() throws Exception {
     if (localFileSys != null ) cleanupFile(localFileSys, dir);
     if(fileSys != null) fileSys.close();
     if(cluster != null) cluster.shutdown();
