@@ -21,10 +21,12 @@ import java.io.IOException;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.server.datanode.DataNode;
+import org.apache.hadoop.hdfs.server.datanode.DataNodeFaultInjector;
 import org.apache.hadoop.hdfs.server.namenode.LeaseExpiredException;
 import org.apache.hadoop.hdfs.server.protocol.NamenodeProtocols;
 import org.apache.hadoop.hdfs.tools.DFSAdmin;
@@ -256,6 +258,60 @@ public class TestClientProtocolForPipelineRecovery {
       if (cluster != null) {
         cluster.shutdown();
       }
+    }
+  }
+
+  /**
+   * Test to make sure the checksum is set correctly after pipeline
+   * recovery transfers 0 byte partial block. If fails the test case
+   * will say "java.io.IOException: Failed to replace a bad datanode
+   * on the existing pipeline due to no more good datanodes being
+   * available to try."  This indicates there was a real failure
+   * after the staged failure.
+   */
+  @Test
+  public void testZeroByteBlockRecovery() throws Exception {
+    // Make the first datanode fail once. With 3 nodes and a block being
+    // created with 2 replicas, anything more than this planned failure
+    // will cause a test failure.
+    DataNodeFaultInjector dnFaultInjector = new DataNodeFaultInjector() {
+      int tries = 1;
+      @Override
+      public void stopSendingPacketDownstream() throws IOException {
+        if (tries > 0) {
+          tries--;
+          try {
+            Thread.sleep(60000);
+          } catch (InterruptedException ie) {
+            throw new IOException("Interrupted while sleeping. Bailing out.");
+          }
+        }
+      }
+    };
+    DataNodeFaultInjector oldDnInjector = DataNodeFaultInjector.get();
+    DataNodeFaultInjector.set(dnFaultInjector);
+
+    Configuration conf = new HdfsConfiguration();
+    conf.set(DFSConfigKeys.DFS_CLIENT_SOCKET_TIMEOUT_KEY, "1000");
+    conf.set(
+        DFSConfigKeys.DFS_CLIENT_WRITE_REPLACE_DATANODE_ON_FAILURE_POLICY_KEY,
+        "ALWAYS");
+    MiniDFSCluster cluster = null;
+    try {
+      cluster = new MiniDFSCluster.Builder(conf).numDataNodes(3).build();
+      cluster.waitActive();
+
+      FileSystem fs = cluster.getFileSystem();
+      FSDataOutputStream out = fs.create(new Path("noheartbeat.dat"), (short)2);
+      out.write(0x31);
+      out.hflush();
+      out.close();
+
+    } finally {
+      if (cluster != null) {
+        cluster.shutdown();
+      }
+      DataNodeFaultInjector.set(oldDnInjector);
     }
   }
 }
