@@ -91,6 +91,7 @@ import org.mockito.internal.util.reflection.Whitebox;
 
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.DescriptorProtos.EnumDescriptorProto;
+import com.google.protobuf.ServiceException;
 
 /** Unit tests for RPC. */
 @SuppressWarnings("deprecation")
@@ -1155,24 +1156,79 @@ public class TestRPC {
    */
   @Test(timeout=30000)
   public void testClientRpcTimeout() throws Exception {
-    final Server server = new RPC.Builder(conf)
+    TestProtocol proxy = null;
+    Server server = new RPC.Builder(conf)
         .setProtocol(TestProtocol.class).setInstance(new TestImpl())
         .setBindAddress(ADDRESS).setPort(0)
         .setQueueSizePerHandler(1).setNumHandlers(1).setVerbose(true)
         .build();
     server.start();
 
-    final Configuration conf = new Configuration();
-    conf.setInt(CommonConfigurationKeys.IPC_CLIENT_RPC_TIMEOUT_KEY, 1000);
-    final TestProtocol proxy =
-        RPC.getProxy(TestProtocol.class, TestProtocol.versionID,
-            NetUtils.getConnectAddress(server), conf);
-
     try {
-      proxy.sleep(3000);
-      fail("RPC should time out.");
-    } catch (SocketTimeoutException e) {
-      LOG.info("got expected timeout.", e);
+      // Test RPC timeout with default ipc.client.ping.
+      try {
+        Configuration c = new Configuration(conf);
+        c.setInt(CommonConfigurationKeys.IPC_CLIENT_RPC_TIMEOUT_KEY, 1000);
+        proxy =
+            RPC.getProxy(TestProtocol.class, TestProtocol.versionID,
+                NetUtils.getConnectAddress(server), c);
+        proxy.sleep(3000);
+        fail("RPC should time out.");
+      } catch (SocketTimeoutException e) {
+        LOG.info("got expected timeout.", e);
+      }
+
+      // Test RPC timeout when ipc.client.ping is false.
+      try {
+        Configuration c = new Configuration(conf);
+        c.setBoolean(CommonConfigurationKeys.IPC_CLIENT_PING_KEY, false);
+        c.setInt(CommonConfigurationKeys.IPC_CLIENT_RPC_TIMEOUT_KEY, 1000);
+        proxy =
+            RPC.getProxy(TestProtocol.class, TestProtocol.versionID,
+                NetUtils.getConnectAddress(server), c);
+        proxy.sleep(3000);
+        fail("RPC should time out.");
+      } catch (SocketTimeoutException e) {
+        LOG.info("got expected timeout.", e);
+      }
+
+      // Test negative timeout value.
+      try {
+        Configuration c = new Configuration(conf);
+        c.setInt(CommonConfigurationKeys.IPC_CLIENT_RPC_TIMEOUT_KEY, -1);
+        proxy =
+            RPC.getProxy(TestProtocol.class, TestProtocol.versionID,
+                NetUtils.getConnectAddress(server), c);
+        proxy.sleep(2000);
+      } catch (SocketTimeoutException e) {
+        LOG.info("got unexpected exception.", e);
+        fail("RPC should not time out.");
+      }
+
+      // Test RPC timeout greater than ipc.ping.interval.
+      try {
+        Configuration c = new Configuration(conf);
+        c.setBoolean(CommonConfigurationKeys.IPC_CLIENT_PING_KEY, true);
+        c.setInt(CommonConfigurationKeys.IPC_PING_INTERVAL_KEY, 800);
+        c.setInt(CommonConfigurationKeys.IPC_CLIENT_RPC_TIMEOUT_KEY, 1000);
+        proxy =
+            RPC.getProxy(TestProtocol.class, TestProtocol.versionID,
+                NetUtils.getConnectAddress(server), c);
+        try {
+          // should not time out because effective rpc-timeout is
+          // multiple of ping interval: 1600 (= 800 * (1000 / 800 + 1))
+          proxy.sleep(1300);
+        } catch (SocketTimeoutException e) {
+          LOG.info("got unexpected exception.", e);
+          fail("RPC should not time out.");
+        }
+
+        proxy.sleep(2000);
+        fail("RPC should time out.");
+      } catch (SocketTimeoutException e) {
+        LOG.info("got expected timeout.", e);
+      }
+
     } finally {
       server.stop();
       RPC.stopProxy(proxy);
