@@ -643,6 +643,12 @@ public class FsVolumeImpl implements FsVolumeSpi {
             } else {
               ExtendedBlock block =
                   new ExtendedBlock(bpid, Block.filename2id(state.curEntry));
+              File blkFile = getBlockFile(bpid, block);
+              File metaFile = FsDatasetUtil.findMetaFile(blkFile);
+              block.setGenerationStamp(
+                  Block.getGenerationStamp(metaFile.getName()));
+              block.setNumBytes(blkFile.length());
+
               LOG.trace("nextBlock({}, {}): advancing to {}",
                   storageID, bpid, block);
               return block;
@@ -662,6 +668,12 @@ public class FsVolumeImpl implements FsVolumeSpi {
         LOG.error("nextBlock({}, {}): I/O error", storageID, bpid, e);
         throw e;
       }
+    }
+
+    private File getBlockFile(String bpid, ExtendedBlock blk)
+        throws IOException {
+      return new File(DatanodeUtil.idToBlockDir(getFinalizedDir(bpid),
+          blk.getBlockId()).toString() + "/" + blk.getBlockName());
     }
 
     @Override
