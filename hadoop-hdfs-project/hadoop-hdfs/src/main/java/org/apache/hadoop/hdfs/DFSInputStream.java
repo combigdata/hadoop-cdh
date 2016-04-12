@@ -933,7 +933,12 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
    * Read the entire buffer.
    */
   @Override
-  public synchronized int read(final byte buf[], int off, int len) throws IOException {
+  public synchronized int read(final byte buf[], int off, int len)
+      throws IOException {
+    validatePositionedReadArgs(pos, buf, off, len);
+    if (len == 0) {
+      return 0;
+    }
     ReaderStrategy byteArrayReader = new ByteArrayStrategy(buf);
     TraceScope scope =
         dfsClient.newReaderTraceScope("DFSInputStream#byteArrayRead", src,
