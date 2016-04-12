@@ -32,9 +32,10 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.DU;
+import org.apache.hadoop.fs.CachingGetSpaceUsed;
 import org.apache.hadoop.fs.CommonConfigurationKeys;
 import org.apache.hadoop.fs.FileUtil;
+import org.apache.hadoop.fs.GetSpaceUsed;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants;
@@ -54,10 +55,10 @@ import org.apache.hadoop.util.ShutdownHookManager;
 import org.apache.hadoop.util.Time;
 
 /**
- * A block pool slice represents a portion of a block pool stored on a volume.  
- * Taken together, all BlockPoolSlices sharing a block pool ID across a 
+ * A block pool slice represents a portion of a block pool stored on a volume.
+ * Taken together, all BlockPoolSlices sharing a block pool ID across a
  * cluster represent a single block pool.
- * 
+ *
  * This class is synchronized by {@link FsVolumeImpl}.
  */
 class BlockPoolSlice {
@@ -79,10 +80,10 @@ class BlockPoolSlice {
   private final int maxDataLength;
 
   // TODO:FEDERATION scalability issue - a thread per DU is needed
-  private final DU dfsUsage;
+  private final GetSpaceUsed dfsUsage;
 
   /**
-   * Create a blook pool slice 
+   * Create a blook pool slice
    * @param bpid Block pool Id
    * @param volume {@link FsVolumeImpl} to which this BlockPool belongs to
    * @param bpDir directory corresponding to the BlockPool
@@ -93,7 +94,7 @@ class BlockPoolSlice {
       Configuration conf) throws IOException {
     this.bpid = bpid;
     this.volume = volume;
-    this.currentDir = new File(bpDir, DataStorage.STORAGE_DIR_CURRENT); 
+    this.currentDir = new File(bpDir, DataStorage.STORAGE_DIR_CURRENT);
     this.finalizedDir = new File(
         currentDir, DataStorage.STORAGE_DIR_FINALIZED);
     this.lazypersistDir = new File(currentDir, DataStorage.STORAGE_DIR_LAZY_PERSIST);
@@ -139,8 +140,10 @@ class BlockPoolSlice {
     }
     // Use cached value initially if available. Or the following call will
     // block until the initial du command completes.
-    this.dfsUsage = new DU(bpDir, conf, loadDfsUsed());
-    this.dfsUsage.start();
+    this.dfsUsage = new CachingGetSpaceUsed.Builder().setPath(bpDir)
+                                                     .setConf(conf)
+                                                     .setInitialUsed(loadDfsUsed())
+                                                     .build();
 
     // Make the dfs usage to be saved during shutdown.
     ShutdownHookManager.get().addShutdownHook(
@@ -161,7 +164,7 @@ class BlockPoolSlice {
   File getFinalizedDir() {
     return finalizedDir;
   }
-  
+
   File getLazypersistDir() {
     return lazypersistDir;
   }
@@ -176,15 +179,19 @@ class BlockPoolSlice {
 
   /** Run DU on local drives.  It must be synchronized from caller. */
   void decDfsUsed(long value) {
-    dfsUsage.decDfsUsed(value);
+    if (dfsUsage instanceof CachingGetSpaceUsed) {
+      ((CachingGetSpaceUsed)dfsUsage).incDfsUsed(-value);
+    }
   }
-  
+
   long getDfsUsed() throws IOException {
     return dfsUsage.getUsed();
   }
 
   void incDfsUsed(long value) {
-    dfsUsage.incDfsUsed(value);
+    if (dfsUsage instanceof CachingGetSpaceUsed) {
+      ((CachingGetSpaceUsed)dfsUsage).incDfsUsed(value);
+    }
   }
   
    /**
@@ -287,7 +294,10 @@ class BlockPoolSlice {
     }
     File blockFile = FsDatasetImpl.moveBlockFiles(b, f, blockDir);
     File metaFile = FsDatasetUtil.getMetaFile(blockFile, b.getGenerationStamp());
-    dfsUsage.incDfsUsed(b.getNumBytes()+metaFile.length());
+    if (dfsUsage instanceof CachingGetSpaceUsed) {
+      ((CachingGetSpaceUsed) dfsUsage).incDfsUsed(
+          b.getNumBytes() + metaFile.length());
+    }
     return blockFile;
   }
 
@@ -314,7 +324,7 @@ class BlockPoolSlice {
   }
 
 
-    
+
   void getVolumeMap(ReplicaMap volumeMap,
                     final RamDiskReplicaTracker lazyWriteReplicaMap)
       throws IOException {
@@ -445,7 +455,7 @@ class BlockPoolSlice {
       }
       if (!Block.isBlockFilename(file))
         continue;
-      
+
       long genStamp = FsDatasetUtil.getGenerationStampFromFile(
           files, file);
       long blockId = Block.filename2id(file.getName());
@@ -600,11 +610,11 @@ class BlockPoolSlice {
 
   /**
    * Find out the number of bytes in the block that match its crc.
-   * 
-   * This algorithm assumes that data corruption caused by unexpected 
+   *
+   * This algorithm assumes that data corruption caused by unexpected
    * datanode shutdown occurs only in the last crc chunk. So it checks
    * only the last chunk.
-   * 
+   *
    * @param blockFile the block file
    * @param genStamp generation stamp of the block
    * @return the number of valid bytes
@@ -631,7 +641,7 @@ class BlockPoolSlice {
       int bytesPerChecksum = checksum.getBytesPerChecksum();
       int checksumSize = checksum.getChecksumSize();
       long numChunks = Math.min(
-          (blockFileLen + bytesPerChecksum - 1)/bytesPerChecksum, 
+          (blockFileLen + bytesPerChecksum - 1)/bytesPerChecksum,
           (metaFileLen - crcHeaderLen)/checksumSize);
       if (numChunks == 0) {
         return 0;
@@ -674,7 +684,7 @@ class BlockPoolSlice {
       IOUtils.closeStream(blockIn);
     }
   }
-    
+
   @Override
   public String toString() {
     return currentDir.getAbsolutePath();
@@ -683,6 +693,9 @@ class BlockPoolSlice {
   void shutdown() {
     saveDfsUsed();
     dfsUsedSaved = true;
-    dfsUsage.shutdown();
+
+    if (dfsUsage instanceof CachingGetSpaceUsed) {
+      IOUtils.cleanup(LOG, ((CachingGetSpaceUsed) dfsUsage));
+    }
   }
 }
