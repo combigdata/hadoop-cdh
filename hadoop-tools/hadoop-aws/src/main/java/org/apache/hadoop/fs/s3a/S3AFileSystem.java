@@ -312,6 +312,14 @@ public class S3AFileSystem extends FileSystem {
     enablePathStyleAccessIfRequired(conf);
   }
 
+  private void enablePathStyleAccessIfRequired(Configuration conf) {
+    final boolean pathStyleAccess = conf.getBoolean(PATH_STYLE_ACCESS, false);
+    if (pathStyleAccess) {
+      LOG.debug("Enabling path style access!");
+      s3.setS3ClientOptions(new S3ClientOptions().withPathStyleAccess(true));
+    }
+  }
+
   private void initTransferManager() {
     TransferManagerConfiguration transferConfiguration = new TransferManagerConfiguration();
     transferConfiguration.setMinimumUploadPartSize(partSize);
@@ -396,13 +404,6 @@ public class S3AFileSystem extends FileSystem {
     return new AWSAccessKeys(accessKey, secretKey);
   }
 
-  private void enablePathStyleAccessIfRequired(Configuration conf) {
-    final boolean pathStyleAccess = conf.getBoolean(PATH_STYLE_ACCESS, false);
-    if (pathStyleAccess) {
-      LOG.debug("Enabling path style access!");
-      s3.setS3ClientOptions(new S3ClientOptions().withPathStyleAccess(true));
-    }
-  }
   /**
    * Create the standard credential provider, or load in one explicitly
    * identified in the configuration.
