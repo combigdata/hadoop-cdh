@@ -190,7 +190,7 @@ public class SimpleCopyListing extends CopyListing {
       authority = fs.getUri().getAuthority();
     }
 
-    return new Path(scheme, authority, path.toUri().getPath());
+    return new Path(scheme, authority, makeQualified(path).toUri().getPath());
   }
 
   /**
