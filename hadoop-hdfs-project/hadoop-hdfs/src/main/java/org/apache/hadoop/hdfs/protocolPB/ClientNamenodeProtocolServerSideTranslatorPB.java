@@ -18,11 +18,13 @@
 package org.apache.hadoop.hdfs.protocolPB;
 
 import java.io.IOException;
+import java.util.EnumSet;
 import java.util.List;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.fs.BatchedRemoteIterator.BatchedEntries;
+import org.apache.hadoop.hdfs.AddBlockFlag;
 import org.apache.hadoop.fs.ContentSummary;
 import org.apache.hadoop.fs.FsServerDefaults;
 import org.apache.hadoop.fs.Options.Rename;
@@ -482,6 +484,8 @@ public class ClientNamenodeProtocolServerSideTranslatorPB implements
     try {
       List<DatanodeInfoProto> excl = req.getExcludeNodesList();
       List<String> favor = req.getFavoredNodesList();
+      EnumSet<AddBlockFlag> flags =
+          PBHelper.convertAddBlockFlags(req.getFlagsList());
       LocatedBlock result = server.addBlock(
           req.getSrc(),
           req.getClientName(),
@@ -489,7 +493,8 @@ public class ClientNamenodeProtocolServerSideTranslatorPB implements
           (excl == null || excl.size() == 0) ? null : PBHelper.convert(excl
               .toArray(new DatanodeInfoProto[excl.size()])), req.getFileId(),
           (favor == null || favor.size() == 0) ? null : favor
-              .toArray(new String[favor.size()]));
+              .toArray(new String[favor.size()]),
+          flags);
       return AddBlockResponseProto.newBuilder()
           .setBlock(PBHelper.convert(result)).build();
     } catch (IOException e) {

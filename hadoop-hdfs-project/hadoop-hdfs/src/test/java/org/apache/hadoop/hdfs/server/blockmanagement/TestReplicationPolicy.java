@@ -19,6 +19,7 @@ package org.apache.hadoop.hdfs.server.blockmanagement;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -27,19 +28,23 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.apache.commons.logging.impl.Log4JLogger;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.hdfs.AddBlockFlag;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.DFSTestUtil;
 import org.apache.hadoop.hdfs.DFSUtil;
@@ -303,7 +308,7 @@ public class TestReplicationPolicy {
       List<DatanodeStorageInfo> chosenNodes,
       Set<Node> excludedNodes) {
     return replicator.chooseTarget(filename, numOfReplicas, writer, chosenNodes,
-        false, excludedNodes, BLOCK_SIZE, TestBlockStoragePolicy.DEFAULT_STORAGE_POLICY);
+        false, excludedNodes, BLOCK_SIZE, TestBlockStoragePolicy.DEFAULT_STORAGE_POLICY, null);
   }
 
   /**
@@ -370,7 +375,8 @@ public class TestReplicationPolicy {
     excludedNodes.add(dataNodes[1]); 
     chosenNodes.add(storages[2]);
     targets = replicator.chooseTarget(filename, 1, dataNodes[0], chosenNodes, true,
-        excludedNodes, BLOCK_SIZE, TestBlockStoragePolicy.DEFAULT_STORAGE_POLICY);
+        excludedNodes, BLOCK_SIZE, TestBlockStoragePolicy.DEFAULT_STORAGE_POLICY,
+        null);
     System.out.println("targets=" + Arrays.asList(targets));
     assertEquals(2, targets.length);
     //make sure that the chosen node is in the target.
@@ -745,7 +751,8 @@ public class TestReplicationPolicy {
           .getNamesystem().getBlockManager().getBlockPlacementPolicy();
       DatanodeStorageInfo[] targets = replicator.chooseTarget(filename, 3,
           staleNodeInfo, new ArrayList<DatanodeStorageInfo>(), false, null,
-          BLOCK_SIZE, TestBlockStoragePolicy.DEFAULT_STORAGE_POLICY);
+          BLOCK_SIZE, TestBlockStoragePolicy.DEFAULT_STORAGE_POLICY,
+          null);
 
       assertEquals(targets.length, 3);
       assertFalse(isOnSameRack(targets[0], staleNodeInfo));
@@ -771,7 +778,7 @@ public class TestReplicationPolicy {
       // Call chooseTarget
       targets = replicator.chooseTarget(filename, 3, staleNodeInfo,
           new ArrayList<DatanodeStorageInfo>(), false, null, BLOCK_SIZE,
-          TestBlockStoragePolicy.DEFAULT_STORAGE_POLICY);
+          TestBlockStoragePolicy.DEFAULT_STORAGE_POLICY, null);
       assertEquals(targets.length, 3);
       assertTrue(isOnSameRack(targets[0], staleNodeInfo));
       
@@ -1303,5 +1310,40 @@ public class TestReplicationPolicy {
         DFS_NAMENODE_REPLICATION_WORK_MULTIPLIER_PER_ITERATION,"-1");
     exception.expect(IllegalArgumentException.class);
     blocksReplWorkMultiplier = DFSUtil.getReplWorkMultiplier(conf);
+  }
+
+  private DatanodeStorageInfo[] chooseTarget(int numOfReplicas,
+    DatanodeDescriptor writer, Set<Node> excludedNodes,
+        List<DatanodeDescriptor> favoredNodes, EnumSet<AddBlockFlag> flags) {
+    return replicator.chooseTarget(filename, numOfReplicas, writer,
+        excludedNodes, BLOCK_SIZE, favoredNodes,
+        TestBlockStoragePolicy.DEFAULT_STORAGE_POLICY, flags);
+  }
+
+  @Test
+  public void testAvoidLocalWrite() throws IOException {
+    DatanodeDescriptor writer = dataNodes[2];
+    EnumSet<AddBlockFlag> flags = EnumSet.of(AddBlockFlag.NO_LOCAL_WRITE);
+    DatanodeStorageInfo[] targets;
+    targets = chooseTarget(5, writer, null, null, flags);
+    for (DatanodeStorageInfo info : targets) {
+      assertNotEquals(info.getDatanodeDescriptor(), writer);
+    }
+  }
+
+  @Test
+  public void testAvoidLocalWriteNoEnoughNodes() throws IOException {
+    DatanodeDescriptor writer = dataNodes[2];
+    EnumSet<AddBlockFlag> flags = EnumSet.of(AddBlockFlag.NO_LOCAL_WRITE);
+    DatanodeStorageInfo[] targets;
+    targets = chooseTarget(6, writer, null, null, flags);
+    assertEquals(6, targets.length);
+    boolean found = false;
+    for (DatanodeStorageInfo info : targets) {
+      if (info.getDatanodeDescriptor().equals(writer)) {
+        found = true;
+      }
+    }
+    assertTrue(found);
   }
 }

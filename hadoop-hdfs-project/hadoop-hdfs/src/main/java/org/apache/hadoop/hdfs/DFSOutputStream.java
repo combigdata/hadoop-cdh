@@ -179,6 +179,7 @@ public class DFSOutputStream extends FSOutputSummer
   private final Progressable progress;
   private final short blockReplication; // replication factor of file
   private boolean shouldSyncBlock = false; // force blocks to disk upon close
+  private final EnumSet<AddBlockFlag> addBlockFlags;
   private final AtomicReference<CachingStrategy> cachingStrategy;
   private boolean failPacket = false;
   private FileEncryptionInfo fileEncryptionInfo;
@@ -472,6 +473,7 @@ public class DFSOutputStream extends FSOutputSummer
           }
         });
     private String[] favoredNodes;
+    private final EnumSet<AddBlockFlag> addBlockFlags;
     volatile boolean hasError = false;
     volatile int errorIndex = -1;
     volatile int restartingNodeIndex = -1; // Restarting node index
@@ -492,10 +494,11 @@ public class DFSOutputStream extends FSOutputSummer
     /**
      * construction with tracing info
      */
-    private DataStreamer(HdfsFileStatus stat) {
+    private DataStreamer(HdfsFileStatus stat, EnumSet<AddBlockFlag> flags) {
       isAppend = false;
       isLazyPersistFile = isLazyPersist(stat);
       stage = BlockConstructionStage.PIPELINE_SETUP_CREATE;
+      addBlockFlags = flags;
     }
     
     /**
@@ -513,6 +516,7 @@ public class DFSOutputStream extends FSOutputSummer
       bytesSent = block.getNumBytes();
       accessToken = lastBlock.getBlockToken();
       isLazyPersistFile = isLazyPersist(stat);
+      addBlockFlags = null;
       long usedInLastBlock = stat.getLen() % blockSize;
       int freeInLastBlock = (int)(blockSize - usedInLastBlock);
 
@@ -1698,7 +1702,7 @@ public class DFSOutputStream extends FSOutputSummer
         while (true) {
           try {
             return dfsClient.namenode.addBlock(src, dfsClient.clientName,
-                block, excludedNodes, fileId, favoredNodes);
+                block, excludedNodes, fileId, favoredNodes, addBlockFlags);
           } catch (RemoteException e) {
             IOException ue = 
               e.unwrapRemoteException(FileNotFoundException.class,
@@ -1825,7 +1829,8 @@ public class DFSOutputStream extends FSOutputSummer
     return checksum;
   }
  
-  private DFSOutputStream(DFSClient dfsClient, String src, Progressable progress,
+  private DFSOutputStream(DFSClient dfsClient, String src,
+      EnumSet<CreateFlag> flag, Progressable progress,
       HdfsFileStatus stat, DataChecksum checksum) throws IOException {
     super(getChecksum4Compute(checksum, stat));
     this.dfsClient = dfsClient;
@@ -1837,6 +1842,10 @@ public class DFSOutputStream extends FSOutputSummer
     this.progress = progress;
     this.cachingStrategy = new AtomicReference<CachingStrategy>(
         dfsClient.getDefaultWriteCachingStrategy());
+    this.addBlockFlags = EnumSet.noneOf(AddBlockFlag.class);
+    if (null != flag && flag.contains(CreateFlag.NO_LOCAL_WRITE)) {
+      this.addBlockFlags.add(AddBlockFlag.NO_LOCAL_WRITE);
+    }
     if ((progress != null) && DFSClient.LOG.isDebugEnabled()) {
       DFSClient.LOG.debug(
           "Set non-null progress callback on DFSOutputStream " + src);
@@ -1863,12 +1872,12 @@ public class DFSOutputStream extends FSOutputSummer
   private DFSOutputStream(DFSClient dfsClient, String src, HdfsFileStatus stat,
       EnumSet<CreateFlag> flag, Progressable progress,
       DataChecksum checksum, String[] favoredNodes) throws IOException {
-    this(dfsClient, src, progress, stat, checksum);
+    this(dfsClient, src, flag, progress, stat, checksum);
     this.shouldSyncBlock = flag.contains(CreateFlag.SYNC_BLOCK);
 
     computePacketChunkSize(dfsClient.getConf().writePacketSize, bytesPerChecksum);
 
-    streamer = new DataStreamer(stat);
+    streamer = new DataStreamer(stat, this.addBlockFlags);
     if (favoredNodes != null && favoredNodes.length != 0) {
       streamer.setFavoredNodes(favoredNodes);
     }
@@ -1934,7 +1943,7 @@ public class DFSOutputStream extends FSOutputSummer
   private DFSOutputStream(DFSClient dfsClient, String src,
       Progressable progress, LocatedBlock lastBlock, HdfsFileStatus stat,
       DataChecksum checksum) throws IOException {
-    this(dfsClient, src, progress, stat, checksum);
+    this(dfsClient, src, null, progress, stat, checksum);
     initialFileSize = stat.getLen(); // length of file when opened
 
     // The last partial block of the file has to be filled.
@@ -1944,7 +1953,7 @@ public class DFSOutputStream extends FSOutputSummer
       streamer = new DataStreamer(lastBlock, stat, bytesPerChecksum);
     } else {
       computePacketChunkSize(dfsClient.getConf().writePacketSize, bytesPerChecksum);
-      streamer = new DataStreamer(stat);
+      streamer = new DataStreamer(stat, this.addBlockFlags);
     }
     this.fileEncryptionInfo = stat.getFileEncryptionInfo();
   }

@@ -93,7 +93,14 @@ public enum CreateFlag {
    * This flag must only be used for intermediate data whose loss can be
    * tolerated by the application.
    */
-  LAZY_PERSIST((short) 0x10);
+  LAZY_PERSIST((short) 0x10),
+
+  /**
+   * Advise that a block replica NOT be written to the local DataNode where
+   * 'local' means the same host as the client is being run on.
+   */
+  @InterfaceAudience.LimitedPrivate({"HBase"})
+  NO_LOCAL_WRITE((short) 0x40);
 
   private final short mode;
 

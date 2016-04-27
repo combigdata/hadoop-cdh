@@ -46,6 +46,7 @@ import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.ha.HAServiceProtocol.HAServiceState;
 import org.apache.hadoop.ha.proto.HAServiceProtocolProtos;
+import org.apache.hadoop.hdfs.AddBlockFlag;
 import org.apache.hadoop.hdfs.inotify.EventBatch;
 import org.apache.hadoop.hdfs.protocol.BlockStoragePolicy;
 import org.apache.hadoop.hdfs.DFSUtil;
@@ -93,6 +94,7 @@ import org.apache.hadoop.hdfs.protocol.proto.AclProtos.AclEntryProto.FsActionPro
 import org.apache.hadoop.hdfs.protocol.proto.AclProtos.AclStatusProto;
 import org.apache.hadoop.hdfs.protocol.proto.AclProtos.GetAclStatusResponseProto;
 import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos;
+import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.AddBlockFlagProto;
 import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.CacheDirectiveEntryProto;
 import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.CacheDirectiveInfoExpirationProto;
 import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.CacheDirectiveInfoProto;
@@ -3008,4 +3010,28 @@ public class PBHelper {
     return targetPinnings;
   }
 
+  public static EnumSet<AddBlockFlag> convertAddBlockFlags(
+      List<AddBlockFlagProto> addBlockFlags) {
+    EnumSet<AddBlockFlag> flags =
+        EnumSet.noneOf(AddBlockFlag.class);
+    for (AddBlockFlagProto af : addBlockFlags) {
+      AddBlockFlag flag = AddBlockFlag.valueOf((short)af.getNumber());
+      if (flag != null) {
+        flags.add(flag);
+      }
+    }
+    return flags;
+  }
+
+  public static List<AddBlockFlagProto> convertAddBlockFlags(
+      EnumSet<AddBlockFlag> flags) {
+    List<AddBlockFlagProto> ret = new ArrayList<>();
+    for (AddBlockFlag flag : flags) {
+      AddBlockFlagProto abfp = AddBlockFlagProto.valueOf(flag.getMode());
+      if (abfp != null) {
+        ret.add(abfp);
+      }
+    }
+    return ret;
+  }
 }
