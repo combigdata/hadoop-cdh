@@ -511,9 +511,14 @@ public class DelegationTokenRenewer extends AbstractService {
    */
   private boolean skipTokenRenewal(Token<?> token)
       throws IOException {
+
     @SuppressWarnings("unchecked")
-    Text renewer = ((Token<AbstractDelegationTokenIdentifier>)token).
-        decodeIdentifier().getRenewer();
+    AbstractDelegationTokenIdentifier identifier =
+        ((Token<AbstractDelegationTokenIdentifier>) token).decodeIdentifier();
+    if (identifier == null) {
+      return false;
+    }
+    Text renewer = identifier.getRenewer();
     return (renewer != null && renewer.toString().equals(""));
   }
 
