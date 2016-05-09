@@ -44,6 +44,7 @@ function print_usage(){
   echo "  zkfc                 run the ZK Failover Controller daemon"
   echo "  datanode             run a DFS datanode"
   echo "  dfsadmin             run a DFS admin client"
+  echo "  diskbalancer         Distributes data evenly among disks on a given node"
   echo "  haadmin              run a DFS HA admin client"
   echo "  fsck                 run a DFS filesystem checking utility"
   echo "  balancer             run a cluster balancing utility"
@@ -184,6 +185,8 @@ elif [ "$COMMAND" = "dfs" ] ; then
 elif [ "$COMMAND" = "dfsadmin" ] ; then
   CLASS=org.apache.hadoop.hdfs.tools.DFSAdmin
   HADOOP_OPTS="$HADOOP_OPTS $HADOOP_CLIENT_OPTS"
+elif [ "$COMMAND" = "diskbalancer" ] ; then
+  CLASS=org.apache.hadoop.hdfs.tools.DiskBalancer
 elif [ "$COMMAND" = "haadmin" ] ; then
   CLASS=org.apache.hadoop.hdfs.tools.DFSHAAdmin
   CLASSPATH=${CLASSPATH}:${TOOL_PATH}
