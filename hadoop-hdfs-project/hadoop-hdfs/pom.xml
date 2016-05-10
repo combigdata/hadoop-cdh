@@ -163,11 +163,13 @@ http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <dependency>
       <groupId>org.codehaus.jackson</groupId>
       <artifactId>jackson-core-asl</artifactId>
+      <version>1.9.13</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>org.codehaus.jackson</groupId>
       <artifactId>jackson-mapper-asl</artifactId>
+      <version>1.9.13</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
@@ -571,6 +573,33 @@ http://maven.apache.org/xsd/maven-4.0.0.xsd">
                 <relocation>
                   <pattern>io.netty</pattern>
                   <shadedPattern>com.cloudera.io.netty</shadedPattern>
+                </relocation>
+              </relocations>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <createDependencyReducedPom>false</createDependencyReducedPom>
+              <artifactSet>
+                <includes>
+                  <include>org.codehaus.jackson:jackson-mapper-asl:jar:*</include>
+                  <include>org.codehaus.jackson:jackson-core-asl:jar:*</include>
+                </includes>
+              </artifactSet>
+              <relocations>
+                <relocation>
+                  <pattern>org.codehaus.jackson</pattern>
+                  <shadedPattern>com.cloudera.org.codehaus.jackson</shadedPattern>
                 </relocation>
               </relocations>
             </configuration>
