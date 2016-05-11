@@ -210,6 +210,7 @@ public class TestFilterFileSystem {
       return "dontcheck";
     }
     public Path fixRelativePart(Path p) { return null; }
+    public StorageStatistics getStorageStatistics() { return null; }
   }
   
   @Test
