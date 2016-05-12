@@ -32,7 +32,7 @@ public class MutableCounterLong extends MutableCounter {
 
   private volatile long value;
 
-  MutableCounterLong(MetricsInfo info, long initValue) {
+  public MutableCounterLong(MetricsInfo info, long initValue) {
     super(info);
     this.value = initValue;
   }
