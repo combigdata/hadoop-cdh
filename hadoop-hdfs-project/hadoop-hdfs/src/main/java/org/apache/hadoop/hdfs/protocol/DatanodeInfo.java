@@ -34,7 +34,7 @@ import java.util.List;
 
 import static org.apache.hadoop.hdfs.DFSUtil.percent2String;
 
-/** 
+/**
  * This class extends the primary identifier of a Datanode with ephemeral
  * state, eg usage information, current administrative state, and the
  * network location that is communicated to clients.
@@ -53,13 +53,15 @@ public class DatanodeInfo extends DatanodeID implements Node {
   private String location = NetworkTopology.DEFAULT_RACK;
   private String softwareVersion;
   private List<String> dependentHostNames = new LinkedList<String>();
-  
-  
+
+
   // Datanode administrative states
   public enum AdminStates {
-    NORMAL("In Service"), 
-    DECOMMISSION_INPROGRESS("Decommission In Progress"), 
-    DECOMMISSIONED("Decommissioned");
+    NORMAL("In Service"),
+    DECOMMISSION_INPROGRESS("Decommission In Progress"),
+    DECOMMISSIONED("Decommissioned"),
+    ENTERING_MAINTENANCE("Entering Maintenance"),
+    IN_MAINTENANCE("In Maintenance");
 
     final String value;
 
@@ -71,7 +73,7 @@ public class DatanodeInfo extends DatanodeID implements Node {
     public String toString() {
       return value;
     }
-    
+
     public static AdminStates fromValue(final String value) {
       for (AdminStates as : AdminStates.values()) {
         if (as.value.equals(value)) return as;
@@ -106,14 +108,14 @@ public class DatanodeInfo extends DatanodeID implements Node {
     this.cacheUsed = 0L;
     this.lastUpdate = 0L;
     this.xceiverCount = 0;
-    this.adminState = null;    
+    this.adminState = null;
   }
-  
+
   public DatanodeInfo(DatanodeID nodeID, String location) {
     this(nodeID);
     this.location = location;
   }
-  
+
   public DatanodeInfo(DatanodeID nodeID, String location,
       final long capacity, final long dfsUsed, final long remaining,
       final long blockPoolUsed, final long cacheCapacity, final long cacheUsed,
@@ -146,16 +148,16 @@ public class DatanodeInfo extends DatanodeID implements Node {
     this.location = networkLocation;
     this.adminState = adminState;
   }
-  
+
   /** Network location name */
   @Override
   public String getName() {
     return getXferAddr();
   }
-  
+
   /** The raw capacity. */
   public long getCapacity() { return capacity; }
-  
+
   /** The used space by the data node. */
   public long getDfsUsed() { return dfsUsed; }
 
@@ -163,13 +165,13 @@ public class DatanodeInfo extends DatanodeID implements Node {
   public long getBlockPoolUsed() { return blockPoolUsed; }
 
   /** The used space by the data node. */
-  public long getNonDfsUsed() { 
+  public long getNonDfsUsed() {
     long nonDFSUsed = capacity - dfsUsed - remaining;
     return nonDFSUsed < 0 ? 0 : nonDFSUsed;
   }
 
   /** The used space by the data node as percentage of present capacity */
-  public float getDfsUsedPercent() { 
+  public float getDfsUsedPercent() {
     return DFSUtil.getPercentUsed(dfsUsed, capacity);
   }
 
@@ -180,9 +182,9 @@ public class DatanodeInfo extends DatanodeID implements Node {
   public float getBlockPoolUsedPercent() {
     return DFSUtil.getPercentUsed(blockPoolUsed, capacity);
   }
-  
+
   /** The remaining space as percentage of configured capacity. */
-  public float getRemainingPercent() { 
+  public float getRemainingPercent() {
     return DFSUtil.getPercentRemaining(remaining, capacity);
   }
 
@@ -229,23 +231,23 @@ public class DatanodeInfo extends DatanodeID implements Node {
   public int getXceiverCount() { return xceiverCount; }
 
   /** Sets raw capacity. */
-  public void setCapacity(long capacity) { 
-    this.capacity = capacity; 
+  public void setCapacity(long capacity) {
+    this.capacity = capacity;
   }
-  
+
   /** Sets the used space for the datanode. */
   public void setDfsUsed(long dfsUsed) {
     this.dfsUsed = dfsUsed;
   }
 
   /** Sets raw free space. */
-  public void setRemaining(long remaining) { 
-    this.remaining = remaining; 
+  public void setRemaining(long remaining) {
+    this.remaining = remaining;
   }
 
   /** Sets block pool used space */
-  public void setBlockPoolUsed(long bpUsed) { 
-    this.blockPoolUsed = bpUsed; 
+  public void setBlockPoolUsed(long bpUsed) {
+    this.blockPoolUsed = bpUsed;
   }
 
   /** Sets cache capacity. */
@@ -259,38 +261,38 @@ public class DatanodeInfo extends DatanodeID implements Node {
   }
 
   /** Sets time when this information was accurate. */
-  public void setLastUpdate(long lastUpdate) { 
-    this.lastUpdate = lastUpdate; 
+  public void setLastUpdate(long lastUpdate) {
+    this.lastUpdate = lastUpdate;
   }
 
   /** Sets number of active connections */
-  public void setXceiverCount(int xceiverCount) { 
-    this.xceiverCount = xceiverCount; 
+  public void setXceiverCount(int xceiverCount) {
+    this.xceiverCount = xceiverCount;
   }
 
   /** network location */
   public synchronized String getNetworkLocation() {return location;}
-    
+
   /** Sets the network location */
   public synchronized void setNetworkLocation(String location) {
     this.location = NodeBase.normalize(location);
   }
-  
+
   /** Add a hostname to a list of network dependencies */
   public void addDependentHostName(String hostname) {
     dependentHostNames.add(hostname);
   }
-  
+
   /** List of Network dependencies */
   public List<String> getDependentHostNames() {
     return dependentHostNames;
   }
-  
+
   /** Sets the network dependencies */
   public void setDependentHostNames(List<String> dependencyList) {
     dependentHostNames = dependencyList;
   }
-    
+
   /** A formatted string for reporting the status of the DataNode. */
   public String getDatanodeReport() {
     StringBuilder buffer = new StringBuilder();
@@ -322,6 +324,10 @@ public class DatanodeInfo extends DatanodeID implements Node {
       buffer.append("Decommissioned\n");
     } else if (isDecommissionInProgress()) {
       buffer.append("Decommission in progress\n");
+    } else if (isInMaintenance()) {
+      buffer.append("In maintenance\n");
+    } else if (isEnteringMaintenance()) {
+      buffer.append("Entering maintenance\n");
     } else {
       buffer.append("Normal\n");
     }
@@ -360,6 +366,10 @@ public class DatanodeInfo extends DatanodeID implements Node {
       buffer.append(" DD");
     } else if (isDecommissionInProgress()) {
       buffer.append(" DP");
+    } else if (isInMaintenance()) {
+      buffer.append(" IM");
+    } else if (isEnteringMaintenance()) {
+      buffer.append(" EM");
     } else {
       buffer.append(" IN");
     }
@@ -413,6 +423,53 @@ public class DatanodeInfo extends DatanodeID implements Node {
   }
 
   /**
+   * Put a node to maintenance mode.
+   */
+  public void startMaintenance() {
+    adminState = AdminStates.ENTERING_MAINTENANCE;
+  }
+
+  /**
+   * Put a node to maintenance mode.
+   */
+  public void setInMaintenance() {
+    adminState = AdminStates.IN_MAINTENANCE;
+  }
+
+  /**
+   * Take the node out of maintenance mode.
+   */
+  public void stopMaintenance() {
+    adminState = null;
+  }
+
+  /**
+   * Returns true if the node is is entering_maintenance
+   */
+  public boolean isEnteringMaintenance() {
+    return adminState == AdminStates.ENTERING_MAINTENANCE;
+  }
+
+  /**
+   * Returns true if the node is in maintenance
+   */
+  public boolean isInMaintenance() {
+    return adminState == AdminStates.IN_MAINTENANCE;
+  }
+
+  /**
+   * Returns true if the node is entering or in maintenance
+   */
+  public boolean isMaintenance() {
+    return (adminState == AdminStates.ENTERING_MAINTENANCE ||
+        adminState == AdminStates.IN_MAINTENANCE);
+  }
+
+  public boolean isInService() {
+    return getAdminState() == AdminStates.NORMAL;
+  }
+
+  /**
    * Retrieves the admin state of this node.
    */
   public AdminStates getAdminState() {
@@ -421,14 +478,14 @@ public class DatanodeInfo extends DatanodeID implements Node {
     }
     return adminState;
   }
- 
+
   /**
-   * Check if the datanode is in stale state. Here if 
-   * the namenode has not received heartbeat msg from a 
+   * Check if the datanode is in stale state. Here if
+   * the namenode has not received heartbeat msg from a
    * datanode for more than staleInterval (default value is
    * {@link DFSConfigKeys#DFS_NAMENODE_STALE_DATANODE_INTERVAL_DEFAULT}),
    * the datanode will be treated as stale node.
-   * 
+   *
    * @param staleInterval
    *          the time interval for marking the node as stale. If the last
    *          update time is beyond the given time interval, the node will be
@@ -438,7 +495,7 @@ public class DatanodeInfo extends DatanodeID implements Node {
   public boolean isStale(long staleInterval) {
     return (Time.now() - lastUpdate) >= staleInterval;
   }
-  
+
   /**
    * Sets the admin state of this node.
    */
@@ -459,7 +516,7 @@ public class DatanodeInfo extends DatanodeID implements Node {
   public Node getParent() { return parent; }
   @Override
   public void setParent(Node parent) {this.parent = parent;}
-   
+
   /** Return this node's level in the tree.
    * E.g. the root of a tree returns 0 and its children return 1
    */
@@ -473,7 +530,7 @@ public class DatanodeInfo extends DatanodeID implements Node {
     // Super implementation is sufficient
     return super.hashCode();
   }
-  
+
   @Override
   public boolean equals(Object obj) {
     // Sufficient to use super equality as datanodes are uniquely identified

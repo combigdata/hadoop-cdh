@@ -632,6 +632,10 @@ public class PBHelper {
     case DECOMMISSION_INPROGRESS: 
         return DatanodeInfoProto.AdminState.DECOMMISSION_INPROGRESS;
     case DECOMMISSIONED: return DatanodeInfoProto.AdminState.DECOMMISSIONED;
+    case ENTERING_MAINTENANCE:
+        return DatanodeInfoProto.AdminState.ENTERING_MAINTENANCE;
+    case IN_MAINTENANCE:
+        return DatanodeInfoProto.AdminState.IN_MAINTENANCE;
     default: return DatanodeInfoProto.AdminState.NORMAL;
     }
   }
@@ -752,6 +756,10 @@ public class PBHelper {
       return AdminStates.DECOMMISSION_INPROGRESS;
     case DECOMMISSIONED:
       return AdminStates.DECOMMISSIONED;
+    case ENTERING_MAINTENANCE:
+      return AdminStates.ENTERING_MAINTENANCE;
+    case IN_MAINTENANCE:
+      return AdminStates.IN_MAINTENANCE;
     case NORMAL:
     default:
       return AdminStates.NORMAL;

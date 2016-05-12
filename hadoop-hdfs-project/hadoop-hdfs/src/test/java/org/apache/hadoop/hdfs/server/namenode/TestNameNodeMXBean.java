@@ -38,6 +38,11 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.DFSTestUtil;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
+import org.apache.hadoop.hdfs.MiniDFSNNTopology;
+import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
+import org.apache.hadoop.hdfs.protocol.HdfsConstants.SafeModeAction;
+import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeDescriptor;
+import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeManager;
 import org.apache.hadoop.hdfs.server.datanode.DataNode;
 import org.apache.hadoop.hdfs.server.namenode.top.TopConf;
 import org.apache.hadoop.io.nativeio.NativeIO;
@@ -51,6 +56,7 @@ import org.mortbay.util.ajax.JSON;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -81,6 +87,14 @@ public class TestNameNodeMXBean {
     try {
       cluster = new MiniDFSCluster.Builder(conf).numDataNodes(3).build();
       cluster.waitActive();
+
+      // Put the DN to maintenance state.
+      DatanodeManager dm = cluster.getNameNode().getNamesystem().
+              getBlockManager().getDatanodeManager();
+      DatanodeDescriptor maintenanceNode = dm.getDatanode(
+          cluster.getDataNodes().get(1).getDatanodeId());
+      maintenanceNode.setInMaintenance();
+      String dnXferAddrInMaintenance = maintenanceNode.getXferAddr();
 
       FSNamesystem fsn = cluster.getNameNode().namesystem;
 
@@ -155,6 +169,11 @@ public class TestNameNodeMXBean {
         assertTrue(((Long)liveNode.get("capacity")) > 0);
         assertTrue(liveNode.containsKey("numBlocks"));
         assertTrue(((Long)liveNode.get("numBlocks")) == 0);
+        // "adminState" is set to maintenance only for the specific dn.
+        String xferAddr = (String)liveNode.get("xferaddr");
+        boolean inMaintenance = liveNode.get("adminState").equals(
+            DatanodeInfo.AdminStates.IN_MAINTENANCE.toString());
+        assertFalse(xferAddr.equals(dnXferAddrInMaintenance) ^ inMaintenance);
       }
       assertEquals(fsn.getLiveNodes(), alivenodeinfo);
       // get attribute deadnodeinfo
@@ -177,7 +196,8 @@ public class TestNameNodeMXBean {
       // get attribute NameJournalStatus
       String nameJournalStatus = (String) (mbs.getAttribute(mxbeanName,
           "NameJournalStatus"));
-      assertEquals("Bad value for NameJournalStatus", fsn.getNameJournalStatus(), nameJournalStatus);
+      assertEquals("Bad value for NameJournalStatus",
+          fsn.getNameJournalStatus(), nameJournalStatus);
       // get attribute JournalTransactionInfo
       String journalTxnInfo = (String) mbs.getAttribute(mxbeanName,
           "JournalTransactionInfo");
@@ -188,11 +208,13 @@ public class TestNameNodeMXBean {
       assertEquals("Bad value for NNStarted", fsn.getNNStarted(), nnStarted);
       // get attribute "CompileInfo"
       String compileInfo = (String) mbs.getAttribute(mxbeanName, "CompileInfo");
-      assertEquals("Bad value for CompileInfo", fsn.getCompileInfo(), compileInfo);
+      assertEquals("Bad value for CompileInfo", fsn.getCompileInfo(),
+          compileInfo);
       // get attribute CorruptFiles
       String corruptFiles = (String) (mbs.getAttribute(mxbeanName,
           "CorruptFiles"));
-      assertEquals("Bad value for CorruptFiles", fsn.getCorruptFiles(), corruptFiles);
+      assertEquals("Bad value for CorruptFiles", fsn.getCorruptFiles(),
+          corruptFiles);
       // get attribute NameDirStatuses
       String nameDirStatuses = (String) (mbs.getAttribute(mxbeanName,
           "NameDirStatuses"));
@@ -204,11 +226,12 @@ public class TestNameNodeMXBean {
         File nameDir = new File(nameDirUri);
         System.out.println("Checking for the presence of " + nameDir +
             " in active name dirs.");
-        assertTrue(statusMap.get("active").containsKey(nameDir.getAbsolutePath()));
+        assertTrue(statusMap.get("active").containsKey(
+            nameDir.getAbsolutePath()));
       }
       assertEquals(2, statusMap.get("active").size());
       assertEquals(0, statusMap.get("failed").size());
-      
+
       // This will cause the first dir to fail.
       File failedNameDir = new File(nameDirUris.iterator().next());
       assertEquals(0, FileUtil.chmod(
