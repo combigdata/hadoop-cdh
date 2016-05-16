@@ -411,6 +411,7 @@ public class AppLogAggregatorImpl implements AppLogAggregator {
     }
   }
 
+  @SuppressWarnings("unchecked")
   @Override
   public void run() {
     try {
@@ -423,6 +424,9 @@ public class AppLogAggregatorImpl implements AppLogAggregator {
     } finally {
       if (!this.appAggregationFinished.get()) {
         LOG.warn("Aggregation did not complete for application " + appId);
+        this.dispatcher.getEventHandler().handle(
+            new ApplicationEvent(this.appId,
+                ApplicationEventType.APPLICATION_LOG_HANDLING_FAILED));
       }
       this.appAggregationFinished.set(true);
     }

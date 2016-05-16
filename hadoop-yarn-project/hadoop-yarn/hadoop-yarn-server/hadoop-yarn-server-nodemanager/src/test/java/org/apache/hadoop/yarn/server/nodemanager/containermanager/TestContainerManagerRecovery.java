@@ -239,6 +239,106 @@ public class TestContainerManagerRecovery {
     cm.stop();
   }
 
+  @Test
+  public void testNMRecoveryForAppFinishedWithLogAggregationFailure()
+      throws Exception {
+    YarnConfiguration conf = new YarnConfiguration();
+    conf.setBoolean(YarnConfiguration.NM_RECOVERY_ENABLED, true);
+    conf.set(YarnConfiguration.NM_ADDRESS, "localhost:1234");
+
+    NMStateStoreService stateStore = new NMMemoryStateStoreService();
+    stateStore.init(conf);
+    stateStore.start();
+    Context context = new NMContext(new NMContainerTokenSecretManager(
+        conf), new NMTokenSecretManagerInNM(), null,
+        new ApplicationACLsManager(conf), stateStore);
+
+    ContainerManagerImpl cm = createContainerManager(context);
+    cm.init(conf);
+    cm.start();
+
+    // simulate registration with RM
+    MasterKey masterKey = new MasterKeyPBImpl();
+    masterKey.setKeyId(123);
+    masterKey.setBytes(ByteBuffer.wrap(new byte[] { new Integer(123)
+        .byteValue() }));
+    context.getContainerTokenSecretManager().setMasterKey(masterKey);
+    context.getNMTokenSecretManager().setMasterKey(masterKey);
+
+    // add an application by starting a container
+    ApplicationId appId = ApplicationId.newInstance(0, 1);
+    ApplicationAttemptId attemptId =
+        ApplicationAttemptId.newInstance(appId, 1);
+    ContainerId cid = ContainerId.newContainerId(attemptId, 1);
+    Map<String, LocalResource> localResources = Collections.emptyMap();
+    Map<String, String> containerEnv = Collections.emptyMap();
+    List<String> containerCmds = Collections.emptyList();
+    Map<String, ByteBuffer> serviceData = Collections.emptyMap();
+
+    ContainerLaunchContext clc = ContainerLaunchContext.newInstance(
+        localResources, containerEnv, containerCmds, serviceData,
+        null, null);
+
+    StartContainersResponse startResponse = startContainer(context, cm, cid,
+        clc, null);
+    assertTrue(startResponse.getFailedRequests().isEmpty());
+    assertEquals(1, context.getApplications().size());
+    Application app = context.getApplications().get(appId);
+    assertNotNull(app);
+    waitForAppState(app, ApplicationState.INITING);
+
+    // simulate application completion
+    List<ApplicationId> finishedApps = new ArrayList<ApplicationId>();
+    finishedApps.add(appId);
+    cm.handle(new CMgrCompletedAppsEvent(finishedApps,
+        CMgrCompletedAppsEvent.Reason.BY_RESOURCEMANAGER));
+    waitForAppState(app, ApplicationState.APPLICATION_RESOURCES_CLEANINGUP);
+
+    app.handle(new ApplicationEvent(app.getAppId(),
+        ApplicationEventType.APPLICATION_RESOURCES_CLEANEDUP));
+    assertEquals(app.getApplicationState(), ApplicationState.FINISHED);
+    // application is still in NM context.
+    assertEquals(1, context.getApplications().size());
+
+    // restart and verify app is still there and marked as finished.
+    cm.stop();
+    context = new NMContext(new NMContainerTokenSecretManager(
+        conf), new NMTokenSecretManagerInNM(), null,
+        new ApplicationACLsManager(conf), stateStore);
+    cm = createContainerManager(context);
+    cm.init(conf);
+    cm.start();
+    assertEquals(1, context.getApplications().size());
+    app = context.getApplications().get(appId);
+    assertNotNull(app);
+
+    // no longer saving FINISH_APP event in NM stateStore,
+    // simulate by resending FINISH_APP event
+    cm.handle(new CMgrCompletedAppsEvent(finishedApps,
+        CMgrCompletedAppsEvent.Reason.BY_RESOURCEMANAGER));
+    waitForAppState(app, ApplicationState.APPLICATION_RESOURCES_CLEANINGUP);
+    // TODO need to figure out why additional APPLICATION_RESOURCES_CLEANEDUP
+    // is needed.
+    app.handle(new ApplicationEvent(app.getAppId(),
+        ApplicationEventType.APPLICATION_RESOURCES_CLEANEDUP));
+    assertEquals(app.getApplicationState(), ApplicationState.FINISHED);
+
+    // simulate log aggregation failed.
+    app.handle(new ApplicationEvent(app.getAppId(),
+        ApplicationEventType.APPLICATION_LOG_HANDLING_FAILED));
+
+    // restart and verify app is no longer present after recovery
+    cm.stop();
+    context = new NMContext(new NMContainerTokenSecretManager(
+        conf), new NMTokenSecretManagerInNM(), null,
+        new ApplicationACLsManager(conf), stateStore);
+    cm = createContainerManager(context);
+    cm.init(conf);
+    cm.start();
+    assertTrue(context.getApplications().isEmpty());
+    cm.stop();
+  }
+
   private StartContainersResponse startContainer(Context context,
       final ContainerManagerImpl cm, ContainerId cid,
       ContainerLaunchContext clc, LogAggregationContext logAggregationContext)
