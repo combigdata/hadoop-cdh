@@ -487,6 +487,10 @@ public class NameNode implements NameNodeStatusMXBean {
     return getAddress(authority);
   }
 
+  public static String composeNotStartedMessage(NamenodeRole role) {
+    return role + " still not started";
+  }
+
   /**
    * Get the NN address from the URI. If the uri is logical, default address is
    * returned. Otherwise return the DNS-resolved address of the URI.
