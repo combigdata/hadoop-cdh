@@ -1483,11 +1483,11 @@ public class DFSOutputStream extends FSOutputSummer
         success = createBlockOutputStream(nodes, storageTypes, 0L, false);
 
         if (!success) {
-          DFSClient.LOG.info("Abandoning " + block);
+          DFSClient.LOG.warn("Abandoning " + block);
           dfsClient.namenode.abandonBlock(block, fileId, src,
               dfsClient.clientName);
           block = null;
-          DFSClient.LOG.info("Excluding datanode " + nodes[errorIndex]);
+          DFSClient.LOG.warn("Excluding datanode " + nodes[errorIndex]);
           excludedNodes.put(nodes[errorIndex], nodes[errorIndex]);
         }
       } while (!success && --count >= 0);
