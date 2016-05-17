@@ -76,6 +76,7 @@ public class DelegationTokenFetcher {
   private static final String PRINT = "print";
   private static final String HELP = "help";
   private static final String HELP_SHORT = "h";
+  private static final String VERBOSE = "verbose";
 
   private static void printUsage(PrintStream err) {
     err.println("fetchdt retrieves delegation tokens from the NameNode");
@@ -87,7 +88,8 @@ public class DelegationTokenFetcher {
     err.println("  --cancel            Cancel the delegation token");
     err.println("  --renew             Renew the delegation token.  Delegation " 
     		+ "token must have been fetched using the --renewer <name> option.");
-    err.println("  --print             Print the delegation token");
+    err.println("  --print [--verbose] Print the delegation token, when " +
+                "--verbose is passed, print more information about the token");
     err.println();
     GenericOptionsParser.printGenericCommandUsage(err);
     ExitUtil.terminate(1);    
@@ -98,7 +100,7 @@ public class DelegationTokenFetcher {
     Credentials creds = Credentials.readTokenStorageFile(file, conf);
     return creds.getAllTokens();
   }
-    
+
   /**
    * Command-line interface
    */
@@ -112,6 +114,7 @@ public class DelegationTokenFetcher {
     fetcherOptions.addOption(CANCEL, false, "cancel the token");
     fetcherOptions.addOption(RENEW, false, "renew the token");
     fetcherOptions.addOption(PRINT, false, "print the token");
+    fetcherOptions.addOption(VERBOSE, false, "print verbose output");
     fetcherOptions.addOption(HELP_SHORT, HELP, false, "print out help information");
     GenericOptionsParser parser = new GenericOptionsParser(conf,
         fetcherOptions, args);
@@ -125,6 +128,7 @@ public class DelegationTokenFetcher {
     final boolean cancel = cmd.hasOption(CANCEL);
     final boolean renew = cmd.hasOption(RENEW);
     final boolean print = cmd.hasOption(PRINT);
+    final boolean verbose = cmd.hasOption(VERBOSE);
     final boolean help = cmd.hasOption(HELP);
     String[] remaining = parser.getRemainingArgs();
 
@@ -159,7 +163,8 @@ public class DelegationTokenFetcher {
                 DataInputStream in = new DataInputStream(
                     new ByteArrayInputStream(token.getIdentifier()));
                 id.readFields(in);
-                System.out.println("Token (" + id + ") for " + token.getService());
+                String idStr = (verbose? id.toString() : id.toStringStable());
+                System.out.println("Token (" + idStr + ") for " + token.getService());
               }
               return null;
             }
