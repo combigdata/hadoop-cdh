@@ -24,22 +24,16 @@ import java.io.IOException;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
-import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.protocol.DatanodeID;
-import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
-import org.apache.hadoop.hdfs.protocolPB.DatanodeProtocolClientSideTranslatorPB;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.impl.FsDatasetTestUtil;
-import org.apache.hadoop.hdfs.server.namenode.NameNode;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeRegistration;
 import org.apache.hadoop.hdfs.server.protocol.InterDatanodeProtocol;
-import org.mockito.Mockito;
-
-import com.google.common.base.Preconditions;
 
 /**
  * Utility class for accessing package-private DataNode information during tests.
- *
+ * Must not contain usage of classes that are not explicitly listed as
+ * dependencies to {@link MiniDFSCluster}.
  */
 public class DataNodeTestUtils {
   private static final String DIR_FAILURE_SUFFIX = ".origin";
@@ -80,41 +74,6 @@ public class DataNodeTestUtils {
     for (BPOfferService bpos : dn.getAllBpOs()) {
       bpos.triggerBlockReportForTests();
     }
-  }
-  
-  /**
-   * Insert a Mockito spy object between the given DataNode and
-   * the given NameNode. This can be used to delay or wait for
-   * RPC calls on the datanode->NN path.
-   */
-  public static DatanodeProtocolClientSideTranslatorPB spyOnBposToNN(
-      DataNode dn, NameNode nn) {
-    String bpid = nn.getNamesystem().getBlockPoolId();
-    
-    BPOfferService bpos = null;
-    for (BPOfferService thisBpos : dn.getAllBpOs()) {
-      if (thisBpos.getBlockPoolId().equals(bpid)) {
-        bpos = thisBpos;
-        break;
-      }
-    }
-    Preconditions.checkArgument(bpos != null,
-        "No such bpid: %s", bpid);
-    
-    BPServiceActor bpsa = null;
-    for (BPServiceActor thisBpsa : bpos.getBPServiceActors()) {
-      if (thisBpsa.getNNSocketAddress().equals(nn.getServiceRpcAddress())) {
-        bpsa = thisBpsa;
-        break;
-      }
-    }
-    Preconditions.checkArgument(bpsa != null,
-      "No service actor to NN at %s", nn.getServiceRpcAddress());
-
-    DatanodeProtocolClientSideTranslatorPB origNN = bpsa.getNameNodeProxy();
-    DatanodeProtocolClientSideTranslatorPB spy = Mockito.spy(origNN);
-    bpsa.setNameNode(spy);
-    return spy;
   }
 
   public static InterDatanodeProtocol createInterDatanodeProtocolProxy(
