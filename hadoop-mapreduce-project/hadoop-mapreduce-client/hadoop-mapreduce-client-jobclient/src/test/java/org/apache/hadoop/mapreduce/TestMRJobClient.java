@@ -163,6 +163,8 @@ public class TestMRJobClient extends ClusterMapReduceTestCase {
     testfailTask(conf);
     // kill job
     testKillJob(conf);
+    // download job config
+    testConfig(jobId, conf);
   }
 
   /**
@@ -528,6 +530,32 @@ public class TestMRJobClient extends ClusterMapReduceTestCase {
     JSONObject json = new JSONObject(line);
     assertEquals(jobId, json.getString("hadoopJob"));
     assertEquals(0, out.size());
+  }
+
+  /**
+   * download job config
+   */
+  private void testConfig(String jobId, Configuration conf) throws Exception {
+    CLI jc = createJobClient();
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+    // bad arguments
+    int exitCode = runTool(conf, jc, new String[] { "-config" }, out);
+    assertEquals("Exit code", -1, exitCode);
+    exitCode = runTool(conf, jc, new String[] { "-config job_invalid foo.xml" },
+        out);
+    assertEquals("Exit code", -1, exitCode);
+
+    // good arguments
+    File outFile = File.createTempFile("config", ".xml");
+    exitCode = runTool(conf, jc, new String[] { "-config", jobId,
+        outFile.toString()}, out);
+    assertEquals("Exit code", 0, exitCode);
+    BufferedReader br = new BufferedReader(new FileReader(outFile));
+    String line = br.readLine();
+    br.close();
+    assertEquals("<?xml version=\"1.0\" encoding=\"UTF-8\" " +
+        "standalone=\"no\"?><configuration>", line);
   }
 
   /**

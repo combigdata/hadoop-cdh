@@ -100,7 +100,8 @@ MapReduce Commands Guide
           | [-history [all] <jobHistoryFile|jobId> [-outfile <file>] [-format <human|json>]]
           | [-list [all]]
           | [-kill-task <task-id>] | [-fail-task <task-id>]
-          | [-set-priority <job-id> <priority>]>>>
+          | [-set-priority <job-id> <priority>]
+          | [-config <job-id> <file>]>>>
 
 *------------------------------+---------------------------------------------+
 || COMMAND_OPTION              || Description
@@ -140,6 +141,8 @@ MapReduce Commands Guide
 | -set-priority <job-id> <priority> | Changes the priority of the job. Allowed
                                | priority values are VERY_HIGH, HIGH, NORMAL,
                                | LOW, VERY_LOW
+*------------------------------+---------------------------------------------+
+| -config <job-id> <file>      | Download the job configuration file.
 *------------------------------+---------------------------------------------+
 
 ** <<<queue>>>
