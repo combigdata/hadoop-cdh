@@ -503,7 +503,7 @@ abstract public class Shell {
       // might be owned by a different user.  For example, the NodeManager
       // running a User's container.
       builder.environment().remove(
-          AbstractJavaKeyStoreProvider.CREDENTIAL_PASSWORD_NAME);
+          AbstractJavaKeyStoreProvider.CREDENTIAL_PASSWORD_ENV_VAR);
     }
 
     if (dir != null) {
