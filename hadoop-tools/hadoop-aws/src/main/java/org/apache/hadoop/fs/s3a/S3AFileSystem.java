@@ -58,11 +58,10 @@ import com.amazonaws.services.s3.transfer.TransferManagerConfiguration;
 import com.amazonaws.services.s3.transfer.Upload;
 import com.amazonaws.event.ProgressListener;
 import com.amazonaws.event.ProgressEvent;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import org.apache.commons.lang.StringUtils;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
@@ -1509,7 +1508,7 @@ public class S3AFileSystem extends FileSystem {
           .append('\'');
     }
     sb.append(", statistics {")
-        .append(statistics.toString())
+        .append(statistics)
         .append("}");
     sb.append(", metrics {")
         .append(instrumentation.dump("{", "=", "} ", true))
