@@ -2984,6 +2984,7 @@ public class PBHelper {
         setCurRpc(context.getCurRpc()).
         setId(context.getReportId()).
         setLeaseId(context.getLeaseId()).
+        setSorted(context.isSorted()).
         build();
   }
 
