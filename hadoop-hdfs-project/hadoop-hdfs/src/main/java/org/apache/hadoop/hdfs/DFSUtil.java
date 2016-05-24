@@ -954,9 +954,16 @@ public class DFSUtil {
         "nnId=" + namenodeId + ";addr=" + addr + "]";
     }
   }
-  
+
+  /** @return Internal name services specified in the conf. */
+  static Collection<String> getInternalNameServices(Configuration conf) {
+    final Collection<String> ids = conf.getTrimmedStringCollection(
+        DFSConfigKeys.DFS_INTERNAL_NAMESERVICES_KEY);
+    return !ids.isEmpty()? ids: getNameServiceIds(conf);
+  }
+
   /**
-   * Get a URI for each configured nameservice. If a nameservice is
+   * Get a URI for each internal nameservice. If a nameservice is
    * HA-enabled, then the logical URI of the nameservice is returned. If the
    * nameservice is not HA-enabled, then a URI corresponding to an RPC address
    * of the single NN for that nameservice is returned, preferring the service
@@ -966,8 +973,8 @@ public class DFSUtil {
    * @return a collection of all configured NN URIs, preferring service
    *         addresses
    */
-  public static Collection<URI> getNsServiceRpcUris(Configuration conf) {
-    return getNameServiceUris(conf,
+  public static Collection<URI> getInternalNsRpcUris(Configuration conf) {
+    return getNameServiceUris(conf, getInternalNameServices(conf),
         DFSConfigKeys.DFS_NAMENODE_SERVICE_RPC_ADDRESS_KEY,
         DFSConfigKeys.DFS_NAMENODE_RPC_ADDRESS_KEY);
   }
@@ -983,8 +990,8 @@ public class DFSUtil {
    *        nameservices
    * @return a collection of all configured NN URIs
    */
-  public static Collection<URI> getNameServiceUris(Configuration conf,
-      String... keys) {
+  static Collection<URI> getNameServiceUris(Configuration conf,
+      Collection<String> nameServices, String... keys) {
     Set<URI> ret = new HashSet<URI>();
     
     // We're passed multiple possible configuration keys for any given NN or HA
@@ -994,7 +1001,7 @@ public class DFSUtil {
     // keep track of non-preferred keys here.
     Set<URI> nonPreferredUris = new HashSet<URI>();
     
-    for (String nsId : getNameServiceIds(conf)) {
+    for (String nsId : nameServices) {
       if (HAUtil.isHAEnabled(conf, nsId)) {
         // Add the logical URI of the nameservice.
         try {
