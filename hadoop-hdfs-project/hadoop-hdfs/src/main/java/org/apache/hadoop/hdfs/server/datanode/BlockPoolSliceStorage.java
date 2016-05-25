@@ -147,7 +147,7 @@ public class BlockPoolSliceStorage extends Storage {
       NamespaceInfo nsInfo, File dataDir, StartupOption startOpt) throws IOException {
     StorageDirectory sd = new StorageDirectory(dataDir, null, true);
     try {
-      StorageState curState = sd.analyzeStorage(startOpt, this);
+      StorageState curState = sd.analyzeStorage(startOpt, this, true);
       // sd is locked but not opened
       switch (curState) {
       case NORMAL:
