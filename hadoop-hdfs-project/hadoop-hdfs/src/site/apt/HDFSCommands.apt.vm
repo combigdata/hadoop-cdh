@@ -390,6 +390,25 @@ HDFS Commands Guide
 
    In addition, a pinning feature is introduced starting from 2.7.0 to prevent certain replicas from getting moved by balancer/mover. This pinning feature is disabled by default, and can be enabled by configuration property "dfs.datanode.block-pinning.enabled". When enabled, this feature only affects blocks that are written to favored nodes specified in the create() call. This feature is useful when we want to maintain the data locality, for applications such as HBase regionserver.
 
+** <<<diskbalancer>>>
+
+   Runs the diskbalancer CLI. See [HDFS Diskbalancer](./HDFSDiskbalancer.html) for more information on this command.
+
++------------------------------------------+
+   Usage: hdfs diskbalancer
+          [-plan <datanode> -uri <namenodeURI>]
+          [-execute <planfile>]
+
++------------------------------------------+
+
+*--------------------+--------------------------------------------------------+
+|| COMMAND_OPTION    || Description
+*--------------------+--------------------------------------------------------+
+| -plan              | Creates a disbalancer plan
+*--------------------+--------------------------------------------------------+
+| -execute           | Executes a given plan on a datanode
+*--------------------+--------------------------------------------------------+
+
 ** <<<namenode>>>
 
    Runs the namenode. More info about the upgrade, rollback and finalize is at
