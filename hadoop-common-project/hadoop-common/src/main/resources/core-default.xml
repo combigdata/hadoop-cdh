@@ -857,13 +857,13 @@ for ldap providers in the same way as above does.
 
 <property>
   <name>fs.s3a.multipart.size</name>
-  <value>104857600</value>
+  <value>8388608</value>
   <description>How big (in bytes) to split upload or copy operations up into.</description>
 </property>
 
 <property>
   <name>fs.s3a.multipart.threshold</name>
-  <value>2147483647</value>
+  <value>16777216</value>
   <description>Threshold before uploads or copies use parallel multipart operations.</description>
 </property>
 
