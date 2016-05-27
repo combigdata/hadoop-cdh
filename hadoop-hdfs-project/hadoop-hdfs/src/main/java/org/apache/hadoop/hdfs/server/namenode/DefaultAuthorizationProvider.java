@@ -127,9 +127,9 @@ public class DefaultAuthorizationProvider
    * Check whether exception e is due to an ancestor inode's not being
    * directory.
    */
-  private void checkAncestorType(INode[] inodes, int ancestorIndex,
+  private void checkAncestorType(INode[] inodes, int checkedAncestorIndex,
       AccessControlException e) throws AccessControlException {
-    for (int i = 0; i <= ancestorIndex; i++) {
+    for (int i = 0; i <= checkedAncestorIndex; i++) {
       if (inodes[i] == null) {
         break;
       }
@@ -154,11 +154,7 @@ public class DefaultAuthorizationProvider
     for (; ancestorIndex >= 0 && inodes[ancestorIndex] == null;
          ancestorIndex--)
       ;
-    try {
-      checkTraverse(user, groups, inodes, ancestorIndex, snapshotId);
-    } catch (AccessControlException e) {
-      checkAncestorType(inodes, ancestorIndex, e);
-    }
+    checkTraverse(user, groups, inodes, ancestorIndex, snapshotId);
 
     final INode last = inodes[inodes.length - 1];
     if (parentAccess != null && parentAccess.implies(FsAction.WRITE)
@@ -202,8 +198,13 @@ public class DefaultAuthorizationProvider
    */
   private void checkTraverse(String user, Set<String> groups, INode[] inodes,
       int last, int snapshotId) throws AccessControlException {
-    for (int j = 0; j <= last; j++) {
-      check(user, groups, inodes[j], snapshotId, FsAction.EXECUTE);
+    int j = 0;
+    try {
+      for (; j <= last; j++) {
+        check(user, groups, inodes[j], snapshotId, FsAction.EXECUTE);
+      }
+    } catch (AccessControlException e) {
+      checkAncestorType(inodes, j, e);
     }
   }
 
