@@ -2945,7 +2945,7 @@ public class FSDirectory implements Closeable {
    */
   FileEncryptionInfo getFileEncryptionInfo(INode inode, int snapshotId,
       INodesInPath iip) throws IOException {
-    if (!inode.isFile()) {
+    if (!inode.isFile() || !ezManager.hasCreatedEncryptionZone()) {
       return null;
     }
     readLock();
