@@ -18,6 +18,7 @@
 package org.apache.hadoop.hdfs.server.namenode;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -50,6 +51,8 @@ import static org.mockito.Mockito.*;
 public class TestLeaseManager {
   private static final long GRANDFATHER_INODE_ID = 0;
 
+  public static long maxLockHoldToReleaseLeaseMs = 100;
+
   @Test
   public void testRemoveLeases() throws Exception {
     FSNamesystem fsn = mock(FSNamesystem.class);
@@ -68,16 +71,14 @@ public class TestLeaseManager {
     assertEquals(0, lm.getINodeIdWithLeases().size());
   }
 
-  /** Check that even if LeaseManager.checkLease is not able to relinquish
-   * leases, the Namenode does't enter an infinite loop while holding the FSN
-   * write lock and thus become unresponsive
+  /** Check that LeaseManager.checkLease release some leases
    */
   @Test (timeout=30000)
   public void testCheckLease() throws InterruptedException {
     LeaseManager lm = new LeaseManager(makeMockFsNameSystem());
-    final long numLease = 100;
     final long expiryTime = 0;
-    final long waitTime = expiryTime + 1;
+
+    long numLease = 100;
 
     //Make sure the leases we are going to add exceed the hard limit
     lm.setLeasePeriod(expiryTime, expiryTime);
@@ -87,11 +88,10 @@ public class TestLeaseManager {
       lm.addLease("holder"+i, INodeId.ROOT_INODE_ID + i);
     }
     assertEquals(numLease, lm.countLease());
-    Thread.sleep(waitTime);
 
     //Initiate a call to checkLease. This should exit within the test timeout
     lm.checkLeases();
-    assertEquals(lm.countLease(), 0);
+    assertTrue(lm.countLease() < numLease);
   }
 
   /**
@@ -398,6 +398,7 @@ public class TestLeaseManager {
     when(fsn.hasReadLock()).thenReturn(true);
     when(fsn.hasWriteLock()).thenReturn(true);
     when(fsn.getFSDirectory()).thenReturn(dir);
+    when(fsn.getMaxLockHoldToReleaseLeaseMs()).thenReturn(maxLockHoldToReleaseLeaseMs);
     return fsn;
   }
 
