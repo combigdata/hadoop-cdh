@@ -9603,6 +9603,9 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
           } else {
             NameNode.LOG.debug("Failed to warm up EDEKs.", ioe);
           }
+        } catch (Exception e) {
+          NameNode.LOG.error("Cannot warm up EDEKs.", e);
+          throw e;
         }
         try {
           Thread.sleep(retryInterval);
