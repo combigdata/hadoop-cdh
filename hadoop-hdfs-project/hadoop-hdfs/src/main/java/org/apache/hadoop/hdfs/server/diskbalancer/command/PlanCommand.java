@@ -19,15 +19,18 @@ package org.apache.hadoop.hdfs.server.diskbalancer.command;
 
 import com.google.common.base.Preconditions;
 import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.protocol.ClientDatanodeProtocol;
 import org.apache.hadoop.hdfs.server.diskbalancer.DiskBalancerConstants;
-import org.apache.hadoop.hdfs.server.diskbalancer.datamodel.DiskBalancerDataNode;
+import org.apache.hadoop.hdfs.server.diskbalancer.datamodel
+    .DiskBalancerDataNode;
 import org.apache.hadoop.hdfs.server.diskbalancer.datamodel.DiskBalancerVolume;
-import org.apache.hadoop.hdfs.server.diskbalancer.datamodel.DiskBalancerVolumeSet;
+import org.apache.hadoop.hdfs.server.diskbalancer.datamodel
+    .DiskBalancerVolumeSet;
 import org.apache.hadoop.hdfs.server.diskbalancer.planner.NodePlan;
 import org.apache.hadoop.hdfs.server.diskbalancer.planner.Step;
 import org.apache.hadoop.hdfs.tools.DiskBalancer;
@@ -60,10 +63,9 @@ public class PlanCommand extends Command {
     this.thresholdPercentage = 1;
     this.bandwidth = 0;
     this.maxError = 0;
-    addValidCommandParameters(DiskBalancer.NAMENODEURI, "Name Node URI or " +
-        "file URI for cluster");
-
-    addValidCommandParameters(DiskBalancer.OUTFILE, "Output file");
+    addValidCommandParameters(DiskBalancer.OUTFILE, "Output directory in " +
+        "HDFS. The generated plan will be written to a file in this " +
+        "directory.");
     addValidCommandParameters(DiskBalancer.BANDWIDTH, "Maximum Bandwidth to " +
         "be used while copying.");
     addValidCommandParameters(DiskBalancer.THRESHOLD, "Percentage skew that " +
@@ -182,12 +184,19 @@ public class PlanCommand extends Command {
 
   /**
    * Gets extended help for this command.
-   *
-   * @return Help Message
    */
   @Override
-  protected String getHelp() {
-    return "This commands creates a disk balancer plan for given datanode";
+  public void printHelp() {
+    String header = "Creates a plan that describes how much data should be " +
+        "moved between disks.\n\n";
+
+    String footer = "\nPlan command creates a set of steps that represent a " +
+        "planned data move. A plan file can be executed on a data node, which" +
+        " will balance the data.";
+
+    HelpFormatter helpFormatter = new HelpFormatter();
+    helpFormatter.printHelp("hdfs diskbalancer -plan " +
+        "<hostname> [options]", header, DiskBalancer.getPlanOptions(), footer);
   }
 
   /**
@@ -221,9 +230,9 @@ public class PlanCommand extends Command {
 
     System.out.println(
         StringUtils.center("Source Disk", 30) +
-        StringUtils.center("Dest.Disk", 30) +
-        StringUtils.center("Size", 10) +
-        StringUtils.center("Type", 10));
+            StringUtils.center("Dest.Disk", 30) +
+            StringUtils.center("Size", 10) +
+            StringUtils.center("Type", 10));
 
     for (NodePlan plan : plans) {
       for (Step step : plan.getVolumeSetPlans()) {
