@@ -45,9 +45,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.MalformedURLException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -93,33 +91,14 @@ public abstract class Command extends Configured {
    * Executes the Client Calls.
    *
    * @param cmd - CommandLine
-   * @throws IOException
-   * @throws URISyntaxException
+   * @throws Exception
    */
   public abstract void execute(CommandLine cmd) throws Exception;
 
   /**
    * Gets extended help for this command.
-   *
-   * @return Help Message
    */
-  protected abstract String getHelp();
-
-  /**
-   * verifies user provided URL.
-   *
-   * @param uri - UrlString
-   * @return URL
-   * @throws URISyntaxException, MalformedURLException
-   */
-  protected URI verifyURI(String uri)
-      throws URISyntaxException, MalformedURLException {
-    if ((uri == null) || uri.isEmpty()) {
-      throw new MalformedURLException(
-          "A valid URI is needed to execute this command.");
-    }
-    return new URI(uri);
-  }
+  public abstract void printHelp();
 
   /**
    * Process the URI and return the cluster with nodes setup. This is used in
@@ -132,11 +111,8 @@ public abstract class Command extends Configured {
   protected DiskBalancerCluster readClusterInfo(CommandLine cmd) throws
       Exception {
     Preconditions.checkNotNull(cmd);
-    Preconditions
-        .checkState(cmd.getOptionValue(DiskBalancer.NAMENODEURI) != null,
-            "Required argument missing : uri");
 
-    setClusterURI(verifyURI(cmd.getOptionValue(DiskBalancer.NAMENODEURI)));
+    setClusterURI(FileSystem.getDefaultUri(getConf()));
     LOG.debug("using name node URI : {}", this.getClusterURI());
     ClusterConnector connector = ConnectorFactory.getCluster(this.clusterURI,
         getConf());
@@ -173,7 +149,7 @@ public abstract class Command extends Configured {
       diskBalancerLogs = new Path(path);
     }
     if (fs.exists(diskBalancerLogs)) {
-      LOG.error("Another Diskbalancer instance is running ? - Target " +
+      LOG.debug("Another Diskbalancer instance is running ? - Target " +
           "Directory already exists. {}", diskBalancerLogs);
       throw new IOException("Another DiskBalancer files already exist at the " +
           "target location. " + diskBalancerLogs.toString());
@@ -348,6 +324,7 @@ public abstract class Command extends Configured {
    *
    * @param fileName - fileName to open.
    * @return OutputStream.
+   * @throws IOException
    */
   protected FSDataOutputStream create(String fileName) throws IOException {
     Preconditions.checkNotNull(fileName);
