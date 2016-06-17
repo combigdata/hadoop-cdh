@@ -371,7 +371,10 @@ public class S3AFileSystem extends FileSystem {
     }
     if (accessKey == null) {
       try {
-        final char[] key = conf.getPassword(ACCESS_KEY);
+        char[] key = conf.getPassword(ACCESS_KEY);
+        if (key == null) {
+          key = conf.getPassword(DEPRECATED_ACCESS_KEY);
+        }
         if (key != null) {
           accessKey = (new String(key)).trim();
         }
@@ -381,7 +384,10 @@ public class S3AFileSystem extends FileSystem {
     }
     if (secretKey == null) {
       try {
-        final char[] pass = conf.getPassword(SECRET_KEY);
+        char[] pass = conf.getPassword(SECRET_KEY);
+        if (pass == null) {
+          pass = conf.getPassword(DEPRECATED_SECRET_KEY);
+        }
         if (pass != null) {
           secretKey = (new String(pass)).trim();
         }
