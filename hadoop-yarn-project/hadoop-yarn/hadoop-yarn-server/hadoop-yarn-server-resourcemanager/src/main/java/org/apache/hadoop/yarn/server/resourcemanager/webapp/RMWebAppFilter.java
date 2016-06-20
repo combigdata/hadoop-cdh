@@ -23,8 +23,6 @@ import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.charset.Charset;
-import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
@@ -39,8 +37,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.http.HtmlQuoting;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.webapp.YarnWebParams;
-import org.apache.http.NameValuePair;
-import org.apache.http.client.utils.URLEncodedUtils;
+import org.apache.hadoop.yarn.webapp.util.WebAppUtils;
 
 import com.google.common.collect.Sets;
 import com.google.inject.Injector;
@@ -92,22 +89,10 @@ public class RMWebAppFilter extends GuiceContainer {
       htmlEscapedUri = "/";
     }
 
-    String uriWithQueryString = htmlEscapedUri;
-    String htmlEscapedUriWithQueryString = htmlEscapedUri;
-
-    String queryString = request.getQueryString();
-    if (queryString != null && !queryString.isEmpty()) {
-      String reqEncoding = request.getCharacterEncoding();
-      if (reqEncoding == null || reqEncoding.isEmpty()) {
-        reqEncoding = "ISO-8859-1";
-      }
-      Charset encoding = Charset.forName(reqEncoding);
-      List<NameValuePair> params = URLEncodedUtils.parse(queryString, encoding);
-      String urlEncodedQueryString = URLEncodedUtils.format(params, encoding);
-      uriWithQueryString += "?" + urlEncodedQueryString;
-      htmlEscapedUriWithQueryString = HtmlQuoting.quoteHtmlChars(
-          request.getRequestURI() + "?" + urlEncodedQueryString);
-    }
+    String uriWithQueryString =
+        WebAppUtils.appendQueryParams(request, htmlEscapedUri);
+    String htmlEscapedUriWithQueryString =
+        WebAppUtils.getHtmlEscapedURIWithQueryString(request);
 
     RMWebApp rmWebApp = injector.getInstance(RMWebApp.class);
     rmWebApp.checkIfStandbyRM();
