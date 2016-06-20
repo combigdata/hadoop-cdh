@@ -102,6 +102,8 @@ Transfer-Encoding: chunked
 
   Tomcat logs are also preconfigured to go to HttpFS's <<<logs/>>> directory.
 
+  HttpFS default value for the maxHttpHeaderSize parameter in Tomcat's `server.xml` is set to 65536 by default.
+
   The following environment variables (which can be set in HttpFS's
   <<<conf/httpfs-env.sh>>> script) can be used to alter those values:
 
@@ -110,6 +112,8 @@ Transfer-Encoding: chunked
   * HTTPFS_ADMIN_PORT
 
   * HTTPFS_LOG
+
+  * HTTPFS\_MAX\_HTTP\_HEADER\_SIZE
 
 * HttpFS Configuration
 
