@@ -56,4 +56,6 @@ public class DataNodeFaultInjector {
 
   public void failPipeline(ReplicaInPipelineInterface replicaInfo,
       String mirrorAddr) throws IOException { }
+
+  public void failMirrorConnection() throws IOException { }
 }
