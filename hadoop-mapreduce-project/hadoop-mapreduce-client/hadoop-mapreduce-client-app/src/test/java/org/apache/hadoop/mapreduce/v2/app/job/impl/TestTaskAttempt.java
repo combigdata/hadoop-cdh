@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.mapreduce.v2.app.job.impl;
 
+import static org.apache.hadoop.test.GenericTestUtils.waitFor;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -27,6 +28,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.common.base.Supplier;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
@@ -390,7 +392,7 @@ public class TestTaskAttempt{
   }
 
   private void testTaskAttemptAssignedKilledHistory
-      (FailingAttemptsDuringAssignedMRApp app) throws Exception {
+      (final FailingAttemptsDuringAssignedMRApp app) throws Exception {
     Configuration conf = new Configuration();
     Job job = app.submit(conf);
     app.waitForState(job, JobState.RUNNING);
@@ -400,8 +402,16 @@ public class TestTaskAttempt{
     Map<TaskAttemptId, TaskAttempt> attempts = task.getAttempts();
     TaskAttempt attempt = attempts.values().iterator().next();
     app.waitForState(attempt, TaskAttemptState.KILLED);
-    Assert.assertTrue("No Ta Started JH Event", app.getTaStartJHEvent());
-    Assert.assertTrue("No Ta Killed JH Event", app.getTaKilledJHEvent());
+    waitFor(new Supplier<Boolean>() {
+      @Override public Boolean get() {
+        return app.getTaStartJHEvent();
+      }
+    }, 100, 800);
+    waitFor(new Supplier<Boolean>() {
+      @Override public Boolean get() {
+        return app.getTaKilledJHEvent();
+      }
+    }, 100, 800);
   }
 
   static class FailingAttemptsMRApp extends MRApp {
