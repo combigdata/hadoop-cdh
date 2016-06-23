@@ -50,8 +50,6 @@ import org.apache.hadoop.util.HttpExceptionUtils;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import com.google.common.annotations.VisibleForTesting;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * An {@link AuthenticationHandler} that implements Kerberos SPNEGO mechanism
@@ -78,9 +76,6 @@ import org.slf4j.LoggerFactory;
 @InterfaceStability.Evolving
 public abstract class DelegationTokenAuthenticationHandler
     implements AuthenticationHandler {
-
-  private static final Logger LOG =
-      LoggerFactory.getLogger(DelegationTokenAuthenticationHandler.class);
 
   protected static final String TYPE_POSTFIX = "-dt";
 
@@ -331,8 +326,6 @@ public abstract class DelegationTokenAuthenticationHandler
       throws IOException, AuthenticationException {
     AuthenticationToken token;
     String delegationParam = getDelegationToken(request);
-    LOG.debug("Authenticating with delegationParam: {}, query string: {}",
-        delegationParam, request.getQueryString());
     if (delegationParam != null) {
       try {
         Token<AbstractDelegationTokenIdentifier> dt = new Token();
