@@ -96,6 +96,7 @@
               <createDependencyReducedPom>false</createDependencyReducedPom>
               <artifactSet>
                 <includes>
+                  <include>com.amazonaws:aws-java-sdk-sts:jar:*</include>
                   <include>com.amazonaws:aws-java-sdk-s3:jar:*</include>
                   <include>com.amazonaws:aws-java-sdk-core:jar:*</include>
                   <include>com.fasterxml.jackson.*:*</include>
@@ -174,7 +175,7 @@
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk-sts</artifactId>
-      <scope>test</scope>
+      <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>junit</groupId>
