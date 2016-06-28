@@ -178,7 +178,8 @@ public abstract class DelegationTokenAuthenticationHandler
       if (dtOp.getHttpMethod().equals(request.getMethod())) {
         boolean doManagement;
         if (dtOp.requiresKerberosCredentials() && token == null) {
-          token = authenticate(request, response);
+          // Don't authenticate via DT for DT ops.
+          token = authHandler.authenticate(request, response);
           if (token == null) {
             requestContinues = false;
             doManagement = false;
