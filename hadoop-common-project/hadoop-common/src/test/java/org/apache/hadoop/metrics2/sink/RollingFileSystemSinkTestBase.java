@@ -221,12 +221,8 @@ public class RollingFileSystemSinkTestBase {
     mm1.testMetric2.incr(2);
 
     ms.publishMetricsNow(); // publish the metrics
-
-    try {
-      ms.stop();
-    } finally {
-      ms.shutdown();
-    }
+    ms.stop();
+    ms.shutdown();
 
     return readLogFile(path, then, count);
   }
