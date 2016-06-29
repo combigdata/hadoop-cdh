@@ -20,7 +20,6 @@ package org.apache.hadoop.yarn.server.resourcemanager.webapp;
 import java.io.IOException;
 import java.io.PrintWriter;
 
-import org.apache.hadoop.yarn.api.records.NodeState;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.NodesPage.NodesBlock;
@@ -83,7 +82,7 @@ public class TestNodesPage {
         .print("<th");
     Mockito.verify(
         writer,
-        Mockito.times(numberOfRacks * numberOfNodesPerRack
+        Mockito.times(numberOfRacks * (numberOfNodesPerRack - 1)
             * numberOfActualTableHeaders + numberOfThInMetricsTable)).print(
         "<td");
   }
