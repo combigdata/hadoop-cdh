@@ -2434,4 +2434,11 @@
   </description>
 </property>
 
+<property>
+  <name>dfs.data.transfer.server.tcpnodelay</name>
+  <value>true</value>
+  <description>
+    If true, set TCP_NODELAY to sockets for transferring data between Datanodes.
+  </description>
+</property>
 </configuration>
