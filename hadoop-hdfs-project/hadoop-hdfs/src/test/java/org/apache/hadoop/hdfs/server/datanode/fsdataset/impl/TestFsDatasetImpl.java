@@ -21,13 +21,17 @@ import com.google.common.collect.Lists;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileSystemTestHelper;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
+import org.apache.hadoop.hdfs.DFSTestUtil;
 import org.apache.hadoop.hdfs.StorageType;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
+import org.apache.hadoop.hdfs.server.blockmanagement.BlockManagerTestUtil;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants;
 import org.apache.hadoop.hdfs.server.common.Storage;
 import org.apache.hadoop.hdfs.server.common.StorageInfo;
@@ -49,6 +53,7 @@ import org.apache.hadoop.io.MultipleIOException;
 import org.apache.hadoop.test.GenericTestUtils;
 import org.apache.hadoop.util.DiskChecker;
 import org.apache.hadoop.util.StringUtils;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Matchers;
@@ -84,6 +89,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -521,5 +527,46 @@ public class TestFsDatasetImpl {
     dataset.removeVolumes(volumesToRemove, true);
     LOG.info("Volumes removed");
     brReceivedLatch.await();
+  }
+
+  @Test(timeout = 30000)
+  public void testReportBadBlocks() throws Exception {
+    boolean threwException = false;
+    MiniDFSCluster cluster = null;
+    try {
+      Configuration config = new HdfsConfiguration();
+      cluster = new MiniDFSCluster.Builder(config).numDataNodes(1).build();
+      cluster.waitActive();
+
+      Assert.assertEquals(0, cluster.getNamesystem().getCorruptReplicaBlocks());
+      DataNode dataNode = cluster.getDataNodes().get(0);
+      ExtendedBlock block =
+          new ExtendedBlock(cluster.getNamesystem().getBlockPoolId(), 0);
+      try {
+        // Test the reportBadBlocks when the volume is null
+        dataNode.reportBadBlocks(block);
+      } catch (NullPointerException npe) {
+        threwException = true;
+      }
+      Thread.sleep(3000);
+      Assert.assertFalse(threwException);
+      Assert.assertEquals(0, cluster.getNamesystem().getCorruptReplicaBlocks());
+
+      FileSystem fs = cluster.getFileSystem();
+      Path filePath = new Path("testData");
+      DFSTestUtil.createFile(fs, filePath, 1, (short) 1, 0);
+
+      block = DFSTestUtil.getFirstBlock(fs, filePath);
+      // Test for the overloaded method reportBadBlocks
+      dataNode.reportBadBlocks(block, dataNode.getFSDataset()
+          .getFsVolumeReferences().get(0));
+      Thread.sleep(3000);
+      BlockManagerTestUtil.updateState(cluster.getNamesystem()
+          .getBlockManager());
+      // Verify the bad block has been reported to namenode
+      Assert.assertEquals(1, cluster.getNamesystem().getCorruptReplicaBlocks());
+    } finally {
+      cluster.shutdown();
+    }
   }
 }
