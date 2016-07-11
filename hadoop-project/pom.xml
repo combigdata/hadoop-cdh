@@ -80,7 +80,7 @@
 
     <!-- ProtocolBuffer version, used to verify the protoc version and -->
     <!-- define the protobuf JAR version                               -->
-    <cdh.protobuf.path>${env.HADOOP_PROTOC_CDH5_PATH}</cdh.protobuf.path>
+    <cdh.protobuf.path>${env.HADOOP_PROTOC_PATH}</cdh.protobuf.path>
     <protobuf.version>${cdh.protobuf.version}</protobuf.version>
     <protoc.path>${cdh.protobuf.path}</protoc.path>
 
