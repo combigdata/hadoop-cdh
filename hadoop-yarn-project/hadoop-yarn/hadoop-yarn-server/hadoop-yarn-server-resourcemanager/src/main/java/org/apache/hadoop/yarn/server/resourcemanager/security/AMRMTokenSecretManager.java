@@ -107,8 +107,8 @@ public class AMRMTokenSecretManager extends
       AMRMTokenSecretManagerState state =
           AMRMTokenSecretManagerState.newInstance(
             this.currentMasterKey.getMasterKey(), null);
-      rmContext.getStateStore().storeOrUpdateAMRMTokenSecretManager(state,
-          false);
+      rmContext.getStateStore().storeOrUpdateAMRMTokenSecretManagerState(state,
+        false);
     }
     this.timer.scheduleAtFixedRate(new MasterKeyRoller(), rollingInterval,
       rollingInterval);
@@ -145,8 +145,8 @@ public class AMRMTokenSecretManager extends
           AMRMTokenSecretManagerState.newInstance(
             this.currentMasterKey.getMasterKey(),
             this.nextMasterKey.getMasterKey());
-      rmContext.getStateStore()
-          .storeOrUpdateAMRMTokenSecretManager(state, true);
+      rmContext.getStateStore().storeOrUpdateAMRMTokenSecretManagerState(state,
+        true);
       this.timer.schedule(new NextKeyActivator(), this.activationDelay);
     } finally {
       this.writeLock.unlock();
@@ -170,8 +170,8 @@ public class AMRMTokenSecretManager extends
       AMRMTokenSecretManagerState state =
           AMRMTokenSecretManagerState.newInstance(
             this.currentMasterKey.getMasterKey(), null);
-      rmContext.getStateStore()
-          .storeOrUpdateAMRMTokenSecretManager(state, true);
+      rmContext.getStateStore().storeOrUpdateAMRMTokenSecretManagerState(state,
+        true);
     } finally {
       this.writeLock.unlock();
     }
