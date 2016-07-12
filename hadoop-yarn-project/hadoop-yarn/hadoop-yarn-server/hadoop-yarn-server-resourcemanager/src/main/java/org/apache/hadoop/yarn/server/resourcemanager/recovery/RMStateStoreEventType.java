@@ -24,7 +24,6 @@ public enum RMStateStoreEventType {
   UPDATE_APP,
   UPDATE_APP_ATTEMPT,
   REMOVE_APP,
-  FENCED,
 
   // Below events should be called synchronously
   STORE_MASTERKEY,
