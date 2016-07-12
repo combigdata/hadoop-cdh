@@ -1112,9 +1112,6 @@ public class ZKRMStateStore extends RMStateStore {
     public void run() {
       try {
         while (true) {
-          if(isFencedState()) { 
-            break;
-          }
           doStoreMultiWithRetries(emptyOpList);
           Thread.sleep(zkSessionTimeout);
         }
