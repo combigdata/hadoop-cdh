@@ -77,9 +77,9 @@ public class NullRMStateStore extends RMStateStore {
   }
 
   @Override
-  public void storeRMDelegationTokenState(
-      RMDelegationTokenIdentifier rmDTIdentifier, Long renewDate)
-      throws Exception {
+  public void storeRMDelegationTokenAndSequenceNumberState(
+      RMDelegationTokenIdentifier rmDTIdentifier, Long renewDate,
+      int latestSequenceNumber) throws Exception {
     // Do nothing
   }
 
@@ -90,9 +90,9 @@ public class NullRMStateStore extends RMStateStore {
   }
 
   @Override
-  protected void updateRMDelegationTokenState(
-      RMDelegationTokenIdentifier rmDTIdentifier, Long renewDate)
-      throws Exception {
+  protected void updateRMDelegationTokenAndSequenceNumberInternal(
+      RMDelegationTokenIdentifier rmDTIdentifier, Long renewDate,
+      int latestSequenceNumber) throws Exception {
     // Do nothing
   }
 
