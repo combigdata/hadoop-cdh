@@ -18,20 +18,23 @@
 package org.apache.hadoop.mapred;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.URL;
 import java.util.jar.JarOutputStream;
 import java.util.zip.ZipEntry;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.mapreduce.Job;
 
 import org.apache.hadoop.mapreduce.MRConfig;
 import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.SleepJob;
 import org.apache.hadoop.util.ToolRunner;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -44,31 +47,24 @@ public class TestLocalJobSubmission {
   private static Path TEST_ROOT_DIR =
       new Path(System.getProperty("test.build.data","/tmp"));
 
-  /**
-   * Test the local job submission options of -jt local -libjars.
-   *
-   * @throws IOException thrown if there's an error creating the JAR file
-   */
-  @Test
-  public void testLocalJobLibjarsOption() throws IOException {
-    Configuration conf = new Configuration();
+  @Before
+  public void configure() throws Exception {
+  }
 
-    testLocalJobLibjarsOption(conf);
-
-    conf.setBoolean(Job.USE_WILDCARD_FOR_LIBJARS, false);
-    testLocalJobLibjarsOption(conf);
+  @After
+  public void cleanup() {
   }
 
   /**
-   * Test the local job submission options of -jt local -libjars.
-   *
-   * @param conf the {@link Configuration} to use
-   * @throws IOException thrown if there's an error creating the JAR file
+   * test the local job submission options of
+   * -jt local -libjars
+   * @throws IOException
    */
-  private void testLocalJobLibjarsOption(Configuration conf)
-      throws IOException {
+  @Test
+  public void testLocalJobLibjarsOption() throws IOException {
     Path jarPath = makeJar(new Path(TEST_ROOT_DIR, "test.jar"));
 
+    Configuration conf = new Configuration();
     conf.set(FileSystem.FS_DEFAULT_NAME_KEY, "hdfs://localhost:9000");
     conf.set(MRConfig.FRAMEWORK_NAME, "local");
     final String[] args = {

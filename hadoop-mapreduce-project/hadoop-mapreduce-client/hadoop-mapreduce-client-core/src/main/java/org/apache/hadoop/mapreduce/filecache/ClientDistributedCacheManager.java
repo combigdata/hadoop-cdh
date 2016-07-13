@@ -227,27 +227,21 @@ public class ClientDistributedCacheManager {
   /**
    * Returns a boolean to denote whether a cache file is visible to all(public)
    * or not
-   * @param conf the configuration
-   * @param uri the URI to test
+   * @param conf
+   * @param uri
    * @return true if the path in the uri is visible to all, false otherwise
-   * @throws IOException thrown if a file system operation fails
+   * @throws IOException
    */
   static boolean isPublic(Configuration conf, URI uri,
       Map<URI, FileStatus> statCache) throws IOException {
-    boolean isPublic = true;
     FileSystem fs = FileSystem.get(uri, conf);
     Path current = new Path(uri.getPath());
     current = fs.makeQualified(current);
-
-    // If we're looking at a wildcarded path, we only need to check that the
-    // ancestors allow execution.  Otherwise, look for read permissions in
-    // addition to the ancestors' permissions.
-    if (!current.getName().equals(DistributedCache.WILDCARD)) {
-      isPublic = checkPermissionOfOther(fs, current, FsAction.READ, statCache);
+    //the leaf level file should be readable by others
+    if (!checkPermissionOfOther(fs, current, FsAction.READ, statCache)) {
+      return false;
     }
-
-    return isPublic &&
-        ancestorsHaveExecutePermissions(fs, current.getParent(), statCache);
+    return ancestorsHaveExecutePermissions(fs, current.getParent(), statCache);
   }
 
   /**
@@ -290,20 +284,11 @@ public class ClientDistributedCacheManager {
 
   private static FileStatus getFileStatus(FileSystem fs, URI uri,
       Map<URI, FileStatus> statCache) throws IOException {
-    Path path = new Path(uri);
-
-    if (path.getName().equals(DistributedCache.WILDCARD)) {
-      path = path.getParent();
-      uri = path.toUri();
-    }
-
     FileStatus stat = statCache.get(uri);
-
     if (stat == null) {
-      stat = fs.getFileStatus(path);
+      stat = fs.getFileStatus(new Path(uri));
       statCache.put(uri, stat);
     }
-
     return stat;
   }
 }

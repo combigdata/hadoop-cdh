@@ -95,11 +95,7 @@ class JobSubmitter {
    */
   private void copyAndConfigureFiles(Job job, Path jobSubmitDir) 
   throws IOException {
-    Configuration conf = job.getConfiguration();
-    boolean useWildcards = conf.getBoolean(Job.USE_WILDCARD_FOR_LIBJARS,
-        Job.DEFAULT_USE_WILDCARD_FOR_LIBJARS);
-    JobResourceUploader rUploader = new JobResourceUploader(jtFs, useWildcards);
-
+    JobResourceUploader rUploader = new JobResourceUploader(jtFs);
     rUploader.uploadFiles(job, jobSubmitDir);
 
     // Get the working directory. If not set, sets it to filesystem working dir

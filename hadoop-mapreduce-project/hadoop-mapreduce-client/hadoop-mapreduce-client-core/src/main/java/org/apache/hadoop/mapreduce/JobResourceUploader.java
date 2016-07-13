@@ -19,8 +19,10 @@ package org.apache.hadoop.mapreduce;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.UnknownHostException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -38,12 +40,10 @@ import org.apache.hadoop.mapreduce.filecache.DistributedCache;
 @InterfaceStability.Unstable
 class JobResourceUploader {
   protected static final Log LOG = LogFactory.getLog(JobResourceUploader.class);
-  private final boolean useWildcard;
-  private final FileSystem jtFs;
+  private FileSystem jtFs;
 
-  JobResourceUploader(FileSystem submitFs, boolean useWildcard) {
+  JobResourceUploader(FileSystem submitFs) {
     this.jtFs = submitFs;
-    this.useWildcard = useWildcard;
   }
 
   /**
@@ -126,18 +126,8 @@ class JobResourceUploader {
       for (String tmpjars : libjarsArr) {
         Path tmp = new Path(tmpjars);
         Path newPath = copyRemoteFiles(libjarsDir, tmp, conf, replication);
-
-        // Add each file to the classpath
         DistributedCache.addFileToClassPath(
-            new Path(newPath.toUri().getPath()), conf, jtFs, !useWildcard);
-      }
-
-      if (useWildcard) {
-        // Add the whole directory to the cache
-        Path libJarsDirWildcard =
-            jtFs.makeQualified(new Path(libjarsDir, DistributedCache.WILDCARD));
-
-        DistributedCache.addCacheFile(libJarsDirWildcard.toUri(), conf);
+            new Path(newPath.toUri().getPath()), conf, jtFs);
       }
     }
 

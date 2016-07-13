@@ -126,14 +126,12 @@ import java.net.URI;
  * as well as methods intended for use by the MapReduce framework
  * (e.g., {@link org.apache.hadoop.mapred.JobClient}).
  *
- * @see org.apache.hadoop.mapreduce.Job
  * @see org.apache.hadoop.mapred.JobConf
  * @see org.apache.hadoop.mapred.JobClient
  */
 @Deprecated
 @InterfaceAudience.Private
 public class DistributedCache {
-  public static final String WILDCARD = "*";
   
   /**
    * Set the configuration with the given set of archives.  Intended
@@ -141,7 +139,6 @@ public class DistributedCache {
    * @param archives The list of archives that need to be localized
    * @param conf Configuration which will be changed
    * @deprecated Use {@link Job#setCacheArchives(URI[])} instead
-   * @see Job#setCacheArchives(URI[])
    */
   @Deprecated
   public static void setCacheArchives(URI[] archives, Configuration conf) {
@@ -155,7 +152,6 @@ public class DistributedCache {
    * @param files The list of files that need to be localized
    * @param conf Configuration which will be changed
    * @deprecated Use {@link Job#setCacheFiles(URI[])} instead
-   * @see Job#setCacheFiles(URI[])
    */
   @Deprecated
   public static void setCacheFiles(URI[] files, Configuration conf) {
@@ -170,7 +166,6 @@ public class DistributedCache {
    * @return A URI array of the caches set in the Configuration
    * @throws IOException
    * @deprecated Use {@link JobContext#getCacheArchives()} instead
-   * @see JobContext#getCacheArchives()
    */
   @Deprecated
   public static URI[] getCacheArchives(Configuration conf) throws IOException {
@@ -184,7 +179,6 @@ public class DistributedCache {
    * @return A URI array of the files set in the Configuration
    * @throws IOException
    * @deprecated Use {@link JobContext#getCacheFiles()} instead
-   * @see JobContext#getCacheFiles()
    */
   @Deprecated
   public static URI[] getCacheFiles(Configuration conf) throws IOException {
@@ -198,7 +192,6 @@ public class DistributedCache {
    * @return A path array of localized caches
    * @throws IOException
    * @deprecated Use {@link JobContext#getLocalCacheArchives()} instead
-   * @see JobContext#getLocalCacheArchives()
    */
   @Deprecated
   public static Path[] getLocalCacheArchives(Configuration conf)
@@ -214,7 +207,6 @@ public class DistributedCache {
    * @return A path array of localized files
    * @throws IOException
    * @deprecated Use {@link JobContext#getLocalCacheFiles()} instead
-   * @see JobContext#getLocalCacheFiles()
    */
   @Deprecated
   public static Path[] getLocalCacheFiles(Configuration conf)
@@ -245,7 +237,6 @@ public class DistributedCache {
    * @return a long array of timestamps
    * @throws IOException
    * @deprecated Use {@link JobContext#getArchiveTimestamps()} instead
-   * @see JobContext#getArchiveTimestamps()
    */
   @Deprecated
   public static long[] getArchiveTimestamps(Configuration conf) {
@@ -261,7 +252,6 @@ public class DistributedCache {
    * @return a long array of timestamps
    * @throws IOException
    * @deprecated Use {@link JobContext#getFileTimestamps()} instead
-   * @see JobContext#getFileTimestamps()
    */
   @Deprecated
   public static long[] getFileTimestamps(Configuration conf) {
@@ -275,7 +265,6 @@ public class DistributedCache {
    * @param uri The uri of the cache to be localized
    * @param conf Configuration to add the cache to
    * @deprecated Use {@link Job#addCacheArchive(URI)} instead
-   * @see Job#addCacheArchive(URI)
    */
   @Deprecated
   public static void addCacheArchive(URI uri, Configuration conf) {
@@ -285,27 +274,11 @@ public class DistributedCache {
   }
   
   /**
-   * Add a file to be localized to the conf.  The localized file will be
-   * downloaded to the execution node(s), and a link will created to the
-   * file from the job's working directory. If the last part of URI's path name
-   * is "*", then the entire parent directory will be localized and links
-   * will be created from the job's working directory to each file in the
-   * parent directory.
-   *
-   * The access permissions of the file will determine whether the localized
-   * file will be shared across jobs.  If the file is not readable by other or
-   * if any of its parent directories is not executable by other, then the
-   * file will not be shared.  In the case of a path that ends in "/*",
-   * sharing of the localized files will be determined solely from the
-   * access permissions of the parent directories.  The access permissions of
-   * the individual files will be ignored.
-   *
-   * Intended to be used by user code.
-   *
+   * Add a file to be localized to the conf.  Intended
+   * to be used by user code.
    * @param uri The uri of the cache to be localized
    * @param conf Configuration to add the cache to
    * @deprecated Use {@link Job#addCacheFile(URI)} instead
-   * @see Job#addCacheFile(URI)
    */
   @Deprecated
   public static void addCacheFile(URI uri, Configuration conf) {
@@ -315,14 +288,12 @@ public class DistributedCache {
   }
 
   /**
-   * Add a file path to the current set of classpath entries.  The file will
-   * also be added to the cache.  Intended to be used by user code.
+   * Add an file path to the current set of classpath entries It adds the file
+   * to cache as well.  Intended to be used by user code.
    *
    * @param file Path of the file to be added
    * @param conf Configuration that contains the classpath setting
    * @deprecated Use {@link Job#addFileToClassPath(Path)} instead
-   * @see #addCacheFile(URI, Configuration)
-   * @see Job#addFileToClassPath(Path)
    */
   @Deprecated
   public static void addFileToClassPath(Path file, Configuration conf)
@@ -331,42 +302,22 @@ public class DistributedCache {
   }
 
   /**
-   * Add a file path to the current set of classpath entries. The file will
-   * also be added to the cache.  Intended to be used by user code.
+   * Add a file path to the current set of classpath entries. It adds the file
+   * to cache as well.  Intended to be used by user code.
    *
    * @param file Path of the file to be added
    * @param conf Configuration that contains the classpath setting
    * @param fs FileSystem with respect to which {@code archivefile} should
    *              be interpreted.
-   * @see #addCacheFile(URI, Configuration)
    */
-  public static void addFileToClassPath(Path file, Configuration conf,
-      FileSystem fs) {
-    addFileToClassPath(file, conf, fs, true);
-  }
-
-  /**
-   * Add a file path to the current set of classpath entries. The file will
-   * also be added to the cache if {@code addToCache} is true.  Used by
-   * internal DistributedCache code.
-   *
-   * @param file Path of the file to be added
-   * @param conf Configuration that contains the classpath setting
-   * @param fs FileSystem with respect to which {@code archivefile} should
-   *              be interpreted.
-   * @param addToCache whether the file should also be added to the cache list
-   * @see #addCacheFile(URI, Configuration)
-   */
-  public static void addFileToClassPath(Path file, Configuration conf,
-      FileSystem fs, boolean addToCache) {
+  public static void addFileToClassPath
+           (Path file, Configuration conf, FileSystem fs)
+        throws IOException {
     String classpath = conf.get(MRJobConfig.CLASSPATH_FILES);
     conf.set(MRJobConfig.CLASSPATH_FILES, classpath == null ? file.toString()
              : classpath + "," + file.toString());
-
-    if (addToCache) {
-      URI uri = fs.makeQualified(file).toUri();
-      addCacheFile(uri, conf);
-    }
+    URI uri = fs.makeQualified(file).toUri();
+    addCacheFile(uri, conf);
   }
 
   /**
@@ -374,8 +325,7 @@ public class DistributedCache {
    * Used by internal DistributedCache code.
    * 
    * @param conf Configuration that contains the classpath setting
-   * @deprecated Use {@link JobContext#getFileClassPaths()} instead
-   * @see JobContext#getFileClassPaths()
+   * @deprecated Use {@link JobContext#getFileClassPaths()} instead 
    */
   @Deprecated
   public static Path[] getFileClassPaths(Configuration conf) {
@@ -398,7 +348,6 @@ public class DistributedCache {
    * @param archive Path of the archive to be added
    * @param conf Configuration that contains the classpath setting
    * @deprecated Use {@link Job#addArchiveToClassPath(Path)} instead
-   * @see Job#addArchiveToClassPath(Path)
    */
   @Deprecated
   public static void addArchiveToClassPath(Path archive, Configuration conf)
@@ -431,7 +380,6 @@ public class DistributedCache {
    * 
    * @param conf Configuration that contains the classpath setting
    * @deprecated Use {@link JobContext#getArchiveClassPaths()} instead 
-   * @see JobContext#getArchiveClassPaths()
    */
   @Deprecated
   public static Path[] getArchiveClassPaths(Configuration conf) {
