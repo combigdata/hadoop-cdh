@@ -1260,12 +1260,17 @@ public class ZKRMStateStore extends RMStateStore {
 
   @Override
   public synchronized void storeOrUpdateAMRMTokenSecretManagerState(
-      AMRMTokenSecretManagerState amrmTokenSecretManagerState, boolean isUpdate)
-      throws Exception {
+      AMRMTokenSecretManagerState amrmTokenSecretManagerState,
+      boolean isUpdate) {
     AMRMTokenSecretManagerState data =
         AMRMTokenSecretManagerState.newInstance(amrmTokenSecretManagerState);
     byte[] stateData = data.getProto().toByteArray();
-    setDataWithRetries(amrmTokenSecretManagerRoot, stateData, -1);
+    try {
+      setDataWithRetries(amrmTokenSecretManagerRoot, stateData, -1);
+    } catch (Exception ex) {
+      LOG.info("Error storing info for AMRMTokenSecretManager", ex);
+      notifyStoreOperationFailed(ex);
+    }
   }
 
   /**
