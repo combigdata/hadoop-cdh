@@ -237,4 +237,16 @@ public class TestBloomFilters {
                 BloomFilterTestStrategy.FILTER_AND_STRATEGY,
                 BloomFilterTestStrategy.FILTER_XOR_STRATEGY)).test();
   }
+
+  @Test
+  public void testFiltersWithLargeVectorSize() {
+    int hashId = Hash.MURMUR_HASH;
+    Filter filter
+        = new BloomFilter(Integer.MAX_VALUE, hashFunctionNumber, hashId);
+    BloomFilterCommonTester.of(hashId, numInsertions)
+        .withFilterInstance(filter)
+        .withTestCases(ImmutableSet.of(
+                BloomFilterTestStrategy.WRITE_READ_STRATEGY
+        )).test();
+  }
 }
