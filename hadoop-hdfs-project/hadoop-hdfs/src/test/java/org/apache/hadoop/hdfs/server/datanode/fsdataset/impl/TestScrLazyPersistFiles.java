@@ -39,6 +39,7 @@ import org.junit.rules.ExpectedException;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.TimeoutException;
 
 import static org.apache.hadoop.hdfs.StorageType.DEFAULT;
 import static org.apache.hadoop.hdfs.StorageType.RAM_DISK;
@@ -69,7 +70,7 @@ public class TestScrLazyPersistFiles extends LazyPersistTestCase {
    */
   @Test
   public void testRamDiskShortCircuitRead()
-    throws IOException, InterruptedException {
+      throws IOException, InterruptedException, TimeoutException {
     startUpCluster(REPL_FACTOR,
       new StorageType[]{RAM_DISK, DEFAULT},
       2 * BLOCK_SIZE - 1, true);  // 1 replica + delta, SCR read
@@ -110,7 +111,7 @@ public class TestScrLazyPersistFiles extends LazyPersistTestCase {
    */
   @Test
   public void testRamDiskEvictionWithShortCircuitReadHandle()
-    throws IOException, InterruptedException {
+      throws IOException, InterruptedException, TimeoutException {
     startUpCluster(REPL_FACTOR, new StorageType[] { RAM_DISK, DEFAULT },
       (6 * BLOCK_SIZE -1), true);  // 5 replica + delta, SCR.
     final String METHOD_NAME = GenericTestUtils.getMethodName();
@@ -154,7 +155,7 @@ public class TestScrLazyPersistFiles extends LazyPersistTestCase {
 
   @Test
   public void testShortCircuitReadAfterEviction()
-      throws IOException, InterruptedException {
+      throws IOException, InterruptedException, TimeoutException {
     Assume.assumeThat(DomainSocket.getLoadingFailureReason(), equalTo(null));
     startUpCluster(true, 1 + EVICTION_LOW_WATERMARK, true, false);
     doShortCircuitReadAfterEvictionTest();
@@ -162,13 +163,13 @@ public class TestScrLazyPersistFiles extends LazyPersistTestCase {
 
   @Test
   public void testLegacyShortCircuitReadAfterEviction()
-      throws IOException, InterruptedException {
+      throws IOException, InterruptedException, TimeoutException {
     startUpCluster(true, 1 + EVICTION_LOW_WATERMARK, true, true);
     doShortCircuitReadAfterEvictionTest();
   }
 
   private void doShortCircuitReadAfterEvictionTest() throws IOException,
-      InterruptedException {
+      InterruptedException, TimeoutException {
     final String METHOD_NAME = GenericTestUtils.getMethodName();
     Path path1 = new Path("/" + METHOD_NAME + ".01.dat");
     Path path2 = new Path("/" + METHOD_NAME + ".02.dat");
@@ -218,7 +219,7 @@ public class TestScrLazyPersistFiles extends LazyPersistTestCase {
 
   @Test
   public void testShortCircuitReadBlockFileCorruption() throws IOException,
-      InterruptedException {
+      InterruptedException, TimeoutException {
     Assume.assumeThat(DomainSocket.getLoadingFailureReason(), equalTo(null));
     startUpCluster(true, 1 + EVICTION_LOW_WATERMARK, true, false);
     doShortCircuitReadBlockFileCorruptionTest();
@@ -226,13 +227,13 @@ public class TestScrLazyPersistFiles extends LazyPersistTestCase {
 
   @Test
   public void testLegacyShortCircuitReadBlockFileCorruption() throws IOException,
-      InterruptedException {
+      InterruptedException, TimeoutException {
     startUpCluster(true, 1 + EVICTION_LOW_WATERMARK, true, true);
     doShortCircuitReadBlockFileCorruptionTest();
   }
 
   public void doShortCircuitReadBlockFileCorruptionTest() throws IOException,
-      InterruptedException {
+      InterruptedException, TimeoutException {
     final String METHOD_NAME = GenericTestUtils.getMethodName();
     Path path1 = new Path("/" + METHOD_NAME + ".01.dat");
     Path path2 = new Path("/" + METHOD_NAME + ".02.dat");
@@ -258,7 +259,7 @@ public class TestScrLazyPersistFiles extends LazyPersistTestCase {
 
   @Test
   public void testShortCircuitReadMetaFileCorruption() throws IOException,
-      InterruptedException {
+      InterruptedException, TimeoutException {
     Assume.assumeThat(DomainSocket.getLoadingFailureReason(), equalTo(null));
     startUpCluster(true, 1 + EVICTION_LOW_WATERMARK, true, false);
     doShortCircuitReadMetaFileCorruptionTest();
@@ -266,13 +267,13 @@ public class TestScrLazyPersistFiles extends LazyPersistTestCase {
 
   @Test
   public void testLegacyShortCircuitReadMetaFileCorruption() throws IOException,
-      InterruptedException {
+      InterruptedException, TimeoutException {
     startUpCluster(true, 1 + EVICTION_LOW_WATERMARK, true, true);
     doShortCircuitReadMetaFileCorruptionTest();
   }
 
   public void doShortCircuitReadMetaFileCorruptionTest() throws IOException,
-      InterruptedException {
+      InterruptedException, TimeoutException {
     final String METHOD_NAME = GenericTestUtils.getMethodName();
     Path path1 = new Path("/" + METHOD_NAME + ".01.dat");
     Path path2 = new Path("/" + METHOD_NAME + ".02.dat");

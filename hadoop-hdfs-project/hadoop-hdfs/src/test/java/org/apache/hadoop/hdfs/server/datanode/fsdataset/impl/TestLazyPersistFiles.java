@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -113,7 +114,8 @@ public class TestLazyPersistFiles extends LazyPersistTestCase {
   }
 
   @Test
-  public void testPlacementOnRamDisk() throws IOException {
+  public void testPlacementOnRamDisk()
+      throws IOException, TimeoutException, InterruptedException {
     startUpCluster(true, -1);
     final String METHOD_NAME = GenericTestUtils.getMethodName();
     Path path = new Path("/" + METHOD_NAME + ".dat");
@@ -123,7 +125,8 @@ public class TestLazyPersistFiles extends LazyPersistTestCase {
   }
 
   @Test
-  public void testPlacementOnSizeLimitedRamDisk() throws IOException {
+  public void testPlacementOnSizeLimitedRamDisk()
+      throws IOException, TimeoutException, InterruptedException {
     startUpCluster(true, 3);
     final String METHOD_NAME = GenericTestUtils.getMethodName();
     Path path1 = new Path("/" + METHOD_NAME + ".01.dat");
@@ -142,7 +145,7 @@ public class TestLazyPersistFiles extends LazyPersistTestCase {
    * @throws IOException
    */
   @Test
-  public void testFallbackToDisk() throws IOException {
+  public void testFallbackToDisk() throws IOException, TimeoutException, InterruptedException {
     startUpCluster(false, -1);
     final String METHOD_NAME = GenericTestUtils.getMethodName();
     Path path = new Path("/" + METHOD_NAME + ".dat");
@@ -254,7 +257,7 @@ public class TestLazyPersistFiles extends LazyPersistTestCase {
    */
   @Test
   public void testLazyPersistFilesAreDiscarded()
-      throws IOException, InterruptedException {
+      throws IOException, InterruptedException, TimeoutException {
     startUpCluster(true, 2);
     final String METHOD_NAME = GenericTestUtils.getMethodName();
     Path path1 = new Path("/" + METHOD_NAME + ".01.dat");
@@ -288,7 +291,7 @@ public class TestLazyPersistFiles extends LazyPersistTestCase {
 
   @Test
   public void testLazyPersistBlocksAreSaved()
-      throws IOException, InterruptedException {
+      throws IOException, InterruptedException, TimeoutException {
     startUpCluster(true, -1);
     final String METHOD_NAME = GenericTestUtils.getMethodName();
     Path path = new Path("/" + METHOD_NAME + ".dat");
@@ -376,7 +379,7 @@ public class TestLazyPersistFiles extends LazyPersistTestCase {
    */
   @Test
   public void testRamDiskEvictionBeforePersist()
-    throws IOException, InterruptedException {
+      throws IOException, InterruptedException, TimeoutException {
     startUpCluster(true, 1);
     final String METHOD_NAME = GenericTestUtils.getMethodName();
     Path path1 = new Path("/" + METHOD_NAME + ".01.dat");
@@ -644,7 +647,7 @@ public class TestLazyPersistFiles extends LazyPersistTestCase {
 
   @Test
   public void testDnRestartWithSavedReplicas()
-      throws IOException, InterruptedException {
+      throws IOException, InterruptedException, TimeoutException {
 
     startUpCluster(true, -1);
     final String METHOD_NAME = GenericTestUtils.getMethodName();
@@ -668,7 +671,7 @@ public class TestLazyPersistFiles extends LazyPersistTestCase {
 
   @Test
   public void testDnRestartWithUnsavedReplicas()
-      throws IOException, InterruptedException {
+      throws IOException, InterruptedException, TimeoutException {
 
     startUpCluster(true, 1);
     FsDatasetTestUtil.stopLazyWriter(cluster.getDataNodes().get(0));
