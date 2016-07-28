@@ -287,7 +287,7 @@ public class LinuxContainerExecutor extends ContainerExecutor {
             resourcesOptions));
         String[] commandArray = command.toArray(new String[command.size()]);
         shExec = new ShellCommandExecutor(commandArray, null, // NM's cwd
-            container.getLaunchContext().getEnvironment()); // sanitized env
+            container.getLaunchContext().getEnvironment(), 0L, false); // sanitized env
         if (LOG.isDebugEnabled()) {
           LOG.debug("launchContainer: " + Arrays.toString(commandArray));
         }
