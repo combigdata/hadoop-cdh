@@ -742,6 +742,13 @@ public class Dispatcher {
               + ", scheduledSize=" + getScheduledSize()
               + ", srcBlocks#=" + srcBlocks.size());
         }
+        // check if time is up or not
+        if (Time.monotonicNow() - startTime > MAX_ITERATION_TIME) {
+          LOG.info("Time up (max time=" + MAX_ITERATION_TIME/1000
+              + " seconds).  Skipping " + this);
+          isTimeUp = true;
+          continue;
+        }
         final PendingMove p = chooseNextMove();
         if (p != null) {
           // Reset no pending move counter
@@ -777,14 +784,6 @@ public class Dispatcher {
                 + " times.  Skipping " + this);
             resetScheduledSize();
           }
-        }
-
-        // check if time is up or not
-        if (Time.monotonicNow() - startTime > MAX_ITERATION_TIME) {
-          LOG.info("Time up (max time=" + MAX_ITERATION_TIME/1000
-              + " seconds).  Skipping " + this);
-          isTimeUp = true;
-          continue;
         }
 
         // Now we can not schedule any block to move and there are
