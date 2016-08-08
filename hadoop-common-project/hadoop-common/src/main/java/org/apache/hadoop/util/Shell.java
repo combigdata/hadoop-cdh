@@ -306,7 +306,7 @@ abstract public class Shell {
     String absolutePath = script.getAbsolutePath();
     return WINDOWS ?
       new String[] {"cmd", "/c", absolutePath }
-      : new String[] {"/bin/bash", bashQuote(absolutePath) };
+      : new String[] {"bash", bashQuote(absolutePath) };
   }
 
   /** a Unix command to set permission */
