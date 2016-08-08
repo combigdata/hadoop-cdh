@@ -17,11 +17,15 @@
  */
 package org.apache.hadoop.hdfs.server.namenode.ha;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.logging.impl.Log4JLogger;
 import org.apache.hadoop.conf.Configuration;
@@ -42,6 +46,7 @@ import org.apache.log4j.Level;
 import org.junit.Test;
 
 import com.google.common.base.Supplier;
+import org.mockito.Mockito;
 
 public class TestEditLogTailer {
   
@@ -156,5 +161,45 @@ public class TestEditLogTailer {
         return expectedLog.exists();
       }
     }, 100, 10000);
+  }
+
+  @Test(timeout=20000)
+  public void testRollEditTimeoutForActiveNN() throws IOException {
+    Configuration conf = new Configuration();
+    conf.setInt(DFSConfigKeys.DFS_HA_TAILEDITS_ROLLEDITS_TIMEOUT_KEY, 5); // 5s
+    conf.setInt(DFSConfigKeys.DFS_HA_TAILEDITS_PERIOD_KEY, 1);
+
+    HAUtil.setAllowStandbyReads(conf, true);
+
+    MiniDFSCluster cluster = new MiniDFSCluster.Builder(conf)
+        .nnTopology(MiniDFSNNTopology.simpleHATopology())
+        .numDataNodes(0)
+        .build();
+    cluster.waitActive();
+
+    cluster.transitionToActive(0);
+
+    try {
+      EditLogTailer tailer = Mockito.spy(
+          cluster.getNamesystem(1).getEditLogTailer());
+      final AtomicInteger flag = new AtomicInteger(0);
+
+      // Return a slow roll edit process.
+      when(tailer.getRollEditsTask()).thenReturn(
+          new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+              Thread.sleep(30000);  // sleep for 30 seconds.
+              assertTrue(Thread.currentThread().isInterrupted());
+              flag.addAndGet(1);
+              return null;
+            }
+          }
+      );
+      tailer.triggerActiveLogRoll();
+      assertEquals(0, flag.get());
+    } finally {
+      cluster.shutdown();
+    }
   }
 }
