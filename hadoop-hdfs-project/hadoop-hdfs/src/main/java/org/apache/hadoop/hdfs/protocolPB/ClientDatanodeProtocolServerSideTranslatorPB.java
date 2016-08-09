@@ -298,6 +298,7 @@ public class ClientDatanodeProtocolServerSideTranslatorPB implements
     try {
       impl.submitDiskBalancerPlan(request.getPlanID(),
           request.hasPlanVersion() ? request.getPlanVersion() : 1,
+          request.hasPlanFile() ? request.getPlanFile() : "",
           request.getPlan(),
           request.hasIgnoreDateCheck() ? request.getIgnoreDateCheck() : false);
       SubmitDiskBalancerPlanResponseProto response =
@@ -341,6 +342,7 @@ public class ClientDatanodeProtocolServerSideTranslatorPB implements
           .newBuilder()
           .setResult(result.getResult().getIntResult())
           .setPlanID(result.getPlanID())
+          .setPlanFile(result.getPlanFile())
           .setCurrentStatus(result.currentStateString())
           .build();
     } catch (Exception e) {

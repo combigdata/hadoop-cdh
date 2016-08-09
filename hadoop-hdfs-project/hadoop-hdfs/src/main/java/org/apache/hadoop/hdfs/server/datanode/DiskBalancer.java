@@ -84,6 +84,7 @@ public class DiskBalancer {
   private ExecutorService scheduler;
   private Future future;
   private String planID;
+  private String planFile;
   private DiskBalancerWorkStatus.Result currentResult;
   private long bandwidth;
 
@@ -105,6 +106,7 @@ public class DiskBalancer {
     lock = new ReentrantLock();
     workMap = new ConcurrentHashMap<>();
     this.planID = "";  // to keep protobuf happy.
+    this.planFile = "";  // to keep protobuf happy.
     this.isDiskBalancerEnabled = conf.getBoolean(
         DFSConfigKeys.DFS_DISK_BALANCER_ENABLED,
         DFSConfigKeys.DFS_DISK_BALANCER_ENABLED_DEFAULT);
@@ -154,15 +156,16 @@ public class DiskBalancer {
    * Takes a client submitted plan and converts into a set of work items that
    * can be executed by the blockMover.
    *
-   * @param planID      - A SHA512 of the plan string
+   * @param planId      - A SHA512 of the plan string
    * @param planVersion - version of the plan string - for future use.
-   * @param plan        - Actual Plan
+   * @param planFileName    - Plan file name
+   * @param planData    - Plan data in json format
    * @param force       - Skip some validations and execute the plan file.
    * @throws DiskBalancerException
    */
-  public void submitPlan(String planID, long planVersion, String plan,
-                         boolean force) throws DiskBalancerException {
-
+  public void submitPlan(String planId, long planVersion, String planFileName,
+                         String planData, boolean force)
+          throws DiskBalancerException {
     lock.lock();
     try {
       checkDiskBalancerEnabled();
@@ -171,9 +174,10 @@ public class DiskBalancer {
         throw new DiskBalancerException("Executing another plan",
             DiskBalancerException.Result.PLAN_ALREADY_IN_PROGRESS);
       }
-      NodePlan nodePlan = verifyPlan(planID, planVersion, plan, force);
+      NodePlan nodePlan = verifyPlan(planId, planVersion, planData, force);
       createWorkPlan(nodePlan);
-      this.planID = planID;
+      this.planID = planId;
+      this.planFile = planFileName;
       this.currentResult = Result.PLAN_UNDER_PROGRESS;
       executePlan();
     } finally {
@@ -199,7 +203,8 @@ public class DiskBalancer {
       }
 
       DiskBalancerWorkStatus status =
-          new DiskBalancerWorkStatus(this.currentResult, this.planID);
+          new DiskBalancerWorkStatus(this.currentResult, this.planID,
+                  this.planFile);
       for (Map.Entry<VolumePair, DiskBalancerWorkItem> entry :
           workMap.entrySet()) {
         DiskBalancerWorkEntry workEntry = new DiskBalancerWorkEntry(
@@ -484,7 +489,8 @@ public class DiskBalancer {
       @Override
       public void run() {
         Thread.currentThread().setName("DiskBalancerThread");
-        LOG.info("Executing Disk balancer plan. Plan ID -  " + planID);
+        LOG.info("Executing Disk balancer plan. Plan File: {}, Plan ID: {}",
+                planFile, planID);
         try {
           for (Map.Entry<VolumePair, DiskBalancerWorkItem> entry :
               workMap.entrySet()) {
