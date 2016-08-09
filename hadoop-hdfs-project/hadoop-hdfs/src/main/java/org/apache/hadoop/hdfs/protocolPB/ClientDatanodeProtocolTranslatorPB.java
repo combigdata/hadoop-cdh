@@ -98,11 +98,11 @@ public class ClientDatanodeProtocolTranslatorPB implements
     ProtocolTranslator, Closeable {
   public static final Log LOG = LogFactory
       .getLog(ClientDatanodeProtocolTranslatorPB.class);
-  
+
   /** RpcController is not used and hence is set to null */
   private final static RpcController NULL_CONTROLLER = null;
   private final ClientDatanodeProtocolPB rpcProxy;
-  private final static RefreshNamenodesRequestProto VOID_REFRESH_NAMENODES = 
+  private final static RefreshNamenodesRequestProto VOID_REFRESH_NAMENODES =
       RefreshNamenodesRequestProto.newBuilder().build();
   private final static GetDatanodeInfoRequestProto VOID_GET_DATANODE_INFO =
       GetDatanodeInfoRequestProto.newBuilder().build();
@@ -117,16 +117,16 @@ public class ClientDatanodeProtocolTranslatorPB implements
   public ClientDatanodeProtocolTranslatorPB(DatanodeID datanodeid,
       Configuration conf, int socketTimeout, boolean connectToDnViaHostname,
       LocatedBlock locatedBlock) throws IOException {
-    rpcProxy = createClientDatanodeProtocolProxy( datanodeid, conf, 
+    rpcProxy = createClientDatanodeProtocolProxy( datanodeid, conf,
                   socketTimeout, connectToDnViaHostname, locatedBlock);
   }
-  
+
   public ClientDatanodeProtocolTranslatorPB(InetSocketAddress addr,
       UserGroupInformation ticket, Configuration conf, SocketFactory factory)
       throws IOException {
     rpcProxy = createClientDatanodeProtocolProxy(addr, ticket, conf, factory, 0);
   }
-  
+
   /**
    * Constructor.
    * @param datanodeid Datanode to connect to.
@@ -156,7 +156,7 @@ public class ClientDatanodeProtocolTranslatorPB implements
     if (LOG.isDebugEnabled()) {
       LOG.debug("Connecting to datanode " + dnAddr + " addr=" + addr);
     }
-    
+
     // Since we're creating a new UserGroupInformation here, we know that no
     // future RPC proxies will be able to re-use the same connection. And
     // usages of this proxy tend to be one-off calls.
@@ -174,7 +174,7 @@ public class ClientDatanodeProtocolTranslatorPB implements
     return createClientDatanodeProtocolProxy(addr, ticket, confWithNoIpcIdle,
         NetUtils.getDefaultSocketFactory(conf), socketTimeout);
   }
-  
+
   static ClientDatanodeProtocolPB createClientDatanodeProtocolProxy(
       InetSocketAddress addr, UserGroupInformation ticket, Configuration conf,
       SocketFactory factory, int socketTimeout) throws IOException {
@@ -254,13 +254,13 @@ public class ClientDatanodeProtocolTranslatorPB implements
   public HdfsBlocksMetadata getHdfsBlocksMetadata(String blockPoolId,
       long[] blockIds,
       List<Token<BlockTokenIdentifier>> tokens) throws IOException {
-    List<TokenProto> tokensProtos = 
+    List<TokenProto> tokensProtos =
         new ArrayList<TokenProto>(tokens.size());
     for (Token<BlockTokenIdentifier> t : tokens) {
       tokensProtos.add(PBHelper.convert(t));
     }
     // Build the request
-    GetHdfsBlockLocationsRequestProto request = 
+    GetHdfsBlockLocationsRequestProto request =
         GetHdfsBlockLocationsRequestProto.newBuilder()
         .setBlockPoolId(blockPoolId)
         .addAllBlockIds(Longs.asList(blockIds))
@@ -382,20 +382,23 @@ public class ClientDatanodeProtocolTranslatorPB implements
    *               local copies of these plans.
    * @param planVersion - The data format of the plans - for future , not
    *                    used now.
-   * @param plan - Actual plan.
+   * @param planFile - Plan file name
+   * @param planData - Actual plan data in json format
    * @param skipDateCheck - Skips the date check.
    * @throws IOException
    */
   @Override
   public void submitDiskBalancerPlan(String planID, long planVersion,
-      String plan, boolean skipDateCheck) throws IOException {
+        String planFile, String planData, boolean skipDateCheck)
+      throws IOException {
     try {
       SubmitDiskBalancerPlanRequestProto request =
           SubmitDiskBalancerPlanRequestProto.newBuilder()
               .setPlanID(planID)
               .setPlanVersion(planVersion)
+              .setPlanFile(planFile)
               .setIgnoreDateCheck(skipDateCheck)
-              .setPlan(plan)
+              .setPlan(planData)
               .build();
       rpcProxy.submitDiskBalancerPlan(NULL_CONTROLLER, request);
     } catch (ServiceException e) {
@@ -438,6 +441,7 @@ public class ClientDatanodeProtocolTranslatorPB implements
 
       return new DiskBalancerWorkStatus(result,
           response.hasPlanID() ? response.getPlanID() : null,
+          response.hasPlanFile() ? response.getPlanFile() : null,
           response.hasCurrentStatus() ? response.getCurrentStatus() : null);
     } catch (ServiceException e) {
       throw ProtobufHelper.getRemoteException(e);

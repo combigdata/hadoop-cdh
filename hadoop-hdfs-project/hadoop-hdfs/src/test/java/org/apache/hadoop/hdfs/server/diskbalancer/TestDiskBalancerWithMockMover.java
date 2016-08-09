@@ -65,13 +65,14 @@ public class TestDiskBalancerWithMockMover {
   @Rule
   public ExpectedException thrown = ExpectedException.none();
 
-  MiniDFSCluster cluster;
-  String sourceName;
-  String destName;
-  String sourceUUID;
-  String destUUID;
-  String nodeID;
-  DataNode dataNode;
+  private static final String PLAN_FILE = "/system/current.plan.json";
+  private MiniDFSCluster cluster;
+  private String sourceName;
+  private String destName;
+  private String sourceUUID;
+  private String destUUID;
+  private String nodeID;
+  private DataNode dataNode;
 
   /**
    * Checks that we return the right error if diskbalancer is not enabled.
@@ -122,7 +123,7 @@ public class TestDiskBalancerWithMockMover {
                                  int version) throws IOException {
     String planJson = plan.toJson();
     String planID = DigestUtils.sha512Hex(planJson);
-    balancer.submitPlan(planID, version, planJson, false);
+    balancer.submitPlan(planID, version, PLAN_FILE, planJson, false);
   }
 
   private void executeSubmitPlan(NodePlan plan, DiskBalancer balancer)
@@ -216,7 +217,7 @@ public class TestDiskBalancerWithMockMover {
     thrown.expect(new DiskBalancerResultVerifier(DiskBalancerException
         .Result.INVALID_PLAN));
 
-    balancer.submitPlan(planID, 1, null, false);
+    balancer.submitPlan(planID, 1, "no-plan-file.json", null, false);
   }
 
   @Test
@@ -235,7 +236,7 @@ public class TestDiskBalancerWithMockMover {
     thrown.expect(new DiskBalancerResultVerifier(DiskBalancerException
         .Result.INVALID_PLAN_HASH));
     balancer.submitPlan(planID.replace(planID.charAt(0), repChar),
-        1, planJson, false);
+        1, PLAN_FILE, planJson, false);
 
   }
 

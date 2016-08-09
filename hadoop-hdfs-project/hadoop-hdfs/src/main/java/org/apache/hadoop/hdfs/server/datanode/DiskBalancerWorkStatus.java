@@ -41,6 +41,7 @@ public class DiskBalancerWorkStatus {
   private final List<DiskBalancerWorkEntry> currentState;
   private Result result;
   private String planID;
+  private String planFile;
 
   /**
    * Constructs a default workStatus Object.
@@ -54,11 +55,13 @@ public class DiskBalancerWorkStatus {
    *
    * @param result - int
    * @param planID - Plan ID
+   * @param planFile - Plan file name
    */
-  public DiskBalancerWorkStatus(Result result, String planID) {
+  public DiskBalancerWorkStatus(Result result, String planID, String planFile) {
     this();
     this.result = result;
     this.planID = planID;
+    this.planFile = planFile;
   }
 
   /**
@@ -83,10 +86,11 @@ public class DiskBalancerWorkStatus {
    * @param planID       - Plan ID
    * @param currentState - List of WorkEntries.
    */
-  public DiskBalancerWorkStatus(Result result, String planID,
+  public DiskBalancerWorkStatus(Result result, String planID, String planFile,
                                 String currentState) throws IOException {
     this.result = result;
     this.planID = planID;
+    this.planFile = planFile;
     ObjectMapper mapper = new ObjectMapper();
     this.currentState = mapper.readValue(currentState,
         defaultInstance().constructCollectionType(
@@ -110,6 +114,15 @@ public class DiskBalancerWorkStatus {
    */
   public String getPlanID() {
     return planID;
+  }
+
+  /**
+   * Returns planFile.
+   *
+   * @return String
+   */
+  public String getPlanFile() {
+    return planFile;
   }
 
   /**
