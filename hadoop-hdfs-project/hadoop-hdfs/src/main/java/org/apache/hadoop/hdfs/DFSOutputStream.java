@@ -2662,7 +2662,7 @@ public class DFSOutputStream extends FSOutputSummer
   }
 
   @VisibleForTesting
-  ExtendedBlock getBlock() {
+  synchronized ExtendedBlock getBlock() {
     return streamer.getBlock();
   }
 
@@ -2680,7 +2680,7 @@ public class DFSOutputStream extends FSOutputSummer
    * @return The times have retried to recover pipeline, for the same packet.
    */
   @VisibleForTesting
-  int getPipelineRecoveryCount() {
+  synchronized int getPipelineRecoveryCount() {
     return streamer.pipelineRecoveryCount;
   }
 }
