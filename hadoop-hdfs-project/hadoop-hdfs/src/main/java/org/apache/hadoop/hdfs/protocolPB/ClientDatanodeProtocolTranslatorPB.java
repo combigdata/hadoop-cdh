@@ -377,7 +377,7 @@ public class ClientDatanodeProtocolTranslatorPB implements
 
   /**
    * Submits a disk balancer plan to the datanode.
-   * @param planID - Plan ID is the hash512 string of the plan that is
+   * @param planID - Plan ID is the SHA-1 string of the plan that is
    *               submitted. This is used by clients when they want to find
    *               local copies of these plans.
    * @param planVersion - The data format of the plans - for future , not
@@ -408,7 +408,7 @@ public class ClientDatanodeProtocolTranslatorPB implements
 
   /**
    * Cancels an executing disk balancer plan.
-   * @param planID - A SHA512 hash of the plan string.
+   * @param planID - A SHA-1 hash of the plan string.
    *
    * @throws IOException on error
    */
