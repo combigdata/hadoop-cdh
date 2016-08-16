@@ -1002,6 +1002,7 @@ public class TestBlockManager {
 
       final CyclicBarrier startBarrier = new CyclicBarrier(2);
       final CountDownLatch endLatch = new CountDownLatch(3);
+      final CountDownLatch doneLatch = new CountDownLatch(1);
 
       // create a task intended to block while processing, thus causing
       // the queue to backup.  simulates how a full BR is processed.
@@ -1009,7 +1010,7 @@ public class TestBlockManager {
           new Callable<Void>(){
             @Override
             public Void call() throws IOException {
-              return bm.runBlockOp(new Callable<Void>() {
+              bm.runBlockOp(new Callable<Void>() {
                 @Override
                 public Void call()
                     throws InterruptedException, BrokenBarrierException {
@@ -1019,6 +1020,9 @@ public class TestBlockManager {
                   return null;
                 }
               });
+              // signal that runBlockOp returned
+              doneLatch.countDown();
+              return null;
             }
           });
 
@@ -1063,7 +1067,7 @@ public class TestBlockManager {
       startBarrier.await(1, TimeUnit.SECONDS);
       assertTrue(endLatch.await(1, TimeUnit.SECONDS));
       assertEquals(0, bm.getBlockOpQueueLength());
-      assertTrue(blockingOp.isDone());
+      assertTrue(doneLatch.await(1, TimeUnit.SECONDS));
     } finally {
       cluster.shutdown();
     }
