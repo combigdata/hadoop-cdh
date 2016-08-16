@@ -187,7 +187,7 @@ public class TestDiskBalancer {
       plan.setNodeUUID(dnNode.getDatanodeUuid());
       plan.setTimeStamp(Time.now());
       String planJson = plan.toJson();
-      String planID = DigestUtils.sha512Hex(planJson);
+      String planID = DigestUtils.shaHex(planJson);
       assertNotNull(plan.getVolumeSetPlans());
       assertTrue(plan.getVolumeSetPlans().size() > 0);
       plan.getVolumeSetPlans().get(0).setTolerancePercent(10);
@@ -304,7 +304,7 @@ public class TestDiskBalancer {
       plan.setNodeUUID(dnNode.getDatanodeUuid());
       plan.setTimeStamp(Time.now());
       String planJson = plan.toJson();
-      String planID = DigestUtils.sha512Hex(planJson);
+      String planID = DigestUtils.shaHex(planJson);
 
       dataNode.submitDiskBalancerPlan(planID, 1, PLAN_FILE, planJson, false);
 
