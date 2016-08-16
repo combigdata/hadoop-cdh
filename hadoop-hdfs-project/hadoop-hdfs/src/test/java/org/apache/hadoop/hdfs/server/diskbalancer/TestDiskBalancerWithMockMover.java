@@ -122,7 +122,7 @@ public class TestDiskBalancerWithMockMover {
   private void executeSubmitPlan(NodePlan plan, DiskBalancer balancer,
                                  int version) throws IOException {
     String planJson = plan.toJson();
-    String planID = DigestUtils.sha512Hex(planJson);
+    String planID = DigestUtils.shaHex(planJson);
     balancer.submitPlan(planID, version, PLAN_FILE, planJson, false);
   }
 
@@ -211,7 +211,7 @@ public class TestDiskBalancerWithMockMover {
     NodePlan plan = mockMoverHelper.getPlan();
     DiskBalancer balancer = mockMoverHelper.getBalancer();
     String planJson = plan.toJson();
-    String planID = DigestUtils.sha512Hex(planJson);
+    String planID = DigestUtils.shaHex(planJson);
 
     thrown.expect(DiskBalancerException.class);
     thrown.expect(new DiskBalancerResultVerifier(DiskBalancerException
@@ -228,7 +228,7 @@ public class TestDiskBalancerWithMockMover {
 
 
     String planJson = plan.toJson();
-    String planID = DigestUtils.sha512Hex(planJson);
+    String planID = DigestUtils.shaHex(planJson);
     char repChar = planID.charAt(0);
     repChar++;
 
@@ -258,7 +258,7 @@ public class TestDiskBalancerWithMockMover {
 
 
     String planJson = plan.toJson();
-    String planID = DigestUtils.sha512Hex(planJson);
+    String planID = DigestUtils.shaHex(planJson);
     balancer.cancelPlan(planID);
 
     DiskBalancerWorkStatus status = balancer.queryWorkStatus();
