@@ -30,10 +30,6 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.net.HttpURLConnection;
-
 public class TestJMXJsonServlet extends HttpServerFunctionalTest {
   private   static final Log LOG = LogFactory.getLog(TestJMXJsonServlet.class);
   private static HttpServer2 server;
@@ -107,15 +103,4 @@ public class TestJMXJsonServlet extends HttpServerFunctionalTest {
     assertReFind("\\}\\);$", result);
 
   }
-
-  @Test
-  public void testTraceRequest() throws IOException {
-    URL url = new URL(baseUrl, "/jmx");
-    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-    conn.setRequestMethod("TRACE");
-
-    assertEquals("Unexpected response code",
-        HttpServletResponse.SC_METHOD_NOT_ALLOWED, conn.getResponseCode());
-  }
-
 }
