@@ -86,6 +86,7 @@ import org.apache.hadoop.hdfs.server.namenode.SafeModeException;
 import org.apache.hadoop.hdfs.util.ByteArrayManager;
 import org.apache.hadoop.io.EnumSetWritable;
 import org.apache.hadoop.io.IOUtils;
+import org.apache.hadoop.io.MultipleIOException;
 import org.apache.hadoop.ipc.RemoteException;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.security.AccessControlException;
@@ -2465,15 +2466,28 @@ public class DFSOutputStream extends FSOutputSummer
    * resources associated with this stream.
    */
   void abort() throws IOException {
+    final List<IOException> ioes = new LinkedList<>();
     synchronized (this) {
       if (isClosed()) {
         return;
       }
       streamer.setLastException(new IOException("Lease timeout of "
           + (dfsClient.getHdfsTimeout() / 1000) + " seconds expired."));
-      closeThreads(true);
+      try {
+        closeThreads(true);
+      } catch (IOException e) {
+        ioes.add(e);
+      }
     }
-    dfsClient.endFileLease(fileId);
+    try {
+      dfsClient.endFileLease(fileId);
+    } catch (IOException e) {
+      ioes.add(e);
+    }
+    final IOException ioe = MultipleIOException.createIOException(ioes);
+    if (ioe != null) {
+      throw ioe;
+    }
   }
 
   boolean isClosed() {
@@ -2519,16 +2533,27 @@ public class DFSOutputStream extends FSOutputSummer
    */
   @Override
   public void close() throws IOException {
+    final List<IOException> ioes = new LinkedList<>();
     synchronized (this) {
       TraceScope scope = dfsClient.newPathTraceScope("DFSOutputStream#close",
           src);
       try {
         closeImpl();
+      } catch (IOException e) {
+        ioes.add(e);
       } finally {
         scope.close();
       }
     }
-    dfsClient.endFileLease(fileId);
+    try {
+      dfsClient.endFileLease(fileId);
+    } catch (IOException e) {
+      ioes.add(e);
+    }
+    final IOException ioe = MultipleIOException.createIOException(ioes);
+    if (ioe != null) {
+      throw ioe;
+    }
   }
 
   private synchronized void closeImpl() throws IOException {
