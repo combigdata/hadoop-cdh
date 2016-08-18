@@ -212,20 +212,19 @@ public class AllocationFileLoaderService extends AbstractService {
     LOG.info("Loading allocation file " + allocFile);
     // Create some temporary hashmaps to hold the new allocs, and we only save
     // them in our fields if we have parsed the entire allocs file successfully.
-    Map<String, Resource> minQueueResources = new HashMap<String, Resource>();
-    Map<String, Resource> maxQueueResources = new HashMap<String, Resource>();
-    Map<String, Integer> queueMaxApps = new HashMap<String, Integer>();
-    Map<String, Integer> userMaxApps = new HashMap<String, Integer>();
-    Map<String, Float> queueMaxAMShares = new HashMap<String, Float>();
-    Map<String, ResourceWeights> queueWeights = new HashMap<String, ResourceWeights>();
-    Map<String, SchedulingPolicy> queuePolicies = new HashMap<String, SchedulingPolicy>();
-    Map<String, Long> minSharePreemptionTimeouts = new HashMap<String, Long>();
-    Map<String, Long> fairSharePreemptionTimeouts = new HashMap<String, Long>();
-    Map<String, Float> fairSharePreemptionThresholds =
-        new HashMap<String, Float>();
-    Map<String, Map<QueueACL, AccessControlList>> queueAcls =
-        new HashMap<String, Map<QueueACL, AccessControlList>>();
-    Set<String> nonPreemptableQueues = new HashSet<String>();
+    Map<String, Resource> minQueueResources = new HashMap<>();
+    Map<String, Resource> maxQueueResources = new HashMap<>();
+    Map<String, Resource> maxChildQueueResources = new HashMap<>();
+    Map<String, Integer> queueMaxApps = new HashMap<>();
+    Map<String, Integer> userMaxApps = new HashMap<>();
+    Map<String, Float> queueMaxAMShares = new HashMap<>();
+    Map<String, ResourceWeights> queueWeights = new HashMap<>();
+    Map<String, SchedulingPolicy> queuePolicies = new HashMap<>();
+    Map<String, Long> minSharePreemptionTimeouts = new HashMap<>();
+    Map<String, Long> fairSharePreemptionTimeouts = new HashMap<>();
+    Map<String, Float> fairSharePreemptionThresholds = new HashMap<>();
+    Map<String, Map<QueueACL, AccessControlList>> queueAcls = new HashMap<>();
+    Set<String> nonPreemptableQueues = new HashSet<>();
     int userMaxAppsDefault = Integer.MAX_VALUE;
     int queueMaxAppsDefault = Integer.MAX_VALUE;
     Resource queueMaxResourcesDefault = Resources.unbounded();
@@ -241,8 +240,8 @@ public class AllocationFileLoaderService extends AbstractService {
     // configuredQueues is segregated based on whether it is a leaf queue
     // or a parent queue. This information is used for creating queues
     // and also for making queue placement decisions(QueuePlacementRule.java).
-    Map<FSQueueType, Set<String>> configuredQueues =
-        new HashMap<FSQueueType, Set<String>>();
+    Map<FSQueueType, Set<String>> configuredQueues = new HashMap<>();
+
     for (FSQueueType queueType : FSQueueType.values()) {
       configuredQueues.put(queueType, new HashSet<String>());
     }
@@ -350,10 +349,10 @@ public class AllocationFileLoaderService extends AbstractService {
         parent = null;
       }
       loadQueue(parent, element, minQueueResources, maxQueueResources,
-          queueMaxApps, userMaxApps, queueMaxAMShares, queueWeights,
-          queuePolicies, minSharePreemptionTimeouts, fairSharePreemptionTimeouts,
-          fairSharePreemptionThresholds, queueAcls, configuredQueues,
-          nonPreemptableQueues);
+          maxChildQueueResources, queueMaxApps, userMaxApps, queueMaxAMShares,
+          queueWeights, queuePolicies, minSharePreemptionTimeouts,
+          fairSharePreemptionTimeouts, fairSharePreemptionThresholds,
+          queueAcls, configuredQueues, nonPreemptableQueues);
     }
 
     // Load placement policy and pass it configured queues
@@ -382,8 +381,9 @@ public class AllocationFileLoaderService extends AbstractService {
           defaultFairSharePreemptionThreshold);
     }
 
-    AllocationConfiguration info = new AllocationConfiguration(minQueueResources,
-        maxQueueResources, queueMaxApps, userMaxApps, queueWeights,
+    AllocationConfiguration info =
+        new AllocationConfiguration(minQueueResources, maxQueueResources,
+        maxChildQueueResources, queueMaxApps, userMaxApps, queueWeights,
         queueMaxAMShares, userMaxAppsDefault, queueMaxAppsDefault,
         queueMaxResourcesDefault, queueMaxAMShareDefault, queuePolicies,
         defaultSchedPolicy, minSharePreemptionTimeouts,
@@ -400,8 +400,11 @@ public class AllocationFileLoaderService extends AbstractService {
    */
   private void loadQueue(String parentName, Element element,
       Map<String, Resource> minQueueResources,
-      Map<String, Resource> maxQueueResources, Map<String, Integer> queueMaxApps,
-      Map<String, Integer> userMaxApps, Map<String, Float> queueMaxAMShares,
+      Map<String, Resource> maxQueueResources,
+      Map<String, Resource> maxChildQueueResources,
+      Map<String, Integer> queueMaxApps,
+      Map<String, Integer> userMaxApps,
+      Map<String, Float> queueMaxAMShares,
       Map<String, ResourceWeights> queueWeights,
       Map<String, SchedulingPolicy> queuePolicies,
       Map<String, Long> minSharePreemptionTimeouts,
@@ -428,8 +431,8 @@ public class AllocationFileLoaderService extends AbstractService {
     if (parentName != null) {
       queueName = parentName + "." + queueName;
     }
-    Map<QueueACL, AccessControlList> acls =
-        new HashMap<QueueACL, AccessControlList>();
+
+    Map<QueueACL, AccessControlList> acls = new HashMap<>();
     NodeList fields = element.getChildNodes();
     boolean isLeaf = true;
 
@@ -440,12 +443,19 @@ public class AllocationFileLoaderService extends AbstractService {
       Element field = (Element) fieldNode;
       if ("minResources".equals(field.getTagName())) {
         String text = ((Text)field.getFirstChild()).getData().trim();
-        Resource val = FairSchedulerConfiguration.parseResourceConfigValue(text);
+        Resource val =
+            FairSchedulerConfiguration.parseResourceConfigValue(text);
         minQueueResources.put(queueName, val);
       } else if ("maxResources".equals(field.getTagName())) {
         String text = ((Text)field.getFirstChild()).getData().trim();
-        Resource val = FairSchedulerConfiguration.parseResourceConfigValue(text);
+        Resource val =
+            FairSchedulerConfiguration.parseResourceConfigValue(text);
         maxQueueResources.put(queueName, val);
+      } else if ("maxChildResources".equals(field.getTagName())) {
+        String text = ((Text)field.getFirstChild()).getData().trim();
+        Resource val =
+            FairSchedulerConfiguration.parseResourceConfigValue(text);
+        maxChildQueueResources.put(queueName, val);
       } else if ("maxRunningApps".equals(field.getTagName())) {
         String text = ((Text)field.getFirstChild()).getData().trim();
         int val = Integer.parseInt(text);
@@ -491,8 +501,8 @@ public class AllocationFileLoaderService extends AbstractService {
       } else if ("queue".endsWith(field.getTagName()) || 
           "pool".equals(field.getTagName())) {
         loadQueue(queueName, field, minQueueResources, maxQueueResources,
-            queueMaxApps, userMaxApps, queueMaxAMShares, queueWeights,
-            queuePolicies, minSharePreemptionTimeouts,
+            maxChildQueueResources, queueMaxApps, userMaxApps, queueMaxAMShares,
+            queueWeights, queuePolicies, minSharePreemptionTimeouts,
             fairSharePreemptionTimeouts, fairSharePreemptionThresholds,
             queueAcls, configuredQueues, nonPreemptableQueues);
         configuredQueues.get(FSQueueType.PARENT).add(queueName);
@@ -514,9 +524,8 @@ public class AllocationFileLoaderService extends AbstractService {
         && !Resources.fitsIn(minQueueResources.get(queueName),
             maxQueueResources.get(queueName))) {
       LOG.warn(
-          String.format(
-              "Queue %s has max resources %s less than min resources %s",
-          queueName, maxQueueResources.get(queueName),
+          String.format("Queue %s has max resources %s less than "
+              + "min resources %s", queueName, maxQueueResources.get(queueName),
               minQueueResources.get(queueName)));
     }
   }
