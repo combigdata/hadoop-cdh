@@ -258,9 +258,24 @@ public final class S3AUtils {
         S3xLoginHelper.extractLoginDetailsWithWarnings(name);
     Configuration c = ProviderUtils.excludeIncompatibleCredentialProviders(
         conf, S3AFileSystem.class);
-    String accessKey = getPassword(c, ACCESS_KEY, login.getUser());
-    String secretKey = getPassword(c, SECRET_KEY, login.getPassword());
+    String accessKey = getPasswordLegacy(c, ACCESS_KEY, login.getUser());
+    String secretKey = getPasswordLegacy(c, SECRET_KEY, login.getPassword());
     return new S3xLoginHelper.Login(accessKey, secretKey);
+  }
+
+  // CLOUDERA-BUILD: deprecate access key and secret key introduced in CDH 5.3
+  // Wrapper around getPassword that also tries deprecated keys if others miss.
+  private static String getPasswordLegacy(Configuration conf, String key,
+      String val) throws IOException {
+    String v = getPassword(conf, key, val);
+    if (v.equals("")) {
+      if (key.equals(ACCESS_KEY)) {
+        return getPassword(conf, S3AFileSystem.DEPRECATED_ACCESS_KEY, val);
+      } else if (key.equals(SECRET_KEY)) {
+        return getPassword(conf, S3AFileSystem.DEPRECATED_SECRET_KEY, val);
+      }
+    }
+    return v;
   }
 
   private static String getPassword(Configuration conf, String key, String val)

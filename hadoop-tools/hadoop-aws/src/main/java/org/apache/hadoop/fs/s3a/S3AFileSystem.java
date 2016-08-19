@@ -136,8 +136,8 @@ public class S3AFileSystem extends FileSystem {
   private static final AtomicInteger poolNumber = new AtomicInteger(1);
 
   // CLOUDERA-BUILD: deprecate access key and secret key introduced in CDH 5.3
-  private static final String DEPRECATED_ACCESS_KEY = "fs.s3a.awsAccessKeyId";
-  private static final String DEPRECATED_SECRET_KEY = "fs.s3a.awsSecretAccessKey";
+  static final String DEPRECATED_ACCESS_KEY = "fs.s3a.awsAccessKeyId";
+  static final String DEPRECATED_SECRET_KEY = "fs.s3a.awsSecretAccessKey";
 
   static {
     Configuration.addDeprecation(DEPRECATED_ACCESS_KEY, ACCESS_KEY,
