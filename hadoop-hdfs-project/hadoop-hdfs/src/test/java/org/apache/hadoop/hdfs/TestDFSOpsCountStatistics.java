@@ -190,7 +190,7 @@ public class TestDFSOpsCountStatistics {
    */
   private void incrementOpsCountByRandomNumbers() {
     for (OpType opType : OpType.values()) {
-      final Long randomCount = RandomUtils.nextLong(0, 100);
+      final Long randomCount = RandomUtils.nextLong() % 100;
       expectedOpsCountMap.get(opType).addAndGet(randomCount);
       for (long i = 0; i < randomCount; i++) {
         statistics.incrementOpCounter(opType);
