@@ -53,4 +53,7 @@ public class DataNodeFaultInjector {
   public void stopSendingPacketDownstream() throws IOException {}
 
   public void noRegistration() throws IOException { }
+
+  public void failPipeline(ReplicaInPipelineInterface replicaInfo,
+      String mirrorAddr) throws IOException { }
 }
