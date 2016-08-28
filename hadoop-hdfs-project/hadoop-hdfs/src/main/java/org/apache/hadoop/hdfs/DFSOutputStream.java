@@ -2674,6 +2674,14 @@ public class DFSOutputStream extends FSOutputSummer
     return streamer.getBlockToken();
   }
 
+  /**
+   * Returns the data streamer object.
+   */
+  @VisibleForTesting
+  protected DataStreamer getStreamer() {
+    return streamer;
+  }
+  
   @Override
   public void setDropBehind(Boolean dropBehind) throws IOException {
     CachingStrategy prevStrategy, nextStrategy;
