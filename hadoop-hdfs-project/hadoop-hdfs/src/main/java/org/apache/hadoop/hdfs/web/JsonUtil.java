@@ -37,6 +37,7 @@ import org.apache.hadoop.util.StringUtils;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.map.ObjectReader;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -165,6 +166,16 @@ public class JsonUtil {
     if (status == null) {
       return null;
     }
+    final Map<String, Object> m = toJsonMap(status);
+    try {
+      return includeType ?
+          toJsonString(FileStatus.class, m) : MAPPER.writeValueAsString(m);
+    } catch (IOException ignored) {
+    }
+    return null;
+  }
+
+  private static Map<String, Object> toJsonMap(HdfsFileStatus status) {
     final Map<String, Object> m = new TreeMap<String, Object>();
     m.put("pathSuffix", status.getLocalName());
     m.put("type", PathType.valueOf(status));
@@ -190,12 +201,7 @@ public class JsonUtil {
     m.put("fileId", status.getFileId());
     m.put("childrenNum", status.getChildrenNum());
     m.put("storagePolicy", status.getStoragePolicy());
-    try {
-      return includeType ?
-          toJsonString(FileStatus.class, m) : MAPPER.writeValueAsString(m);
-    } catch (IOException ignored) {
-    }
-    return null;
+    return m;
   }
 
   /** Convert a Json map to a HdfsFileStatus object. */
@@ -243,6 +249,25 @@ public class JsonUtil {
     m.put("numBytes", extendedblock.getNumBytes());
     m.put("generationStamp", extendedblock.getGenerationStamp());
     return m;
+  }
+
+  static DirectoryListing toDirectoryListing(final Map<?, ?> json) {
+    if (json == null) {
+      return null;
+    }
+    final List<?> list = getList(json,
+        "partialListing");
+
+    HdfsFileStatus[] partialListing = new HdfsFileStatus[list.size()];
+    int i = 0;
+    for (Object o : list) {
+      final Map<?, ?> m = (Map<?, ?>) o;
+      partialListing[i++] = toFileStatus(m, false);
+    }
+    int remainingEntries = getInt(json, "remainingEntries", -1);
+    Preconditions.checkState(remainingEntries != -1,
+        "remainingEntries was not set");
+    return new DirectoryListing(partialListing, remainingEntries);
   }
 
   /** Convert a Json map to an ExtendedBlock object. */
@@ -458,6 +483,34 @@ public class JsonUtil {
         null, null, startOffset, isCorrupt, cachedLocations);
     locatedblock.setBlockToken(toBlockToken((Map<?, ?>)m.get("blockToken")));
     return locatedblock;
+  }
+
+  public static String toJsonString(final DirectoryListing listing) throws
+      IOException {
+
+    if (listing == null) {
+      return null;
+    }
+
+    final Map<String, Object> m = new TreeMap<>();
+    m.put("partialListing", toJsonArray(listing.getPartialListing()));
+    m.put("remainingEntries", listing.getRemainingEntries());
+    return MAPPER.writeValueAsString(m);
+  }
+
+  private static Object[] toJsonArray(HdfsFileStatus[] statuses) throws
+      IOException {
+    if (statuses == null) {
+      return null;
+    }
+    if (statuses.length == 0) {
+      return EMPTY_OBJECT_ARRAY;
+    }
+    final Object[] a = new Object[statuses.length];
+    for (int i = 0; i < statuses.length; i++) {
+      a[i] = toJsonMap(statuses[i]);
+    }
+    return a;
   }
 
   /** Convert a LocatedBlock[] to a Json array. */

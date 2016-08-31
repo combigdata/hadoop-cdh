@@ -57,6 +57,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.GlobalStorageStatistics;
 import org.apache.hadoop.fs.GlobalStorageStatistics.StorageStatisticsProvider;
+import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.fs.StorageStatistics;
 import org.apache.hadoop.hdfs.DFSOpsCountStatistics;
 import org.apache.hadoop.hdfs.DFSOpsCountStatistics.OpType;
@@ -73,6 +74,7 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.DFSUtil;
 import org.apache.hadoop.hdfs.HAUtil;
+import org.apache.hadoop.hdfs.protocol.DirectoryListing;
 import org.apache.hadoop.hdfs.protocol.HdfsFileStatus;
 import org.apache.hadoop.hdfs.security.token.delegation.DelegationTokenIdentifier;
 import org.apache.hadoop.hdfs.server.namenode.SafeModeException;
@@ -98,6 +100,7 @@ import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.map.ObjectReader;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
@@ -1398,6 +1401,58 @@ public class WebHdfsFileSystem extends FileSystem
         return statuses;
       }
     }.run();
+  }
+
+  private static final byte[] EMPTY_ARRAY = new byte[] {};
+  private class DirListingIterator<T extends FileStatus> implements
+      RemoteIterator<T> {
+
+    private final Path path;
+    private DirectoryListing thisListing;
+    private int i = 0;
+    private byte[] prevKey = EMPTY_ARRAY;
+
+    DirListingIterator(Path path) {
+      this.path = path;
+    }
+
+    @Override
+    public boolean hasNext() throws IOException {
+      if (thisListing == null) {
+        fetchMore();
+      }
+      return i < thisListing.getPartialListing().length ||
+          thisListing.hasMore();
+    }
+
+    private void fetchMore() throws IOException {
+      thisListing = new FsPathResponseRunner<DirectoryListing>(
+          GetOpParam.Op.LISTSTATUS_BATCH,
+          path, new StartAfterParam(new String(prevKey, Charsets.UTF_8))) {
+        @Override
+        DirectoryListing decodeResponse(Map<?, ?> json) throws IOException {
+          return JsonUtil.toDirectoryListing(json);
+        }
+      }.run();
+      i = 0;
+      prevKey = thisListing.getLastName();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public T next() throws IOException {
+      Preconditions.checkState(hasNext(), "No more items in iterator");
+      if (i == thisListing.getPartialListing().length) {
+        fetchMore();
+      }
+      return (T)makeQualified(thisListing.getPartialListing()[i++], path);
+    }
+  }
+
+  @Override
+  public RemoteIterator<FileStatus> listStatusIterator(final Path f)
+      throws FileNotFoundException, IOException {
+    return new DirListingIterator<>(f);
   }
 
   @Override

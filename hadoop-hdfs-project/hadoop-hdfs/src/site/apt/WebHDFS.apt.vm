@@ -55,6 +55,9 @@ WebHDFS REST API
     * {{{List a Directory}<<<LISTSTATUS>>>}}
         (see  {{{../../api/org/apache/hadoop/fs/FileSystem.html}FileSystem}}.listStatus)
 
+    * {{{Iteratively List a Directory}<<<LISTSTATUS_BATCH>>>}}
+        (see  {{{../../api/org/apache/hadoop/fs/FileSystem.html}FileSystem}}.listStatusIterator)
+
     * {{{Get Content Summary of a Directory}<<<GETCONTENTSUMMARY>>>}}
         (see  {{{../../api/org/apache/hadoop/fs/FileSystem.html}FileSystem}}.getContentSummary)
 
@@ -591,6 +594,118 @@ Content-Length: 427
   See also:
    {{{../../api/org/apache/hadoop/fs/FileSystem.html}FileSystem}}.listStatus
 
+** {Iteratively List a Directory}
+
+  * Submit a HTTP GET request.
+
++---------------------------------
+curl -i  "http://<HOST>:<PORT>/webhdfs/v1/<PATH>?op=LISTSTATUS_BATCH&startAfter=<CHILD>"
++---------------------------------
+
+  The client receives a response with a batch of {{{FileStatuses JSON Schema}<<<FileStatuses>>> JSON object}}, as well as iteration information:
+
++---------------------------------
+HTTP/1.1 200 OK
+Cache-Control: no-cache
+Expires: Tue, 30 Aug 2016 16:42:16 GMT
+Date: Tue, 30 Aug 2016 16:42:16 GMT
+Pragma: no-cache
+Expires: Tue, 30 Aug 2016 16:42:16 GMT
+Date: Tue, 30 Aug 2016 16:42:16 GMT
+Pragma: no-cache
+Content-Type: application/json
+X-FRAME-OPTIONS: SAMEORIGIN
+Transfer-Encoding: chunked
+Server: Jetty(6.1.26)
+
+{
+ "partialListing": [
+   {
+     "accessTime": 0,
+     "blockSize": 0,
+     "childrenNum": 0,
+     "fileId": 16389,
+     "group": "supergroup",
+     "length": 0,
+     "modificationTime": 1472575493064,
+     "owner": "andrew",
+     "pathSuffix": "anotherdir",
+     "permission": "755",
+     "replication": 0,
+     "storagePolicy": 0,
+     "type": "DIRECTORY"
+   },
+   {
+     "accessTime": 0,
+     "blockSize": 0,
+     "childrenNum": 0,
+     "fileId": 16386,
+     "group": "supergroup",
+     "length": 0,
+     "modificationTime": 1472575274776,
+     "owner": "andrew",
+     "pathSuffix": "somedir",
+     "permission": "755",
+     "replication": 0,
+     "storagePolicy": 0,
+     "type": "DIRECTORY"
+   }
+ ],
+ "remainingEntries": 1
+}
++---------------------------------
+
+  If <<<remainingEntries>>> is non-zero, there are additional entries in the directory.
+  To query the next batch, set the <<<startAfter>>> parameter to the <<<pathSuffix>>> of the last item returned in the current batch. For example:
+
++---------------------------------
+curl -i  "http://<HOST>:<PORT>/webhdfs/v1/<PATH>?op=LISTSTATUS_BATCH&startAfter=somedir"
++---------------------------------
+
+  Which will return the next batch of directory entries:
+
++---------------------------------
+HTTP/1.1 200 OK
+Cache-Control: no-cache
+Expires: Tue, 30 Aug 2016 16:46:23 GMT
+Date: Tue, 30 Aug 2016 16:46:23 GMT
+Pragma: no-cache
+Expires: Tue, 30 Aug 2016 16:46:23 GMT
+Date: Tue, 30 Aug 2016 16:46:23 GMT
+Pragma: no-cache
+Content-Type: application/json
+X-FRAME-OPTIONS: SAMEORIGIN
+Transfer-Encoding: chunked
+Server: Jetty(6.1.26)
+
+{
+ "partialListing": [
+   {
+     "accessTime": 1472575333568,
+     "blockSize": 1024,
+     "childrenNum": 0,
+     "fileId": 16388,
+     "group": "supergroup",
+     "length": 224,
+     "modificationTime": 1472575334222,
+     "owner": "andrew",
+     "pathSuffix": "somefile",
+     "permission": "644",
+     "replication": 3,
+     "storagePolicy": 0,
+     "type": "FILE"
+   }
+ ],
+ "remainingEntries": 0
+}
++---------------------------------
+
+  Batch size is controlled by the <<<dfs.ls.limit>>> option on the NameNode.
+
+  []
+
+  See also:
+    {{{../../api/org/apache/hadoop/fs/FileSystem.html}FileSystem}}.listStatusIterator
 
 * {Other File System Operations}
 
