@@ -588,6 +588,11 @@ public class DFSOutputStream extends FSOutputSummer
     private void initDataStreaming() {
       this.setName("DataStreamer for file " + src +
           " block " + block);
+      if (DFSClient.LOG.isDebugEnabled()) {
+        DFSClient.LOG.debug("nodes " + Arrays.toString(nodes) +
+                " storageTypes " + Arrays.toString(storageTypes) +
+                " storageIDs " + Arrays.toString(storageIDs));
+      }
       response = new ResponseProcessor(nodes);
       response.start();
       stage = BlockConstructionStage.DATA_STREAMING;
