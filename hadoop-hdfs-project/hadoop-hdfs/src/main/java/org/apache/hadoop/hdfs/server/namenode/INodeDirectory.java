@@ -152,7 +152,7 @@ public class INodeDirectory extends INodeWithAdditionalFields
   }
 
   @Override
-  public void addSpaceConsumed(long nsDelta, long dsDelta, boolean verify) 
+  public void addSpaceConsumed(long nsDelta, long dsDelta, boolean verify)
       throws QuotaExceededException {
     final DirectoryWithQuotaFeature q = getDirectoryWithQuotaFeature();
     if (q != null) {
@@ -548,7 +548,7 @@ public class INodeDirectory extends INodeWithAdditionalFields
     children.add(-insertionPoint - 1, node);
 
     if (node.getFsimageGroupName() == null) {
-      // CDH-34072: Cusotmized Provider (Sentry)'s setGroup API will 
+      // CDH-34072: Cusotmized Provider (Sentry)'s setGroup API will
       // fall through to set Fsimage's group
       node.setGroup(getFsimageGroupName());
     }
@@ -558,7 +558,7 @@ public class INodeDirectory extends INodeWithAdditionalFields
   public Quota.Counts computeQuotaUsage(Quota.Counts counts, boolean useCache,
       int lastSnapshotId) {
     final DirectoryWithSnapshotFeature sf = getDirectoryWithSnapshotFeature();
-    
+
     // we are computing the quota usage for a specific snapshot here, i.e., the
     // computation only includes files/directories that exist at the time of the
     // given snapshot
@@ -604,17 +604,19 @@ public class INodeDirectory extends INodeWithAdditionalFields
   }
 
   @Override
-  public ContentSummaryComputationContext computeContentSummary(
+  public ContentSummaryComputationContext computeContentSummary(int snapshotId,
       ContentSummaryComputationContext summary) {
     final DirectoryWithSnapshotFeature sf = getDirectoryWithSnapshotFeature();
-    if (sf != null) {
+    if (sf != null && snapshotId == Snapshot.CURRENT_STATE_ID) {
+      // if the getContentSummary call is against a non-snapshot path, the
+      // computation should include all the deleted files/directories
       sf.computeContentSummary4Snapshot(summary.getCounts());
     }
     final DirectoryWithQuotaFeature q = getDirectoryWithQuotaFeature();
-    if (q != null) {
+    if (q != null && snapshotId == Snapshot.CURRENT_STATE_ID) {
       return q.computeContentSummary(this, summary);
     } else {
-      return computeDirectoryContentSummary(summary, Snapshot.CURRENT_STATE_ID);
+      return computeDirectoryContentSummary(summary, snapshotId);
     }
   }
 
@@ -628,7 +630,7 @@ public class INodeDirectory extends INodeWithAdditionalFields
       byte[] childName = child.getLocalNameBytes();
 
       long lastYieldCount = summary.getYieldCount();
-      child.computeContentSummary(summary);
+      child.computeContentSummary(snapshotId, summary);
 
       // Check whether the computation was paused in the subtree.
       // The counts may be off, but traversing the rest of children
@@ -783,7 +785,7 @@ public class INodeDirectory extends INodeWithAdditionalFields
       Quota.Counts counts = Quota.Counts.newInstance();
       this.computeQuotaUsage(counts, true);
       destroyAndCollectBlocks(collectedBlocks, removedINodes);
-      return counts; 
+      return counts;
     } else {
       // process recursively down the subtree
       Quota.Counts counts = cleanSubtreeRecursively(snapshotId, priorSnapshotId,

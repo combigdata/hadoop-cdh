@@ -494,16 +494,17 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]>,
 
   /** Compute {@link ContentSummary}. Blocking call */
   public final ContentSummary computeContentSummary() {
-    return computeAndConvertContentSummary(
+    return computeAndConvertContentSummary(Snapshot.CURRENT_STATE_ID,
         new ContentSummaryComputationContext());
   }
 
   /**
    * Compute {@link ContentSummary}. 
    */
-  public final ContentSummary computeAndConvertContentSummary(
+  public final ContentSummary computeAndConvertContentSummary(int snapshotId,
       ContentSummaryComputationContext summary) {
-    Content.Counts counts = computeContentSummary(summary).getCounts();
+    Content.Counts counts = computeContentSummary(snapshotId, summary)
+        .getCounts();
     final Quota.Counts q = getQuotaCounts();
     return new ContentSummary(counts.get(Content.LENGTH),
         counts.get(Content.FILE) + counts.get(Content.SYMLINK),
@@ -514,11 +515,16 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]>,
   /**
    * Count subtree content summary with a {@link Content.Counts}.
    *
+   * @param snapshotId Specify the time range for the calculation. If this
+   *                   parameter equals to {@link Snapshot#CURRENT_STATE_ID},
+   *                   the result covers both the current states and all the
+   *                   snapshots. Otherwise the result only covers all the
+   *                   files/directories contained in the specific snapshot.
    * @param summary the context object holding counts for the subtree.
    * @return The same objects as summary.
    */
   public abstract ContentSummaryComputationContext computeContentSummary(
-      ContentSummaryComputationContext summary);
+      int snapshotId, ContentSummaryComputationContext summary);
 
 
   /**
@@ -861,7 +867,7 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]>,
     public List<BlockInfo> getToDeleteList() {
       return toDeleteList;
     }
-    
+
     /**
      * Add a to-be-deleted block into the
      * {@link BlocksMapUpdateInfo#toDeleteList}

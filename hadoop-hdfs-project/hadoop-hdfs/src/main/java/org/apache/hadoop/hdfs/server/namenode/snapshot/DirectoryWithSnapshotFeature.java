@@ -406,7 +406,7 @@ public class DirectoryWithSnapshotFeature implements INode.Feature {
         // this inode has been renamed before the deletion of the DstReference
         // subtree
         inode.cleanSubtree(snapshot, prior, collectedBlocks, removedINodes);
-      } else { 
+      } else {
         // for DstReference node, continue this process to its subtree
         destroyDstSubtree(inode.asReference().getReferredINode(), snapshot,
             prior, collectedBlocks, removedINodes);
@@ -497,7 +497,7 @@ public class DirectoryWithSnapshotFeature implements INode.Feature {
                 collectedBlocks, removedINodes));
           }
         }
-        
+
         for (INode child : dir.getChildrenList(prior)) {
           if (priorChildrenDiff != null
               && priorChildrenDiff.search(ListType.DELETED,
@@ -623,7 +623,7 @@ public class DirectoryWithSnapshotFeature implements INode.Feature {
     diff.diff.modify(snapshotCopy, child);
     return child;
   }
-  
+
   public void clear(INodeDirectory currentINode,
       final BlocksMapUpdateInfo collectedBlocks, final List<INode> removedINodes) {
     // destroy its diff list
@@ -633,7 +633,7 @@ public class DirectoryWithSnapshotFeature implements INode.Feature {
     }
     diffs.clear();
   }
-  
+
   public Quota.Counts computeQuotaUsage4CurrentDirectory(Quota.Counts counts) {
     for(DirectoryDiff d : diffs) {
       for(INode deleted : d.getChildrenDiff().getList(ListType.DELETED)) {
@@ -642,20 +642,18 @@ public class DirectoryWithSnapshotFeature implements INode.Feature {
     }
     return counts;
   }
-  
+
   public void computeContentSummary4Snapshot(final Content.Counts counts) {
     // Create a new blank summary context for blocking processing of subtree.
     ContentSummaryComputationContext summary = 
         new ContentSummaryComputationContext();
     for(DirectoryDiff d : diffs) {
       for(INode deleted : d.getChildrenDiff().getList(ListType.DELETED)) {
-        deleted.computeContentSummary(summary);
+        deleted.computeContentSummary(Snapshot.CURRENT_STATE_ID, summary);
       }
     }
     // Add the counts from deleted trees.
     counts.add(summary.getCounts());
-    // Add the deleted directory count.
-    counts.add(Content.DIRECTORY, diffs.asList().size());
   }
   
   /**
@@ -741,7 +739,7 @@ public class DirectoryWithSnapshotFeature implements INode.Feature {
           priorDeleted = cloneDiffList(dList);
         }
       }
-      
+
       counts.add(getDiffs().deleteSnapshotDiff(snapshot, prior,
           currentINode, collectedBlocks, removedINodes));
       counts.add(currentINode.cleanSubtreeRecursively(snapshot, prior,

@@ -2230,7 +2230,10 @@ public class FSDirectory implements Closeable {
 
             new ContentSummaryComputationContext(this, getFSNamesystem(),
             contentCountLimit, contentSleepMicroSec);
-        ContentSummary cs = targetNode.computeAndConvertContentSummary(cscc);
+        final byte[][] components = INode.getPathComponents(src);
+        final INodesInPath iip = INodesInPath.resolve(rootDir, components);
+        ContentSummary cs = targetNode.computeAndConvertContentSummary(
+            iip.getPathSnapshotId(), cscc);
         yieldCount += cscc.getYieldCount();
         return cs;
       }

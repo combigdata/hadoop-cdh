@@ -30,7 +30,6 @@ import org.apache.hadoop.hdfs.DFSUtil;
 import org.apache.hadoop.hdfs.protocol.QuotaExceededException;
 import org.apache.hadoop.hdfs.protocol.SnapshotException;
 import org.apache.hadoop.hdfs.server.namenode.Content;
-import org.apache.hadoop.hdfs.server.namenode.ContentSummaryComputationContext;
 import org.apache.hadoop.hdfs.server.namenode.INode;
 import org.apache.hadoop.hdfs.server.namenode.INode.BlocksMapUpdateInfo;
 import org.apache.hadoop.hdfs.server.namenode.INodeDirectory;
@@ -232,13 +231,11 @@ public class DirectorySnapshottableFeature extends DirectoryWithSnapshotFeature 
     }
   }
 
-  public ContentSummaryComputationContext computeContentSummary(
-      final INodeDirectory snapshotRoot,
-      final ContentSummaryComputationContext summary) {
-    snapshotRoot.computeContentSummary(summary);
-    summary.getCounts().add(Content.SNAPSHOT, snapshotsByNames.size());
-    summary.getCounts().add(Content.SNAPSHOTTABLE_DIRECTORY, 1);
-    return summary;
+  @Override
+  public void computeContentSummary4Snapshot(final Content.Counts counts) {
+    counts.add(Content.SNAPSHOT, snapshotsByNames.size());
+    counts.add(Content.SNAPSHOTTABLE_DIRECTORY, 1);
+    super.computeContentSummary4Snapshot(counts);
   }
 
   /**

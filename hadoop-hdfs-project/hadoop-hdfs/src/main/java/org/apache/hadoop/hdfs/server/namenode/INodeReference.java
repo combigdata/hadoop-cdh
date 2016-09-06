@@ -341,9 +341,9 @@ public abstract class INodeReference extends INode {
   }
 
   @Override
-  public ContentSummaryComputationContext computeContentSummary(
+  public ContentSummaryComputationContext computeContentSummary(int snapshotId,
       ContentSummaryComputationContext summary) {
-    return referred.computeContentSummary(summary);
+    return referred.computeContentSummary(snapshotId, summary);
   }
 
   @Override
@@ -351,7 +351,7 @@ public abstract class INodeReference extends INode {
       int lastSnapshotId) {
     return referred.computeQuotaUsage(counts, useCache, lastSnapshotId);
   }
-  
+
   @Override
   public final INodeAttributes getSnapshotINode(int snapshotId) {
     return referred.getSnapshotINode(snapshotId);
@@ -394,9 +394,9 @@ public abstract class INodeReference extends INode {
   
   /** An anonymous reference with reference count. */
   public static class WithCount extends INodeReference {
-    
+
     private final List<WithName> withNameList = new ArrayList<WithName>();
-    
+
     /**
      * Compare snapshot with IDs, where null indicates the current status thus
      * is greater than any non-null snapshot.
@@ -530,10 +530,11 @@ public abstract class INodeReference extends INode {
     
     @Override
     public final ContentSummaryComputationContext computeContentSummary(
-        ContentSummaryComputationContext summary) {
+        int snapshotId, ContentSummaryComputationContext summary) {
+      final int s = snapshotId < lastSnapshotId ? snapshotId : lastSnapshotId;
       //only count diskspace for WithName
       final Quota.Counts q = Quota.Counts.newInstance();
-      computeQuotaUsage(q, false, lastSnapshotId);
+      computeQuotaUsage(q, false, s);
       summary.getCounts().add(Content.DISKSPACE, q.get(Quota.DISKSPACE));
       return summary;
     }
@@ -541,10 +542,10 @@ public abstract class INodeReference extends INode {
     @Override
     public final Quota.Counts computeQuotaUsage(Quota.Counts counts,
         boolean useCache, int lastSnapshotId) {
-      // if this.lastSnapshotId < lastSnapshotId, the rename of the referred 
-      // node happened before the rename of its ancestor. This should be 
-      // impossible since for WithName node we only count its children at the 
-      // time of the rename. 
+      // if this.lastSnapshotId < lastSnapshotId, the rename of the referred
+      // node happened before the rename of its ancestor. This should be
+      // impossible since for WithName node we only count its children at the
+      // time of the rename.
       Preconditions.checkState(lastSnapshotId == Snapshot.CURRENT_STATE_ID
           || this.lastSnapshotId >= lastSnapshotId);
       final INode referred = this.getReferredINode().asReference()
@@ -608,7 +609,7 @@ public abstract class INodeReference extends INode {
       } else {
         int prior = getPriorSnapshot(this);
         INode referred = getReferredINode().asReference().getReferredINode();
-        
+
         if (snapshot != Snapshot.NO_SNAPSHOT_ID) {
           if (prior != Snapshot.NO_SNAPSHOT_ID && snapshot <= prior) {
             // the snapshot to be deleted has been deleted while traversing 
@@ -759,7 +760,7 @@ public abstract class INodeReference extends INode {
         }
       }
     }
-    
+
     private int getSelfSnapshot(final int prior) {
       WithCount wc = (WithCount) getReferredINode().asReference();
       INode referred = wc.getReferredINode();
