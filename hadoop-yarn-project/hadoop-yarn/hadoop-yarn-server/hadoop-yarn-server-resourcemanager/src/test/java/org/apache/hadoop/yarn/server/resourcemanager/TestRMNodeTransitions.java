@@ -45,6 +45,7 @@ import org.apache.hadoop.yarn.event.EventHandler;
 import org.apache.hadoop.yarn.event.InlineDispatcher;
 import org.apache.hadoop.yarn.server.api.protocolrecords.NodeHeartbeatResponse;
 import org.apache.hadoop.yarn.server.api.records.NodeHealthStatus;
+import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMApp;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNodeCleanAppEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNodeCleanContainerEvent;
@@ -69,6 +70,7 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -281,21 +283,23 @@ public class TestRMNodeTransitions {
     NodeId nodeId = BuilderUtils.newNodeId("localhost:1", 1);
     RMNodeImpl node2 = new RMNodeImpl(nodeId, rmContext, null, 0, 0, null, null, null);
     node2.handle(new RMNodeStartedEvent(null, null, null));
-    
+
+    ApplicationId app0 = BuilderUtils.newApplicationId(0, 0);
+    ApplicationId app1 = BuilderUtils.newApplicationId(1, 1);
     ContainerId completedContainerIdFromNode1 = BuilderUtils.newContainerId(
-        BuilderUtils.newApplicationAttemptId(
-            BuilderUtils.newApplicationId(0, 0), 0), 0);
+        BuilderUtils.newApplicationAttemptId(app0, 0), 0);
     ContainerId completedContainerIdFromNode2_1 = BuilderUtils.newContainerId(
-        BuilderUtils.newApplicationAttemptId(
-            BuilderUtils.newApplicationId(1, 1), 1), 1);
+        BuilderUtils.newApplicationAttemptId(app1, 1), 1);
     ContainerId completedContainerIdFromNode2_2 = BuilderUtils.newContainerId(
-        BuilderUtils.newApplicationAttemptId(
-            BuilderUtils.newApplicationId(1, 1), 1), 2);
+        BuilderUtils.newApplicationAttemptId(app1, 1), 2);
+
+    rmContext.getRMApps().put(app0, Mockito.mock(RMApp.class));
+    rmContext.getRMApps().put(app1, Mockito.mock(RMApp.class));
  
     RMNodeStatusEvent statusEventFromNode1 = getMockRMNodeStatusEvent();
     RMNodeStatusEvent statusEventFromNode2_1 = getMockRMNodeStatusEvent();
     RMNodeStatusEvent statusEventFromNode2_2 = getMockRMNodeStatusEvent();
-    
+
     ContainerStatus containerStatusFromNode1 = mock(ContainerStatus.class);
     ContainerStatus containerStatusFromNode2_1 = mock(ContainerStatus.class);
     ContainerStatus containerStatusFromNode2_2 = mock(ContainerStatus.class);
@@ -654,6 +658,7 @@ public class TestRMNodeTransitions {
     NodeId nodeId = node.getNodeID();
 
     ApplicationId runningAppId = BuilderUtils.newApplicationId(0, 1);
+    rmContext.getRMApps().put(runningAppId, Mockito.mock(RMApp.class));
     // Create a running container
     ContainerId runningContainerId = BuilderUtils.newContainerId(
         BuilderUtils.newApplicationAttemptId(
@@ -905,15 +910,21 @@ public class TestRMNodeTransitions {
   }
 
   // Test unhealthy report on a decommissioning node will make it
-  // keep decommissioning.
+  // keep decommissioning as long as there's a running or keep alive app.
+  // Otherwise, it will go to decommissioned
   @Test
   public void testDecommissioningUnhealthy() {
     RMNodeImpl node = getDecommissioningNode();
     NodeHealthStatus status = NodeHealthStatus.newInstance(false, "sick",
         System.currentTimeMillis());
-    node.handle(new RMNodeStatusEvent(node.getNodeID(), status,
-        new ArrayList<ContainerStatus>(), null, null));
+    List<ApplicationId> keepAliveApps = new ArrayList<>();
+    keepAliveApps.add(BuilderUtils.newApplicationId(1, 1));
+    node.handle(new RMNodeStatusEvent(node.getNodeID(), status, null,
+        keepAliveApps, null));
     Assert.assertEquals(NodeState.DECOMMISSIONING, node.getState());
+    node.handle(new RMNodeStatusEvent(node.getNodeID(), status, null,
+        null, null));
+    Assert.assertEquals(NodeState.DECOMMISSIONED, node.getState());
   }
 
   @Test
