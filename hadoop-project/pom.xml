@@ -79,6 +79,7 @@
     <findbugs.version>3.0.0</findbugs.version>
 
     <tomcat.version>${cdh.tomcat.version}</tomcat.version>
+    <joda-time.version>2.9.4</joda-time.version>
 
     <!-- define the Java language version used by the compiler -->
     <javac.version>${javaVersion}</javac.version>
@@ -970,7 +971,12 @@
        <artifactId>bcprov-jdk16</artifactId>
        <version>1.46</version>
        <scope>test</scope>
-      </dependency>
+     </dependency>
+     <dependency>
+        <groupId>joda-time</groupId>
+        <artifactId>joda-time</artifactId>
+        <version>${joda-time.version}</version>
+     </dependency>
       <dependency>
         <groupId>com.microsoft.windowsazure.storage</groupId>
         <artifactId>microsoft-windowsazure-storage-sdk</artifactId>
