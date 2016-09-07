@@ -186,7 +186,6 @@ public class FairScheduler extends
   private Map<String, Integer> nodesPerRack = new ConcurrentHashMap<>();
 
   protected boolean sizeBasedWeight; // Give larger weights to larger jobs
-  protected WeightAdjuster weightAdjuster; // Can be null for no weight adjuster
   protected boolean continuousSchedulingEnabled; // Continuous Scheduling enabled or not
   protected int continuousSchedulingSleepMs; // Sleep time for each pass in continuous scheduling
   private Comparator<NodeId> nodeAvailableResourceComparator =
@@ -562,10 +561,6 @@ public class FairScheduler extends
       weight = Math.log1p(app.getDemand().getMemory()) / Math.log(2);
     }
     weight *= app.getPriority().getPriority();
-    if (weightAdjuster != null) {
-      // Run weight through the user-supplied weightAdjuster
-      weight = weightAdjuster.adjustWeight(app, weight);
-    }
     ResourceWeights resourceWeights = app.getResourceWeights();
     resourceWeights.setWeight((float)weight);
     return resourceWeights;
