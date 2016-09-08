@@ -196,7 +196,7 @@
       <comparators>
         <comparator>
           <type>RegexpComparator</type>
-          <expected-output>^-du \[-s\] \[-h\] &lt;path&gt; \.\.\. :\s*</expected-output>
+          <expected-output>^-du \[-s\] \[-h\] \[-x\] &lt;path&gt; \.\.\. :\s*</expected-output>
         </comparator>
         <comparator>
           <type>RegexpComparator</type>
@@ -221,6 +221,10 @@
         <comparator>
           <type>RegexpComparator</type>
           <expected-output>\s*of bytes.\s*</expected-output>
+        </comparator>
+        <comparator>
+          <type>RegexpComparator</type>
+          <expected-output>^\s*-x\s*Excludes snapshots from being counted.\s*</expected-output>
         </comparator>
         <comparator>
           <type>RegexpComparator</type>
@@ -270,7 +274,7 @@
       <comparators>
         <comparator>
           <type>RegexpComparator</type>
-          <expected-output>^-count \[-q\] \[-h\] \[-v\] &lt;path&gt; \.\.\. :( )*</expected-output>
+          <expected-output>^-count \[-q\] \[-h\] \[-v\] \[-x\] &lt;path&gt; \.\.\. :( )*</expected-output>
         </comparator>
         <comparator>
           <type>RegexpComparator</type>
@@ -303,6 +307,10 @@
         <comparator>
           <type>RegexpComparator</type>
           <expected-output>^( |\t)*The -v option displays a header line.( )*</expected-output>
+        </comparator>
+        <comparator>
+          <type>RegexpComparator</type>
+          <expected-output>^( |\t)*The -x option excludes snapshots from being calculated.( )*</expected-output>
         </comparator>
       </comparators>
     </test>

@@ -289,7 +289,7 @@ public class TestCount {
   public void getUsage() {
     Count count = new Count();
     String actual = count.getUsage();
-    String expected = "-count [-q] [-h] [-v] <path> ...";
+    String expected = "-count [-q] [-h] [-v] [-x] <path> ...";
     assertEquals("Count.getUsage", expected, actual);
   }
 
@@ -306,7 +306,8 @@ public class TestCount {
         + "QUOTA REM_QUOTA SPACE_QUOTA REM_SPACE_QUOTA\n"
         + "      DIR_COUNT FILE_COUNT CONTENT_SIZE PATHNAME\n"
         + "The -h option shows file sizes in human readable format.\n"
-        + "The -v option displays a header line.";
+        + "The -v option displays a header line.\n"
+        + "The -x option excludes snapshots from being calculated.";
 
     assertEquals("Count.getDescription", expected, actual);
   }
@@ -319,7 +320,7 @@ public class TestCount {
     }
 
     @Override
-    public String toString(boolean qOption, boolean hOption) {
+    public String toString(boolean qOption, boolean hOption, boolean xOption) {
       if (qOption) {
         if (hOption) {
           return (HUMAN + WITH_QUOTAS);

@@ -503,13 +503,17 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]>,
    */
   public final ContentSummary computeAndConvertContentSummary(int snapshotId,
       ContentSummaryComputationContext summary) {
-    Content.Counts counts = computeContentSummary(snapshotId, summary)
-        .getCounts();
+    computeContentSummary(snapshotId, summary);
+    final Content.Counts counts = summary.getCounts();
+    final Content.Counts snapshotCounts = summary.getSnapshotCounts();
     final Quota.Counts q = getQuotaCounts();
     return new ContentSummary(counts.get(Content.LENGTH),
         counts.get(Content.FILE) + counts.get(Content.SYMLINK),
         counts.get(Content.DIRECTORY), q.get(Quota.NAMESPACE),
-        counts.get(Content.DISKSPACE), q.get(Quota.DISKSPACE));
+        counts.get(Content.DISKSPACE), q.get(Quota.DISKSPACE),
+        snapshotCounts.get(Content.LENGTH), snapshotCounts.get(Content.FILE),
+        snapshotCounts.get(Content.DIRECTORY),
+        snapshotCounts.get(Content.DISKSPACE));
   }
 
   /**

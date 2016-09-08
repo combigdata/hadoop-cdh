@@ -36,7 +36,11 @@ public class ContentSummary implements Writable{
   private long quota;
   private long spaceConsumed;
   private long spaceQuota;
-  
+  // These fields are to track the snapshot-related portion of the values.
+  private long snapshotLength;
+  private long snapshotFileCount;
+  private long snapshotDirectoryCount;
+  private long snapshotSpaceConsumed;
 
   /** Constructor */
   public ContentSummary() {}
@@ -50,28 +54,58 @@ public class ContentSummary implements Writable{
   public ContentSummary(
       long length, long fileCount, long directoryCount, long quota,
       long spaceConsumed, long spaceQuota) {
+    this(length, fileCount, directoryCount, quota, spaceConsumed, spaceQuota,
+        0, 0, 0, 0);
+  }
+
+  /** Constructor */
+  public ContentSummary(
+      long length, long fileCount, long directoryCount, long quota,
+      long spaceConsumed, long spaceQuota, long snapshotLength,
+      long snapshotFileCount, long snapshotDirectoryCount,
+      long snapshotSpaceConsumed) {
     this.length = length;
     this.fileCount = fileCount;
     this.directoryCount = directoryCount;
     this.quota = quota;
     this.spaceConsumed = spaceConsumed;
     this.spaceQuota = spaceQuota;
+    this.snapshotLength = snapshotLength;
+    this.snapshotFileCount = snapshotFileCount;
+    this.snapshotDirectoryCount = snapshotDirectoryCount;
+    this.snapshotSpaceConsumed = snapshotSpaceConsumed;
   }
 
   /** @return the length */
   public long getLength() {return length;}
 
+  public long getSnapshotLength() {
+    return snapshotLength;
+  }
+
   /** @return the directory count */
   public long getDirectoryCount() {return directoryCount;}
 
+  public long getSnapshotDirectoryCount() {
+    return snapshotDirectoryCount;
+  }
+
   /** @return the file count */
   public long getFileCount() {return fileCount;}
-  
+
+  public long getSnapshotFileCount() {
+    return snapshotFileCount;
+  }
+
   /** Return the directory quota */
   public long getQuota() {return quota;}
   
   /** Retuns (disk) space consumed */ 
   public long getSpaceConsumed() {return spaceConsumed;}
+
+  public long getSnapshotSpaceConsumed() {
+    return snapshotSpaceConsumed;
+  }
 
   /** Returns (disk) space quota */
   public long getSpaceQuota() {return spaceQuota;}
@@ -96,6 +130,33 @@ public class ContentSummary implements Writable{
     this.quota = in.readLong();
     this.spaceConsumed = in.readLong();
     this.spaceQuota = in.readLong();
+  }
+
+  @Override
+  public boolean equals(Object to) {
+    if (this == to) {
+      return true;
+    } else if (to instanceof ContentSummary) {
+      ContentSummary right = (ContentSummary) to;
+      return getLength() == right.getLength() &&
+          getFileCount() == right.getFileCount() &&
+          getDirectoryCount() == right.getDirectoryCount() &&
+          getSnapshotLength() == right.getSnapshotLength() &&
+          getSnapshotFileCount() == right.getSnapshotFileCount() &&
+          getSnapshotDirectoryCount() == right.getSnapshotDirectoryCount() &&
+          getSnapshotSpaceConsumed() == right.getSnapshotSpaceConsumed() &&
+          super.equals(to);
+    } else {
+      return super.equals(to);
+    }
+  }
+
+  @Override
+  public int hashCode() {
+    long result = getLength() ^ getFileCount() ^ getDirectoryCount()
+        ^ getSnapshotLength() ^ getSnapshotFileCount()
+        ^ getSnapshotDirectoryCount() ^ getSnapshotSpaceConsumed();
+    return ((int) result) ^ super.hashCode();
   }
 
   /**
@@ -174,16 +235,32 @@ public class ContentSummary implements Writable{
   }
 
   /** Return the string representation of the object in the output format.
-   * if qOption is false, output directory count, file count, and content size;
-   * if qOption is true, output quota and remaining quota as well.
-   * if hOption is false file sizes are returned in bytes
-   * if hOption is true file sizes are returned in human readable 
+   * For description of the options,
+   * @see #toString(boolean, boolean, boolean)
    * 
    * @param qOption a flag indicating if quota needs to be printed or not
    * @param hOption a flag indicating if human readable output if to be used
    * @return the string representation of the object
    */
   public String toString(boolean qOption, boolean hOption) {
+    return toString(qOption, hOption, false);
+  }
+
+  /** Return the string representation of the object in the output format.
+   * if qOption is false, output directory count, file count, and content size;
+   * if qOption is true, output quota and remaining quota as well.
+   * if hOption is false, file sizes are returned in bytes
+   * if hOption is true, file sizes are returned in human readable
+   * if xOption is false, output includes the calculation from snapshots
+   * if xOption is true, output excludes the calculation from snapshots
+   *
+   * @param qOption a flag indicating if quota needs to be printed or not
+   * @param hOption a flag indicating if human readable output is to be used
+   * @param xOption a flag indicating if calculation from snapshots is to be
+   *                included in the output
+   * @return the string representation of the object
+   */
+  public String toString(boolean qOption, boolean hOption, boolean xOption) {
     String prefix = "";
     if (qOption) {
       String quotaStr = "none";
@@ -203,11 +280,18 @@ public class ContentSummary implements Writable{
       prefix = String.format(QUOTA_SUMMARY_FORMAT + SPACE_QUOTA_SUMMARY_FORMAT,
                              quotaStr, quotaRem, spaceQuotaStr, spaceQuotaRem);
     }
-    
-    return prefix + String.format(SUMMARY_FORMAT,
-     formatSize(directoryCount, hOption),
-     formatSize(fileCount, hOption),
-     formatSize(length, hOption));
+
+    if (xOption) {
+      return prefix + String.format(SUMMARY_FORMAT,
+          formatSize(directoryCount - snapshotDirectoryCount, hOption),
+          formatSize(fileCount - snapshotFileCount, hOption),
+          formatSize(length - snapshotLength, hOption));
+    } else {
+      return prefix + String.format(SUMMARY_FORMAT,
+          formatSize(directoryCount, hOption),
+          formatSize(fileCount, hOption),
+          formatSize(length, hOption));
+    }
   }
   /**
    * Formats a size to be human readable or in bytes

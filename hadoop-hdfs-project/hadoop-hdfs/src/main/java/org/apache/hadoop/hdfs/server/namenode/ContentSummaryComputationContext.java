@@ -26,6 +26,7 @@ public class ContentSummaryComputationContext {
   private FSDirectory dir = null;
   private FSNamesystem fsn = null;
   private Content.Counts counts = null;
+  private Content.Counts snapshotCounts = null;
   private long nextCountLimit = 0;
   private long limitPerRun = 0;
   private long yieldCount = 0;
@@ -48,6 +49,7 @@ public class ContentSummaryComputationContext {
     this.limitPerRun = limitPerRun;
     this.nextCountLimit = limitPerRun;
     this.counts = Content.Counts.newInstance();
+    this.snapshotCounts = Content.Counts.newInstance();
     this.sleepMilliSec = sleepMicroSec/1000;
     this.sleepNanoSec = (int)((sleepMicroSec%1000)*1000);
   }
@@ -119,5 +121,9 @@ public class ContentSummaryComputationContext {
   /** Get the content counts */
   public Content.Counts getCounts() {
     return counts;
+  }
+
+  public Content.Counts getSnapshotCounts() {
+    return snapshotCounts;
   }
 }

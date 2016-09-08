@@ -46,11 +46,13 @@ public class Count extends FsCommand {
   private static final String OPTION_QUOTA = "q";
   private static final String OPTION_HUMAN = "h";
   private static final String OPTION_HEADER = "v";
+  // exclude snapshots from calculation. Only work on default columns.
+  private static final String OPTION_EXCLUDE_SNAPSHOT = "x";
 
   public static final String NAME = "count";
   public static final String USAGE =
       "[-" + OPTION_QUOTA + "] [-" + OPTION_HUMAN + "] [-" + OPTION_HEADER
-          + "] <path> ...";
+          + "] [-" + OPTION_EXCLUDE_SNAPSHOT + "] <path> ...";
   public static final String DESCRIPTION =
       "Count the number of directories, files and bytes under the paths\n" +
           "that match the specified file pattern.  The output columns are:\n" +
@@ -63,10 +65,13 @@ public class Count extends FsCommand {
           " PATHNAME\n" +
           "The -" + OPTION_HUMAN +
           " option shows file sizes in human readable format.\n" +
-          "The -" + OPTION_HEADER + " option displays a header line.";
+          "The -" + OPTION_HEADER + " option displays a header line.\n" +
+          "The -" + OPTION_EXCLUDE_SNAPSHOT + " option excludes snapshots " +
+          "from being calculated.";
 
   private boolean showQuotas;
   private boolean humanReadable;
+  private boolean excludeSnapshots;
 
   /** Constructor */
   public Count() {}
@@ -86,13 +91,14 @@ public class Count extends FsCommand {
   @Override
   protected void processOptions(LinkedList<String> args) {
     CommandFormat cf = new CommandFormat(1, Integer.MAX_VALUE,
-        OPTION_QUOTA, OPTION_HUMAN, OPTION_HEADER);
+        OPTION_QUOTA, OPTION_HUMAN, OPTION_HEADER, OPTION_EXCLUDE_SNAPSHOT);
     cf.parse(args);
     if (args.isEmpty()) { // default path is the current working directory
       args.add(".");
     }
     showQuotas = cf.getOpt(OPTION_QUOTA);
     humanReadable = cf.getOpt(OPTION_HUMAN);
+    excludeSnapshots = cf.getOpt(OPTION_EXCLUDE_SNAPSHOT);
     if (cf.getOpt(OPTION_HEADER)) {
       out.println(ContentSummary.getHeader(showQuotas) + "PATHNAME");
     }
@@ -101,7 +107,8 @@ public class Count extends FsCommand {
   @Override
   protected void processPath(PathData src) throws IOException {
     ContentSummary summary = src.fs.getContentSummary(src.path);
-    out.println(summary.toString(showQuotas, isHumanReadable()) + src);
+    out.println(summary.
+        toString(showQuotas, isHumanReadable(), excludeSnapshots) + src);
   }
   
   /**

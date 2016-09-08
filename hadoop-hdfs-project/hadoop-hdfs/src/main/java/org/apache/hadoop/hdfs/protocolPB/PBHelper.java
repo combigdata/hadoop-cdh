@@ -1722,7 +1722,9 @@ public class PBHelper {
     if (cs == null) return null;
     return new ContentSummary(
       cs.getLength(), cs.getFileCount(), cs.getDirectoryCount(), cs.getQuota(),
-      cs.getSpaceConsumed(), cs.getSpaceQuota());
+      cs.getSpaceConsumed(), cs.getSpaceQuota(), cs.getSnapshotLength(),
+      cs.getSnapshotFileCount(), cs.getSnapshotDirectoryCount(),
+      cs.getSnapshotSpaceConsumed());
   }
   
   public static ContentSummaryProto convert(ContentSummary cs) {
@@ -1731,6 +1733,10 @@ public class PBHelper {
         setLength(cs.getLength()).
         setFileCount(cs.getFileCount()).
         setDirectoryCount(cs.getDirectoryCount()).
+        setSnapshotLength(cs.getSnapshotLength()).
+        setSnapshotFileCount(cs.getSnapshotFileCount()).
+        setSnapshotDirectoryCount(cs.getSnapshotDirectoryCount()).
+        setSnapshotSpaceConsumed(cs.getSnapshotSpaceConsumed()).
         setQuota(cs.getQuota()).
         setSpaceConsumed(cs.getSpaceConsumed()).
         setSpaceQuota(cs.getSpaceQuota()).
