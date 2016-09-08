@@ -490,10 +490,11 @@ public class TestJspHelper {
     DatanodeStorage dns2 = new DatanodeStorage("dnStorage2");
 
     StorageReport[] report1 = new StorageReport[] {
-        new StorageReport(dns1, false, 1024, 100, 924, 100)
+        new StorageReport(dns1, false, 1024, 100, 924, 100, 1024 - 100 - 924)
     };
     StorageReport[] report2 = new StorageReport[] {
-        new StorageReport(dns2, false, 2500, 200, 1848, 200)
+        new StorageReport(dns2, false, 2500, 200, 1848, 200,
+            2500 - 200 - 1848)
     };
     dnDesc1.updateHeartbeat(report1, 5L, 3L, 10, 2, null);
     dnDesc2.updateHeartbeat(report2, 10L, 2L, 20, 1, null);

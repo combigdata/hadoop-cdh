@@ -420,6 +420,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
     long totalRemaining = 0;
     long totalBlockPoolUsed = 0;
     long totalDfsUsed = 0;
+    long totalNonDfsUsed = 0;
     Set<DatanodeStorageInfo> failedStorageInfos = null;
 
     // Decide if we should check for any missing StorageReport and mark it as
@@ -479,6 +480,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
       totalRemaining += report.getRemaining();
       totalBlockPoolUsed += report.getBlockPoolUsed();
       totalDfsUsed += report.getDfsUsed();
+      totalNonDfsUsed += report.getNonDfsUsed();
     }
     rollBlocksScheduled(getLastUpdate());
 
@@ -487,6 +489,7 @@ public class DatanodeDescriptor extends DatanodeInfo {
     setRemaining(totalRemaining);
     setBlockPoolUsed(totalBlockPoolUsed);
     setDfsUsed(totalDfsUsed);
+    setNonDfsUsed(totalNonDfsUsed);
     if (checkFailedStorages) {
       updateFailedStorage(failedStorageInfos);
     }
