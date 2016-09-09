@@ -39,6 +39,7 @@ import org.apache.hadoop.hdfs.server.datanode.DataNode;
 import org.apache.hadoop.hdfs.server.diskbalancer.connectors.ClusterConnector;
 import org.apache.hadoop.hdfs.server.diskbalancer.connectors.ConnectorFactory;
 import org.apache.hadoop.hdfs.server.diskbalancer.datamodel.DiskBalancerCluster;
+import org.apache.hadoop.hdfs.tools.DiskBalancerCLI;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -267,8 +268,7 @@ public class TestDiskBalancerCommand {
 
     String[] cmds = StringUtils.split(cmdLine, ' ');
     Configuration conf = new HdfsConfiguration();
-    org.apache.hadoop.hdfs.tools.DiskBalancer db =
-        new org.apache.hadoop.hdfs.tools.DiskBalancer(conf);
+    DiskBalancerCLI db = new DiskBalancerCLI(conf);
 
     FileSystem.setDefaultUri(conf, clusterJson);
     ByteArrayOutputStream bufOut = new ByteArrayOutputStream();

@@ -23,7 +23,7 @@ import com.google.common.base.Preconditions;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hdfs.tools.DiskBalancer;
+import org.apache.hadoop.hdfs.tools.DiskBalancerCLI;
 
 /**
  * Help Command prints out detailed help about each command.
@@ -52,9 +52,9 @@ public class HelpCommand extends Command {
       return;
     }
 
-    Preconditions.checkState(cmd.hasOption(DiskBalancer.HELP));
-    verifyCommandOptions(DiskBalancer.HELP, cmd);
-    String helpCommand = cmd.getOptionValue(DiskBalancer.HELP);
+    Preconditions.checkState(cmd.hasOption(DiskBalancerCLI.HELP));
+    verifyCommandOptions(DiskBalancerCLI.HELP, cmd);
+    String helpCommand = cmd.getOptionValue(DiskBalancerCLI.HELP);
     if (helpCommand == null || helpCommand.isEmpty()) {
       this.printHelp();
       return;
@@ -64,19 +64,19 @@ public class HelpCommand extends Command {
     helpCommand = helpCommand.toLowerCase();
     Command command = null;
     switch (helpCommand) {
-    case DiskBalancer.PLAN:
+    case DiskBalancerCLI.PLAN:
       command = new PlanCommand(getConf());
       break;
-    case DiskBalancer.EXECUTE:
+    case DiskBalancerCLI.EXECUTE:
       command = new ExecuteCommand(getConf());
       break;
-    case DiskBalancer.QUERY:
+    case DiskBalancerCLI.QUERY:
       command = new QueryCommand(getConf());
       break;
-    case DiskBalancer.CANCEL:
+    case DiskBalancerCLI.CANCEL:
       command = new CancelCommand(getConf());
       break;
-    case DiskBalancer.REPORT:
+    case DiskBalancerCLI.REPORT:
       command = new ReportCommand(getConf(), null);
       break;
     default:
@@ -101,7 +101,7 @@ public class HelpCommand extends Command {
 
     HelpFormatter helpFormatter = new HelpFormatter();
     helpFormatter.printHelp("hdfs diskbalancer [command] [options]",
-        header, DiskBalancer.getHelpOptions(), "");
+        header, DiskBalancerCLI.getHelpOptions(), "");
   }
 
 

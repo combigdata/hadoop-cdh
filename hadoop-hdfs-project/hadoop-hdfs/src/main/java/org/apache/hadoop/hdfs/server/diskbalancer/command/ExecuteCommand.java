@@ -29,7 +29,7 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.hdfs.protocol.ClientDatanodeProtocol;
 import org.apache.hadoop.hdfs.server.diskbalancer.DiskBalancerException;
 import org.apache.hadoop.hdfs.server.diskbalancer.planner.NodePlan;
-import org.apache.hadoop.hdfs.tools.DiskBalancer;
+import org.apache.hadoop.hdfs.tools.DiskBalancerCLI;
 
 import java.io.IOException;
 
@@ -46,8 +46,8 @@ public class ExecuteCommand extends Command {
    */
   public ExecuteCommand(Configuration conf) {
     super(conf);
-    addValidCommandParameters(DiskBalancer.EXECUTE, "Executes a given plan.");
-    addValidCommandParameters(DiskBalancer.NODE, "Name of the target node.");
+    addValidCommandParameters(DiskBalancerCLI.EXECUTE,
+        "Executes a given plan.");
   }
 
   /**
@@ -58,10 +58,10 @@ public class ExecuteCommand extends Command {
   @Override
   public void execute(CommandLine cmd) throws Exception {
     LOG.info("Executing \"execute plan\" command");
-    Preconditions.checkState(cmd.hasOption(DiskBalancer.EXECUTE));
-    verifyCommandOptions(DiskBalancer.EXECUTE, cmd);
+    Preconditions.checkState(cmd.hasOption(DiskBalancerCLI.EXECUTE));
+    verifyCommandOptions(DiskBalancerCLI.EXECUTE, cmd);
 
-    String planFile = cmd.getOptionValue(DiskBalancer.EXECUTE);
+    String planFile = cmd.getOptionValue(DiskBalancerCLI.EXECUTE);
     Preconditions.checkArgument(planFile != null && !planFile.isEmpty(),
         "Invalid plan file specified.");
 
@@ -89,7 +89,7 @@ public class ExecuteCommand extends Command {
     String planHash = DigestUtils.sha512Hex(planData);
     try {
       // TODO : Support skipping date check.
-      dataNode.submitDiskBalancerPlan(planHash, DiskBalancer.PLAN_VERSION,
+      dataNode.submitDiskBalancerPlan(planHash, DiskBalancerCLI.PLAN_VERSION,
                                       planFile, planData, false);
     } catch (DiskBalancerException ex) {
       LOG.error("Submitting plan on  {} failed. Result: {}, Message: {}",
@@ -112,6 +112,6 @@ public class ExecuteCommand extends Command {
 
     HelpFormatter helpFormatter = new HelpFormatter();
     helpFormatter.printHelp("hdfs diskbalancer -execute <planfile>",
-        header, DiskBalancer.getExecuteOptions(), footer);
+        header, DiskBalancerCLI.getExecuteOptions(), footer);
   }
 }
