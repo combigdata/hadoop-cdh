@@ -355,14 +355,13 @@ public class TestDiskBalancerWithMockMover {
 
     private AtomicBoolean shouldRun;
     private FsDatasetSpi dataset;
-    private Integer runCount;
+    private int runCount;
     private volatile boolean sleepInCopyBlocks;
     private long delay;
 
     public TestMover(FsDatasetSpi dataset) {
       this.dataset = dataset;
       this.shouldRun = new AtomicBoolean(false);
-      this.runCount = new Integer(0);
     }
 
     public void setSleep() {
@@ -398,7 +397,7 @@ public class TestDiskBalancerWithMockMover {
         if (delay > 0) {
           Thread.sleep(delay);
         }
-        synchronized (runCount) {
+        synchronized (this) {
           if (shouldRun()) {
             runCount++;
           }
@@ -438,9 +437,9 @@ public class TestDiskBalancerWithMockMover {
     }
 
     public int getRunCount() {
-      synchronized (runCount) {
-        LOG.info("Run count : " + runCount.intValue());
-        return runCount.intValue();
+      synchronized (this) {
+        LOG.info("Run count : " + runCount);
+        return runCount;
       }
     }
   }
@@ -487,7 +486,7 @@ public class TestDiskBalancerWithMockMover {
     }
   }
 
-  private class DiskBalancerBuilder {
+  private static class DiskBalancerBuilder {
     private TestMover blockMover;
     private Configuration conf;
     private String nodeID;
@@ -523,7 +522,7 @@ public class TestDiskBalancerWithMockMover {
     }
   }
 
-  private class DiskBalancerClusterBuilder {
+  private static class DiskBalancerClusterBuilder {
     private String jsonFilePath;
     private Configuration conf;
 
@@ -550,7 +549,7 @@ public class TestDiskBalancerWithMockMover {
     }
   }
 
-  private class PlanBuilder {
+  private static class PlanBuilder {
     private String sourcePath;
     private String destPath;
     private String sourceUUID;
