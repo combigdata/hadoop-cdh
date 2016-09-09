@@ -511,6 +511,9 @@ public class MockRM extends ResourceManager {
   public void NMwaitForState(NodeId nodeid, NodeState finalState)
       throws Exception {
     RMNode node = getRMContext().getRMNodes().get(nodeid);
+    if (node == null) {
+      node = getRMContext().getInactiveRMNodes().get(nodeid);
+    }
     Assert.assertNotNull("node shouldn't be null", node);
     int timeoutSecs = 0;
     while (!finalState.equals(node.getState()) && timeoutSecs++ < 20) {
