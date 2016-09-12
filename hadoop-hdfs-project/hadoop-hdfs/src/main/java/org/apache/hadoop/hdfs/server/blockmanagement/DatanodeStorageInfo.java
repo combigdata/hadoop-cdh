@@ -177,7 +177,7 @@ public class DatanodeStorageInfo {
     return getState() == State.FAILED && !blocks.isEmpty();
   }
 
-  String getStorageID() {
+  public String getStorageID() {
     return storageID;
   }
 
