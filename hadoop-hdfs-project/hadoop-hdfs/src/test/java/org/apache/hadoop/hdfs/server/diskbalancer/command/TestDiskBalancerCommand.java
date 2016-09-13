@@ -40,6 +40,8 @@ import org.apache.hadoop.hdfs.server.diskbalancer.connectors.ClusterConnector;
 import org.apache.hadoop.hdfs.server.diskbalancer.connectors.ConnectorFactory;
 import org.apache.hadoop.hdfs.server.diskbalancer.datamodel.DiskBalancerCluster;
 import org.apache.hadoop.hdfs.tools.DiskBalancerCLI;
+import org.apache.hadoop.util.Tool;
+import org.apache.hadoop.util.ToolRunner;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -123,6 +125,27 @@ public class TestDiskBalancerCommand {
         is(allOf(containsString("30/32 null[null:0]"),
             containsString("a87654a9-54c7-4693-8dd9-c9c7021dc340"),
             containsString("9 volumes with node data density 1.97"))));
+  }
+
+  /**
+   * This test simulates DiskBalancerCLI Report command run from a shell
+   * with a generic option 'fs'.
+   * @throws Exception
+   */
+  @Test(timeout = 60000)
+  public void testReportWithGenericOptionFS() throws Exception {
+    final String topReportArg = "5";
+    final String reportArgs = String.format("-%s file:%s -%s -%s %s",
+        "fs", clusterJson.getPath(),
+        "report", "top", topReportArg);
+    final String cmdLine = String.format("%s", reportArgs);
+    final List<String> outputs = runCommand(cmdLine);
+
+    assertThat(outputs.get(0), containsString("Processing report command"));
+    assertThat(outputs.get(1),
+        is(allOf(containsString("Reporting top"), containsString(topReportArg),
+            containsString(
+                "DataNode(s) benefiting from running DiskBalancer"))));
   }
 
   /* test more than 64 DataNode(s) as total, e.g., -report -top 128 */
@@ -268,12 +291,13 @@ public class TestDiskBalancerCommand {
 
     String[] cmds = StringUtils.split(cmdLine, ' ');
     Configuration conf = new HdfsConfiguration();
-    DiskBalancerCLI db = new DiskBalancerCLI(conf);
 
     FileSystem.setDefaultUri(conf, clusterJson);
     ByteArrayOutputStream bufOut = new ByteArrayOutputStream();
     PrintStream out = new PrintStream(bufOut);
-    db.run(cmds, out);
+
+    Tool diskBalancerTool = new DiskBalancerCLI(conf, out);
+    ToolRunner.run(conf, diskBalancerTool, cmds);
 
     Scanner scanner = new Scanner(bufOut.toString());
     List<String> outputs = Lists.newArrayList();
