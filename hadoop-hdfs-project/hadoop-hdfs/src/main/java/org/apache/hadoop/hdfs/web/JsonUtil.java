@@ -251,23 +251,36 @@ public class JsonUtil {
     return m;
   }
 
+  static HdfsFileStatus[] toHdfsFileStatusArray(final Map<?, ?> json) {
+    Preconditions.checkNotNull(json);
+    final Map<?, ?> rootmap =
+        (Map<?, ?>)json.get(FileStatus.class.getSimpleName() + "es");
+    final List<?> array = JsonUtil.getList(rootmap,
+        FileStatus.class.getSimpleName());
+
+    // convert FileStatus
+    Preconditions.checkNotNull(array);
+    final HdfsFileStatus[] statuses = new HdfsFileStatus[array.size()];
+    int i = 0;
+    for (Object object : array) {
+      final Map<?, ?> m = (Map<?, ?>) object;
+      statuses[i++] = JsonUtil.toFileStatus(m, false);
+    }
+    return statuses;
+  }
+
   static DirectoryListing toDirectoryListing(final Map<?, ?> json) {
     if (json == null) {
       return null;
     }
-    final List<?> list = getList(json,
-        "partialListing");
+    final Map<?, ?> listing = getMap(json, "DirectoryListing");
+    final Map<?, ?> partialListing = getMap(listing, "partialListing");
+    HdfsFileStatus[] fileStatuses = toHdfsFileStatusArray(partialListing);
 
-    HdfsFileStatus[] partialListing = new HdfsFileStatus[list.size()];
-    int i = 0;
-    for (Object o : list) {
-      final Map<?, ?> m = (Map<?, ?>) o;
-      partialListing[i++] = toFileStatus(m, false);
-    }
-    int remainingEntries = getInt(json, "remainingEntries", -1);
+    int remainingEntries = getInt(listing, "remainingEntries", -1);
     Preconditions.checkState(remainingEntries != -1,
         "remainingEntries was not set");
-    return new DirectoryListing(partialListing, remainingEntries);
+    return new DirectoryListing(fileStatuses, remainingEntries);
   }
 
   /** Convert a Json map to an ExtendedBlock object. */
@@ -348,6 +361,15 @@ public class JsonUtil {
     Object list = m.get(key);
     if (list instanceof List<?>) {
       return (List<?>) list;
+    } else {
+      return null;
+    }
+  }
+
+  static Map<?, ?> getMap(Map<?, ?> m, String key) {
+    Object map = m.get(key);
+    if (map instanceof Map<?, ?>) {
+      return (Map<?, ?>) map;
     } else {
       return null;
     }
@@ -485,32 +507,42 @@ public class JsonUtil {
     return locatedblock;
   }
 
+  private static Map<String, Object> toJson(final DirectoryListing listing)
+      throws IOException {
+    final Map<String, Object> m = new TreeMap<>();
+    // Serialize FileStatus[] to a FileStatuses map
+    m.put("partialListing", toJsonMap(listing.getPartialListing()));
+    // Simple int
+    m.put("remainingEntries", listing.getRemainingEntries());
+
+    return m;
+  }
+
   public static String toJsonString(final DirectoryListing listing) throws
       IOException {
 
     if (listing == null) {
       return null;
     }
-
-    final Map<String, Object> m = new TreeMap<>();
-    m.put("partialListing", toJsonArray(listing.getPartialListing()));
-    m.put("remainingEntries", listing.getRemainingEntries());
-    return MAPPER.writeValueAsString(m);
+    return toJsonString(DirectoryListing.class, toJson(listing));
   }
 
-  private static Object[] toJsonArray(HdfsFileStatus[] statuses) throws
+  private static Map<String, Object> toJsonMap(HdfsFileStatus[] statuses) throws
       IOException {
     if (statuses == null) {
       return null;
     }
-    if (statuses.length == 0) {
-      return EMPTY_OBJECT_ARRAY;
-    }
-    final Object[] a = new Object[statuses.length];
+
+    final Map<String, Object> fileStatuses = new TreeMap<>();
+    final Map<String, Object> fileStatus = new TreeMap<>();
+    fileStatuses.put("FileStatuses", fileStatus);
+    final Object[] array = new Object[statuses.length];
+    fileStatus.put("FileStatus", array);
     for (int i = 0; i < statuses.length; i++) {
-      a[i] = toJsonMap(statuses[i]);
+      array[i] = toJsonMap(statuses[i]);
     }
-    return a;
+
+    return fileStatuses;
   }
 
   /** Convert a LocatedBlock[] to a Json array. */

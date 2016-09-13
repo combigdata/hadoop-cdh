@@ -602,7 +602,7 @@ Content-Length: 427
 curl -i  "http://<HOST>:<PORT>/webhdfs/v1/<PATH>?op=LISTSTATUS_BATCH&startAfter=<CHILD>"
 +---------------------------------
 
-  The client receives a response with a batch of {{{FileStatuses JSON Schema}<<<FileStatuses>>> JSON object}}, as well as iteration information:
+  The client receives a response with a {{{DirectoryListing JSON Schema}<<<DirectoryListing>>> JSON object}}, which contains a {{{FileStatuses JSON Schema}<<<FileStatuses>>> JSON object}}, as well as iteration information:
 
 +---------------------------------
 HTTP/1.1 200 OK
@@ -619,39 +619,45 @@ Transfer-Encoding: chunked
 Server: Jetty(6.1.26)
 
 {
- "partialListing": [
-   {
-     "accessTime": 0,
-     "blockSize": 0,
-     "childrenNum": 0,
-     "fileId": 16389,
-     "group": "supergroup",
-     "length": 0,
-     "modificationTime": 1472575493064,
-     "owner": "andrew",
-     "pathSuffix": "anotherdir",
-     "permission": "755",
-     "replication": 0,
-     "storagePolicy": 0,
-     "type": "DIRECTORY"
-   },
-   {
-     "accessTime": 0,
-     "blockSize": 0,
-     "childrenNum": 0,
-     "fileId": 16386,
-     "group": "supergroup",
-     "length": 0,
-     "modificationTime": 1472575274776,
-     "owner": "andrew",
-     "pathSuffix": "somedir",
-     "permission": "755",
-     "replication": 0,
-     "storagePolicy": 0,
-     "type": "DIRECTORY"
-   }
- ],
- "remainingEntries": 1
+  "DirectoryListing": {
+    "partialListing": {
+      "FileStatuses": {
+        "FileStatus": [
+          {
+            "accessTime": 0,
+            "blockSize": 0,
+            "childrenNum": 0,
+            "fileId": 16387,
+            "group": "supergroup",
+            "length": 0,
+            "modificationTime": 1473305882563,
+            "owner": "andrew",
+            "pathSuffix": "bardir",
+            "permission": "755",
+            "replication": 0,
+            "storagePolicy": 0,
+            "type": "DIRECTORY"
+          },
+          {
+            "accessTime": 1473305896945,
+            "blockSize": 1024,
+            "childrenNum": 0,
+            "fileId": 16388,
+            "group": "supergroup",
+            "length": 0,
+            "modificationTime": 1473305896965,
+            "owner": "andrew",
+            "pathSuffix": "bazfile",
+            "permission": "644",
+            "replication": 3,
+            "storagePolicy": 0,
+            "type": "FILE"
+          }
+        ]
+      }
+    },
+  "remainingEntries": 2
+  }
 }
 +---------------------------------
 
@@ -659,7 +665,7 @@ Server: Jetty(6.1.26)
   To query the next batch, set the <<<startAfter>>> parameter to the <<<pathSuffix>>> of the last item returned in the current batch. For example:
 
 +---------------------------------
-curl -i  "http://<HOST>:<PORT>/webhdfs/v1/<PATH>?op=LISTSTATUS_BATCH&startAfter=somedir"
+curl -i  "http://<HOST>:<PORT>/webhdfs/v1/<PATH>?op=LISTSTATUS_BATCH&startAfter=bazfile"
 +---------------------------------
 
   Which will return the next batch of directory entries:
@@ -679,24 +685,45 @@ Transfer-Encoding: chunked
 Server: Jetty(6.1.26)
 
 {
- "partialListing": [
-   {
-     "accessTime": 1472575333568,
-     "blockSize": 1024,
-     "childrenNum": 0,
-     "fileId": 16388,
-     "group": "supergroup",
-     "length": 224,
-     "modificationTime": 1472575334222,
-     "owner": "andrew",
-     "pathSuffix": "somefile",
-     "permission": "644",
-     "replication": 3,
-     "storagePolicy": 0,
-     "type": "FILE"
-   }
- ],
- "remainingEntries": 0
+  "DirectoryListing": {
+    "partialListing": {
+      "FileStatuses": {
+        "FileStatus": [
+          {
+            "accessTime": 0,
+            "blockSize": 0,
+            "childrenNum": 0,
+            "fileId": 16386,
+            "group": "supergroup",
+            "length": 0,
+            "modificationTime": 1473305878951,
+            "owner": "andrew",
+            "pathSuffix": "foodir",
+            "permission": "755",
+            "replication": 0,
+            "storagePolicy": 0,
+            "type": "DIRECTORY"
+          },
+          {
+            "accessTime": 1473305902864,
+            "blockSize": 1024,
+            "childrenNum": 0,
+            "fileId": 16389,
+            "group": "supergroup",
+            "length": 0,
+            "modificationTime": 1473305902878,
+            "owner": "andrew",
+            "pathSuffix": "quxfile",
+            "permission": "644",
+            "replication": 3,
+            "storagePolicy": 0,
+            "type": "FILE"
+          }
+        ]
+      }
+    },
+    "remainingEntries": 0
+  }
 }
 +---------------------------------
 
@@ -1910,6 +1937,44 @@ var fileStatusProperties =
   See also:
   {{{FileStatus Properties}<<<FileStatus>>> Properties}},
   {{{List a Directory}<<<LISTSTATUS>>>}},
+  {{{../../api/org/apache/hadoop/fs/FileStatus.html}FileStatus}}
+
+
+** {DirectoryListing JSON Schema}
+
+  A <<<DirectoryListing>>> JSON object represents a batch of directory entries while iteratively listing a directory. It contains a <<<FileStatuses>>> JSON object as well as iteration information.
+
++---------------------------------
+{
+  "name"      : "DirectoryListing",
+  "properties":
+  {
+    "DirectoryListing":
+    {
+      "type"      : "object",
+      "properties":
+      {
+        "partialListing":
+        {
+          "description": "A partial directory listing",
+          "type"       : "object", // A FileStatuses object
+          "required"   : true
+        },
+        "remainingEntries":
+        {
+          "description": "Number of remaining entries",
+          "type"       : "integer",
+          "required"   : true
+        }
+      }
+    }
+  }
+}
++---------------------------------
+
+  See also:
+  {{{FileStatuses JSON Schema}<<<FileStatuses>>> JSON object}},
+  {{{Iteratively List a Directory}<<<LISTSTATUS_BATCH>>>}},
   {{{../../api/org/apache/hadoop/fs/FileStatus.html}FileStatus}}
 
 

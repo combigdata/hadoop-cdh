@@ -1387,17 +1387,13 @@ public class WebHdfsFileSystem extends FileSystem
     return new FsPathResponseRunner<FileStatus[]>(op, f) {
       @Override
       FileStatus[] decodeResponse(Map<?,?> json) {
-        final Map<?, ?> rootmap = (Map<?, ?>)json.get(FileStatus.class.getSimpleName() + "es");
-        final List<?> array = JsonUtil.getList(
-            rootmap, FileStatus.class.getSimpleName());
-
-        //convert FileStatus
-        final FileStatus[] statuses = new FileStatus[array.size()];
-        int i = 0;
-        for (Object object : array) {
-          final Map<?, ?> m = (Map<?, ?>) object;
-          statuses[i++] = makeQualified(JsonUtil.toFileStatus(m, false), f);
+        HdfsFileStatus[] hdfsStatuses =
+            JsonUtil.toHdfsFileStatusArray(json);
+        final FileStatus[] statuses = new FileStatus[hdfsStatuses.length];
+        for (int i = 0; i < hdfsStatuses.length; i++) {
+          statuses[i] = makeQualified(hdfsStatuses[i], f);
         }
+
         return statuses;
       }
     }.run();
