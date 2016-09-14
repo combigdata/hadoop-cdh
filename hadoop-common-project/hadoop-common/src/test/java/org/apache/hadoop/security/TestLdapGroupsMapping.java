@@ -42,6 +42,8 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import org.mockito.Mockito;
+
 @SuppressWarnings("unchecked")
 public class TestLdapGroupsMapping extends TestLdapGroupsMappingBase {
   @Before
@@ -173,5 +175,25 @@ public class TestLdapGroupsMapping extends TestLdapGroupsMappingBase {
     // empty string as currently expected and used to trigger a call to
     // extract password
     Assert.assertEquals("", mapping.getPassword(conf,"invalid-alias", ""));
+  }
+
+  /**
+   * Make sure that when
+   * {@link Configuration#getPassword(String)} throws an IOException,
+   * {@link LdapGroupsMapping#setConf(Configuration)} does not throw an NPE.
+   *
+   * @throws Exception
+   */
+  @Test(timeout = 10000)
+  public void testSetConf() throws Exception {
+    Configuration conf = new Configuration();
+    Configuration mockConf = Mockito.spy(conf);
+    when(mockConf.getPassword(anyString()))
+        .thenThrow(new IOException("injected IOException"));
+    // Set a dummy LDAP server URL.
+    mockConf.set(LdapGroupsMapping.LDAP_URL_KEY, "ldap://test");
+
+    LdapGroupsMapping groupsMapping = new LdapGroupsMapping();
+    groupsMapping.setConf(mockConf);
   }
 }
