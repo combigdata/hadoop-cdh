@@ -26,6 +26,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Cluster;
 import org.apache.hadoop.mapreduce.JobSubmissionFiles;
+import org.apache.hadoop.mapreduce.server.jobtracker.JTConfig;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.tools.util.TestDistCpUtils;
 import org.junit.Assert;
@@ -67,6 +68,9 @@ public class TestIntegration {
     Configuration conf = new Configuration();
     conf.set("fs.default.name", "file:///");
     conf.set("mapred.job.tracker", "local");
+    // CLOUDERA-BUILD work around our different default for staging dir which
+    // breaks many of these tests. See CDH-43922.
+    conf.set(JTConfig.JT_STAGING_AREA_ROOT, "/tmp/hadoop/mapred/staging");
     return conf;
   }
 

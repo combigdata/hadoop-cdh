@@ -24,6 +24,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapreduce.server.jobtracker.JTConfig;
 import org.apache.hadoop.tools.util.TestDistCpUtils;
 import org.apache.hadoop.fs.FsConstants;
 
@@ -49,6 +50,9 @@ public class TestDistCpViewFs {
     Configuration conf = new Configuration();
     conf.set("mapred.job.tracker", "local");
     conf.set("fs.default.name", "file:///");
+    // CLOUDERA-BUILD work around our different default for staging dir which
+    // breaks many of these tests. See CDH-43922.
+    conf.set(JTConfig.JT_STAGING_AREA_ROOT, "/tmp/hadoop/mapred/staging");
     return conf;
   }
 
