@@ -1784,7 +1784,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     try {
       checkOperation(OperationCategory.WRITE);
       checkNameNodeSafeMode("Cannot set permission for " + src);
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
       checkOwner(pc, src);
       dir.setPermission(src, permission);
       getEditLog().logSetPermissions(src, permission);
@@ -1823,7 +1823,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     try {
       checkOperation(OperationCategory.WRITE);
       checkNameNodeSafeMode("Cannot set owner for " + src);
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
       checkOwner(pc, src);
       if (!pc.isSuperUser()) {
         if (username != null && !pc.getUser().equals(username)) {
@@ -1904,7 +1904,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
          * HDFS-7463. A better fix is to change the edit log of SetTime to
          * use inode id instead of a path.
          */
-        src = resolvePath(srcArg, pathComponents);
+        src = dir.resolvePath(pc, srcArg, pathComponents);
         final INodesInPath iip = dir.getINodesInPath(src, true);
         INode inode = iip.getLastINode();
         boolean updateAccessTime = inode != null &&
@@ -1982,7 +1982,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       throws IOException {
     String src = srcArg;
     byte[][] pathComponents = FSDirectory.getPathComponentsForReservedPath(src);
-    src = resolvePath(srcArg, pathComponents);
+    src = dir.resolvePath(pc, srcArg, pathComponents);
     final INodesInPath iip = dir.getINodesInPath(src, true);
     final INode[] inodes = iip.getINodes();
     final INodeFile inode = INodeFile.valueOf(inodes[inodes.length - 1], src);
@@ -2241,7 +2241,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     try {
       checkOperation(OperationCategory.WRITE);
       checkNameNodeSafeMode("Cannot set times " + src);
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
 
       // Write access is required to set access and modification times
       if (isPermissionEnabled) {
@@ -2313,7 +2313,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     try {
       checkOperation(OperationCategory.WRITE);
       checkNameNodeSafeMode("Cannot create symlink " + link);
-      link = resolvePath(link, pathComponents);
+      link = dir.resolvePath(pc, link, pathComponents);
       if (!createParent) {
         verifyParentDir(link);
       }
@@ -2373,7 +2373,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     try {
       checkOperation(OperationCategory.WRITE);
       checkNameNodeSafeMode("Cannot set replication for " + src);
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
       if (isPermissionEnabled) {
         checkPathAccess(pc, src, FsAction.WRITE);
       }
@@ -2480,7 +2480,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     readLock();
     try {
       checkOperation(OperationCategory.READ);
-      filename = resolvePath(filename, pathComponents);
+      filename = dir.resolvePath(pc, filename, pathComponents);
       if (isPermissionEnabled) {
         checkTraverse(pc, filename);
       }
@@ -2680,7 +2680,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     if (provider != null) {
       readLock();
       try {
-        src = resolvePath(src, pathComponents);
+        src = dir.resolvePath(pc, src, pathComponents);
         INodesInPath iip = dir.getINodesInPath4Write(src);
         // Nothing to do if the path is not within an EZ
         final EncryptionZone zone = dir.getEZForPath(iip);
@@ -2716,7 +2716,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     try {
       checkOperation(OperationCategory.WRITE);
       checkNameNodeSafeMode("Cannot create file" + src);
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
       toRemoveBlocks = startFileInternal(pc, src, permissions, holder, 
           clientMachine, create, overwrite, createParent, replication, 
           blockSize, isLazyPersist, suite, protocolVersion, edek, logRetryCache);
@@ -3077,7 +3077,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     try {
       checkOperation(OperationCategory.WRITE);
       checkNameNodeSafeMode("Cannot recover the lease of " + src);
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
       final INodeFile inode = INodeFile.valueOf(dir.getINode(src), src);
       if (!inode.isUnderConstruction()) {
         return true;
@@ -3232,7 +3232,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     try {
       checkOperation(OperationCategory.WRITE);
       checkNameNodeSafeMode("Cannot append to file" + src);
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
       lb = appendFileInternal(pc, src, holder, clientMachine, logRetryCache);
     } catch (StandbyException se) {
       skipSync = true;
@@ -3297,10 +3297,11 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     // Part I. Analyze the state of the file with respect to the input data.
     checkOperation(OperationCategory.READ);
     byte[][] pathComponents = FSDirectory.getPathComponentsForReservedPath(src);
+    FSPermissionChecker pc = getPermissionChecker();
     readLock();
     try {
       checkOperation(OperationCategory.READ);
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
       LocatedBlock[] onRetryBlock = new LocatedBlock[1];
       FileState fileState = analyzeFileState(
           src, fileId, clientName, previous, onRetryBlock);
@@ -3546,12 +3547,13 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     final List<DatanodeStorageInfo> chosen;
     checkOperation(OperationCategory.READ);
     byte[][] pathComponents = FSDirectory.getPathComponentsForReservedPath(src);
+    FSPermissionChecker pc = getPermissionChecker();
     readLock();
     try {
       checkOperation(OperationCategory.READ);
       //check safe mode
       checkNameNodeSafeMode("Cannot add datanode; src=" + src + ", blk=" + blk);
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
 
       //check lease
       final INode inode;
@@ -3602,12 +3604,13 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     }
     checkOperation(OperationCategory.WRITE);
     byte[][] pathComponents = FSDirectory.getPathComponentsForReservedPath(src);
+    FSPermissionChecker pc = getPermissionChecker();
     waitForLoadingFSImage();
     writeLock();
     try {
       checkOperation(OperationCategory.WRITE);
       checkNameNodeSafeMode("Cannot abandon block " + b + " for file" + src);
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
 
       final INode inode;
       if (fileId == INodeId.GRANDFATHER_INODE_ID) {
@@ -3701,12 +3704,13 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     boolean success = false;
     checkOperation(OperationCategory.WRITE);
     byte[][] pathComponents = FSDirectory.getPathComponentsForReservedPath(src);
+    FSPermissionChecker pc = getPermissionChecker();
     waitForLoadingFSImage();
     writeLock();
     try {
       checkOperation(OperationCategory.WRITE);
       checkNameNodeSafeMode("Cannot complete file " + src);
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
       success = completeFileInternal(src, holder,
         ExtendedBlock.getLocalBlock(last), fileId);
     } finally {
@@ -3904,8 +3908,8 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       checkOperation(OperationCategory.WRITE);
       checkNameNodeSafeMode("Cannot rename " + src);
       waitForLoadingFSImage();
-      src = resolvePath(src, srcComponents);
-      dst = resolvePath(dst, dstComponents);
+      src = dir.resolvePath(pc, src, srcComponents);
+      dst = dir.resolvePath(pc, dst, dstComponents);
       checkOperation(OperationCategory.WRITE);
       status = renameToInternal(pc, src, dst, logRetryCache);
       if (status) {
@@ -3980,8 +3984,8 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     try {
       checkOperation(OperationCategory.WRITE);
       checkNameNodeSafeMode("Cannot rename " + src);
-      src = resolvePath(src, srcComponents);
-      dst = resolvePath(dst, dstComponents);
+      src = dir.resolvePath(pc, src, srcComponents);
+      dst = dir.resolvePath(pc, dst, dstComponents);
       renameToInternal(pc, src, dst, cacheEntry != null, 
           collectedBlocks, options);
       resultingStat = getAuditFileInfo(dst, false);
@@ -4099,7 +4103,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     try {
       checkOperation(OperationCategory.WRITE);
       checkNameNodeSafeMode("Cannot delete " + src);
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
       if (!recursive && dir.isNonEmptyDirectory(src)) {
         throw new PathIsNotEmptyDirectoryException(src + " is non empty");
       }
@@ -4267,7 +4271,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     readLock();
     try {
       checkOperation(OperationCategory.READ);
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
       if (isPermissionEnabled) {
         checkPermission(pc, src, false, null, null, null, null, false,
             resolveLink);
@@ -4296,7 +4300,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     byte[][] pathComponents = FSDirectory.getPathComponentsForReservedPath(src);
     readLock();
     try {
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
       checkOperation(OperationCategory.READ);
       if (isPermissionEnabled) {
         checkTraverse(pc, src);
@@ -4345,7 +4349,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     try {
       checkOperation(OperationCategory.WRITE);   
       checkNameNodeSafeMode("Cannot create directory " + src);
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
       status = mkdirsInternal(pc, src, permissions, createParent);
       if (status) {
         resultingStat = getAuditFileInfo(src, false);
@@ -4522,7 +4526,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     boolean success = true;
     try {
       checkOperation(OperationCategory.READ);
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
       if (isPermissionEnabled) {
         checkPermission(pc, src, false, null, null, null, FsAction.READ_EXECUTE);
       }
@@ -4579,12 +4583,13 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     checkOperation(OperationCategory.WRITE);
     byte[][] pathComponents = FSDirectory.getPathComponentsForReservedPath(src);
 
+    FSPermissionChecker pc = getPermissionChecker();
     waitForLoadingFSImage();
     writeLock();
     try {
       checkOperation(OperationCategory.WRITE);
       checkNameNodeSafeMode("Cannot fsync file " + src);
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
       final INode inode;
       if (fileId == INodeId.GRANDFATHER_INODE_ID) {
         // Older clients may not have given us an inode ID to work with.
@@ -5068,7 +5073,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     readLock();
     try {
       checkOperation(OperationCategory.READ);
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
 
       // Get file name when startAfter is an INodePath
       if (FSDirectory.isReservedName(startAfterString)) {
@@ -6592,28 +6597,6 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
   private void checkTraverse(FSPermissionChecker pc, String path)
       throws AccessControlException, UnresolvedLinkException {
     checkPermission(pc, path, false, null, null, null, null);
-  }
-
-  /**
-   * This is a wrapper for FSDirectory.resolvePath(). If the path passed
-   * is prefixed with /.reserved/raw, then it checks to ensure that the caller
-   * has super user privs.
-   *
-   * @param path The path to resolve.
-   * @param pathComponents path components corresponding to the path
-   * @return if the path indicates an inode, return path after replacing up to
-   *         <inodeid> with the corresponding path of the inode, else the path
-   *         in {@code src} as is. If the path refers to a path in the "raw"
-   *         directory, return the non-raw pathname.
-   * @throws FileNotFoundException
-   * @throws AccessControlException
-   */
-  private String resolvePath(String path, byte[][] pathComponents)
-      throws FileNotFoundException, AccessControlException {
-    if (FSDirectory.isReservedRawName(path)) {
-      checkSuperuserPrivilege();
-    }
-    return FSDirectory.resolvePath(path, pathComponents, dir);
   }
 
   @Override
@@ -8921,7 +8904,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     try {
       checkOperation(OperationCategory.WRITE);
       checkNameNodeSafeMode("Cannot modify ACL entries on " + src);
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
       checkOwner(pc, src);
       List<AclEntry> newAcl = dir.modifyAclEntries(src, aclSpec);
       getEditLog().logSetAcl(src, newAcl);
@@ -8948,7 +8931,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     try {
       checkOperation(OperationCategory.WRITE);
       checkNameNodeSafeMode("Cannot remove ACL entries on " + src);
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
       checkOwner(pc, src);
       List<AclEntry> newAcl = dir.removeAclEntries(src, aclSpec);
       getEditLog().logSetAcl(src, newAcl);
@@ -8974,7 +8957,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     try {
       checkOperation(OperationCategory.WRITE);
       checkNameNodeSafeMode("Cannot remove default ACL entries on " + src);
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
       checkOwner(pc, src);
       List<AclEntry> newAcl = dir.removeDefaultAcl(src);
       getEditLog().logSetAcl(src, newAcl);
@@ -9000,7 +8983,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     try {
       checkOperation(OperationCategory.WRITE);
       checkNameNodeSafeMode("Cannot remove ACL on " + src);
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
       checkOwner(pc, src);
       dir.removeAcl(src);
       getEditLog().logSetAcl(src, AclFeature.EMPTY_ENTRY_LIST);
@@ -9026,7 +9009,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     try {
       checkOperation(OperationCategory.WRITE);
       checkNameNodeSafeMode("Cannot set ACL on " + src);
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
       checkOwner(pc, src);
       List<AclEntry> newAcl = dir.setAcl(src, aclSpec);
       getEditLog().logSetAcl(src, newAcl);
@@ -9050,7 +9033,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     readLock();
     try {
       checkOperation(OperationCategory.READ);
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
       if (isPermissionEnabled) {
         checkPermission(pc, src, false, null, null, null, null);
       }
@@ -9125,12 +9108,13 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     checkSuperuserPrivilege();
     final byte[][] pathComponents =
       FSDirectory.getPathComponentsForReservedPath(src);
+    FSPermissionChecker pc = getPermissionChecker();
     writeLock();
     try {
       checkSuperuserPrivilege();
       checkOperation(OperationCategory.WRITE);
       checkNameNodeSafeMode("Cannot create encryption zone on " + src);
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
 
       final CipherSuite suite = CipherSuite.convert(cipher);
       // For now this is hardcoded, as we only support one method.
@@ -9172,7 +9156,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
         checkPathAccess(pc, src, FsAction.READ);
       }
       checkOperation(OperationCategory.READ);
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
       final INodesInPath iip = dir.getINodesInPath(src, true);
       final EncryptionZone ret = dir.getEZForPath(iip);
       resultingStat = getAuditFileInfo(src, false);
@@ -9250,7 +9234,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     try {
       checkOperation(OperationCategory.WRITE);
       checkNameNodeSafeMode("Cannot set XAttr on " + src);
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
       checkXAttrChangeAccess(src, xAttr, pc);
       List<XAttr> xAttrs = Lists.newArrayListWithCapacity(1);
       xAttrs.add(xAttr);
@@ -9303,7 +9287,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     byte[][] pathComponents = FSDirectory.getPathComponentsForReservedPath(src);
     readLock();
     try {
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
       checkOperation(OperationCategory.READ);
       if (isPermissionEnabled) {
         checkPathAccess(pc, src, FsAction.READ);
@@ -9352,7 +9336,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     byte[][] pathComponents = FSDirectory.getPathComponentsForReservedPath(src);
     readLock();
     try {
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
       checkOperation(OperationCategory.READ);
       if (isPermissionEnabled) {
         /* To access xattr names, you need EXECUTE in the owning directory. */
@@ -9412,7 +9396,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     try {
       checkOperation(OperationCategory.WRITE);
       checkNameNodeSafeMode("Cannot remove XAttr entry on " + src);
-      src = resolvePath(src, pathComponents);
+      src = dir.resolvePath(pc, src, pathComponents);
       checkXAttrChangeAccess(src, xAttr, pc);
 
       List<XAttr> xAttrs = Lists.newArrayListWithCapacity(1);
