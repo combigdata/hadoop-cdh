@@ -405,7 +405,6 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
   static int BLOCK_DELETION_INCREMENT = 1000;
   private final boolean isPermissionEnabled;
   private final UserGroupInformation fsOwner;
-  private final String fsOwnerShortUserName;
   private final String supergroup;
   private final boolean standbyShouldCheckpoint;
   
@@ -839,7 +838,6 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
                           DFS_STORAGE_POLICY_ENABLED_DEFAULT);
 
       this.fsOwner = UserGroupInformation.getCurrentUser();
-      this.fsOwnerShortUserName = fsOwner.getShortUserName();
       this.supergroup = conf.get(DFS_PERMISSIONS_SUPERUSERGROUP_KEY, 
                                  DFS_PERMISSIONS_SUPERUSERGROUP_DEFAULT);
       this.isPermissionEnabled = conf.getBoolean(DFS_PERMISSIONS_ENABLED_KEY,
@@ -4070,11 +4068,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     
   FSPermissionChecker getPermissionChecker()
       throws AccessControlException {
-    try {
-      return new FSPermissionChecker(fsOwnerShortUserName, supergroup, getRemoteUser());
-    } catch (IOException ioe) {
-      throw new AccessControlException(ioe);
-    }
+    return dir.getPermissionChecker();
   }
   
   /**
@@ -6558,13 +6552,13 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
 
   private void checkOwner(FSPermissionChecker pc, String path)
       throws AccessControlException, UnresolvedLinkException {
-    checkPermission(pc, path, true, null, null, null, null);
+    dir.checkOwner(pc, path);
   }
 
   private void checkPathAccess(FSPermissionChecker pc,
       String path, FsAction access) throws AccessControlException,
       UnresolvedLinkException {
-    checkPermission(pc, path, false, null, null, access, null);
+    dir.checkPathAccess(pc, path, access);
   }
 
   private void checkUnreadableBySuperuser(FSPermissionChecker pc,
@@ -6585,18 +6579,18 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
   private void checkParentAccess(FSPermissionChecker pc,
       String path, FsAction access) throws AccessControlException,
       UnresolvedLinkException {
-    checkPermission(pc, path, false, null, access, null, null);
+    dir.checkParentAccess(pc, path, access);
   }
 
   private void checkAncestorAccess(FSPermissionChecker pc,
       String path, FsAction access) throws AccessControlException,
       UnresolvedLinkException {
-    checkPermission(pc, path, false, access, null, null, null);
+    dir.checkAncestorAccess(pc, path, access);
   }
 
   private void checkTraverse(FSPermissionChecker pc, String path)
       throws AccessControlException, UnresolvedLinkException {
-    checkPermission(pc, path, false, null, null, null, null);
+    dir.checkTraverse(pc, path);
   }
 
   @Override
@@ -6617,30 +6611,17 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       String path, boolean doCheckOwner, FsAction ancestorAccess,
       FsAction parentAccess, FsAction access, FsAction subAccess)
       throws AccessControlException, UnresolvedLinkException {
-        checkPermission(pc, path, doCheckOwner, ancestorAccess,
+    checkPermission(pc, path, doCheckOwner, ancestorAccess,
             parentAccess, access, subAccess, false, true);
   }
 
-  /**
-   * Check whether current user have permissions to access the path. For more
-   * details of the parameters, see
-   * {@link FSPermissionChecker#checkPermission}.
-   */
   private void checkPermission(FSPermissionChecker pc,
       String path, boolean doCheckOwner, FsAction ancestorAccess,
       FsAction parentAccess, FsAction access, FsAction subAccess,
       boolean ignoreEmptyDir, boolean resolveLink)
       throws AccessControlException, UnresolvedLinkException {
-    if (!pc.isSuperUser()) {
-      waitForLoadingFSImage();
-      readLock();
-      try {
-        pc.checkPermission(path, dir, doCheckOwner, ancestorAccess,
-            parentAccess, access, subAccess, ignoreEmptyDir, resolveLink);
-      } finally {
-        readUnlock();
-      }
-    }
+    dir.checkPermission(pc, path, doCheckOwner, ancestorAccess, parentAccess,
+        access, subAccess, ignoreEmptyDir, resolveLink);
   }
   
   /**
