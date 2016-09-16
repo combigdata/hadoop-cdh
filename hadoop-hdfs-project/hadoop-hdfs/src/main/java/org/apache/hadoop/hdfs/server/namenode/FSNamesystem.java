@@ -1876,10 +1876,6 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
 
     logAuditEvent(true, "open", src);
 
-    if (res == null) {
-      return null;
-    }
-
     if (res.updateAccessTime()) {
       writeLock();
       final long now = now();
