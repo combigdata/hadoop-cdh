@@ -577,7 +577,9 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
   
   private final RetryCache retryCache;
 
-  private final NNConf nnConf;
+  private final boolean aclsEnabled;
+  private final boolean xattrsEnabled;
+  private final int xattrMaxSize;
 
   private KeyProviderCryptoExtension provider = null;
   private KeyProvider.Options providerOptions = null;
@@ -946,7 +948,23 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       this.isDefaultAuditLogger = auditLoggers.size() == 1 &&
         auditLoggers.get(0) instanceof DefaultAuditLogger;
       this.retryCache = ignoreRetryCache ? null : initRetryCache(conf);
-      this.nnConf = new NNConf(conf);
+
+      this.aclsEnabled = conf.getBoolean(
+          DFSConfigKeys.DFS_NAMENODE_ACLS_ENABLED_KEY,
+          DFSConfigKeys.DFS_NAMENODE_ACLS_ENABLED_DEFAULT);
+      LOG.info("ACLs enabled? " + aclsEnabled);
+      this.xattrsEnabled = conf.getBoolean(
+          DFSConfigKeys.DFS_NAMENODE_XATTRS_ENABLED_KEY,
+          DFSConfigKeys.DFS_NAMENODE_XATTRS_ENABLED_DEFAULT);
+      LOG.info("XAttrs enabled? " + xattrsEnabled);
+      this.xattrMaxSize = conf.getInt(
+          DFSConfigKeys.DFS_NAMENODE_MAX_XATTR_SIZE_KEY,
+          DFSConfigKeys.DFS_NAMENODE_MAX_XATTR_SIZE_DEFAULT);
+      Preconditions.checkArgument(xattrMaxSize >= 0,
+          "Cannot set a negative value for the maximum size of an xattr (%s).",
+          DFSConfigKeys.DFS_NAMENODE_MAX_XATTR_SIZE_KEY);
+      final String unlimited = xattrMaxSize == 0 ? " (unlimited)" : "";
+      LOG.info("Maximum size of an xattr: " + xattrMaxSize + unlimited);
     } catch(IOException e) {
       LOG.error(getClass().getSimpleName() + " initialization failed.", e);
       close();
@@ -8934,7 +8952,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
   void modifyAclEntries(final String srcArg, List<AclEntry> aclSpec)
       throws IOException {
     String src = srcArg;
-    nnConf.checkAclsConfigFlag();
+    checkAclsConfigFlag();
     HdfsFileStatus resultingStat = null;
     FSPermissionChecker pc = getPermissionChecker();
     checkOperation(OperationCategory.WRITE);
@@ -8961,7 +8979,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
   void removeAclEntries(final String srcArg, List<AclEntry> aclSpec)
       throws IOException {
     String src = srcArg;
-    nnConf.checkAclsConfigFlag();
+    checkAclsConfigFlag();
     HdfsFileStatus resultingStat = null;
     FSPermissionChecker pc = getPermissionChecker();
     checkOperation(OperationCategory.WRITE);
@@ -8987,7 +9005,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
 
   void removeDefaultAcl(final String srcArg) throws IOException {
     String src = srcArg;
-    nnConf.checkAclsConfigFlag();
+    checkAclsConfigFlag();
     HdfsFileStatus resultingStat = null;
     FSPermissionChecker pc = getPermissionChecker();
     checkOperation(OperationCategory.WRITE);
@@ -9013,7 +9031,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
 
   void removeAcl(final String srcArg) throws IOException {
     String src = srcArg;
-    nnConf.checkAclsConfigFlag();
+    checkAclsConfigFlag();
     HdfsFileStatus resultingStat = null;
     FSPermissionChecker pc = getPermissionChecker();
     checkOperation(OperationCategory.WRITE);
@@ -9039,7 +9057,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
 
   void setAcl(final String srcArg, List<AclEntry> aclSpec) throws IOException {
     String src = srcArg;
-    nnConf.checkAclsConfigFlag();
+    checkAclsConfigFlag();
     HdfsFileStatus resultingStat = null;
     FSPermissionChecker pc = getPermissionChecker();
     checkOperation(OperationCategory.WRITE);
@@ -9064,7 +9082,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
   }
 
   AclStatus getAclStatus(String src) throws IOException {
-    nnConf.checkAclsConfigFlag();
+    checkAclsConfigFlag();
     FSPermissionChecker pc = getPermissionChecker();
     checkOperation(OperationCategory.READ);
     byte[][] pathComponents = FSDirectory.getPathComponentsForReservedPath(src);
@@ -9262,7 +9280,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
   private void setXAttrInt(final String srcArg, XAttr xAttr,
       EnumSet<XAttrSetFlag> flag, boolean logRetryCache) throws IOException {
     String src = srcArg;
-    nnConf.checkXAttrsConfigFlag();
+    checkXAttrsConfigFlag();
     checkXAttrSize(xAttr);
     HdfsFileStatus resultingStat = null;
     FSPermissionChecker pc = getPermissionChecker();
@@ -9292,17 +9310,17 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
    * the configured limit. Setting a limit of zero disables this check.
    */
   private void checkXAttrSize(XAttr xAttr) {
-    if (nnConf.xattrMaxSize == 0) {
+    if (xattrMaxSize == 0) {
       return;
     }
     int size = xAttr.getName().getBytes(Charsets.UTF_8).length;
     if (xAttr.getValue() != null) {
       size += xAttr.getValue().length;
     }
-    if (size > nnConf.xattrMaxSize) {
+    if (size > xattrMaxSize) {
       throw new HadoopIllegalArgumentException(
           "The XAttr is too big. The maximum combined size of the"
-          + " name and value is " + nnConf.xattrMaxSize
+          + " name and value is " + xattrMaxSize
           + ", but the total size is " + size);
     }
   }
@@ -9310,7 +9328,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
   List<XAttr> getXAttrs(final String srcArg, List<XAttr> xAttrs)
       throws IOException {
     String src = srcArg;
-    nnConf.checkXAttrsConfigFlag();
+    checkXAttrsConfigFlag();
     FSPermissionChecker pc = getPermissionChecker();
     final boolean isRawPath = FSDirectory.isReservedRawName(src);
     boolean getAll = xAttrs == null || xAttrs.isEmpty();
@@ -9368,7 +9386,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
   }
 
   List<XAttr> listXAttrs(String src) throws IOException {
-    nnConf.checkXAttrsConfigFlag();
+    checkXAttrsConfigFlag();
     final FSPermissionChecker pc = getPermissionChecker();
     final boolean isRawPath = FSDirectory.isReservedRawName(src);
     checkOperation(OperationCategory.READ);
@@ -9425,7 +9443,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
   void removeXAttrInt(final String srcArg, XAttr xAttr, boolean logRetryCache)
       throws IOException {
     String src = srcArg;
-    nnConf.checkXAttrsConfigFlag();
+    checkXAttrsConfigFlag();
     HdfsFileStatus resultingStat = null;
     FSPermissionChecker pc = getPermissionChecker();
     XAttrPermissionFilter.checkPermissionForApi(pc, xAttr,
@@ -9585,6 +9603,24 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
         asyncAppender.addAppender(appender);
       }
       logger.addAppender(asyncAppender);        
+    }
+  }
+
+  private void checkAclsConfigFlag() throws AclException {
+    if (!aclsEnabled) {
+      throw new AclException(String.format(
+          "The ACL operation has been rejected.  "
+              + "Support for ACLs has been disabled by setting %s to false.",
+          DFSConfigKeys.DFS_NAMENODE_ACLS_ENABLED_KEY));
+    }
+  }
+
+  private void checkXAttrsConfigFlag() throws IOException {
+    if (!xattrsEnabled) {
+      throw new IOException(String.format(
+          "The XAttr operation has been rejected.  "
+              + "Support for XAttrs has been disabled by setting %s to false.",
+          DFSConfigKeys.DFS_NAMENODE_XATTRS_ENABLED_KEY));
     }
   }
 
