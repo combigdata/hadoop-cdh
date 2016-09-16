@@ -161,6 +161,7 @@ public class TestFilterFileSystem {
     public ContentSummary getContentSummary(Path f) { return null; }
     public FsStatus getStatus() { return null; }
     public FileStatus[] listStatus(Path f, PathFilter filter) { return null; }
+    public FileStatus[] listStatusBatch(Path f, byte[] token) { return null; }
     public FileStatus[] listStatus(Path[] files) { return null; }
     public FileStatus[] listStatus(Path[] files, PathFilter filter) { return null; }
     public FileStatus[] globStatus(Path pathPattern) { return null; }

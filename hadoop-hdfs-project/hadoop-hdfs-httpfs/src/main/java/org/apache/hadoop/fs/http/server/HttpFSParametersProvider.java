@@ -89,6 +89,8 @@ public class HttpFSParametersProvider extends ParametersProvider {
     PARAMS_DEF.put(Operation.GETXATTRS, 
         new Class[]{XAttrNameParam.class, XAttrEncodingParam.class});
     PARAMS_DEF.put(Operation.LISTXATTRS, new Class[]{});
+    PARAMS_DEF.put(Operation.LISTSTATUS_BATCH,
+        new Class[]{StartAfterParam.class});
   }
 
   public HttpFSParametersProvider() {
@@ -496,6 +498,24 @@ public class HttpFSParametersProvider extends ParametersProvider {
      */
     public XAttrEncodingParam() {
       super(NAME, XAttrCodec.class, null);
+    }
+  }
+
+  /**
+   * Class for startafter parameter.
+   */
+  @InterfaceAudience.Private
+  public static class StartAfterParam extends StringParam {
+    /**
+     * Parameter name.
+     */
+    public static final String NAME = HttpFSFileSystem.START_AFTER_PARAM;
+
+    /**
+     * Constructor.
+     */
+    public StartAfterParam() {
+      super(NAME, null);
     }
   }
 }
