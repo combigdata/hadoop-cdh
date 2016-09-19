@@ -25,3 +25,4 @@ org/apache/hadoop/yarn/server/resourcemanager/scheduler/capacity/TestContainerAl
 org/apache/hadoop/yarn/server/resourcemanager/webapp/TestRMWebApp.java
 org/apache/hadoop/yarn/server/timeline/webapp/TestTimelineWebServices.java
 org/apache/hadoop/yarn/server/applicationhistoryservice/TestFileSystemApplicationHistoryStore.java
+org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/TestContinuousScheduling.java
