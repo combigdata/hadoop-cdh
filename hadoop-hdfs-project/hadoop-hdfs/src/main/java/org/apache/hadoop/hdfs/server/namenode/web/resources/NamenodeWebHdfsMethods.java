@@ -57,6 +57,8 @@ import org.apache.hadoop.fs.Options;
 import org.apache.hadoop.fs.XAttr;
 import org.apache.hadoop.fs.permission.AclStatus;
 import org.apache.hadoop.fs.permission.FsAction;
+import org.apache.hadoop.fs.permission.FsCreateModes;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.StorageType;
 import org.apache.hadoop.hdfs.XAttrHelper;
 import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
@@ -319,6 +321,9 @@ public class NamenodeWebHdfsMethods {
           final GroupParam group,
       @QueryParam(PermissionParam.NAME) @DefaultValue(PermissionParam.DEFAULT)
           final PermissionParam permission,
+      @QueryParam(UnmaskedPermissionParam.NAME)
+      @DefaultValue(UnmaskedPermissionParam.DEFAULT)
+          final UnmaskedPermissionParam unmaskedPermission,
       @QueryParam(OverwriteParam.NAME) @DefaultValue(OverwriteParam.DEFAULT)
           final OverwriteParam overwrite,
       @QueryParam(BufferSizeParam.NAME) @DefaultValue(BufferSizeParam.DEFAULT)
@@ -353,10 +358,11 @@ public class NamenodeWebHdfsMethods {
           final ExcludeDatanodesParam excludeDatanodes
       ) throws IOException, InterruptedException {
     return put(ugi, delegation, username, doAsUser, ROOT, op, destination,
-        owner, group, permission, overwrite, bufferSize, replication,
-        blockSize, modificationTime, accessTime, renameOptions, createParent,
-        delegationTokenArgument, aclPermission, xattrName, xattrValue,
-        xattrSetFlag, snapshotName, oldSnapshotName, excludeDatanodes);
+        owner, group, permission, unmaskedPermission, overwrite, bufferSize,
+        replication, blockSize, modificationTime, accessTime, renameOptions,
+        createParent, delegationTokenArgument, aclPermission, xattrName,
+        xattrValue, xattrSetFlag, snapshotName, oldSnapshotName,
+        excludeDatanodes);
   }
 
   /** Handle HTTP PUT request. */
@@ -383,6 +389,9 @@ public class NamenodeWebHdfsMethods {
           final GroupParam group,
       @QueryParam(PermissionParam.NAME) @DefaultValue(PermissionParam.DEFAULT)
           final PermissionParam permission,
+      @QueryParam(UnmaskedPermissionParam.NAME)
+      @DefaultValue(UnmaskedPermissionParam.DEFAULT)
+          final UnmaskedPermissionParam unmaskedPermission,
       @QueryParam(OverwriteParam.NAME) @DefaultValue(OverwriteParam.DEFAULT)
           final OverwriteParam overwrite,
       @QueryParam(BufferSizeParam.NAME) @DefaultValue(BufferSizeParam.DEFAULT)
@@ -418,10 +427,10 @@ public class NamenodeWebHdfsMethods {
       ) throws IOException, InterruptedException {
 
     init(ugi, delegation, username, doAsUser, path, op, destination, owner,
-        group, permission, overwrite, bufferSize, replication, blockSize,
-        modificationTime, accessTime, renameOptions, delegationTokenArgument,
-        aclPermission, xattrName, xattrValue, xattrSetFlag, snapshotName,
-        oldSnapshotName, excludeDatanodes);
+        group, permission, unmaskedPermission, overwrite, bufferSize,
+        replication, blockSize, modificationTime, accessTime, renameOptions,
+        delegationTokenArgument, aclPermission, xattrName, xattrValue,
+        xattrSetFlag, snapshotName, oldSnapshotName, excludeDatanodes);
 
     return ugi.doAs(new PrivilegedExceptionAction<Response>() {
       @Override
@@ -429,10 +438,11 @@ public class NamenodeWebHdfsMethods {
         try {
           return put(ugi, delegation, username, doAsUser,
               path.getAbsolutePath(), op, destination, owner, group,
-              permission, overwrite, bufferSize, replication, blockSize,
-              modificationTime, accessTime, renameOptions, createParent,
-              delegationTokenArgument, aclPermission, xattrName, xattrValue,
-              xattrSetFlag, snapshotName, oldSnapshotName, excludeDatanodes);
+              permission, unmaskedPermission, overwrite, bufferSize,
+              replication, blockSize, modificationTime, accessTime,
+              renameOptions, createParent, delegationTokenArgument,
+              aclPermission, xattrName, xattrValue, xattrSetFlag,
+              snapshotName, oldSnapshotName, excludeDatanodes);
         } finally {
           reset();
         }
@@ -451,6 +461,7 @@ public class NamenodeWebHdfsMethods {
       final OwnerParam owner,
       final GroupParam group,
       final PermissionParam permission,
+      final UnmaskedPermissionParam unmaskedPermission,
       final OverwriteParam overwrite,
       final BufferSizeParam bufferSize,
       final ReplicationParam replication,
@@ -478,14 +489,17 @@ public class NamenodeWebHdfsMethods {
     {
       final URI uri = redirectURI(namenode, ugi, delegation, username,
           doAsUser, fullpath, op.getValue(), -1L, blockSize.getValue(conf),
-          exclDatanodes.getValue(), permission, overwrite, bufferSize,
-          replication, blockSize);
+          exclDatanodes.getValue(), permission, unmaskedPermission, overwrite,
+          bufferSize, replication, blockSize);
       return Response.temporaryRedirect(uri).type(MediaType.APPLICATION_OCTET_STREAM).build();
     } 
     case MKDIRS:
     {
-      final boolean b = np.mkdirs(fullpath,
-          permission.getDirFsPermission(), true);
+      FsPermission masked = unmaskedPermission.getValue() == null ?
+          permission.getDirFsPermission() :
+          FsCreateModes.create(permission.getDirFsPermission(),
+              unmaskedPermission.getDirFsPermission());
+      final boolean b = np.mkdirs(fullpath, masked, true);
       final String js = JsonUtil.toJsonString("boolean", b);
       return Response.ok(js).type(MediaType.APPLICATION_JSON).build();
     }

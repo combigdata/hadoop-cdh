@@ -140,6 +140,7 @@ import org.apache.hadoop.fs.XAttrSetFlag;
 import org.apache.hadoop.fs.permission.AclEntry;
 import org.apache.hadoop.fs.permission.AclStatus;
 import org.apache.hadoop.fs.permission.FsAction;
+import org.apache.hadoop.fs.permission.FsCreateModes;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.client.HdfsDataInputStream;
 import org.apache.hadoop.hdfs.client.HdfsDataOutputStream;
@@ -1740,7 +1741,8 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
     if (permission == null) {
       permission = FsPermission.getFileDefault();
     }
-    FsPermission masked = permission.applyUMask(dfsClientConf.uMask);
+    FsPermission masked = FsCreateModes.applyUMask(permission,
+        dfsClientConf.uMask);
     if(LOG.isDebugEnabled()) {
       LOG.debug(src + ": masked=" + masked);
     }
@@ -1818,8 +1820,8 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
       throws IOException {
     TraceScope scope = newPathTraceScope("createSymlink", target);
     try {
-      FsPermission dirPerm = 
-          FsPermission.getDefault().applyUMask(dfsClientConf.uMask); 
+      FsPermission dirPerm = FsCreateModes.applyUMask(
+          FsPermission.getDefault(), dfsClientConf.uMask);
       namenode.createSymlink(target, link, dirPerm, createParent);
     } catch (RemoteException re) {
       throw re.unwrapRemoteException(AccessControlException.class,
@@ -3058,7 +3060,8 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
     if (permission == null) {
       permission = FsPermission.getDefault();
     }
-    FsPermission masked = permission.applyUMask(dfsClientConf.uMask);
+    FsPermission masked = FsCreateModes.applyUMask(permission,
+        dfsClientConf.uMask);
     return primitiveMkdir(src, masked, createParent);
   }
 
@@ -3080,8 +3083,8 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
     throws IOException {
     checkOpen();
     if (absPermission == null) {
-      absPermission = 
-        FsPermission.getDefault().applyUMask(dfsClientConf.uMask);
+      absPermission = FsCreateModes.applyUMask(FsPermission.getDefault(),
+          dfsClientConf.uMask);
     } 
 
     if(LOG.isDebugEnabled()) {
