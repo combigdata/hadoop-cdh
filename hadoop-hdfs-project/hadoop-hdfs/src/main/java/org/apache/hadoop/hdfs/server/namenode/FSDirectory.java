@@ -99,6 +99,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import org.apache.hadoop.security.AccessControlException;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Both FSDirectory and FSNamesystem manage the state of the namespace.
@@ -109,6 +111,8 @@ import org.apache.hadoop.security.UserGroupInformation;
  **/
 @InterfaceAudience.Private
 public class FSDirectory implements Closeable {
+  static final Logger LOG = LoggerFactory.getLogger(FSDirectory.class);
+
   private static INodeDirectory createRoot(FSNamesystem namesystem) {
     final INodeDirectory r = new INodeDirectory(
         INodeId.ROOT_INODE_ID,
@@ -158,6 +162,11 @@ public class FSDirectory implements Closeable {
   private final boolean isPermissionEnabled;
   private final String fsOwnerShortUserName;
   private final String supergroup;
+
+  /**
+   * Support for POSIX ACL inheritance. Not final for testing purpose.
+   */
+  private boolean posixAclInheritanceEnabled;
 
   // utility methods to acquire and release read lock and write lock
   void readLock() {
@@ -236,6 +245,11 @@ public class FSDirectory implements Closeable {
         DFSConfigKeys.DFS_NAMENODE_MAX_XATTRS_PER_INODE_KEY,
         DFSConfigKeys.DFS_NAMENODE_MAX_XATTRS_PER_INODE_DEFAULT);
 
+    this.posixAclInheritanceEnabled = conf.getBoolean(
+        DFSConfigKeys.DFS_NAMENODE_POSIX_ACL_INHERITANCE_ENABLED_KEY,
+        DFSConfigKeys.DFS_NAMENODE_POSIX_ACL_INHERITANCE_ENABLED_DEFAULT);
+    LOG.info("POSIX ACL inheritance enabled? " + posixAclInheritanceEnabled);
+
     Preconditions.checkArgument(this.inodeXAttrsLimit >= 0,
         "Cannot set a negative limit on the number of xattrs per inode (%s).",
         DFSConfigKeys.DFS_NAMENODE_MAX_XATTRS_PER_INODE_KEY);
@@ -274,6 +288,17 @@ public class FSDirectory implements Closeable {
 
   long getContentSleepMicroSec() {
     return contentSleepMicroSec;
+  }
+
+  @VisibleForTesting
+  public boolean isPosixAclInheritanceEnabled() {
+    return posixAclInheritanceEnabled;
+  }
+
+  @VisibleForTesting
+  public void setPosixAclInheritanceEnabled(
+      boolean posixAclInheritanceEnabled) {
+    this.posixAclInheritanceEnabled = posixAclInheritanceEnabled;
   }
 
   /**
@@ -340,7 +365,7 @@ public class FSDirectory implements Closeable {
     boolean added = false;
     writeLock();
     try {
-      added = addINode(path, newNode);
+      added = addINode(path, newNode, permissions.getPermission());
     } finally {
       writeUnlock();
     }
@@ -381,7 +406,7 @@ public class FSDirectory implements Closeable {
     }
 
     try {
-      if (addINode(path, newNode)) {
+      if (addINode(path, newNode, permissions.getPermission())) {
         if (aclEntries != null) {
           AclStorage.updateINodeAcl(newNode, aclEntries,
             Snapshot.CURRENT_STATE_ID);
@@ -1949,7 +1974,7 @@ public class FSDirectory implements Closeable {
     assert hasWriteLock();
     final INodeDirectory dir = new INodeDirectory(inodeId, name, permission,
         timestamp);
-    if (addChild(inodesInPath, pos, dir, true)) {
+    if (addChild(inodesInPath, pos, dir, permission.getPermission(), true)) {
       if (aclEntries != null) {
         AclStorage.updateINodeAcl(dir, aclEntries, Snapshot.CURRENT_STATE_ID);
       }
@@ -1960,17 +1985,20 @@ public class FSDirectory implements Closeable {
   /**
    * Add the given child to the namespace.
    * @param src The full path name of the child node.
+   * @param child the new INode to add
+   * @param modes create modes
    * @throws QuotaExceededException is thrown if it violates quota limit
    */
   @VisibleForTesting
-  boolean addINode(String src, INode child
-      ) throws QuotaExceededException, UnresolvedLinkException {
+  boolean addINode(String src, INode child, FsPermission modes)
+      throws QuotaExceededException, UnresolvedLinkException {
     byte[][] components = INode.getPathComponents(src);
     child.setLocalName(components[components.length-1]);
     cacheName(child);
     writeLock();
     try {
-      return addLastINode(getExistingPathINodes(components), child, true);
+      return addLastINode(getExistingPathINodes(components), child, modes,
+          true);
     } finally {
       writeUnlock();
     }
@@ -2142,16 +2170,51 @@ public class FSDirectory implements Closeable {
       }
     }
   }
-  
+
   /**
-   * The same as {@link #addChild(INodesInPath, int, INode, boolean)}
-   * with pos = length - 1.
+   * Turn on HDFS-6962 POSIX ACL inheritance when the property
+   * {@link DFSConfigKeys#DFS_NAMENODE_POSIX_ACL_INHERITANCE_ENABLED_KEY} is
+   * true and a compatible client has sent both masked and unmasked create
+   * modes.
+   *
+   * @param child INode newly created child
+   * @param modes create modes
+   */
+  private void copyINodeDefaultAcl(INode child, FsPermission modes) {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("child: {}, posixAclInheritanceEnabled: {}, modes: {}",
+          child, posixAclInheritanceEnabled, modes);
+    }
+
+    if (posixAclInheritanceEnabled && modes != null &&
+        modes.getUnmasked() != null) {
+      //
+      // HDFS-6962: POSIX ACL inheritance
+      //
+      child.setPermission(modes.getUnmasked());
+      if (!AclStorage.copyINodeDefaultAcl(child)) {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("{}: no parent default ACL to inherit", child);
+        }
+        child.setPermission(modes.getMasked());
+      }
+    } else {
+      //
+      // Old behavior before HDFS-6962
+      //
+      AclStorage.copyINodeDefaultAcl(child);
+    }
+  }
+
+  /**
+   * The same as {@link #addChild} with pos = length - 1.
    */
   @VisibleForTesting
-  public boolean addLastINode(INodesInPath inodesInPath,
-      INode inode, boolean checkQuota) throws QuotaExceededException {
+  public boolean addLastINode(INodesInPath inodesInPath, INode inode,
+                              FsPermission modes, boolean checkQuota)
+      throws QuotaExceededException {
     final int pos = inodesInPath.getINodes().length - 1;
-    return addChild(inodesInPath, pos, inode, checkQuota);
+    return addChild(inodesInPath, pos, inode, modes, checkQuota);
   }
 
   /** Add a node child to the inodes at index pos. 
@@ -2160,8 +2223,9 @@ public class FSDirectory implements Closeable {
    *         otherwise return true;
    * @throws QuotaExceededException is thrown if it violates quota limit
    */
-  private boolean addChild(INodesInPath iip, int pos,
-      INode child, boolean checkQuota) throws QuotaExceededException {
+  private boolean addChild(INodesInPath iip, int pos, INode child,
+                           FsPermission modes, boolean checkQuota)
+      throws QuotaExceededException {
     final INode[] inodes = iip.getINodes();
     // Disallow creation of /.reserved. This may be created when loading
     // editlog/fsimage during upgrade since /.reserved was a valid name in older
@@ -2206,7 +2270,7 @@ public class FSDirectory implements Closeable {
     } else {
       iip.setINode(pos - 1, child.getParent());
       if (!isRename) {
-        AclStorage.copyINodeDefaultAcl(child);
+        copyINodeDefaultAcl(child, modes);
       }
       addToInodeMap(child);
     }
@@ -2215,7 +2279,8 @@ public class FSDirectory implements Closeable {
   
   private boolean addLastINodeNoQuotaCheck(INodesInPath inodesInPath, INode i) {
     try {
-      return addLastINode(inodesInPath, i, false);
+      // All callers do not have create modes to pass.
+      return addLastINode(inodesInPath, i, null, false);
     } catch (QuotaExceededException e) {
       NameNode.LOG.warn("FSDirectory.addChildNoQuotaCheck - unexpected", e);
     }
@@ -2676,7 +2741,7 @@ public class FSDirectory implements Closeable {
     assert hasWriteLock();
     final INodeSymlink symlink = new INodeSymlink(id, null, perm, mtime, atime,
         target);
-    return addINode(path, symlink) ? symlink : null;
+    return addINode(path, symlink, perm.getPermission()) ? symlink : null;
   }
 
   List<AclEntry> modifyAclEntries(String src, List<AclEntry> aclSpec) throws IOException {
