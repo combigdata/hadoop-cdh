@@ -34,6 +34,7 @@ import org.apache.hadoop.hdfs.web.resources.OffsetParam;
 import org.apache.hadoop.hdfs.web.resources.OverwriteParam;
 import org.apache.hadoop.hdfs.web.resources.PermissionParam;
 import org.apache.hadoop.hdfs.web.resources.ReplicationParam;
+import org.apache.hadoop.hdfs.web.resources.UnmaskedPermissionParam;
 import org.apache.hadoop.hdfs.web.resources.UserParam;
 import org.apache.hadoop.security.SecurityUtil;
 import org.apache.hadoop.security.token.Token;
@@ -101,6 +102,12 @@ class ParameterParser {
   FsPermission permission() {
     return new PermissionParam(param(PermissionParam.NAME)).
         getFileFsPermission();
+  }
+
+  FsPermission unmaskedPermission() {
+    String value = param(UnmaskedPermissionParam.NAME);
+    return value == null ? null :
+        new UnmaskedPermissionParam(value).getFileFsPermission();
   }
 
   boolean overwrite() {
