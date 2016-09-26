@@ -482,7 +482,7 @@ this capability.
 
     <property>
       <name>fs.s3a.connection.timeout</name>
-      <value>50000</value>
+      <value>200000</value>
       <description>Socket connection timeout in milliseconds.</description>
     </property>
 
