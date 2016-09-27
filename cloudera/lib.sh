@@ -439,7 +439,7 @@ function initialize() {
   POM=pom.xml
   TEST_FORK_COUNT=1
   TEST_REUSE_FORKS=true
-  JAVA_VERSION=1.7
+  JAVA_VERSION=1.8
   TARGET_JAVA=${JAVA_VERSION}
   # end default values
 
