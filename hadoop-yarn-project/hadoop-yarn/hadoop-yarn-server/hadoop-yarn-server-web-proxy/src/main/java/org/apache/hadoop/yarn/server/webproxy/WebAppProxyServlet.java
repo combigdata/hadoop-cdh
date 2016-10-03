@@ -24,6 +24,7 @@ import java.io.ObjectInputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.InetAddress;
+import java.net.SocketException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLEncoder;
@@ -39,8 +40,10 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.UriBuilder;
+import javax.ws.rs.core.UriBuilderException;
 
 import org.apache.hadoop.io.IOUtils;
+import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
@@ -68,7 +71,8 @@ public class WebAppProxyServlet extends HttpServlet {
   private static final long serialVersionUID = 1L;
   private static final Logger LOG = LoggerFactory.getLogger(
       WebAppProxyServlet.class);
-  private static final Set<String> passThroughHeaders = 
+  private static final String REDIRECT = "/redirect";
+  private static final Set<String> PASS_THROUGH_HEADERS =
     new HashSet<>(Arrays.asList(
         "User-Agent",
         "Accept",
@@ -80,6 +84,7 @@ public class WebAppProxyServlet extends HttpServlet {
 
   private transient List<TrackingUriPlugin> trackingUriPlugins;
   private final String rmAppPageUrlBase;
+  private final String failurePageUrlBase;
   private transient YarnConfiguration conf;
 
   private static class _ implements Hamlet._ {
@@ -105,8 +110,12 @@ public class WebAppProxyServlet extends HttpServlet {
     this.trackingUriPlugins =
         conf.getInstances(YarnConfiguration.YARN_TRACKING_URL_GENERATOR,
             TrackingUriPlugin.class);
-    this.rmAppPageUrlBase = StringHelper.pjoin(
-        WebAppUtils.getResolvedRMWebAppURLWithScheme(conf), "cluster", "app");
+    this.rmAppPageUrlBase =
+        StringHelper.pjoin(WebAppUtils.getResolvedRMWebAppURLWithScheme(conf),
+          "cluster", "app");
+    this.failurePageUrlBase =
+        StringHelper.pjoin(WebAppUtils.getResolvedRMWebAppURLWithScheme(conf),
+          "cluster", "failure");
   }
 
   /**
@@ -173,9 +182,9 @@ public class WebAppProxyServlet extends HttpServlet {
     HttpGet httpGet = new HttpGet(link);
     @SuppressWarnings("unchecked")
     Enumeration<String> names = req.getHeaderNames();
-    while(names.hasMoreElements()) {
+    while (names.hasMoreElements()) {
       String name = names.nextElement();
-      if(passThroughHeaders.contains(name)) {
+      if (PASS_THROUGH_HEADERS.contains(name)) {
         String value = req.getHeader(name);
         if (LOG.isDebugEnabled()) {
           LOG.debug("REQ HEADER: {} : {}", name, value);
@@ -245,30 +254,49 @@ public class WebAppProxyServlet extends HttpServlet {
       boolean userWasWarned = false;
       boolean userApproved = Boolean.valueOf(userApprovedParamS);
       boolean securityEnabled = isSecurityEnabled();
+      boolean isRedirect = false;
+      String pathInfo = req.getPathInfo();
       final String remoteUser = req.getRemoteUser();
-      final String pathInfo = req.getPathInfo();
 
       String[] parts = null;
+
       if (pathInfo != null) {
+        // If there's a redirect, strip the redirect so that the path can be
+        // parsed
+        if (pathInfo.startsWith(REDIRECT)) {
+          pathInfo = pathInfo.substring(REDIRECT.length());
+          isRedirect = true;
+        }
+
         parts = pathInfo.split("/", 3);
       }
-      if(parts == null || parts.length < 2) {
+
+      if ((parts == null) || (parts.length < 2)) {
         LOG.warn("{} gave an invalid proxy path {}", remoteUser,  pathInfo);
         notFound(resp, "Your path appears to be formatted incorrectly.");
         return;
       }
+
       //parts[0] is empty because path info always starts with a /
       String appId = parts[1];
       String rest = parts.length > 2 ? parts[2] : "";
       ApplicationId id = Apps.toAppID(appId);
-      if(id == null) {
+
+      if (id == null) {
         LOG.warn("{} attempting to access {} that is invalid",
             remoteUser, appId);
         notFound(resp, appId + " appears to be formatted incorrectly.");
         return;
       }
-      
-      if(securityEnabled) {
+
+      // If this call is from an AM redirect, we need to be careful about how
+      // we handle it.  If this method returns true, it means the method
+      // already redirected the response, so we can just return.
+      if (isRedirect && handleRedirect(appId, req, resp)) {
+        return;
+      }
+
+      if (securityEnabled) {
         String cookieName = getCheckCookieName(id); 
         Cookie[] cookies = req.getCookies();
         if (cookies != null) {
@@ -290,7 +318,8 @@ public class WebAppProxyServlet extends HttpServlet {
       } catch (ApplicationNotFoundException e) {
         applicationReport = null;
       }
-      if(applicationReport == null) {
+
+      if (applicationReport == null) {
         LOG.warn("{} attempting to access {} that was not found",
             remoteUser, id);
 
@@ -323,12 +352,14 @@ public class WebAppProxyServlet extends HttpServlet {
       }
 
       String runningUser = applicationReport.getUser();
-      if(checkUser && !runningUser.equals(remoteUser)) {
+
+      if (checkUser && !runningUser.equals(remoteUser)) {
         LOG.info("Asking {} if they want to connect to the "
             + "app master GUI of {} owned by {}",
             remoteUser, appId, runningUser);
         warnUserPage(resp, ProxyUriUtils.getPathAndQuery(id, rest, 
             req.getQueryString(), true), runningUser, id);
+
         return;
       }
 
@@ -364,6 +395,54 @@ public class WebAppProxyServlet extends HttpServlet {
     } catch(URISyntaxException | YarnException e) {
       throw new IOException(e); 
     }
+  }
+
+  /**
+   * Check whether the request is a redirect from the AM and handle it
+   * appropriately. This check exists to prevent the AM from forwarding back to
+   * the web proxy, which would contact the AM again, which would forward
+   * again... If this method returns true, there was a redirect, and
+   * it was handled by redirecting the current request to an error page.
+   *
+   * @param path the part of the request path after the app id
+   * @param id the app id
+   * @param req the request object
+   * @param resp the response object
+   * @return whether there was a redirect
+   * @throws IOException if a redirect fails
+   */
+  private boolean handleRedirect(String id, HttpServletRequest req,
+      HttpServletResponse resp) throws IOException {
+    // If this isn't a redirect, we don't care.
+    boolean badRedirect = false;
+
+    // If this is a redirect, check if we're calling ourselves.
+    try {
+      badRedirect = NetUtils.getLocalInetAddress(req.getRemoteHost()) != null;
+    } catch (SocketException ex) {
+      // This exception means we can't determine the calling host. Odds are
+      // that means it's not us.  Let it go and hope it works out better next
+      // time.
+    }
+
+    // If the proxy tries to call itself, it gets into an endless
+    // loop and consumes all available handler threads until the
+    // application completes.  Redirect to the app page with a flag
+    // that tells it to print an appropriate error message.
+    if (badRedirect) {
+      LOG.error("The AM's web app redirected the RM web proxy's request back "
+          + "to the web proxy. The typical cause is that the AM is resolving "
+          + "the RM's address as something other than what it expects. Check "
+          + "your network configuration and the value of the "
+          + "yarn.web-proxy.address property. Once the host resolution issue "
+          + "has been resolved, you will likely need to delete the "
+          + "misbehaving application, " + id);
+      String redirect = StringHelper.pjoin(failurePageUrlBase, id);
+      LOG.error("REDIRECT: sending redirect to " + redirect);
+      ProxyUtils.sendRedirect(req, resp, redirect);
+    }
+
+    return badRedirect;
   }
 
   /**

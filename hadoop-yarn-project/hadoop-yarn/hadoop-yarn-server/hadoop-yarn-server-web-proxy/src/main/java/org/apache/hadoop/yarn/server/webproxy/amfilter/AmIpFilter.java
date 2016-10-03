@@ -59,8 +59,9 @@ public class AmIpFilter implements Filter {
   public static final String PROXY_HOSTS_DELIMITER = ",";
   public static final String PROXY_URI_BASES = "PROXY_URI_BASES";
   public static final String PROXY_URI_BASES_DELIMITER = ",";
+  private static final String PROXY_PATH = "/proxy";
   //update the proxy IP list about every 5 min
-  private static final long updateInterval = 5 * 60 * 1000;
+  private static final long UPDATE_INTERVAL = 5 * 60 * 1000;
 
   private String[] proxyHosts;
   private Set<String> proxyAddresses = null;
@@ -96,7 +97,7 @@ public class AmIpFilter implements Filter {
   protected Set<String> getProxyAddresses() throws ServletException {
     long now = System.currentTimeMillis();
     synchronized(this) {
-      if(proxyAddresses == null || (lastUpdate + updateInterval) >= now) {
+      if (proxyAddresses == null || (lastUpdate + UPDATE_INTERVAL) >= now) {
         proxyAddresses = new HashSet<>();
         for (String proxyHost : proxyHosts) {
           try {
@@ -131,13 +132,26 @@ public class AmIpFilter implements Filter {
 
     HttpServletRequest httpReq = (HttpServletRequest)req;
     HttpServletResponse httpResp = (HttpServletResponse)resp;
+
     if (LOG.isDebugEnabled()) {
       LOG.debug("Remote address for request is: {}", httpReq.getRemoteAddr());
     }
+
     if (!getProxyAddresses().contains(httpReq.getRemoteAddr())) {
-      String redirectUrl = findRedirectUrl();
-      String target = redirectUrl + httpReq.getRequestURI();
-      ProxyUtils.sendRedirect(httpReq,  httpResp,  target);
+      StringBuilder redirect = new StringBuilder(findRedirectUrl());
+
+      redirect.append(httpReq.getRequestURI());
+
+      int insertPoint = redirect.indexOf(PROXY_PATH);
+
+      if (insertPoint >= 0) {
+        // Add /redirect as the second component of the path so that the RM web
+        // proxy knows that this request was a redirect.
+        insertPoint += PROXY_PATH.length();
+        redirect.insert(insertPoint, "/redirect");
+      }
+
+      ProxyUtils.sendRedirect(httpReq, httpResp, redirect.toString());
       return;
     }
 

@@ -63,6 +63,7 @@ public class RMWebApp extends WebApp implements YarnWebParams {
     route(pajoin("/queue", QUEUE_NAME), RmController.class, "queue");
     route(pajoin("/logaggregationstatus", APPLICATION_ID),
       RmController.class, "logaggregationstatus");
+    route(pajoin("/failure", APPLICATION_ID), RmController.class, "failure");
   }
 
   @Override

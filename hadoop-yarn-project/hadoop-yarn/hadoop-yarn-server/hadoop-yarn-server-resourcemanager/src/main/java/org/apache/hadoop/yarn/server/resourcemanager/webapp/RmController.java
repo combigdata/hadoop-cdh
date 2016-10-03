@@ -55,6 +55,10 @@ public class RmController extends Controller {
     render(AppPage.class);
   }
 
+  public void failure() {
+    render(RedirectionErrorPage.class);
+  }
+
   public void nodes() {
     render(NodesPage.class);
   }

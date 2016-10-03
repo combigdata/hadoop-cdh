@@ -16,22 +16,24 @@
 * limitations under the License.
 */
 
-package org.apache.hadoop.yarn.webapp;
+package org.apache.hadoop.yarn.server.resourcemanager.webapp;
 
-import org.apache.hadoop.classification.InterfaceAudience;
+import org.apache.hadoop.yarn.webapp.view.HtmlBlock;
 
-@InterfaceAudience.LimitedPrivate({"YARN", "MapReduce"})
-public interface YarnWebParams {
-  String NM_NODENAME = "nm.id";
-  String APPLICATION_ID = "app.id";
-  String APPLICATION_ATTEMPT_ID = "appattempt.id";
-  String CONTAINER_ID = "container.id";
-  String CONTAINER_LOG_TYPE= "log.type";
-  String ENTITY_STRING = "entity.string";
-  String APP_OWNER = "app.owner";
-  String APP_STATE = "app.state";
-  String QUEUE_NAME = "queue.name";
-  String NODE_STATE = "node.state";
-  String NEXT_REFRESH_INTERVAL = "next.fresh.interval";
-  String ERROR_MESSAGE = "error.message";
+import com.google.inject.Inject;
+import static org.apache.hadoop.yarn.webapp.YarnWebParams.ERROR_MESSAGE;
+
+/**
+ * This class is used to display an error message to the user in the UI.
+ */
+public class ErrorBlock extends HtmlBlock {
+  @Inject
+  ErrorBlock(ViewContext ctx) {
+    super(ctx);
+  }
+
+  @Override
+  protected void render(Block html) {
+    html.p()._($(ERROR_MESSAGE))._();
+  }
 }
