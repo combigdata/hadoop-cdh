@@ -26,16 +26,15 @@ import java.nio.MappedByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.TreeMap;
+import java.util.NoSuchElementException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.apache.commons.collections.map.LinkedMap;
 import org.apache.commons.lang.mutable.MutableBoolean;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
@@ -60,6 +59,9 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * The ShortCircuitCache tracks things which the client needs to access
  * HDFS block files via short-circuit.
@@ -69,7 +71,8 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
  */
 @InterfaceAudience.Private
 public class ShortCircuitCache implements Closeable {
-  public static final Log LOG = LogFactory.getLog(ShortCircuitCache.class);
+  public static final Logger LOG = LoggerFactory.getLogger(
+      ShortCircuitCache.class);
 
   /**
    * Expiry thread which makes sure that the file descriptors get closed
@@ -108,16 +111,20 @@ public class ShortCircuitCache implements Closeable {
 
         int numDemoted = demoteOldEvictableMmaped(curMs);
         int numPurged = 0;
-        Long evictionTimeNs = Long.valueOf(0);
+        Long evictionTimeNs;
         while (true) {
-          Entry<Long, ShortCircuitReplica> entry = 
-              evictable.ceilingEntry(evictionTimeNs);
-          if (entry == null) break;
-          evictionTimeNs = entry.getKey();
-          long evictionTimeMs = 
+          Object eldestKey;
+          try {
+            eldestKey = evictable.firstKey();
+          } catch (NoSuchElementException e) {
+            break;
+          }
+          evictionTimeNs = (Long)eldestKey;
+          long evictionTimeMs =
               TimeUnit.MILLISECONDS.convert(evictionTimeNs, TimeUnit.NANOSECONDS);
           if (evictionTimeMs + maxNonMmappedEvictableLifespanMs >= curMs) break;
-          ShortCircuitReplica replica = entry.getValue();
+          ShortCircuitReplica replica = (ShortCircuitReplica)evictable.get(
+              eldestKey);
           if (LOG.isTraceEnabled()) {
             LOG.trace("CacheCleaner: purging " + replica + ": " + 
                   StringUtils.getStackTrace(Thread.currentThread()));
@@ -222,7 +229,7 @@ public class ShortCircuitCache implements Closeable {
         } else {
           shm.getEndpointShmManager().shutdown(shm);
         }
-        IOUtils.cleanup(LOG, sock, out);
+        IOUtils.cleanupWithLogger(LOG, sock, out);
       }
     }
   }
@@ -275,12 +282,11 @@ public class ShortCircuitCache implements Closeable {
   private CacheCleaner cacheCleaner;
 
   /**
-   * Tree of evictable elements.
+   * LinkedMap of evictable elements.
    *
    * Maps (unique) insertion time in nanoseconds to the element.
    */
-  private final TreeMap<Long, ShortCircuitReplica> evictable =
-      new TreeMap<Long, ShortCircuitReplica>();
+  private final LinkedMap evictable = new LinkedMap();
 
   /**
    * Maximum total size of the cache, including both mmapped and
@@ -294,12 +300,11 @@ public class ShortCircuitCache implements Closeable {
   private long maxNonMmappedEvictableLifespanMs;
 
   /**
-   * Tree of mmaped evictable elements.
+   * LinkedMap of mmaped evictable elements.
    *
    * Maps (unique) insertion time in nanoseconds to the element.
    */
-  private final TreeMap<Long, ShortCircuitReplica> evictableMmapped =
-      new TreeMap<Long, ShortCircuitReplica>();
+  private final LinkedMap evictableMmapped = new LinkedMap();
 
   /**
    * Maximum number of mmaped evictable elements.
@@ -512,14 +517,17 @@ public class ShortCircuitCache implements Closeable {
   private int demoteOldEvictableMmaped(long now) {
     int numDemoted = 0;
     boolean needMoreSpace = false;
-    Long evictionTimeNs = Long.valueOf(0);
+    Long evictionTimeNs;
 
     while (true) {
-      Entry<Long, ShortCircuitReplica> entry = 
-          evictableMmapped.ceilingEntry(evictionTimeNs);
-      if (entry == null) break;
-      evictionTimeNs = entry.getKey();
-      long evictionTimeMs = 
+      Object eldestKey;
+      try {
+        eldestKey = evictableMmapped.firstKey();
+      } catch (NoSuchElementException e) {
+        break;
+      }
+      evictionTimeNs = (Long)eldestKey;
+      long evictionTimeMs =
           TimeUnit.MILLISECONDS.convert(evictionTimeNs, TimeUnit.NANOSECONDS);
       if (evictionTimeMs + maxEvictableMmapedLifespanMs >= now) {
         if (evictableMmapped.size() < maxEvictableMmapedSize) {
@@ -527,7 +535,8 @@ public class ShortCircuitCache implements Closeable {
         }
         needMoreSpace = true;
       }
-      ShortCircuitReplica replica = entry.getValue();
+      ShortCircuitReplica replica = (ShortCircuitReplica)evictableMmapped.get(
+          eldestKey);
       if (LOG.isTraceEnabled()) {
         String rationale = needMoreSpace ? "because we need more space" : 
             "because it's too old";
@@ -557,10 +566,15 @@ public class ShortCircuitCache implements Closeable {
         return;
       }
       ShortCircuitReplica replica;
-      if (evictableSize == 0) {
-       replica = evictableMmapped.firstEntry().getValue();
-      } else {
-       replica = evictable.firstEntry().getValue();
+      try {
+        if (evictableSize == 0) {
+          replica = (ShortCircuitReplica)evictableMmapped.get(evictableMmapped
+              .firstKey());
+        } else {
+          replica = (ShortCircuitReplica)evictable.get(evictable.firstKey());
+        }
+      } catch (NoSuchElementException e) {
+        break;
       }
       if (LOG.isTraceEnabled()) {
         LOG.trace(this + ": trimEvictionMaps is purging " + replica +
@@ -603,10 +617,11 @@ public class ShortCircuitCache implements Closeable {
    * @param map       The map to remove it from.
    */
   private void removeEvictable(ShortCircuitReplica replica,
-      TreeMap<Long, ShortCircuitReplica> map) {
+      LinkedMap map) {
     Long evictableTimeNs = replica.getEvictableTimeNs();
     Preconditions.checkNotNull(evictableTimeNs);
-    ShortCircuitReplica removed = map.remove(evictableTimeNs);
+    ShortCircuitReplica removed = (ShortCircuitReplica)map.remove(
+        evictableTimeNs);
     Preconditions.checkState(removed == replica,
         "failed to make %s unevictable", replica);
     replica.setEvictableTimeNs(null);
@@ -623,7 +638,7 @@ public class ShortCircuitCache implements Closeable {
    * @param map              The map to insert it into.
    */
   private void insertEvictable(Long evictionTimeNs,
-      ShortCircuitReplica replica, TreeMap<Long, ShortCircuitReplica> map) {
+      ShortCircuitReplica replica, LinkedMap map) {
     while (map.containsKey(evictionTimeNs)) {
       evictionTimeNs++;
     }
@@ -906,22 +921,30 @@ public class ShortCircuitCache implements Closeable {
       maxNonMmappedEvictableLifespanMs = 0;
       maxEvictableMmapedSize = 0;
       // Close and join cacheCleaner thread.
-      IOUtils.cleanup(LOG, cacheCleaner);
+      IOUtils.cleanupWithLogger(LOG, cacheCleaner);
       // Purge all replicas.
       while (true) {
-        Entry<Long, ShortCircuitReplica> entry = evictable.firstEntry();
-        if (entry == null) break;
-        purge(entry.getValue());
+        Object eldestKey;
+        try {
+          eldestKey = evictable.firstKey();
+        } catch (NoSuchElementException e) {
+          break;
+        }
+        purge((ShortCircuitReplica)evictable.get(eldestKey));
       }
       while (true) {
-        Entry<Long, ShortCircuitReplica> entry = evictableMmapped.firstEntry();
-        if (entry == null) break;
-        purge(entry.getValue());
+        Object eldestKey;
+        try {
+          eldestKey = evictableMmapped.firstKey();
+        } catch (NoSuchElementException e) {
+          break;
+        }
+        purge((ShortCircuitReplica)evictableMmapped.get(eldestKey));
       }
     } finally {
       lock.unlock();
     }
-    IOUtils.cleanup(LOG, shmManager);
+    IOUtils.cleanupWithLogger(LOG, shmManager);
   }
 
   @VisibleForTesting // ONLY for testing
@@ -929,8 +952,8 @@ public class ShortCircuitCache implements Closeable {
     void visit(int numOutstandingMmaps,
         Map<ExtendedBlockId, ShortCircuitReplica> replicas,
         Map<ExtendedBlockId, InvalidToken> failedLoads,
-        Map<Long, ShortCircuitReplica> evictable,
-        Map<Long, ShortCircuitReplica> evictableMmapped);
+        LinkedMap evictable,
+        LinkedMap evictableMmapped);
   }
 
   @VisibleForTesting // ONLY for testing
@@ -955,38 +978,10 @@ public class ShortCircuitCache implements Closeable {
           }
         }
       }
-      if (LOG.isDebugEnabled()) {
-        StringBuilder builder = new StringBuilder();
-        builder.append("visiting ").append(visitor.getClass().getName()).
-            append("with outstandingMmapCount=").append(outstandingMmapCount).
-            append(", replicas=");
-        String prefix = "";
-        for (Entry<ExtendedBlockId, ShortCircuitReplica> entry : replicas.entrySet()) {
-          builder.append(prefix).append(entry.getValue());
-          prefix = ",";
-        }
-        prefix = "";
-        builder.append(", failedLoads=");
-        for (Entry<ExtendedBlockId, InvalidToken> entry : failedLoads.entrySet()) {
-          builder.append(prefix).append(entry.getValue());
-          prefix = ",";
-        }
-        prefix = "";
-        builder.append(", evictable=");
-        for (Entry<Long, ShortCircuitReplica> entry : evictable.entrySet()) {
-          builder.append(prefix).append(entry.getKey()).
-              append(":").append(entry.getValue());
-          prefix = ",";
-        }
-        prefix = "";
-        builder.append(", evictableMmapped=");
-        for (Entry<Long, ShortCircuitReplica> entry : evictableMmapped.entrySet()) {
-          builder.append(prefix).append(entry.getKey()).
-              append(":").append(entry.getValue());
-          prefix = ",";
-        }
-        LOG.debug(builder.toString());
-      }
+      LOG.debug("visiting {} with outstandingMmapCount={}, replicas={}, "
+              + "failedLoads={}, evictable={}, evictableMmapped={}",
+          visitor.getClass().getName(), outstandingMmapCount, replicas,
+          failedLoads, evictable, evictableMmapped);
       visitor.visit(outstandingMmapCount, replicas, failedLoads,
             evictable, evictableMmapped);
     } finally {

@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
 import com.google.common.collect.HashMultimap;
+import org.apache.commons.collections.map.LinkedMap;
 import org.apache.commons.lang.mutable.MutableBoolean;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -505,8 +506,8 @@ public class TestShortCircuitCache {
       public void visit(int numOutstandingMmaps,
           Map<ExtendedBlockId, ShortCircuitReplica> replicas,
           Map<ExtendedBlockId, InvalidToken> failedLoads,
-          Map<Long, ShortCircuitReplica> evictable,
-          Map<Long, ShortCircuitReplica> evictableMmapped) {
+          LinkedMap evictable,
+          LinkedMap evictableMmapped) {
         ShortCircuitReplica replica = replicas.get(
             ExtendedBlockId.fromExtendedBlock(block));
         Assert.assertNotNull(replica);
@@ -521,8 +522,8 @@ public class TestShortCircuitCache {
       public void visit(int numOutstandingMmaps,
           Map<ExtendedBlockId, ShortCircuitReplica> replicas,
           Map<ExtendedBlockId, InvalidToken> failedLoads,
-          Map<Long, ShortCircuitReplica> evictable,
-          Map<Long, ShortCircuitReplica> evictableMmapped) {
+          LinkedMap evictable,
+          LinkedMap evictableMmapped) {
         ShortCircuitReplica replica = replicas.get(
             ExtendedBlockId.fromExtendedBlock(block));
         Assert.assertNotNull(replica);
