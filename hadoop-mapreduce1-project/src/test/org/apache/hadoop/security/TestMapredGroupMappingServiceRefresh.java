@@ -171,8 +171,12 @@ public class TestMapredGroupMappingServiceRefresh {
   @Test
   public void testRefreshSuperUserGroupsConfiguration() throws Exception {
     final String SUPER_USER = "super_user";
-    final String [] GROUP_NAMES1 = new String [] {"gr1" , "gr2"};
-    final String [] GROUP_NAMES2 = new String [] {"gr3" , "gr4"};
+    final List<String> groupNames1 = new ArrayList<>();
+    groupNames1.add("gr1");
+    groupNames1.add("gr2");
+    final List<String> groupNames2 = new ArrayList<>();
+    groupNames2.add("gr3");
+    groupNames2.add("gr4");
 
     //keys in conf
     String userKeyGroups = DefaultImpersonationProvider.getTestProvider().
@@ -200,8 +204,8 @@ public class TestMapredGroupMappingServiceRefresh {
     when(ugi2.getUserName()).thenReturn("userL2");
 
     // set groups for users
-    when(ugi1.getGroupNames()).thenReturn(GROUP_NAMES1);
-    when(ugi2.getGroupNames()).thenReturn(GROUP_NAMES2);
+    when(ugi1.getGroups()).thenReturn(groupNames1);
+    when(ugi2.getGroups()).thenReturn(groupNames2);
 
 
     // check before
