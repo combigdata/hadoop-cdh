@@ -2548,6 +2548,11 @@ public class DataNode extends ReconfigurableBase
   }
 
 
+  @VisibleForTesting
+  public BlockPoolTokenSecretManager getBlockPoolTokenSecretManager() {
+    return blockPoolTokenSecretManager;
+  }
+
   public static void secureMain(String args[], SecureResources resources) {
     int errorCode = 0;
     try {
