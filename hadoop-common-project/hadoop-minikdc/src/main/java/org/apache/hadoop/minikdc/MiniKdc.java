@@ -53,6 +53,8 @@ import org.apache.directory.api.ldap.model.ldif.LdifEntry;
 import org.apache.directory.api.ldap.model.ldif.LdifReader;
 import org.apache.directory.api.ldap.model.name.Dn;
 import org.apache.directory.api.ldap.model.schema.registries.SchemaLoader;
+import org.apache.mina.transport.socket.SocketAcceptor;
+import org.apache.mina.transport.socket.SocketSessionConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -445,7 +447,15 @@ public class MiniKdc {
     String transport = conf.getProperty(TRANSPORT);
     AbstractTransport absTransport;
     if (transport.trim().equals("TCP")) {
-      absTransport = new TcpTransport(bindAddress, port, 3, 50);
+      TcpTransport tcpTransport = new TcpTransport(bindAddress, port, 3, 50);
+      // set the receive/send buffer size to 64 KB to prevent packet
+      // fragmentation
+      SocketAcceptor acceptor = tcpTransport.getAcceptor();
+      SocketSessionConfig sessionConfig = acceptor.getSessionConfig();
+      final int bufferSize = 64 * 1024;
+      sessionConfig.setReceiveBufferSize(bufferSize);
+      sessionConfig.setSendBufferSize(bufferSize);
+      absTransport = tcpTransport;
     } else if (transport.trim().equals("UDP")) {
       absTransport = new UdpTransport(port);
     } else {
