@@ -504,6 +504,7 @@ public abstract class INode implements INodeAttributes, Diff.Element<byte[]>,
   public final ContentSummary computeAndConvertContentSummary(int snapshotId,
       ContentSummaryComputationContext summary) {
     computeContentSummary(snapshotId, summary);
+    summary.tallyDeletedSnapshottedINodes();
     final Content.Counts counts = summary.getCounts();
     final Content.Counts snapshotCounts = summary.getSnapshotCounts();
     final Quota.Counts q = getQuotaCounts();

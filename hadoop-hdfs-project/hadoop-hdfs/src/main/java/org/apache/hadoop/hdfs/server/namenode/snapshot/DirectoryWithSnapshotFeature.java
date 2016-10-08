@@ -28,7 +28,6 @@ import java.util.Map;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.hdfs.protocol.QuotaExceededException;
-import org.apache.hadoop.hdfs.server.namenode.Content;
 import org.apache.hadoop.hdfs.server.namenode.ContentSummaryComputationContext;
 import org.apache.hadoop.hdfs.server.namenode.FSImageSerialization;
 import org.apache.hadoop.hdfs.server.namenode.INode;
@@ -643,17 +642,13 @@ public class DirectoryWithSnapshotFeature implements INode.Feature {
     return counts;
   }
 
-  public void computeContentSummary4Snapshot(final Content.Counts counts) {
-    // Create a new blank summary context for blocking processing of subtree.
-    ContentSummaryComputationContext summary = 
-        new ContentSummaryComputationContext();
+  public void computeContentSummary4Snapshot(
+      ContentSummaryComputationContext context) {
     for(DirectoryDiff d : diffs) {
-      for(INode deleted : d.getChildrenDiff().getList(ListType.DELETED)) {
-        deleted.computeContentSummary(Snapshot.CURRENT_STATE_ID, summary);
+      for(INode deletedNode : d.getChildrenDiff().getList(ListType.DELETED)) {
+        context.reportDeletedSnapshottedNode(deletedNode);
       }
     }
-    // Add the counts from deleted trees.
-    counts.add(summary.getCounts());
   }
   
   /**
