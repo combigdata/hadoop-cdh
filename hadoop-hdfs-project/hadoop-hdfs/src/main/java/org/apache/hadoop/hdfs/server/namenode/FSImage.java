@@ -141,8 +141,7 @@ public class FSImage implements Closeable {
       storage.setRestoreFailedStorage(true);
     }
 
-    this.editLog = new FSEditLog(conf, storage, editsDirs);
-    
+    this.editLog = FSEditLog.newInstance(conf, storage, editsDirs);
     archivalManager = new NNStorageRetentionManager(conf, storage, editLog);
   }
  
@@ -571,7 +570,10 @@ public class FSImage implements Closeable {
   }
 
   @VisibleForTesting
-  public void setEditLogForTesting(FSEditLog newLog) {
+  public void setEditLogForTesting(FSEditLog newLog) {    
+    // spies are shallow copies, must allow async log to restart its thread
+    // so it has the new copy
+    newLog.restart();
     editLog = newLog;
   }
 
