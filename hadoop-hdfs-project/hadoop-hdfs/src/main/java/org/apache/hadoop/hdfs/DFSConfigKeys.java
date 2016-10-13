@@ -970,6 +970,10 @@ public class DFSConfigKeys extends CommonConfigurationKeys {
       DFS_DATANODE_TRANSFER_SOCKET_RECV_BUFFER_SIZE_DEFAULT =
       HdfsConstants.DEFAULT_DATA_SOCKET_SIZE;
 
+  public static final String HTTPFS_BUFFER_SIZE_KEY =
+      "httpfs.buffer.size";
+  public static final int HTTP_BUFFER_SIZE_DEFAULT = 4096;
+
   public static final String
       DFS_DATA_TRANSFER_SERVER_TCPNODELAY =
       "dfs.data.transfer.server.tcpnodelay";
