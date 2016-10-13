@@ -90,6 +90,9 @@ import org.apache.log4j.AppenderSkeleton;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.spi.LoggingEvent;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
 import org.mockito.Mockito;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
@@ -100,10 +103,31 @@ import com.google.common.collect.Lists;
 /**
  * This class tests the creation and validation of a checkpoint.
  */
+@RunWith(Parameterized.class)
 public class TestEditLog {
-  
+
   static {
     ((Log4JLogger)FSEditLog.LOG).getLogger().setLevel(Level.ALL);
+  }
+
+  @Parameters
+  public static Collection<Object[]> data() {
+    Collection<Object[]> params = new ArrayList<Object[]>();
+    params.add(new Object[]{ Boolean.FALSE });
+    params.add(new Object[]{ Boolean.TRUE });
+    return params;
+  }
+
+  private static boolean useAsyncEditLog;
+  public TestEditLog(Boolean async) {
+    useAsyncEditLog = async;
+  }
+
+  public static Configuration getConf() {
+    Configuration conf = new HdfsConfiguration();
+    conf.setBoolean(DFSConfigKeys.DFS_NAMENODE_EDITS_ASYNC_LOGGING,
+        useAsyncEditLog);
+    return conf;
   }
 
   /**
@@ -227,11 +251,12 @@ public class TestEditLog {
    * @param storage Storage object used by namenode
    */
   private static FSEditLog getFSEditLog(NNStorage storage) throws IOException {
-    Configuration conf = new Configuration();
+    Configuration conf = getConf();
     // Make sure the edits dirs are set in the provided configuration object.
     conf.set(DFSConfigKeys.DFS_NAMENODE_EDITS_DIR_KEY,
         StringUtils.join(",", storage.getEditsDirectories()));
-    FSEditLog log = new FSEditLog(conf, storage, FSNamesystem.getNamespaceEditsDirs(conf));
+    FSEditLog log = FSEditLog.newInstance(
+        conf, storage, FSNamesystem.getNamespaceEditsDirs(conf));
     return log;
   }
 
@@ -254,7 +279,7 @@ public class TestEditLog {
    */
   @Test
   public void testPreTxidEditLogWithEdits() throws Exception {
-    Configuration conf = new HdfsConfiguration();
+    Configuration conf = getConf();
     MiniDFSCluster cluster = null;
 
     try {
@@ -284,7 +309,7 @@ public class TestEditLog {
   @Test
   public void testSimpleEditLog() throws IOException {
     // start a cluster 
-    Configuration conf = new HdfsConfiguration();
+    Configuration conf = getConf();
     MiniDFSCluster cluster = null;
     FileSystem fileSys = null;
     try {
@@ -370,7 +395,7 @@ public class TestEditLog {
   private void testEditLog(int initialSize) throws IOException {
 
     // start a cluster 
-    Configuration conf = new HdfsConfiguration();
+    Configuration conf = getConf();
     MiniDFSCluster cluster = null;
     FileSystem fileSys = null;
 
@@ -501,8 +526,12 @@ public class TestEditLog {
 
   @Test
   public void testSyncBatching() throws Exception {
-    // start a cluster 
-    Configuration conf = new HdfsConfiguration();
+    if (useAsyncEditLog) {
+      // semantics are completely differently since edits will be auto-synced
+      return;
+    }
+    // start a cluster
+    Configuration conf = getConf();
     MiniDFSCluster cluster = null;
     FileSystem fileSys = null;
     ExecutorService threadA = Executors.newSingleThreadExecutor();
@@ -565,7 +594,7 @@ public class TestEditLog {
   @Test
   public void testBatchedSyncWithClosedLogs() throws Exception {
     // start a cluster 
-    Configuration conf = new HdfsConfiguration();
+    Configuration conf = getConf();
     MiniDFSCluster cluster = null;
     FileSystem fileSys = null;
     ExecutorService threadA = Executors.newSingleThreadExecutor();
@@ -605,7 +634,7 @@ public class TestEditLog {
   @Test
   public void testEditChecksum() throws Exception {
     // start a cluster 
-    Configuration conf = new HdfsConfiguration();
+    Configuration conf = getConf();
     MiniDFSCluster cluster = null;
     FileSystem fileSys = null;
     cluster = new MiniDFSCluster.Builder(conf).numDataNodes(NUM_DATA_NODES).build();
@@ -677,7 +706,7 @@ public class TestEditLog {
    */
   private void testCrashRecovery(int numTransactions) throws Exception {
     MiniDFSCluster cluster = null;
-    Configuration conf = new HdfsConfiguration();
+    Configuration conf = getConf();
     conf.setInt(DFSConfigKeys.DFS_NAMENODE_CHECKPOINT_TXNS_KEY,
         CHECKPOINT_ON_STARTUP_MIN_TXNS);
     
@@ -822,7 +851,7 @@ public class TestEditLog {
       boolean updateTransactionIdFile, boolean shouldSucceed)
       throws Exception {
     // start a cluster 
-    Configuration conf = new HdfsConfiguration();
+    Configuration conf = getConf();
     MiniDFSCluster cluster = null;
     cluster = new MiniDFSCluster.Builder(conf)
       .numDataNodes(NUM_DATA_NODES).build();
@@ -1153,7 +1182,7 @@ public class TestEditLog {
   public static NNStorage setupEdits(List<URI> editUris, int numrolls,
       boolean closeOnFinish, AbortSpec... abortAtRolls) throws IOException {
     List<AbortSpec> aborts = new ArrayList<AbortSpec>(Arrays.asList(abortAtRolls));
-    NNStorage storage = new NNStorage(new Configuration(),
+    NNStorage storage = new NNStorage(getConf(),
                                       Collections.<URI>emptyList(),
                                       editUris);
     storage.format(new NamespaceInfo());
@@ -1315,7 +1344,7 @@ public class TestEditLog {
     EditLogFileOutputStream elfos = null;
     EditLogFileInputStream elfis = null;
     try {
-      elfos = new EditLogFileOutputStream(new Configuration(), TEST_LOG_NAME, 0);
+      elfos = new EditLogFileOutputStream(getConf(), TEST_LOG_NAME, 0);
       elfos.create(NameNodeLayoutVersion.CURRENT_LAYOUT_VERSION);
       elfos.writeRaw(garbage, 0, garbage.length);
       elfos.setReadyToFlush();
@@ -1491,7 +1520,7 @@ public class TestEditLog {
   public void testManyEditLogSegments() throws IOException {
     final int NUM_EDIT_LOG_ROLLS = 1000;
     // start a cluster
-    Configuration conf = new HdfsConfiguration();
+    Configuration conf = getConf();
     MiniDFSCluster cluster = null;
     FileSystem fileSys = null;
     try {
