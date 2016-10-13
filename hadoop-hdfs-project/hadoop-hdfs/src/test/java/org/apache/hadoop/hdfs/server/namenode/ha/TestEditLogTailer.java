@@ -26,6 +26,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.ArrayList;
+import java.util.Collection;
 
 import org.apache.commons.logging.impl.Log4JLogger;
 import org.apache.hadoop.conf.Configuration;
@@ -37,6 +39,7 @@ import org.apache.hadoop.hdfs.HAUtil;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.hdfs.MiniDFSNNTopology;
+import org.apache.hadoop.hdfs.server.namenode.FSEditLog;
 import org.apache.hadoop.hdfs.server.namenode.FSImage;
 import org.apache.hadoop.hdfs.server.namenode.NNStorage;
 import org.apache.hadoop.hdfs.server.namenode.NameNode;
@@ -44,12 +47,32 @@ import org.apache.hadoop.hdfs.server.namenode.NameNodeAdapter;
 import org.apache.hadoop.test.GenericTestUtils;
 import org.apache.log4j.Level;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
 
 import com.google.common.base.Supplier;
 import org.mockito.Mockito;
 
+@RunWith(Parameterized.class)
 public class TestEditLogTailer {
-  
+  static {
+    GenericTestUtils.setLogLevel(FSEditLog.LOG, Level.ALL);
+  }
+
+  @Parameters
+  public static Collection<Object[]> data() {
+    Collection<Object[]> params = new ArrayList<Object[]>();
+    params.add(new Object[]{ Boolean.FALSE });
+    params.add(new Object[]{ Boolean.TRUE });
+    return params;
+  }
+
+  private static boolean useAsyncEditLog;
+  public TestEditLogTailer(Boolean async) {
+    useAsyncEditLog = async;
+  }
+
   private static final String DIR_PREFIX = "/dir";
   private static final int DIRS_TO_MAKE = 20;
   static final long SLEEP_TIME = 1000;
@@ -57,13 +80,21 @@ public class TestEditLogTailer {
   
   static {
     ((Log4JLogger)FSImage.LOG).getLogger().setLevel(Level.ALL);
+    ((Log4JLogger)FSEditLog.LOG).getLogger().setLevel(Level.ALL);
     ((Log4JLogger)EditLogTailer.LOG).getLogger().setLevel(Level.ALL);
   }
-  
+
+  private static Configuration getConf() {
+    Configuration conf = new HdfsConfiguration();
+    conf.setBoolean(DFSConfigKeys.DFS_NAMENODE_EDITS_ASYNC_LOGGING,
+        useAsyncEditLog);
+    return conf;
+  }
+
   @Test
   public void testTailer() throws IOException, InterruptedException,
       ServiceFailedException {
-    Configuration conf = new HdfsConfiguration();
+    Configuration conf = getConf();
     conf.setInt(DFSConfigKeys.DFS_HA_TAILEDITS_PERIOD_KEY, 1);
 
     HAUtil.setAllowStandbyReads(conf, true);
@@ -121,7 +152,7 @@ public class TestEditLogTailer {
   
   private static void testStandbyTriggersLogRolls(int activeIndex)
       throws Exception {
-    Configuration conf = new Configuration();
+    Configuration conf = getConf();
     // Roll every 1s
     conf.setInt(DFSConfigKeys.DFS_HA_LOGROLL_PERIOD_KEY, 1);
     conf.setInt(DFSConfigKeys.DFS_HA_TAILEDITS_PERIOD_KEY, 1);
