@@ -1367,8 +1367,8 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
      * the estimated expiration date.
      */
     if (ex instanceof InvalidBlockTokenException || ex instanceof InvalidToken) {
-      DFSClient.LOG.info("Access token was invalid when connecting to "
-          + targetAddr + " : " + ex);
+      DFSClient.LOG.debug("Access token was invalid when connecting to "
+          + targetAddr, ex);
       return true;
     }
     return false;
