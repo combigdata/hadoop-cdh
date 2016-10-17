@@ -551,7 +551,7 @@ function main() {
 
   # Cauldron only.
   # Point the build at the latest GBN's artifacts served by the mostros proxy.
-  wget -nc http://github.mtv.cloudera.com/raw/CDH/cdh/7e4fe8ff337a9d075b8c78179f2822314a65570f/gbn-m2-settings.xml
+  wget -nc http://github.mtv.cloudera.com/raw/CDH/cdh/cdh6.x/gbn-m2-settings.xml
   export M2_GBN=$(curl 'http://mostrows-builddb.vpc.cloudera.com:8080/query?product=cdh&user=jenkins&version=6.x')
   MAVEN_FLAGS="${MAVEN_FLAGS} -s gbn-m2-settings.xml"
 
