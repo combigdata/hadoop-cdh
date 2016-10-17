@@ -21,6 +21,7 @@ package org.apache.hadoop.fs.s3a;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.contract.ContractTestUtils;
+import org.apache.hadoop.fs.s3a.s3guard.S3Guard;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,7 +64,9 @@ public class ITestS3AFileOperationCost extends AbstractS3ATestBase {
     resetMetricDiffs();
     S3AFileStatus status = fs.getFileStatus(simpleFile);
     assertTrue("not a file: " + status, status.isFile());
-    metadataRequests.assertDiffEquals(1);
+    if (S3Guard.isNullMetadataStoreConfigured(fs.getConf())) {
+      metadataRequests.assertDiffEquals(1);
+    }
     listRequests.assertDiffEquals(0);
   }
 
@@ -80,7 +83,10 @@ public class ITestS3AFileOperationCost extends AbstractS3ATestBase {
     resetMetricDiffs();
     S3AFileStatus status = fs.getFileStatus(dir);
     assertTrue("not empty: " + status, status.isEmptyDirectory());
-    metadataRequests.assertDiffEquals(2);
+
+    if (S3Guard.isNullMetadataStoreConfigured(fs.getConf())) {
+      metadataRequests.assertDiffEquals(2);
+    }
     listRequests.assertDiffEquals(0);
   }
 
@@ -133,8 +139,10 @@ public class ITestS3AFileOperationCost extends AbstractS3ATestBase {
           + "\n" + ContractTestUtils.ls(fs, dir)
           + "\n" + fsState);
     }
-    metadataRequests.assertDiffEquals(2);
-    listRequests.assertDiffEquals(1);
+    if (S3Guard.isNullMetadataStoreConfigured(fs.getConf())) {
+      metadataRequests.assertDiffEquals(2);
+      listRequests.assertDiffEquals(1);
+    }
   }
 
   @Test
