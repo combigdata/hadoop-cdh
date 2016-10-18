@@ -406,7 +406,7 @@ public class JspHelper {
               d2.getAdminState().toString());
           break;
         case FIELD_DECOMMISSIONED:
-          ret = DFSUtil.DECOM_COMPARATOR.compare(d1, d2);
+          ret = new DFSUtil.ServiceComparator().compare(d1, d2);
           break;
         case FIELD_NAME: 
           ret = d1.getHostName().compareTo(d2.getHostName());

@@ -7900,11 +7900,12 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
           .<String, Object> builder()
           .put("xferaddr", node.getXferAddr())
           .put("underReplicatedBlocks",
-              node.decommissioningStatus.getUnderReplicatedBlocks())
+          node.getLeavingServiceStatus().getUnderReplicatedBlocks())
+           // TODO use another property name for outOfServiceOnlyReplicas.
           .put("decommissionOnlyReplicas",
-              node.decommissioningStatus.getDecommissionOnlyReplicas())
+          node.getLeavingServiceStatus().getOutOfServiceOnlyReplicas())
           .put("underReplicateInOpenFiles",
-              node.decommissioningStatus.getUnderReplicatedInOpenFiles())
+          node.getLeavingServiceStatus().getUnderReplicatedInOpenFiles())
           .build();
       info.put(node.getHostName(), innerinfo);
     }
@@ -7964,6 +7965,12 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
         new HashMap<String, Map<String,Object>>();
     final List<DatanodeDescriptor> live = new ArrayList<DatanodeDescriptor>();
     blockManager.getDatanodeManager().fetchDatanodes(live, null, true);
+    for (Iterator<DatanodeDescriptor> it = live.iterator(); it.hasNext();) {
+      DatanodeDescriptor node = it.next();
+      if (!node.isInService()) {
+        it.remove();
+      }
+    }
 
     if (live.size() > 0) {
       float totalDfsUsed = 0;

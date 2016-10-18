@@ -21,14 +21,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.StorageType;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
-import org.apache.hadoop.hdfs.DFSUtil;
-import org.apache.hadoop.hdfs.protocol.DatanodeID;
 import org.apache.hadoop.hdfs.server.namenode.Namesystem;
 import org.apache.hadoop.hdfs.server.protocol.StorageReport;
 import org.apache.hadoop.hdfs.server.protocol.VolumeFailureSummary;
@@ -250,13 +246,19 @@ class HeartbeatManager implements DatanodeStatistics {
     if (!node.isAlive()) {
       LOG.info("Dead node {} is put in maintenance state immediately.", node);
       node.setInMaintenance();
-    } else if (node.isDecommissioned()) {
-      LOG.info("Decommissioned node " + node + " is put in maintenance state"
-          + " immediately.");
-      node.setInMaintenance();
     } else {
       stats.subtract(node);
-      node.startMaintenance();
+      if (node.isDecommissioned()) {
+        LOG.info("Decommissioned node " + node + " is put in maintenance state"
+            + " immediately.");
+        node.setInMaintenance();
+      } else if (blockManager.getMinReplicationToBeInMaintenance() == 0) {
+        LOG.info("MinReplicationToBeInMaintenance is set to zero. " + node +
+            " is put in maintenance state" + " immediately.");
+        node.setInMaintenance();
+      } else {
+        node.startMaintenance();
+      }
       stats.add(node);
     }
   }
@@ -333,7 +335,7 @@ class HeartbeatManager implements DatanodeStatistics {
     boolean allAlive = false;
     while (!allAlive) {
       // locate the first dead node.
-      DatanodeID dead = null;
+      DatanodeDescriptor dead = null;
 
       // locate the first failed storage that isn't on a dead node.
       DatanodeStorageInfo failedStorage = null;
@@ -382,7 +384,7 @@ class HeartbeatManager implements DatanodeStatistics {
         // acquire the fsnamesystem lock, and then remove the dead node.
         namesystem.writeLock();
         try {
-          dm.removeDeadDatanode(dead);
+          dm.removeDeadDatanode(dead, !dead.isMaintenance());
         } finally {
           namesystem.writeUnlock();
         }

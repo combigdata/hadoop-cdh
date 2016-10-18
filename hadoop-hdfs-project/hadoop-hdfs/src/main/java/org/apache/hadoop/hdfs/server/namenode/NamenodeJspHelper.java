@@ -769,7 +769,7 @@ class NamenodeJspHelper {
         return;
       }
 
-      long decommRequestTime = d.decommissioningStatus.getStartTime();
+      long decommRequestTime = d.getLeavingServiceStatus().getStartTime();
       long timestamp = d.getLastUpdate();
       long currentTime = Time.now();
       long hoursSinceDecommStarted = (currentTime - decommRequestTime)/3600000;
@@ -777,11 +777,11 @@ class NamenodeJspHelper {
       out.print("<td class=\"lastcontact\"> "
           + ((currentTime - timestamp) / 1000)
           + "<td class=\"underreplicatedblocks\">"
-          + d.decommissioningStatus.getUnderReplicatedBlocks()
+          + d.getLeavingServiceStatus().getUnderReplicatedBlocks()
           + "<td class=\"blockswithonlydecommissioningreplicas\">"
-          + d.decommissioningStatus.getDecommissionOnlyReplicas() 
+          + d.getLeavingServiceStatus().getOutOfServiceOnlyReplicas()
           + "<td class=\"underrepblocksinfilesunderconstruction\">"
-          + d.decommissioningStatus.getUnderReplicatedInOpenFiles()
+          + d.getLeavingServiceStatus().getUnderReplicatedInOpenFiles()
           + "<td class=\"timesincedecommissionrequest\">"
           + hoursSinceDecommStarted + " hrs " + remainderMinutes + " mins"
           + "\n");

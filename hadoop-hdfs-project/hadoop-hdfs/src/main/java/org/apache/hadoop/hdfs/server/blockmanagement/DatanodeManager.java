@@ -381,8 +381,8 @@ public class DatanodeManager {
     }
     
     Comparator<DatanodeInfo> comparator = avoidStaleDataNodesForRead ?
-        new DFSUtil.DecomStaleComparator(staleInterval) : 
-        DFSUtil.DECOM_COMPARATOR;
+        new DFSUtil.ServiceAndStaleComparator(staleInterval) :
+        new DFSUtil.ServiceComparator();
         
     for (LocatedBlock b : locatedblocks) {
       DatanodeInfo[] di = b.getLocations();
@@ -543,9 +543,20 @@ public class DatanodeManager {
    * @param nodeInfo datanode descriptor.
    */
   private void removeDatanode(DatanodeDescriptor nodeInfo) {
+    removeDatanode(nodeInfo, true);
+  }
+
+  /**
+   * Remove a datanode descriptor.
+   * @param nodeInfo datanode descriptor.
+   */
+  private void removeDatanode(DatanodeDescriptor nodeInfo,
+      boolean removeBlocksFromBlocksMap) {
     assert namesystem.hasWriteLock();
     heartbeatManager.removeDatanode(nodeInfo);
-    blockManager.removeBlocksAssociatedTo(nodeInfo);
+    if (removeBlocksFromBlocksMap) {
+      blockManager.removeBlocksAssociatedTo(nodeInfo);
+    }
     networktopology.remove(nodeInfo);
     decrementVersionCount(nodeInfo.getSoftwareVersion());
     blockManager.getBlockReportLeaseManager().unregister(nodeInfo);
@@ -566,7 +577,7 @@ public class DatanodeManager {
     try {
       final DatanodeDescriptor descriptor = getDatanode(node);
       if (descriptor != null) {
-        removeDatanode(descriptor);
+        removeDatanode(descriptor, true);
       } else {
         NameNode.stateChangeLog.warn("BLOCK* removeDatanode: "
                                      + node + " does not exist");
@@ -577,20 +588,22 @@ public class DatanodeManager {
   }
 
   /** Remove a dead datanode. */
-  void removeDeadDatanode(final DatanodeID nodeID) {
-      synchronized(datanodeMap) {
-        DatanodeDescriptor d;
-        try {
-          d = getDatanode(nodeID);
-        } catch(IOException e) {
-          d = null;
-        }
-        if (d != null && isDatanodeDead(d)) {
-          NameNode.stateChangeLog.info(
-              "BLOCK* removeDeadDatanode: lost heartbeat from " + d);
-          removeDatanode(d);
-        }
+  void removeDeadDatanode(final DatanodeID nodeID,
+      boolean removeBlocksFromBlockMap) {
+    synchronized(datanodeMap) {
+      DatanodeDescriptor d;
+      try {
+        d = getDatanode(nodeID);
+      } catch(IOException e) {
+        d = null;
       }
+      if (d != null && isDatanodeDead(d)) {
+        NameNode.stateChangeLog.info(
+              "BLOCK* removeDeadDatanode: lost heartbeat from " + d
+                      + ", removeBlocksFromBlockMap " + removeBlocksFromBlockMap);
+        removeDatanode(d, removeBlocksFromBlockMap);
+      }
+    }
   }
 
   /** Is the datanode dead? */
@@ -1038,26 +1051,32 @@ public class DatanodeManager {
   }
   
   /**
-   * 1. Added to hosts  --> no further work needed here.
-   * 2. Removed from hosts --> mark AdminState as decommissioned. 
-   * 3. Added to exclude --> start decommission.
-   * 4. Removed from exclude --> stop decommission.
+   * Reload datanode membership and the desired admin operations from
+   * host files. If a node isn't allowed, hostConfigManager.isIncluded returns
+   * false and the node can't be used.
+   * If a node is allowed and the desired admin operation is defined,
+   * it will transition to the desired admin state.
+   * If a node is allowed and upgrade domain is defined,
+   * the upgrade domain will be set on the node.
+   * To use maintenance mode or upgrade domain, set
+   * DFS_NAMENODE_HOSTS_PROVIDER_CLASSNAME_KEY to
+   * CombinedHostFileManager.class.
    */
   private void refreshDatanodes() {
     for(DatanodeDescriptor node : datanodeMap.values()) {
       // Check if not include.
       if (!hostConfigManager.isIncluded(node)) {
-        node.setDisallowed(true); // case 2.
+        node.setDisallowed(true);
       } else {
         long maintenanceExpireTimeInMS =
             hostConfigManager.getMaintenanceExpirationTimeInMS(node);
         if (node.maintenanceNotExpired(maintenanceExpireTimeInMS)) {
           decomManager.startMaintenance(node, maintenanceExpireTimeInMS);
         } else if (hostConfigManager.isExcluded(node)) {
-          decomManager.startDecommission(node); // case 3.
+          decomManager.startDecommission(node);
         } else {
           decomManager.stopMaintenance(node);
-          decomManager.stopDecommission(node); // case 4.
+          decomManager.stopDecommission(node);
         }
       }
       node.setUpgradeDomain(hostConfigManager.getUpgradeDomain(node));
