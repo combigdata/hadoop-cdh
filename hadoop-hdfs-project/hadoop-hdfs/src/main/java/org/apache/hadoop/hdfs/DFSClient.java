@@ -563,7 +563,7 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
       return domainSocketDataTraffic;
     }
 
-    private DataChecksum.Type getChecksumType(Configuration conf) {
+    static private DataChecksum.Type getChecksumType(Configuration conf) {
       final String checksum = conf.get(
           DFSConfigKeys.DFS_CHECKSUM_TYPE_KEY,
           DFSConfigKeys.DFS_CHECKSUM_TYPE_DEFAULT);
@@ -586,7 +586,7 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
     }
 
     // Construct a checksum option from conf
-    private ChecksumOpt getChecksumOptFromConf(Configuration conf) {
+    public static ChecksumOpt getChecksumOptFromConf(Configuration conf) {
       DataChecksum.Type type = getChecksumType(conf);
       int bytesPerChecksum = conf.getInt(DFS_BYTES_PER_CHECKSUM_KEY,
           DFS_BYTES_PER_CHECKSUM_DEFAULT);
