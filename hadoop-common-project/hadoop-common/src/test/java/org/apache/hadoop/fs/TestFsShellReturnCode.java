@@ -340,6 +340,8 @@ public class TestFsShellReturnCode {
   @Test (timeout = 30000)
   public void testRmForceWithNonexistentGlob() throws Exception {
     Configuration conf = new Configuration();
+    conf.setBoolean(CommonConfigurationKeysPublic
+        .HADOOP_SHELL_MISSING_DEFAULT_FS_WARNING_KEY, false);
     FsShell shell = new FsShell();
     shell.setConf(conf);
     final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
