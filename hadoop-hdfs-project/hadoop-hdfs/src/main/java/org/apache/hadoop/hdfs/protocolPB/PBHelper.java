@@ -648,7 +648,8 @@ public class PBHelper {
         di.hasLocation() ? di.getLocation() : null, di.getCapacity(),
         di.getDfsUsed(), di.getRemaining(), di.getBlockPoolUsed(),
         di.getCacheCapacity(), di.getCacheUsed(), di.getLastUpdate(),
-        di.getXceiverCount(), PBHelper.convert(di.getAdminState()));
+        di.getXceiverCount(), PBHelper.convert(di.getAdminState()),
+        di.hasUpgradeDomain() ? di.getUpgradeDomain() : null);
     if (di.hasNonDfsUsed()) {
       dinfo.setNonDfsUsed(di.getNonDfsUsed());
     } else {
@@ -707,6 +708,9 @@ public class PBHelper {
     DatanodeInfoProto.Builder builder = DatanodeInfoProto.newBuilder();
     if (info.getNetworkLocation() != null) {
       builder.setLocation(info.getNetworkLocation());
+    }
+    if (info.getUpgradeDomain() != null) {
+      builder.setUpgradeDomain(info.getUpgradeDomain());
     }
     builder
         .setId(PBHelper.convert((DatanodeID)info))

@@ -31,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
+import com.google.common.util.concurrent.Uninterruptibles;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileUtil;
@@ -45,6 +46,7 @@ import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeDescriptor;
 import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeManager;
 import org.apache.hadoop.hdfs.server.datanode.DataNode;
 import org.apache.hadoop.hdfs.server.namenode.top.TopConf;
+import org.apache.hadoop.hdfs.util.HostsFileWriter;
 import org.apache.hadoop.io.nativeio.NativeIO;
 import org.apache.hadoop.io.nativeio.NativeIO.POSIX.NoMlockCacheManipulator;
 import org.apache.hadoop.util.VersionInfo;
@@ -52,6 +54,16 @@ import org.codehaus.jackson.map.ObjectMapper;
 import org.junit.Test;
 import org.mortbay.util.ajax.JSON;
 
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
+import java.io.File;
+import java.lang.management.ManagementFactory;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -88,11 +100,18 @@ public class TestNameNodeMXBean {
       cluster = new MiniDFSCluster.Builder(conf).numDataNodes(3).build();
       cluster.waitActive();
 
-      // Put the DN to maintenance state.
+      // Set upgrade domain on the first DN.
+      String upgradeDomain = "abcd";
       DatanodeManager dm = cluster.getNameNode().getNamesystem().
-              getBlockManager().getDatanodeManager();
+          getBlockManager().getDatanodeManager();
+      DatanodeDescriptor dd = dm.getDatanode(
+          cluster.getDataNodes().get(0).getDatanodeId());
+      dd.setUpgradeDomain(upgradeDomain);
+      String dnXferAddrWithUpgradeDomainSet = dd.getXferAddr();
+
+      // Put the second DN to maintenance state.
       DatanodeDescriptor maintenanceNode = dm.getDatanode(
-          cluster.getDataNodes().get(1).getDatanodeId());
+            cluster.getDataNodes().get(1).getDatanodeId());
       maintenanceNode.setInMaintenance();
       String dnXferAddrInMaintenance = maintenanceNode.getXferAddr();
 
@@ -169,10 +188,18 @@ public class TestNameNodeMXBean {
         assertTrue(((Long)liveNode.get("capacity")) > 0);
         assertTrue(liveNode.containsKey("numBlocks"));
         assertTrue(((Long)liveNode.get("numBlocks")) == 0);
-        // "adminState" is set to maintenance only for the specific dn.
+        // a. By default the upgrade domain isn't defined on any DN.
+        // b. If the upgrade domain is set on a DN, JMX should have the same
+        // value.
         String xferAddr = (String)liveNode.get("xferaddr");
+        if (!xferAddr.equals(dnXferAddrWithUpgradeDomainSet)) {
+          assertTrue(!liveNode.containsKey("upgradeDomain"));
+        } else {
+          assertTrue(liveNode.get("upgradeDomain").equals(upgradeDomain));
+        }
+        // "adminState" is set to maintenance only for the specific dn.
         boolean inMaintenance = liveNode.get("adminState").equals(
-            DatanodeInfo.AdminStates.IN_MAINTENANCE.toString());
+                DatanodeInfo.AdminStates.IN_MAINTENANCE.toString());
         assertFalse(xferAddr.equals(dnXferAddrInMaintenance) ^ inMaintenance);
       }
       assertEquals(fsn.getLiveNodes(), alivenodeinfo);
@@ -266,6 +293,60 @@ public class TestNameNodeMXBean {
         }
         cluster.shutdown();
       }
+    }
+  }
+
+  @SuppressWarnings({ "unchecked" })
+  @Test
+  public void testLastContactTime() throws Exception {
+    Configuration conf = new Configuration();
+    conf.setInt(DFSConfigKeys.DFS_HEARTBEAT_INTERVAL_KEY, 1);
+    conf.setInt(DFSConfigKeys.DFS_NAMENODE_HEARTBEAT_RECHECK_INTERVAL_KEY, 1);
+    MiniDFSCluster cluster = null;
+    HostsFileWriter hostsFileWriter = new HostsFileWriter();
+    hostsFileWriter.initialize(conf, "temp/TestNameNodeMXBean");
+
+    try {
+      cluster = new MiniDFSCluster.Builder(conf).numDataNodes(3).build();
+      cluster.waitActive();
+
+      FSNamesystem fsn = cluster.getNameNode().namesystem;
+
+      MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
+      ObjectName mxbeanName = new ObjectName(
+        "Hadoop:service=NameNode,name=NameNodeInfo");
+
+      List<String> hosts = new ArrayList<>();
+      for(DataNode dn : cluster.getDataNodes()) {
+        hosts.add(dn.getDisplayName());
+      }
+      hostsFileWriter.initIncludeHosts(hosts.toArray(
+          new String[hosts.size()]));
+      fsn.getBlockManager().getDatanodeManager().refreshNodes(conf);
+
+      cluster.stopDataNode(0);
+      while (fsn.getBlockManager().getDatanodeManager().getNumLiveDataNodes()
+        != 2 ) {
+        Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
+      }
+
+      // get attribute deadnodeinfo
+      String deadnodeinfo = (String) (mbs.getAttribute(mxbeanName,
+        "DeadNodes"));
+      assertEquals(fsn.getDeadNodes(), deadnodeinfo);
+      Map<String, Map<String, Object>> deadNodes =
+        (Map<String, Map<String, Object>>) JSON.parse(deadnodeinfo);
+      assertTrue(deadNodes.size() > 0);
+      for (Map<String, Object> deadNode : deadNodes.values()) {
+        assertTrue(deadNode.containsKey("lastContact"));
+        assertTrue(deadNode.containsKey("decommissioned"));
+        assertTrue(deadNode.containsKey("xferaddr"));
+      }
+    } finally {
+      if (cluster != null) {
+        cluster.shutdown();
+      }
+      hostsFileWriter.cleanup();
     }
   }
 

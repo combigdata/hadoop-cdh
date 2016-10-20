@@ -7840,6 +7840,9 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
             .put("estimatedCapacityLostTotal",
                 volumeFailureSummary.getEstimatedCapacityLostTotal());
       }
+      if (node.getUpgradeDomain() != null) {
+        innerinfo.put("upgradeDomain", node.getUpgradeDomain());
+      }
       // CLOUDERA-BUILD: revert JMX output changes in HDFS-7604
       info.put(node.getHostName(), innerinfo.build());
     }

@@ -107,7 +107,7 @@ public class DatanodeManager {
   private final int defaultIpcPort;
 
   /** Read include/exclude files*/
-  private final HostFileManager hostFileManager = new HostFileManager();
+  private HostConfigManager hostConfigManager;
 
   /** The period to wait for datanode heartbeat.*/
   private final long heartbeatExpireInterval;
@@ -175,7 +175,7 @@ public class DatanodeManager {
    * directives that we've already sent.
    */
   private final long timeBetweenResendingCachingDirectivesMs;
-  
+
   DatanodeManager(final BlockManager blockManager, final Namesystem namesystem,
       final Configuration conf) throws IOException {
     this.namesystem = namesystem;
@@ -197,9 +197,11 @@ public class DatanodeManager {
     this.defaultIpcPort = NetUtils.createSocketAddr(
           conf.get(DFSConfigKeys.DFS_DATANODE_IPC_ADDRESS_KEY,
               DFSConfigKeys.DFS_DATANODE_IPC_ADDRESS_DEFAULT)).getPort();
+    this.hostConfigManager = ReflectionUtils.newInstance(
+        conf.getClass(DFSConfigKeys.DFS_NAMENODE_HOSTS_PROVIDER_CLASSNAME_KEY,
+            HostFileManager.class, HostConfigManager.class), conf);
     try {
-      this.hostFileManager.refresh(conf.get(DFSConfigKeys.DFS_HOSTS, ""),
-        conf.get(DFSConfigKeys.DFS_HOSTS_EXCLUDE, ""));
+      this.hostConfigManager.refresh();
     } catch (IOException e) {
       LOG.error("error reading hosts files: ", e);
     }
@@ -217,7 +219,7 @@ public class DatanodeManager {
     // in the cache; so future calls to resolve will be fast.
     if (dnsToSwitchMapping instanceof CachedDNSToSwitchMapping) {
       final ArrayList<String> locations = new ArrayList<String>();
-      for (InetSocketAddress addr : hostFileManager.getIncludes()) {
+      for (InetSocketAddress addr : hostConfigManager.getIncludes()) {
         locations.add(addr.getAddress().getHostAddress());
       }
       dnsToSwitchMapping.resolve(locations);
@@ -328,6 +330,10 @@ public class DatanodeManager {
     heartbeatManager.close();
   }
 
+  public HostConfigManager getHostConfigManager() {
+      return hostConfigManager;
+  }
+
   /** @return the network topology. */
   public NetworkTopology getNetworkTopology() {
     return networktopology;
@@ -351,7 +357,7 @@ public class DatanodeManager {
     if (avoidStaleDataNodesForRead) {
       return datanode.isStale(staleInterval);
     }
-      
+
     return false;
   }
   
@@ -610,6 +616,7 @@ public class DatanodeManager {
     host2DatanodeMap.add(node);
     checkIfClusterIsNowMultiRack(node);
     blockManager.getBlockReportLeaseManager().register(node);
+    resolveUpgradeDomain(node);
 
     if (LOG.isDebugEnabled()) {
       LOG.debug(getClass().getSimpleName() + ".addDatanode: "
@@ -686,7 +693,14 @@ public class DatanodeManager {
       return new HashMap<String, Integer> (this.datanodesSoftwareVersions);
     }
   }
-  
+
+  void resolveUpgradeDomain(DatanodeDescriptor node) {
+    String upgradeDomain = hostConfigManager.getUpgradeDomain(node);
+    if (upgradeDomain != null && upgradeDomain.length() > 0) {
+      node.setUpgradeDomain(upgradeDomain);
+    }
+  }
+
   /**
    *  Resolve a node's network location. If the DNS to switch mapping fails 
    *  then this method guarantees default rack location. 
@@ -814,7 +828,7 @@ public class DatanodeManager {
    */
   private void checkDecommissioning(DatanodeDescriptor nodeReg) { 
     // If the registered node is in exclude list, then decommission it
-    if (hostFileManager.isExcluded(nodeReg)) {
+    if (hostConfigManager.isExcluded(nodeReg)) {
       startDecommission(nodeReg);
     }
   }
@@ -911,7 +925,7 @@ public class DatanodeManager {
   
       // Checks if the node is not on the hosts list.  If it is not, then
       // it will be disallowed from registering. 
-      if (!hostFileManager.isIncluded(nodeReg)) {
+      if (!hostConfigManager.isIncluded(nodeReg)) {
         throw new DisallowedDatanodeException(nodeReg);
       }
         
@@ -979,7 +993,8 @@ public class DatanodeManager {
                 getNetworkDependenciesWithDefault(nodeS));
           }
           getNetworkTopology().add(nodeS);
-            
+          resolveUpgradeDomain(nodeS);
+
           // also treat the registration message as a heartbeat
           heartbeatManager.register(nodeS);
           incrementVersionCount(nodeS.getSoftwareVersion());
@@ -1011,7 +1026,8 @@ public class DatanodeManager {
         }
         networktopology.add(nodeDescr);
         nodeDescr.setSoftwareVersion(nodeReg.getSoftwareVersion());
-  
+        resolveUpgradeDomain(nodeDescr);
+
         // register new datanode
         addDatanode(nodeDescr);
         // also treat the registration message as a heartbeat
@@ -1064,9 +1080,9 @@ public class DatanodeManager {
     // Update the file names and refresh internal includes and excludes list.
     if (conf == null) {
       conf = new HdfsConfiguration();
+      this.hostConfigManager.setConf(conf);
     }
-    this.hostFileManager.refresh(conf.get(DFSConfigKeys.DFS_HOSTS, ""),
-      conf.get(DFSConfigKeys.DFS_HOSTS_EXCLUDE, ""));
+    this.hostConfigManager.refresh();
   }
   
   /**
@@ -1078,15 +1094,16 @@ public class DatanodeManager {
   private void refreshDatanodes() {
     for(DatanodeDescriptor node : datanodeMap.values()) {
       // Check if not include.
-      if (!hostFileManager.isIncluded(node)) {
+      if (!hostConfigManager.isIncluded(node)) {
         node.setDisallowed(true); // case 2.
       } else {
-        if (hostFileManager.isExcluded(node)) {
+        if (hostConfigManager.isExcluded(node)) {
           startDecommission(node); // case 3.
         } else {
           stopDecommission(node); // case 4.
         }
       }
+      node.setUpgradeDomain(hostConfigManager.getUpgradeDomain(node));
     }
   }
 
@@ -1294,9 +1311,9 @@ public class DatanodeManager {
         type == DatanodeReportType.DECOMMISSIONING;
 
     ArrayList<DatanodeDescriptor> nodes;
-    final HostFileManager.HostSet foundNodes = new HostFileManager.HostSet();
-    final HostFileManager.HostSet includedNodes = hostFileManager.getIncludes();
-    final HostFileManager.HostSet excludedNodes = hostFileManager.getExcludes();
+    final HostSet foundNodes = new HostSet();
+    final Iterable<InetSocketAddress> includedNodes =
+        hostConfigManager.getIncludes();
 
     synchronized(datanodeMap) {
       nodes = new ArrayList<DatanodeDescriptor>(datanodeMap.size());
@@ -1307,11 +1324,11 @@ public class DatanodeManager {
         if (((listLiveNodes && !isDead) ||
             (listDeadNodes && isDead) ||
             (listDecommissioningNodes && isDecommissioning)) &&
-            hostFileManager.isIncluded(dn)) {
+            hostConfigManager.isIncluded(dn)) {
           nodes.add(dn);
         }
 
-        foundNodes.add(HostFileManager.resolvedAddressFromDatanodeID(dn));
+        foundNodes.add(dn.getResolvedAddress());
       }
     }
 
@@ -1334,7 +1351,7 @@ public class DatanodeManager {
                 addr.getPort() == 0 ? defaultXferPort : addr.getPort(),
                 defaultInfoPort, defaultInfoSecurePort, defaultIpcPort));
         setDatanodeDead(dn);
-        if (excludedNodes.match(addr)) {
+        if (hostConfigManager.isExcluded(dn)) {
           dn.setDecommissioned();
         }
         nodes.add(dn);
@@ -1343,8 +1360,8 @@ public class DatanodeManager {
 
     if (LOG.isDebugEnabled()) {
       LOG.debug("getDatanodeListForReport with " +
-          "includedNodes = " + hostFileManager.getIncludes() +
-          ", excludedNodes = " + hostFileManager.getExcludes() +
+          "includedNodes = " + hostConfigManager.getIncludes() +
+          ", excludedNodes = " + hostConfigManager.getExcludes() +
           ", foundNodes = " + foundNodes +
           ", nodes = " + nodes);
     }
@@ -1385,8 +1402,8 @@ public class DatanodeManager {
         } catch(UnregisteredNodeException e) {
           return new DatanodeCommand[]{RegisterCommand.REGISTER};
         }
-        
-        // Check if this datanode should actually be shutdown instead. 
+
+        // Check if this datanode should actually be shutdown instead.
         if (nodeinfo != null && nodeinfo.isDisallowed()) {
           setDatanodeDead(nodeinfo);
           throw new DisallowedDatanodeException(nodeinfo);
@@ -1462,7 +1479,7 @@ public class DatanodeManager {
         }
         boolean sendingCachingCommands = false;
         long nowMs = Time.monotonicNow();
-        if (shouldSendCachingCommands && 
+        if (shouldSendCachingCommands &&
             ((nowMs - nodeinfo.getLastCachingDirectiveSentTimeMs()) >=
                 timeBetweenResendingCachingDirectivesMs)) {
           DatanodeCommand pendingCacheCommand =

@@ -327,6 +327,9 @@ public class JsonUtil {
     m.put("xceiverCount", datanodeinfo.getXceiverCount());
     m.put("networkLocation", datanodeinfo.getNetworkLocation());
     m.put("adminState", datanodeinfo.getAdminState().name());
+    if (datanodeinfo.getUpgradeDomain() != null) {
+      m.put("upgradeDomain", datanodeinfo.getUpgradeDomain());
+    }
     return m;
   }
 
@@ -414,7 +417,8 @@ public class JsonUtil {
         getLong(m, "lastUpdate", 0l),
         getInt(m, "xceiverCount", 0),
         getString(m, "networkLocation", ""),
-        AdminStates.valueOf(getString(m, "adminState", "NORMAL")));
+        AdminStates.valueOf(getString(m, "adminState", "NORMAL")),
+        getString(m, "upgradeDomain", ""));
   }
 
   /** Convert a DatanodeInfo[] to a Json array. */
