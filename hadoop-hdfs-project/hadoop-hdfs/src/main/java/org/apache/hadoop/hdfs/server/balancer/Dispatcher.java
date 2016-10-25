@@ -119,6 +119,7 @@ public class Dispatcher {
   private final int maxConcurrentMovesPerNode;
 
   private final boolean connectToDnViaHostname;
+  private final long blockMoveTimeout;
 
   private static class GlobalBlockMap {
     private final Map<Block, DBlock> map = new HashMap<Block, DBlock>();
@@ -296,6 +297,11 @@ public class Dispatcher {
                 getXferAddr(Dispatcher.this.connectToDnViaHostname)),
                 HdfsServerConstants.READ_TIMEOUT);
 
+        // Set read timeout so that it doesn't hang forever against
+        // unresponsive nodes. Datanode normally sends IN_PROGRESS response
+        // twice within the client read timeout period (every 30 seconds by
+        // default). Here, we make it give up after 5 minutes of no response.
+        sock.setSoTimeout(HdfsServerConstants.READ_TIMEOUT * 5);
         sock.setKeepAlive(true);
 
         OutputStream unbufOut = sock.getOutputStream();
@@ -350,13 +356,26 @@ public class Dispatcher {
           source.getDatanodeInfo().getDatanodeUuid(), proxySource.datanode);
     }
 
-    /** Receive a block copy response from the input stream */
+    /** Check whether to continue waiting for response */
+    private boolean stopWaitingForResponse(long startTime) {
+      return source.isIterationOver() ||
+          (blockMoveTimeout > 0 &&
+          (Time.monotonicNow() - startTime > blockMoveTimeout));
+    }
+
+    /** Receive a reportedBlock copy response from the input stream */
     private void receiveResponse(DataInputStream in) throws IOException {
+      long startTime = Time.monotonicNow();
       BlockOpResponseProto response =
           BlockOpResponseProto.parseFrom(vintPrefixed(in));
       while (response.getStatus() == Status.IN_PROGRESS) {
         // read intermediate responses
         response = BlockOpResponseProto.parseFrom(vintPrefixed(in));
+        // Stop waiting for slow block moves. Even if it stops waiting,
+        // the actual move may continue.
+        if (stopWaitingForResponse(startTime)) {
+          throw new IOException("Block move timed out");
+        }
       }
       if (response.getStatus() != Status.SUCCESS) {
         if (response.getStatus() == Status.ERROR_ACCESS_TOKEN) {
@@ -584,6 +603,7 @@ public class Dispatcher {
 
     private final List<Task> tasks = new ArrayList<Task>(2);
     private long blocksToReceive = 0L;
+    private final long startTime = Time.monotonicNow();
     /**
      * Source blocks point to the objects in {@link Dispatcher#globalBlocks}
      * because we want to keep one copy of a block and be aware that the
@@ -593,6 +613,13 @@ public class Dispatcher {
 
     private Source(StorageType storageType, long maxSize2Move, DDatanode dn) {
       dn.super(storageType, maxSize2Move);
+    }
+
+    /**
+     * Check if the iteration is over
+     */
+    public boolean isIterationOver() {
+      return (Time.monotonicNow()-startTime > MAX_ITERATION_TIME);
     }
 
     /** Add a task */
@@ -731,25 +758,16 @@ public class Dispatcher {
      * elapsed time of the iteration has exceeded the max time limit.
      */
     private void dispatchBlocks() {
-      final long startTime = Time.monotonicNow();
       this.blocksToReceive = 2 * getScheduledSize();
-      boolean isTimeUp = false;
       int noPendingMoveIteration = 0;
-      while (!isTimeUp && getScheduledSize() > 0
+      while (getScheduledSize() > 0 && !isIterationOver()
           && (!srcBlocks.isEmpty() || blocksToReceive > 0)) {
         if (LOG.isTraceEnabled()) {
           LOG.trace(this + " blocksToReceive=" + blocksToReceive
               + ", scheduledSize=" + getScheduledSize()
               + ", srcBlocks#=" + srcBlocks.size());
         }
-        // check if time is up or not
-        if (Time.monotonicNow() - startTime > MAX_ITERATION_TIME) {
-          LOG.info("Time up (max time=" + MAX_ITERATION_TIME/1000
-              + " seconds).  Skipping " + this);
-          isTimeUp = true;
-          continue;
-        }
-        final PendingMove p = chooseNextMove();
+       final PendingMove p = chooseNextMove();
         if (p != null) {
           // Reset no pending move counter
           noPendingMoveIteration=0;
@@ -795,6 +813,11 @@ public class Dispatcher {
         } catch (InterruptedException ignored) {
         }
       }
+
+      if (isIterationOver()) {
+        LOG.info("The maximum iteration time (" + MAX_ITERATION_TIME/1000
+            + " seconds) has been reached. Stopping " + this);
+      }
     }
 
     @Override
@@ -811,6 +834,14 @@ public class Dispatcher {
   public Dispatcher(NameNodeConnector nnc, Set<String> includedNodes,
       Set<String> excludedNodes, long movedWinWidth, int moverThreads,
       int dispatcherThreads, int maxConcurrentMovesPerNode, Configuration conf) {
+    this(nnc, includedNodes, excludedNodes, movedWinWidth,
+        moverThreads, dispatcherThreads, maxConcurrentMovesPerNode, 0,  conf);
+  }
+
+  Dispatcher(NameNodeConnector nnc, Set<String> includedNodes,
+      Set<String> excludedNodes, long movedWinWidth, int moverThreads,
+      int dispatcherThreads, int maxConcurrentMovesPerNode,
+      int blockMoveTimeout, Configuration conf) {
     this.nnc = nnc;
     this.excludedNodes = excludedNodes;
     this.includedNodes = includedNodes;
@@ -822,6 +853,7 @@ public class Dispatcher {
     this.dispatchExecutor = dispatcherThreads == 0? null
         : Executors.newFixedThreadPool(dispatcherThreads);
     this.maxConcurrentMovesPerNode = maxConcurrentMovesPerNode;
+    this.blockMoveTimeout = blockMoveTimeout;
 
     this.saslClient = new SaslDataTransferClient(conf,
         DataTransferSaslUtil.getSaslPropertiesResolver(conf),
