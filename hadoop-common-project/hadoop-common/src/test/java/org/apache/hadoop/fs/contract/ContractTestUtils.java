@@ -833,6 +833,7 @@ public class ContractTestUtils extends Assert {
 
     long totalBytesRead = 0;
     int nextExpectedNumber = 0;
+    NanoTimer timer = new NanoTimer();
     try (InputStream inputStream = fs.open(path)) {
       while (true) {
         final int bytesRead = inputStream.read(testBuffer);
@@ -861,6 +862,8 @@ public class ContractTestUtils extends Assert {
             " bytes but only received " + totalBytesRead);
       }
     }
+    timer.end("Time to read %d bytes", expectedSize);
+    bandwidth(timer, expectedSize);
   }
 
   /**
@@ -924,9 +927,12 @@ public class ContractTestUtils extends Assert {
     final Path objectPath = new Path(parent, objectName);
 
     // Write test file in a specific pattern
+    NanoTimer timer = new NanoTimer();
     assertEquals(fileSize,
         generateTestFile(fs, objectPath, fileSize, testBufferSize, modulus));
     assertPathExists(fs, "not created successful", objectPath);
+    timer.end("Time to write %d bytes", fileSize);
+    bandwidth(timer, fileSize);
 
     // Now read the same file back and verify its content
     try {
