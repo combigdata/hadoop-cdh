@@ -493,8 +493,15 @@ public class NamenodeFsck implements DataEncryptionKeyFactory {
     int misReplicatedPerFile = 0;
     StringBuilder report = new StringBuilder();
     int i = 0;
+    final LocatedBlock lastBlock = blocks.getLastLocatedBlock();
     for (LocatedBlock lBlk : blocks.getLocatedBlocks()) {
       ExtendedBlock block = lBlk.getBlock();
+      if (!blocks.isLastBlockComplete() && lastBlock != null &&
+          lastBlock.getBlock().equals(block)) {
+        // this is the last block and this is not complete. ignore it since
+        // it is under construction
+        continue;
+      }
       boolean isCorrupt = lBlk.isCorrupt();
       String blkName = block.toString();
       DatanodeInfo[] locs = lBlk.getLocations();
