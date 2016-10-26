@@ -30,9 +30,11 @@ source ./supertest-env/bin/activate
 export PATH=`pwd`/grind/bin/:$PATH
 which grind
 
-# Fetch dist test credentials and add them to the environment
-wget http://staging.jenkins.cloudera.com/gerrit-artifacts/misc/hadoop/dist_test_cred.sh
-source dist_test_cred.sh
+if [[ -z $DIST_TEST_USER || -z $DIST_TEST_PASSWORD ]]; then
+    # Fetch dist test credentials and add them to the environment
+    wget http://staging.jenkins.cloudera.com/gerrit-artifacts/misc/hadoop/dist_test_cred.sh
+    source dist_test_cred.sh
+fi
 
 # Go to project root
 cd "$DIR/.."
