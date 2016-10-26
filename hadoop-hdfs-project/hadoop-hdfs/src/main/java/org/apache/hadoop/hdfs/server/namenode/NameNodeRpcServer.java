@@ -1288,7 +1288,6 @@ class NameNodeRpcServer implements NamenodeProtocols {
   @Override // DatanodeProtocol, NamenodeProtocol
   public NamespaceInfo versionRequest() throws IOException {
     checkNNStartup();
-    namesystem.checkSuperuserPrivilege();
     return namesystem.getNamespaceInfo();
   }
 
