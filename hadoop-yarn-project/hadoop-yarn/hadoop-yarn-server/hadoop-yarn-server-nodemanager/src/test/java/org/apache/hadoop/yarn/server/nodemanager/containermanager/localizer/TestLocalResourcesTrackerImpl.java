@@ -236,7 +236,7 @@ public class TestLocalResourcesTrackerImpl {
     }
   }
 
-  @Test(timeout = 1000)
+  @Test(timeout = 10000)
   @SuppressWarnings("unchecked")
   public void testLocalResourceCache() {
     String user = "testuser";
@@ -381,7 +381,7 @@ public class TestLocalResourcesTrackerImpl {
     }
   }
 
-  @Test(timeout = 100000)
+  @Test(timeout = 10000)
   @SuppressWarnings("unchecked")
   public void testHierarchicalLocalCacheDirectories() {
     String user = "testuser";
