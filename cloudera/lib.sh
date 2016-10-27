@@ -550,9 +550,9 @@ function main() {
   cd ${CLOUDERA_DIR}/..
 
   # Cauldron only.
-  # Point the build at the latest GBN's artifacts served by the mostros proxy.
+  # Point the build at the latest GBN's artifacts served by the s3 proxy.
   wget -nc http://github.mtv.cloudera.com/raw/CDH/cdh/cdh6.x/gbn-m2-settings.xml
-  export M2_GBN=$(curl 'http://mostrows-builddb.vpc.cloudera.com:8080/query?product=cdh&user=jenkins&version=6.x')
+  export CDH_GBN=$(curl 'http://builddb.infra.cloudera.com:8080/query?product=cdh&user=jenkins&version=6.x&tag=official')
   MAVEN_FLAGS="${MAVEN_FLAGS} -s gbn-m2-settings.xml"
 
   case ${NAME} in
