@@ -702,8 +702,8 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
   }
 
   private Resource assignContainer(FSSchedulerNode node, boolean reserved) {
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("Node offered to app: " + getName() + " reserved: " + reserved);
+    if (LOG.isTraceEnabled()) {
+      LOG.trace("Node offered to app: " + getName() + " reserved: " + reserved);
     }
 
     Collection<Priority> prioritiesToTry = (reserved) ?
