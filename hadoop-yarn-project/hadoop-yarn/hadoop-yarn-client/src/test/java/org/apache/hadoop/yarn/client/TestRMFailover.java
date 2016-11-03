@@ -325,6 +325,16 @@ public class TestRMFailover extends ClientBaseWithFixes {
 
     redirectURL = getRedirectURL(rm2Url + "/proxy/" + fakeAppId);
     assertNull(redirectURL);
+
+    // transit the active RM to standby
+    // Both of RMs are in standby mode
+    getAdminService(0).transitionToStandby(req);
+    // RM2 is expected to send the httpRequest to itself.
+    // The Header Field: Refresh is expected to be set.
+    redirectURL = getRefreshURL(rm2Url);
+    assertTrue(redirectURL != null
+        && redirectURL.contains(YarnWebParams.NEXT_REFRESH_INTERVAL)
+        && redirectURL.contains(rm2Url));
   }
 
   // set up http connection with the given url and get the redirection url from the response
