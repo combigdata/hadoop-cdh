@@ -123,7 +123,7 @@ public class TestS3ATemporaryCredentials extends AbstractFSContractTestBase {
       createAndVerifyFile(fs, path("testSTSInvalidToken"), TEST_FILE_SIZE);
       fail("Expected an access exception, but file access to "
           + fs.getUri() + " was allowed: " + fs);
-    } catch (RuntimeException ex) {
+    } catch (AWSS3IOException ex) {
       LOG.info("Expected Exception: {}", ex.toString());
       LOG.debug("Expected Exception: {}", ex, ex);
     }
