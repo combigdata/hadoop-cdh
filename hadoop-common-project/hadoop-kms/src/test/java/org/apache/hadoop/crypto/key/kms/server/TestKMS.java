@@ -28,6 +28,7 @@ import org.apache.hadoop.crypto.key.KeyProviderCryptoExtension.CryptoExtension;
 import org.apache.hadoop.crypto.key.KeyProviderCryptoExtension.EncryptedKeyVersion;
 import org.apache.hadoop.crypto.key.KeyProviderDelegationTokenExtension;
 import org.apache.hadoop.crypto.key.kms.KMSClientProvider;
+import org.apache.hadoop.crypto.key.kms.KMSDelegationToken;
 import org.apache.hadoop.crypto.key.kms.LoadBalancingKMSClientProvider;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.fs.Path;
@@ -1766,13 +1767,13 @@ public class TestKMS {
             InetSocketAddress kmsAddr =
                 new InetSocketAddress(getKMSUrl().getHost(),
                     getKMSUrl().getPort());
-            Assert.assertEquals(KMSClientProvider.TOKEN_KIND,
+            Assert.assertEquals(KMSDelegationToken.TOKEN_KIND,
                 credentials.getToken(SecurityUtil.buildTokenService(kmsAddr)).
                     getKind());
 
             // Test non-renewer user cannot renew.
             for (Token<?> token : tokens) {
-              if (!(token.getKind().equals(KMSClientProvider.TOKEN_KIND))) {
+              if (!(token.getKind().equals(KMSDelegationToken.TOKEN_KIND))) {
                 LOG.info("Skipping token {}", token);
                 continue;
               }
@@ -1804,7 +1805,7 @@ public class TestKMS {
                   boolean renewed = false;
                   for (Token<?> token : tokens) {
                     if (!(token.getKind()
-                        .equals(KMSClientProvider.TOKEN_KIND))) {
+                        .equals(KMSDelegationToken.TOKEN_KIND))) {
                       LOG.info("Skipping token {}", token);
                       continue;
                     }
@@ -1824,7 +1825,7 @@ public class TestKMS {
                   // test delegation token cancellation
                   for (Token<?> token : tokens) {
                     if (!(token.getKind()
-                        .equals(KMSClientProvider.TOKEN_KIND))) {
+                        .equals(KMSDelegationToken.TOKEN_KIND))) {
                       LOG.info("Skipping token {}", token);
                       continue;
                     }
@@ -1889,7 +1890,7 @@ public class TestKMS {
             final Credentials credentials = new Credentials();
             kpdte.addDelegationTokens("client", credentials);
             Assert.assertEquals(1, credentials.getAllTokens().size());
-            Assert.assertEquals(KMSClientProvider.TOKEN_KIND, credentials.
+            Assert.assertEquals(KMSDelegationToken.TOKEN_KIND, credentials.
                 getToken(SecurityUtil.buildTokenService(kmsAddr)).getKind());
             UserGroupInformation.getCurrentUser().addCredentials(credentials);
             LOG.info("Added kms dt to credentials: {}", UserGroupInformation.
@@ -1933,14 +1934,14 @@ public class TestKMS {
             final Credentials newCreds = new Credentials();
             kpdte.addDelegationTokens("client", newCreds);
             Assert.assertEquals(1, newCreds.getAllTokens().size());
-            Assert.assertEquals(KMSClientProvider.TOKEN_KIND,
+            Assert.assertEquals(KMSDelegationToken.TOKEN_KIND,
                 newCreds.getToken(SecurityUtil.buildTokenService(kmsAddr)).
                     getKind());
 
             // Using job 1's DT should fail.
             final Credentials oldCreds = new Credentials();
             for (Token<?> token : job1Token) {
-              if (token.getKind().equals(KMSClientProvider.TOKEN_KIND)) {
+              if (token.getKind().equals(KMSDelegationToken.TOKEN_KIND)) {
                 oldCreds
                     .addToken(SecurityUtil.buildTokenService(kmsAddr), token);
               }
@@ -1957,7 +1958,7 @@ public class TestKMS {
 
             // Using the new DT should succeed.
             Assert.assertEquals(1, newCreds.getAllTokens().size());
-            Assert.assertEquals(KMSClientProvider.TOKEN_KIND,
+            Assert.assertEquals(KMSDelegationToken.TOKEN_KIND,
                 newCreds.getToken(SecurityUtil.buildTokenService(kmsAddr)).
                     getKind());
             UserGroupInformation.getCurrentUser().addCredentials(newCreds);
