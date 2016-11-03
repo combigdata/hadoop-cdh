@@ -28,6 +28,7 @@ import org.apache.hadoop.crypto.key.KeyProviderCryptoExtension.CryptoExtension;
 import org.apache.hadoop.crypto.key.KeyProviderCryptoExtension.EncryptedKeyVersion;
 import org.apache.hadoop.crypto.key.KeyProviderDelegationTokenExtension;
 import org.apache.hadoop.crypto.key.kms.KMSClientProvider;
+import org.apache.hadoop.crypto.key.kms.KMSDelegationToken;
 import org.apache.hadoop.crypto.key.kms.LoadBalancingKMSClientProvider;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.fs.Path;
@@ -1760,13 +1761,13 @@ public class TestKMS {
             InetSocketAddress kmsAddr =
                 new InetSocketAddress(getKMSUrl().getHost(),
                     getKMSUrl().getPort());
-            Assert.assertEquals(KMSClientProvider.TOKEN_KIND,
+            Assert.assertEquals(KMSDelegationToken.TOKEN_KIND,
                 credentials.getToken(SecurityUtil.buildTokenService(kmsAddr)).
                     getKind());
 
             // Test non-renewer user cannot renew.
             for (Token<?> token : tokens) {
-              if (!(token.getKind().equals(KMSClientProvider.TOKEN_KIND))) {
+              if (!(token.getKind().equals(KMSDelegationToken.TOKEN_KIND))) {
                 LOG.info("Skipping token {}", token);
                 continue;
               }
@@ -1798,7 +1799,7 @@ public class TestKMS {
                   boolean renewed = false;
                   for (Token<?> token : tokens) {
                     if (!(token.getKind()
-                        .equals(KMSClientProvider.TOKEN_KIND))) {
+                        .equals(KMSDelegationToken.TOKEN_KIND))) {
                       LOG.info("Skipping token {}", token);
                       continue;
                     }
@@ -1818,7 +1819,7 @@ public class TestKMS {
                   // test delegation token cancellation
                   for (Token<?> token : tokens) {
                     if (!(token.getKind()
-                        .equals(KMSClientProvider.TOKEN_KIND))) {
+                        .equals(KMSDelegationToken.TOKEN_KIND))) {
                       LOG.info("Skipping token {}", token);
                       continue;
                     }
