@@ -16,6 +16,7 @@ org/apache/hadoop/yarn/client/TestApplicationClientProtocolOnHA.java
 org/apache/hadoop/yarn/client/TestApplicationMasterServiceProtocolOnHA.java
 org/apache/hadoop/yarn/client/TestResourceTrackerOnHA.java
 
+org/apache/hadoop/yarn/server/applicationhistoryservice/webapp/TestAHSWebServices.java
 org/apache/hadoop/yarn/server/applicationhistoryservice/TestApplicationHistoryServer.java
 org/apache/hadoop/yarn/server/applicationhistoryservice/TestApplicationHistoryClientService.java
 org/apache/hadoop/yarn/server/applicationhistoryservice/TestApplicationHistoryManagerImpl.java
