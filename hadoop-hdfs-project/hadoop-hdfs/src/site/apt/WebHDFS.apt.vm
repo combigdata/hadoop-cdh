@@ -67,6 +67,9 @@ WebHDFS REST API
     * {{{Get Home Directory}<<<GETHOMEDIRECTORY>>>}}
         (see  {{{../../api/org/apache/hadoop/fs/FileSystem.html}FileSystem}}.getHomeDirectory)
 
+    * {{{Get Trash Root}<<<GETTRASHROOT>>>}}
+        (see  {{{../../api/org/apache/hadoop/fs/FileSystem.html}FileSystem}}.getTrashRoot)
+
     * {{{Get Delegation Token}<<<GETDELEGATIONTOKEN>>>}}
         (see  {{{../../api/org/apache/hadoop/fs/FileSystem.html}FileSystem}}.getDelegationToken)
 
@@ -831,6 +834,42 @@ Transfer-Encoding: chunked
 
   See also:
    {{{../../api/org/apache/hadoop/fs/FileSystem.html}FileSystem}}.getHomeDirectory
+
+
+** {Get Trash Root}
+
+  * Submit a HTTP GET request.
+
++---------------------------------
+curl -i "http://<HOST>:<PORT>/webhdfs/v1/?op=GETTRASHROOT"
++---------------------------------
+
+  The client receives a response with a {{{Path JSON Schema}<<<Path>>> JSON object}}:
+
++---------------------------------
+HTTP/1.1 200 OK
+Content-Type: application/json
+Transfer-Encoding: chunked
+
+{"Path": "/user/username/.Trash"}
++---------------------------------
+
+  If the path is an encrypted zone path and user has permission of the path, the client receives a response like this:
+
++---------------------------------
+HTTP/1.1 200 OK
+Content-Type: application/json
+Transfer-Encoding: chunked
+
+{"Path": "/PATH/.Trash/username"}
++---------------------------------
+
+  []
+
+  See also:
+  {{{../../api/org/apache/hadoop/fs/FileSystem.html}FileSystem}}.getTrashRoot
+
+  For more details about trash root in an encrypted zone, please refer to {{{./TransparentEncryption.html#Rename_and_Trash_considerations}Transparent Encryption Guide}}.
 
 
 ** {Set Permission}

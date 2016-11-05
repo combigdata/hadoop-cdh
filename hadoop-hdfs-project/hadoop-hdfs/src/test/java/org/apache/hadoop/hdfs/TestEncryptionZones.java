@@ -1518,6 +1518,25 @@ public class TestEncryptionZones {
     DFSTestUtil.createFile(fs, nestedEZFile, len, (short) 1, 0xFEED);
     verifyShellDeleteWithTrash(shell, topEZFile);
     verifyShellDeleteWithTrash(shell, nestedEZFile);
+
+    //Test nested EZ with webHDFS
+    final WebHdfsFileSystem webFS = WebHdfsTestUtil.getWebHdfsFileSystem(
+        conf, WebHdfsFileSystem.SCHEME);
+    final String currentUser =
+        UserGroupInformation.getCurrentUser().getShortUserName();
+    final Path expectedTopTrash = new Path(topEZ,
+        new Path(FileSystem.TRASH_PREFIX, currentUser));
+    final Path expectedNestedTrash = new Path(nestedEZ,
+        new Path(FileSystem.TRASH_PREFIX, currentUser));
+
+    final Path topTrash = webFS.getTrashRoot(topEZFile);
+    final Path nestedTrash = webFS.getTrashRoot(nestedEZFile);
+
+    assertEquals(expectedTopTrash.toUri().getPath(),
+        topTrash.toUri().getPath());
+    assertEquals(expectedNestedTrash.toUri().getPath(),
+        nestedTrash.toUri().getPath());
+
     verifyShellDeleteWithTrash(shell, nestedEZ);
     verifyShellDeleteWithTrash(shell, topEZ);
   }
@@ -1526,6 +1545,8 @@ public class TestEncryptionZones {
   public void testRootDirEZTrash() throws Exception {
     final HdfsAdmin dfsAdmin =
         new HdfsAdmin(FileSystem.getDefaultUri(conf), conf);
+    final String currentUser =
+        UserGroupInformation.getCurrentUser().getShortUserName();
     final Path rootDir = new Path("/");
     dfsAdmin.createEncryptionZone(rootDir, TEST_KEY, NO_TRASH);
     final Path encFile = new Path("/encFile");
@@ -1538,10 +1559,23 @@ public class TestEncryptionZones {
 
     // Trash path should be consistent
     // if root path is an encryption zone
-    Path encFileTrash = shell.getCurrentTrashDir(encFile);
-    Path rootDirTrash = shell.getCurrentTrashDir(rootDir);
+    Path encFileCurrentTrash = shell.getCurrentTrashDir(encFile);
+    Path rootDirCurrentTrash = shell.getCurrentTrashDir(rootDir);
     assertEquals("Root trash should be equal with ezFile trash",
-        encFileTrash, rootDirTrash);
+        encFileCurrentTrash, rootDirCurrentTrash);
+
+    // Use webHDFS client to test trash root path
+    final WebHdfsFileSystem webFS = WebHdfsTestUtil.getWebHdfsFileSystem(
+        conf, WebHdfsFileSystem.SCHEME);
+    final Path expectedTrash = new Path(rootDir,
+        new Path(FileSystem.TRASH_PREFIX, currentUser));
+
+    Path webHDFSTrash = webFS.getTrashRoot(encFile);
+    assertEquals(expectedTrash.toUri().getPath(),
+        webHDFSTrash.toUri().getPath());
+    assertEquals(encFileCurrentTrash.getParent().toUri().getPath(),
+        webHDFSTrash.toUri().getPath());
+
   }
 
   @Test
