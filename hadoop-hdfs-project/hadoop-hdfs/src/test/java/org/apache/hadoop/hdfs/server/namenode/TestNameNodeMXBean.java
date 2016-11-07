@@ -121,28 +121,6 @@ public class TestNameNodeMXBean {
       ObjectName mxbeanName = new ObjectName(
           "Hadoop:service=NameNode,name=NameNodeInfo");
 
-      // Define include file to generate deadNodes metrics
-      FileSystem localFileSys = FileSystem.getLocal(conf);
-      Path workingDir = localFileSys.getWorkingDirectory();
-      Path dir = new Path(workingDir,
-          "build/test/data/temp/TestNameNodeMXBean");
-      Path includeFile = new Path(dir, "include");
-      assertTrue(localFileSys.mkdirs(dir));
-      StringBuilder includeHosts = new StringBuilder();
-      for(DataNode dn : cluster.getDataNodes()) {
-        includeHosts.append(dn.getDisplayName()).append("\n");
-      }
-      DFSTestUtil.writeFile(localFileSys, includeFile, includeHosts.toString());
-      conf.set(DFSConfigKeys.DFS_HOSTS, includeFile.toUri().getPath());
-      fsn.getBlockManager().getDatanodeManager().refreshNodes(conf);
-
-      cluster.stopDataNode(0);
-      while (fsn.getNumDatanodesInService() != 2) {
-        try {
-          Thread.sleep(1000);
-        } catch (InterruptedException e) {}
-      }
-
       // get attribute "ClusterId"
       String clusterId = (String) mbs.getAttribute(mxbeanName, "ClusterId");
       assertEquals(fsn.getClusterId(), clusterId);
@@ -207,14 +185,6 @@ public class TestNameNodeMXBean {
       String deadnodeinfo = (String) (mbs.getAttribute(mxbeanName,
           "DeadNodes"));
       assertEquals(fsn.getDeadNodes(), deadnodeinfo);
-      Map<String, Map<String, Object>> deadNodes =
-          (Map<String, Map<String, Object>>) JSON.parse(deadnodeinfo);
-      assertTrue(deadNodes.size() > 0);
-      for (Map<String, Object> deadNode : deadNodes.values()) {
-        assertTrue(deadNode.containsKey("lastContact"));
-        assertTrue(deadNode.containsKey("decommissioned"));
-        assertTrue(deadNode.containsKey("xferaddr"));
-      }
 
       // get attribute NodeUsage
       String nodeUsage = (String) (mbs.getAttribute(mxbeanName,
