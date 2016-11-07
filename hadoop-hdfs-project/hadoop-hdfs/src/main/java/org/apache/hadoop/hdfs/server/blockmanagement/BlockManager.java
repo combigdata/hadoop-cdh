@@ -968,9 +968,9 @@ public class BlockManager implements BlockStatsMXBean {
   void addKeyUpdateCommand(final List<DatanodeCommand> cmds,
       final DatanodeDescriptor nodeinfo) {
     // check access key update
-    if (isBlockTokenEnabled() && nodeinfo.needKeyUpdate) {
+    if (isBlockTokenEnabled() && nodeinfo.needKeyUpdate()) {
       cmds.add(new KeyUpdateCommand(blockTokenSecretManager.exportKeys()));
-      nodeinfo.needKeyUpdate = false;
+      nodeinfo.setNeedKeyUpdate(false);
     }
   }
   
@@ -3433,7 +3433,12 @@ public class BlockManager implements BlockStatsMXBean {
    * liveness. Dead nodes cannot always be safely decommissioned.
    */
   boolean isNodeHealthyForDecommission(DatanodeDescriptor node) {
-    if (node.isAlive) {
+    if (!node.checkBlockReportReceived()) {
+      LOG.info("Node {} hasn't sent its first block report.", node);
+      return false;
+    }
+
+    if (node.isAlive()) {
       return true;
     }
 

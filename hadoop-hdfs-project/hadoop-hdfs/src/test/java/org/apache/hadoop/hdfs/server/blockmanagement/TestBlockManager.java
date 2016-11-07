@@ -668,7 +668,7 @@ public class TestBlockManager {
   public void testSafeModeIBR() throws Exception {
     DatanodeDescriptor node = spy(nodes.get(0));
     DatanodeStorageInfo ds = node.getStorageInfos()[0];
-    node.isAlive = true;
+    node.setAlive(true);
 
     DatanodeRegistration nodeReg =
         new DatanodeRegistration(node, null, null, "");
@@ -713,7 +713,7 @@ public class TestBlockManager {
     DatanodeDescriptor node = spy(nodes.get(0));
     DatanodeStorageInfo ds = node.getStorageInfos()[0];
 
-    node.isAlive = true;
+    node.setAlive(true);
 
     DatanodeRegistration nodeReg =
         new DatanodeRegistration(node, null, null, "");
@@ -745,7 +745,7 @@ public class TestBlockManager {
 
     DatanodeDescriptor node = nodes.get(0);
     DatanodeStorageInfo ds = node.getStorageInfos()[0];
-    node.isAlive = true;
+    node.setAlive(true);
     DatanodeRegistration nodeReg =  new DatanodeRegistration(node, null, null, "");
 
     // register new node
@@ -825,7 +825,7 @@ public class TestBlockManager {
 
     DatanodeDescriptor node = nodes.get(0);
     DatanodeStorageInfo ds = node.getStorageInfos()[0];
-    node.isAlive = true;
+    node.setAlive(true);
     DatanodeRegistration nodeReg =  new DatanodeRegistration(node, null, null, "");
 
     // register new node

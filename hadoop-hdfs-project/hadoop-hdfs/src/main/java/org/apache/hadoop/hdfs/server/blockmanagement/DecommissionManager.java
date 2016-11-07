@@ -198,7 +198,7 @@ public class DecommissionManager {
   @VisibleForTesting
   public void startDecommission(DatanodeDescriptor node) {
     if (!node.isDecommissionInProgress()) {
-      if (!node.isAlive) {
+      if (!node.isAlive()) {
         LOG.info("Dead node {} is decommissioned immediately.", node);
         node.setDecommissioned();
       } else if (!node.isDecommissioned()) {
@@ -228,7 +228,7 @@ public class DecommissionManager {
       hbManager.stopDecommission(node);
       // Over-replicated blocks will be detected and processed when 
       // the dead node comes back and send in its full block report.
-      if (node.isAlive) {
+      if (node.isAlive()) {
         blockManager.processOverReplicatedBlocksOnReCommission(node);
       }
       // Remove from tracking in DecommissionManager

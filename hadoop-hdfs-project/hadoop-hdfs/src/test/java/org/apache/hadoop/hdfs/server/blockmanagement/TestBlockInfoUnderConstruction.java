@@ -38,7 +38,9 @@ public class TestBlockInfoUnderConstruction {
     DatanodeStorageInfo s3 = DFSTestUtil.createDatanodeStorageInfo("10.10.1.3", "s3");
     DatanodeDescriptor dd3 = s3.getDatanodeDescriptor();
 
-    dd1.isAlive = dd2.isAlive = dd3.isAlive = true;
+    dd1.setAlive(true);
+    dd2.setAlive(true);
+    dd3.setAlive(true);
     BlockInfoUnderConstruction blockInfo = new BlockInfoUnderConstruction(
         new Block(0, 0, GenerationStamp.LAST_RESERVED_STAMP),
         (short) 3,
