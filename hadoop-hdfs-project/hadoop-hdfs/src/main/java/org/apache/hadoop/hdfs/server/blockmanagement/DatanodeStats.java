@@ -30,20 +30,21 @@ class DatanodeStats {
   private int expiredHeartbeats = 0;
 
   synchronized void add(final DatanodeDescriptor node) {
-    capacityUsed += node.getDfsUsed();
-    capacityUsedNonDfs += node.getNonDfsUsed();
-    blockPoolUsed += node.getBlockPoolUsed();
     xceiverCount += node.getXceiverCount();
     if (!(node.isDecommissionInProgress() || node.isDecommissioned())) {
+      capacityUsed += node.getDfsUsed();
+      capacityUsedNonDfs += node.getNonDfsUsed();
+      blockPoolUsed += node.getBlockPoolUsed();
       nodesInService++;
       nodesInServiceXceiverCount += node.getXceiverCount();
       capacityTotal += node.getCapacity();
       capacityRemaining += node.getRemaining();
-    } else {
-      capacityTotal += node.getDfsUsed();
+      cacheCapacity += node.getCacheCapacity();
+      cacheUsed += node.getCacheUsed();
+    } else if (!node.isDecommissioned()) {
+      cacheCapacity += node.getCacheCapacity();
+      cacheUsed += node.getCacheUsed();
     }
-    cacheCapacity += node.getCacheCapacity();
-    cacheUsed += node.getCacheUsed();
     Set<StorageType> storageTypes = new HashSet<>();
     for (DatanodeStorageInfo storageInfo : node.getStorageInfos()) {
       statsMap.addStorage(storageInfo, node);
@@ -55,20 +56,21 @@ class DatanodeStats {
   }
 
   synchronized void subtract(final DatanodeDescriptor node) {
-    capacityUsed -= node.getDfsUsed();
-    capacityUsedNonDfs -= node.getNonDfsUsed();
-    blockPoolUsed -= node.getBlockPoolUsed();
     xceiverCount -= node.getXceiverCount();
     if (!(node.isDecommissionInProgress() || node.isDecommissioned())) {
+      capacityUsed -= node.getDfsUsed();
+      capacityUsedNonDfs -= node.getNonDfsUsed();
+      blockPoolUsed -= node.getBlockPoolUsed();
       nodesInService--;
       nodesInServiceXceiverCount -= node.getXceiverCount();
       capacityTotal -= node.getCapacity();
       capacityRemaining -= node.getRemaining();
-    } else {
-      capacityTotal -= node.getDfsUsed();
+      cacheCapacity -= node.getCacheCapacity();
+      cacheUsed -= node.getCacheUsed();
+    } else if (!node.isDecommissioned()) {
+      cacheCapacity -= node.getCacheCapacity();
+      cacheUsed -= node.getCacheUsed();
     }
-    cacheCapacity -= node.getCacheCapacity();
-    cacheUsed -= node.getCacheUsed();
     Set<StorageType> storageTypes = new HashSet<>();
     for (DatanodeStorageInfo storageInfo : node.getStorageInfos()) {
       statsMap.subtractStorage(storageInfo, node);
