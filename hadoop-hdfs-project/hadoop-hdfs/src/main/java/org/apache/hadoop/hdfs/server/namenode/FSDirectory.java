@@ -2872,9 +2872,11 @@ public class FSDirectory implements Closeable {
       INode inode = resolveLastINode(src, iip);
       int snapshotId = iip.getPathSnapshotId();
       List<AclEntry> acl = AclStorage.readINodeAcl(inode, snapshotId);
+      FsPermission fsPermission = inode.getFsPermission(snapshotId);
       return new AclStatus.Builder()
           .owner(inode.getUserName()).group(inode.getGroupName())
-          .stickyBit(inode.getFsPermission(snapshotId).getStickyBit())
+          .stickyBit(fsPermission.getStickyBit())
+          .setPermission(fsPermission)
           .addEntries(acl).build();
     } finally {
       readUnlock();
