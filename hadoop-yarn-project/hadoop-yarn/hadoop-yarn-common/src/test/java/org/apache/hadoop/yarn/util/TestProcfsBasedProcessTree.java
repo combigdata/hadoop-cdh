@@ -53,6 +53,7 @@ import org.apache.hadoop.yarn.util.ProcfsBasedProcessTree.ProcessSmapMemoryInfo;
 import org.apache.hadoop.yarn.util.ProcfsBasedProcessTree.ProcessTreeSmapMemInfo;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 /**
@@ -117,6 +118,7 @@ public class TestProcfsBasedProcessTree {
       new Path(TEST_ROOT_DIR.getAbsolutePath()), true);
   }
 
+  @Ignore
   @Test(timeout = 30000)
   @SuppressWarnings("deprecation")
   public void testProcessTree() throws Exception {
