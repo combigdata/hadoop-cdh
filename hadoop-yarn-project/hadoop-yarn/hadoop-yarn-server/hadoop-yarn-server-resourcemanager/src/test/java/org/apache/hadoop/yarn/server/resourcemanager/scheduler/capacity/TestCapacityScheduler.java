@@ -139,6 +139,7 @@ import org.apache.hadoop.yarn.util.resource.Resources;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -1040,7 +1041,12 @@ public class TestCapacityScheduler {
     cs.stop();
   }
 
+  /**
+   * This test is ignored due to occasional test failures.
+   * We plan not to support the feature in the future.
+   */
   @Test(timeout = 120000)
+  @Ignore
   public void testPreemptionInfo() throws Exception {
     Configuration conf = new Configuration();
     conf.setInt(YarnConfiguration.RM_AM_MAX_ATTEMPTS, 3);
