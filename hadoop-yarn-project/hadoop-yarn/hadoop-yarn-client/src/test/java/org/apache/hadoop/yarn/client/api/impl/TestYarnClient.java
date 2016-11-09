@@ -114,6 +114,7 @@ import org.apache.log4j.Level;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class TestYarnClient {
@@ -871,7 +872,11 @@ public class TestYarnClient {
     }
   }
 
+  /**
+   * Ignoring due to intermittent errors
+   */
   @Test
+  @Ignore
   public void testReservationAPIs() {
     // initialize
     CapacitySchedulerConfiguration conf = new CapacitySchedulerConfiguration();
