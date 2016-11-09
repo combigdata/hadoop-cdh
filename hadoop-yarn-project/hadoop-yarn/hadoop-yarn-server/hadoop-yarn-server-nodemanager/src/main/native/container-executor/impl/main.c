@@ -129,7 +129,7 @@ static void flush_and_close_log_files() {
     fclose(LOGFILE);
     LOGFILE = NULL;
   }
-  
+
 if (ERRORFILE != NULL) {
     fflush(ERRORFILE);
     fclose(ERRORFILE);
@@ -171,7 +171,7 @@ static void assert_valid_setup(char *current_executable) {
   struct group *group_info = getgrnam(nm_group);
   if (group_info == NULL) {
     fprintf(ERRORFILE, "Can't get group information for %s - %s.\n", nm_group,
-            strerror(errno));
+      errno != 0 ? strerror(errno) : "unknown");
     flush_and_close_log_files();
     exit(INVALID_CONFIG_FILE);
   }

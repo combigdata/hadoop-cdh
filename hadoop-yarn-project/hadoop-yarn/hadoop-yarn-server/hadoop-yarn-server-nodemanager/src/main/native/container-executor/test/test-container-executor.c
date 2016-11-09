@@ -264,9 +264,9 @@ void test_delete_container() {
     exit(1);
   }
   char* app_dir = get_app_directory(TEST_ROOT "/local-2", yarn_username, "app_1");
-  char* dont_touch = get_app_directory(TEST_ROOT "/local-2", yarn_username, 
+  char* dont_touch = get_app_directory(TEST_ROOT "/local-2", yarn_username,
                                        DONT_TOUCH_FILE);
-  char* container_dir = get_container_work_directory(TEST_ROOT "/local-2", 
+  char* container_dir = get_container_work_directory(TEST_ROOT "/local-2",
 					      yarn_username, "app_1", "container_1");
   char buffer[100000];
   sprintf(buffer, "mkdir -p %s/who/let/the/dogs/out/who/who", container_dir);
@@ -326,9 +326,9 @@ void test_delete_container() {
 
 void test_delete_app() {
   char* app_dir = get_app_directory(TEST_ROOT "/local-2", yarn_username, "app_2");
-  char* dont_touch = get_app_directory(TEST_ROOT "/local-2", yarn_username, 
+  char* dont_touch = get_app_directory(TEST_ROOT "/local-2", yarn_username,
                                        DONT_TOUCH_FILE);
-  char* container_dir = get_container_work_directory(TEST_ROOT "/local-2", 
+  char* container_dir = get_container_work_directory(TEST_ROOT "/local-2",
 					      yarn_username, "app_2", "container_1");
   char buffer[100000];
   sprintf(buffer, "mkdir -p %s/who/let/the/dogs/out/who/who", container_dir);
@@ -475,7 +475,7 @@ void test_signal_container_group() {
     exit(0);
   }
   printf("Child container launched as %" PRId64 "\n", (int64_t)child);
-  // there's a race condition for child calling change_user and us 
+  // there's a race condition for child calling change_user and us
   // calling signal_container_as_user, hence sleeping
   sleep(3);
   if (signal_container_as_user(yarn_username, child, SIGKILL) != 0) {
@@ -491,7 +491,7 @@ void test_signal_container_group() {
     exit(1);
   }
   if (WTERMSIG(status) != SIGKILL) {
-    printf("FAIL: child was killed with %d instead of %d\n", 
+    printf("FAIL: child was killed with %d instead of %d\n",
 	   WTERMSIG(status), SIGKILL);
     exit(1);
   }
@@ -537,7 +537,7 @@ void test_init_app() {
   fflush(stderr);
   pid_t child = fork();
   if (child == -1) {
-    printf("FAIL: failed to fork process for init_app - %s\n", 
+    printf("FAIL: failed to fork process for init_app - %s\n",
 	   strerror(errno));
     exit(1);
   } else if (child == 0) {
@@ -631,17 +631,17 @@ void test_run_container() {
   }
   fflush(stdout);
   fflush(stderr);
-  char* container_dir = get_container_work_directory(TEST_ROOT "/local-1", 
+  char* container_dir = get_container_work_directory(TEST_ROOT "/local-1",
 					      yarn_username, "app_4", "container_1");
   const char * pid_file = TEST_ROOT "/pid.txt";
 
   pid_t child = fork();
   if (child == -1) {
-    printf("FAIL: failed to fork process for init_app - %s\n", 
+    printf("FAIL: failed to fork process for init_app - %s\n",
 	   strerror(errno));
     exit(1);
   } else if (child == 0) {
-    if (launch_container_as_user(yarn_username, "app_4", "container_1", 
+    if (launch_container_as_user(yarn_username, "app_4", "container_1",
           container_dir, script_name, TEST_ROOT "/creds.txt", pid_file,
           local_dirs, log_dirs,
           "cgroups", cgroups_pids) != 0) {
@@ -689,13 +689,84 @@ void test_run_container() {
   check_pid_file(cgroups_pids[1], child);
 }
 
+/**
+ * This test is used to verify that trim() works correctly
+ */
+void test_trim_function() {
+  char* trimmed = NULL;
+
+  printf("\nTesting trim function\n");
+
+  // Check NULL input
+  if (trim(NULL) != NULL) {
+    printf("FAIL: trim(NULL) should be NULL\n");
+    exit(1);
+  }
+
+  // Check empty input
+  trimmed = trim("");
+  if (strcmp(trimmed, "") != 0) {
+    printf("FAIL: trim(\"\") should be \"\"\n");
+    exit(1);
+  }
+  free(trimmed);
+
+  // Check single space input
+  trimmed = trim(" ");
+  if (strcmp(trimmed, "") != 0) {
+    printf("FAIL: trim(\" \") should be \"\"\n");
+    exit(1);
+  }
+  free(trimmed);
+
+  // Check multi space input
+  trimmed = trim("   ");
+  if (strcmp(trimmed, "") != 0) {
+    printf("FAIL: trim(\"   \") should be \"\"\n");
+    exit(1);
+  }
+  free(trimmed);
+
+  // Check both side trim input
+  trimmed = trim(" foo ");
+  if (strcmp(trimmed, "foo") != 0) {
+    printf("FAIL: trim(\" foo \") should be \"foo\"\n");
+    exit(1);
+  }
+  free(trimmed);
+
+  // Check left side trim input
+  trimmed = trim("foo   ");
+  if (strcmp(trimmed, "foo") != 0) {
+    printf("FAIL: trim(\"foo   \") should be \"foo\"\n");
+    exit(1);
+  }
+  free(trimmed);
+
+  // Check right side trim input
+  trimmed = trim("   foo");
+  if (strcmp(trimmed, "foo") != 0) {
+    printf("FAIL: trim(\"   foo\") should be \"foo\"\n");
+    exit(1);
+  }
+  free(trimmed);
+
+  // Check no trim input
+  trimmed = trim("foo");
+  if (strcmp(trimmed, "foo") != 0) {
+    printf("FAIL: trim(\"foo\") should be \"foo\"\n");
+    exit(1);
+  }
+  free(trimmed);
+}
+
 // This test is expected to be executed either by a regular
 // user or by root. If executed by a regular user it doesn't
 // test all the functions that would depend on changing the
 // effective user id. If executed by a super-user everything
 // gets tested. Here are different ways of execing the test binary:
 // 1. regular user assuming user == yarn user
-//    $ test-container-executor     
+//    $ test-container-executor
 // 2. regular user with a given yarn user
 //    $ test-container-executor yarn_user
 // 3. super user with a given user and assuming user == yarn user
@@ -710,11 +781,11 @@ int main(int argc, char **argv) {
   if (system("chmod -R u=rwx " TEST_ROOT "; rm -fr " TEST_ROOT)) {
     exit(1);
   }
-  
+
   if (mkdirs(TEST_ROOT "/logs/userlogs", 0755) != 0) {
     exit(1);
   }
-  
+
   if (write_config_file(TEST_ROOT "/test.cfg", 1) != 0) {
     exit(1);
   }
@@ -801,9 +872,13 @@ int main(int argc, char **argv) {
   test_check_user(1);
 
   run("rm -fr " TEST_ROOT);
+
+  test_trim_function();
+
   printf("\nFinished tests\n");
 
   free(current_username);
   free_executor_configurations();
+
   return 0;
 }
