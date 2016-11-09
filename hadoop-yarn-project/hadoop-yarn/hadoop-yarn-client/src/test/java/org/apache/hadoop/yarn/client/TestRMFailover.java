@@ -49,6 +49,7 @@ import org.apache.hadoop.yarn.webapp.YarnWebParams;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class TestRMFailover extends ClientBaseWithFixes {
@@ -275,6 +276,7 @@ public class TestRMFailover extends ClientBaseWithFixes {
     assertEquals(404, response.getResponseCode());
   }
 
+  @Ignore
   @Test
   public void testRMWebAppRedirect() throws YarnException,
       InterruptedException, IOException {
