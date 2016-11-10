@@ -28,6 +28,7 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.isA;
+import org.mockito.Mockito;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -6180,5 +6181,53 @@ public class TestFairScheduler extends FairSchedulerTestBase {
 
     long reservedId = reservedContainer1.getContainerId().getContainerId();
     assertEquals(reservedId + 1, maxId);
+  }
+
+  @Test
+  public void testUpdateDemand() throws IOException {
+    conf.set(FairSchedulerConfiguration.ALLOCATION_FILE, ALLOC_FILE);
+
+    PrintWriter out = new PrintWriter(new FileWriter(ALLOC_FILE));
+    out.println("<?xml version=\"1.0\"?>");
+    out.println("<allocations>");
+    out.println("<queue name=\"queue1\">");
+    out.println("  <maxResources>8192mb,1vcores</maxResources>");
+    out.println("  <queue name=\"a\">");
+    out.println("    <maxResources>8192mb,1vcores</maxResources>");
+    out.println("  </queue>");
+    out.println("  <queue name=\"b\">");
+    out.println("    <maxResources>8192mb,1vcores</maxResources>");
+    out.println("  </queue>");
+    out.println("</queue>");
+    out.println("</allocations>");
+    out.close();
+
+    scheduler.init(conf);
+    scheduler.start();
+    scheduler.reinitialize(conf, resourceManager.getRMContext());
+
+    Resource maxResource = Resources.createResource(1024 * 8);
+
+    FSAppAttempt app1 = mock(FSAppAttempt.class);
+    Mockito.when(app1.getDemand()).thenReturn(maxResource);
+    FSAppAttempt app2 = mock(FSAppAttempt.class);
+    Mockito.when(app2.getDemand()).thenReturn(maxResource);
+
+    QueueManager queueManager = scheduler.getQueueManager();
+    FSParentQueue queue1 = queueManager.getParentQueue("queue1", false);
+
+    FSLeafQueue aQueue = queueManager.getLeafQueue("root.queue1.a", false);
+    aQueue.addAppSchedulable(app1);
+
+    FSLeafQueue bQueue = queueManager.getLeafQueue("root.queue1.b", false);
+    bQueue.addAppSchedulable(app2);
+
+    queue1.updateDemand();
+
+    assertTrue("Demand is greater than max allowed ",
+        Resources.equals(queue1.getDemand(), maxResource));
+    assertTrue("Demand of child queue not updated ",
+        Resources.equals(aQueue.getDemand(), maxResource) &&
+        Resources.equals(bQueue.getDemand(), maxResource));
   }
 }

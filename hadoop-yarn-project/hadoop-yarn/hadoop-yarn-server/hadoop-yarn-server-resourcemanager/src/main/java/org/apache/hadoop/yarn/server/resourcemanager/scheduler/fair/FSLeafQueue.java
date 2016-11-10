@@ -268,20 +268,16 @@ public class FSLeafQueue extends FSQueue {
     readLock.lock();
     try {
       for (FSAppAttempt sched : runnableApps) {
-        if (Resources.equals(demand, maxRes)) {
-          break;
-        }
-        updateDemandForApp(sched, maxRes);
+        updateDemandForApp(sched);
       }
       for (FSAppAttempt sched : nonRunnableApps) {
-        if (Resources.equals(demand, maxRes)) {
-          break;
-        }
-        updateDemandForApp(sched, maxRes);
+        updateDemandForApp(sched);
       }
     } finally {
       readLock.unlock();
     }
+    // Cap demand to maxShare to limit allocation to maxShare
+    demand = Resources.componentwiseMin(demand, maxRes);
     if (LOG.isDebugEnabled()) {
       LOG.debug("The updated demand for " + getName() + " is " + demand
           + "; the max is " + maxRes);
@@ -290,7 +286,7 @@ public class FSLeafQueue extends FSQueue {
     }
   }
   
-  private void updateDemandForApp(FSAppAttempt sched, Resource maxRes) {
+  private void updateDemandForApp(FSAppAttempt sched) {
     sched.updateDemand();
     Resource toAdd = sched.getDemand();
     if (LOG.isDebugEnabled()) {
@@ -299,7 +295,6 @@ public class FSLeafQueue extends FSQueue {
           + demand);
     }
     demand = Resources.add(demand, toAdd);
-    demand = Resources.componentwiseMin(demand, maxRes);
   }
 
   @Override
