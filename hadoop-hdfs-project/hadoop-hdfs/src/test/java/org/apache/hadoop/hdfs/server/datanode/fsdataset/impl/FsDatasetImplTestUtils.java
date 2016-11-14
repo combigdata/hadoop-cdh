@@ -28,6 +28,7 @@ import org.apache.hadoop.fs.DF;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
+import org.apache.hadoop.hdfs.server.datanode.BlockMetadataHeader;
 import org.apache.hadoop.hdfs.server.datanode.DataNode;
 import org.apache.hadoop.hdfs.server.datanode.DataStorage;
 import org.apache.hadoop.hdfs.server.datanode.DatanodeUtil;
@@ -42,9 +43,12 @@ import org.apache.hadoop.hdfs.server.datanode.ReplicaUnderRecovery;
 import org.apache.hadoop.hdfs.server.datanode.ReplicaWaitingToBeRecovered;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi.FsVolumeReferences;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
+import org.apache.hadoop.util.DataChecksum;
 
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
@@ -64,6 +68,9 @@ public class FsDatasetImplTestUtils implements FsDatasetTestUtils {
   private static final Log LOG =
       LogFactory.getLog(FsDatasetImplTestUtils.class);
   private final FsDatasetImpl dataset;
+
+  private static final DataChecksum DEFAULT_CHECKSUM =
+      DataChecksum.newDataChecksum(DataChecksum.Type.CRC32C, 512);
 
   /**
    * By default we assume 2 data directories (volumes) per DataNode.
@@ -222,7 +229,15 @@ public class FsDatasetImplTestUtils implements FsDatasetTestUtils {
     dataset.volumeMap.add(block.getBlockPoolId(), info);
     info.getBlockFile().createNewFile();
     info.getMetaFile().createNewFile();
+    saveMetaFileHeader(info.getMetaFile());
     return info;
+  }
+
+  private void saveMetaFileHeader(File metaFile) throws IOException {
+    DataOutputStream metaOut = new DataOutputStream(
+        new FileOutputStream(metaFile));
+    BlockMetadataHeader.writeHeader(metaOut, DEFAULT_CHECKSUM);
+    metaOut.close();
   }
 
   @Override
