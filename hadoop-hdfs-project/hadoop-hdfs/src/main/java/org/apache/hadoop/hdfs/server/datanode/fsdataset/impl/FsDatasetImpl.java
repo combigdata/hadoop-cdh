@@ -1716,15 +1716,11 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
     Map<String, BlockListAsLongs.Builder> builders =
         new HashMap<String, BlockListAsLongs.Builder>();
 
-    List<FsVolumeImpl> curVolumes = volumes.getVolumes();
-    for (FsVolumeSpi v : curVolumes) {
-      builders.put(v.getStorageID(), BlockListAsLongs.builder(maxDataLength));
-    }
-
+    List<FsVolumeImpl> curVolumes = null;
     synchronized(this) {
       curVolumes = volumes.getVolumes();
       for (FsVolumeSpi v : curVolumes) {
-        builders.put(v.getStorageID(), BlockListAsLongs.builder());
+        builders.put(v.getStorageID(),BlockListAsLongs.builder(maxDataLength));
       }
 
       Set<String> missingVolumesReported = new HashSet<>();
