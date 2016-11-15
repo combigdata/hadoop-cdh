@@ -612,9 +612,10 @@ public class TestClientRMService {
             checkTokenRenewal(owner, other);
             return null;
           } catch (YarnException ex) {
-            Assert.assertTrue(ex.getMessage().contains(owner.getUserName() +
-                " tries to renew a token with renewer " +
-                other.getUserName()));
+            Assert.assertTrue(ex.getMessage().contains(
+                owner.getUserName() + " tries to renew a token"));
+            Assert.assertTrue(ex.getMessage().contains(
+                "with non-matching renewer " + other.getUserName()));
             throw ex;
           }
         }
