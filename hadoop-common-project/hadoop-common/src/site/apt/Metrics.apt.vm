@@ -382,6 +382,8 @@ dfs context
 *-------------------------------------+--------------------------------------+
 |<<<Snapshots>>> | Current number of snapshots
 *-------------------------------------+--------------------------------------+
+|<<<NumEncryptionZones>>> | Current number of encryption zones
+*-------------------------------------+--------------------------------------+
 |<<<BlocksTotal>>> | Current number of allocated blocks in the system
 *-------------------------------------+--------------------------------------+
 |<<<FilesTotal>>> | Current number of files and directories

@@ -186,6 +186,11 @@ public interface FSNamesystemMBean {
   public String getTopUserOpCounts();
 
   /**
+   * Return the number of encryption zones in the system.
+   */
+  int getNumEncryptionZones();
+
+  /**
    * @return Number of IN_MAINTENANCE live data nodes
    */
   int getNumInMaintenanceLiveDataNodes();
