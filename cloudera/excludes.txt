@@ -1,4 +1,3 @@
-CLOUDERA-BUILD disable all applicationhistoryservice unit tests.
 org/apache/hadoop/crypto/key/kms/server/TestKMS.java
 
 org/apache/hadoop/fs/viewfs/ViewFileSystemBaseTest.java
@@ -25,6 +24,8 @@ org/apache/hadoop/yarn/server/applicationhistoryservice/TestApplicationHistoryMa
 org/apache/hadoop/yarn/server/applicationhistoryservice/TestFileSystemApplicationHistoryStore.java
 org/apache/hadoop/yarn/server/applicationhistoryservice/TestMemoryApplicationHistoryStore.java
 org/apache/hadoop/yarn/server/applicationhistoryservice/webapp/TestAHSWebApp.java
+org/apache/hadoop/yarn/server/resourcemanager/ahs/TestRMApplicationHistoryWriter.java
+
 org/apache/hadoop/yarn/server/timeline/TestLeveldbTimelineStore.java
 org/apache/hadoop/yarn/server/timeline/TestMemoryTimelineStore.java
 org/apache/hadoop/yarn/server/timeline/TestRollingLevelDB.java
