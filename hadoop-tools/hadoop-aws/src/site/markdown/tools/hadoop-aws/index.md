@@ -691,7 +691,7 @@ from placing its declaration on the command line.
 
     <property>
       <name>fs.s3a.threads.max</name>
-      <value>10</value>
+      <value>256</value>
       <description> Maximum number of concurrent active (part)uploads,
       which each use a thread from the threadpool.</description>
     </property>
@@ -709,6 +709,12 @@ from placing its declaration on the command line.
     </property>
 
     <property>
+      <name>fs.s3a.threads.core</name>
+      <value>15</value>
+      <description>Number of core threads in the threadpool.</description>
+    </property>
+
+    <property>
       <name>fs.s3a.threads.keepalivetime</name>
       <value>60</value>
       <description>Number of seconds a thread can be idle before being
@@ -717,7 +723,7 @@ from placing its declaration on the command line.
 
     <property>
       <name>fs.s3a.max.total.tasks</name>
-      <value>5</value>
+      <value>1000</value>
       <description>Number of (part)uploads allowed to the queue before
       blocking additional uploads.</description>
     </property>

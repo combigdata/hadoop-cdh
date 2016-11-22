@@ -98,14 +98,19 @@ public final class Constants {
 
   // the maximum number of threads to allow in the pool used by TransferManager
   public static final String MAX_THREADS = "fs.s3a.threads.max";
-  public static final int DEFAULT_MAX_THREADS = 10;
+  public static final int DEFAULT_MAX_THREADS = 256;
 
-  // unused option: maintained for compile-time compatibility.
-  // if set, a warning is logged in S3A during init
-  @Deprecated
+  // not used when blocking thread pool is enabled
+  // the number of threads to keep in the pool used by TransferManager
   public static final String CORE_THREADS = "fs.s3a.threads.core";
+  public static final int DEFAULT_CORE_THREADS = DEFAULT_MAXIMUM_CONNECTIONS;
 
-  // the time an idle thread waits before terminating
+  // feature flag to enable the blocking executor added in HADOOP-13139
+  public static final String ENABLE_BLOCKING_EXECUTOR =
+      "cdh.fs.s3a.blocking.executor.enabled";
+
+  // when the number of threads is greater than the core, this is the maximum time
+  // that excess idle threads will wait for new tasks before terminating.
   public static final String KEEPALIVE_TIME = "fs.s3a.threads.keepalivetime";
   public static final int DEFAULT_KEEPALIVE_TIME = 60;
 
