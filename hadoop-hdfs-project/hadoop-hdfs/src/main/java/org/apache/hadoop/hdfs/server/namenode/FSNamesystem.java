@@ -6774,6 +6774,13 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     if (blockManager != null) {
       blockManager.shutdown();
     }
+    if (provider != null) {
+      try {
+        provider.close();
+      } catch (IOException e) {
+        LOG.error("Failed to close provider.", e);
+      }
+    }
   }
 
   @Override // FSNamesystemMBean
