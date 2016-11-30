@@ -77,6 +77,7 @@ public class FSLeafQueue extends FSQueue {
     this.lastTimeAtFairShareThreshold = scheduler.getClock().getTime();
     activeUsersManager = new ActiveUsersManager(getMetrics());
     amResourceUsage = Resource.newInstance(0, 0);
+    getMetrics().setAMResourceUsage(amResourceUsage);
   }
   
   public void addApp(FSAppAttempt app, boolean runnable) {
@@ -128,6 +129,7 @@ public class FSLeafQueue extends FSQueue {
     // running an unmanaged AM.
     if (runnable && app.isAmRunning()) {
       Resources.subtractFrom(amResourceUsage, app.getAMResource());
+      getMetrics().setAMResourceUsage(amResourceUsage);
     }
 
     return runnable;
@@ -475,20 +477,16 @@ public class FSLeafQueue extends FSQueue {
   }
 
   /**
-   * Check whether this queue can run this application master under the
-   * maxAMShare limit.
-   * @param amResource
-   * @return true if this queue can run
+   * Compute the maximum resource AM can use. The value is the result of
+   * multiplying FairShare and maxAMShare. If FairShare is zero, use
+   * min(maxShare, available resource) instead to prevent zero value for
+   * maximum AM resource since it forbids any job running in the queue.
+   *
+   * @return the maximum resource AM can use
    */
-  public boolean canRunAppAM(Resource amResource) {
+  private Resource computeMaxAMResource() {
     float maxAMShare =
         scheduler.getAllocationConfiguration().getQueueMaxAMShare(getName());
-    if (Math.abs(maxAMShare - -1.0f) < 0.0001) {
-      return true;
-    }
-
-    // If FairShare is zero, use min(maxShare, available resource) to compute
-    // maxAMResource
     Resource maxResource = Resources.clone(getFairShare());
     if (maxResource.getMemory() == 0) {
       maxResource.setMemory(
@@ -502,7 +500,25 @@ public class FSLeafQueue extends FSQueue {
           getMaxShare().getVirtualCores()));
     }
 
-    Resource maxAMResource = Resources.multiply(maxResource, maxAMShare);
+    return Resources.multiply(maxResource, maxAMShare);
+  }
+
+  /**
+   * Check whether this queue can run the Application Master under the
+   * maxAMShare limit.
+   *
+   * @param amResource resources required to run the AM
+   * @return true if this queue can run
+   */
+  public boolean canRunAppAM(Resource amResource) {
+    float maxAMShare =
+        scheduler.getAllocationConfiguration().getQueueMaxAMShare(getName());
+    if (Math.abs(maxAMShare - -1.0f) < 0.0001) {
+      return true;
+    }
+
+    Resource maxAMResource = computeMaxAMResource();
+    getMetrics().setMaxAMShare(maxAMResource);
     Resource ifRunAMResource = Resources.add(amResourceUsage, amResource);
     return Resources.fitsIn(ifRunAMResource, maxAMResource);
   }
@@ -510,6 +526,7 @@ public class FSLeafQueue extends FSQueue {
   public void addAMResourceUsage(Resource amResource) {
     if (amResource != null) {
       Resources.addTo(amResourceUsage, amResource);
+      getMetrics().setAMResourceUsage(amResourceUsage);
     }
   }
 

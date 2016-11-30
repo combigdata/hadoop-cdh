@@ -41,6 +41,8 @@ import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.Queue;
 import org.apache.hadoop.yarn.util.resource.Resources;
 
+import com.google.common.annotations.VisibleForTesting;
+
 @Private
 @Unstable
 public abstract class FSQueue implements Queue, Schedulable {
@@ -116,6 +118,11 @@ public abstract class FSQueue implements Queue, Schedulable {
   @Override
   public Resource getMaxShare() {
     return scheduler.getAllocationConfiguration().getMaxResources(getName());
+  }
+
+  @VisibleForTesting
+  protected float getMaxAMShare() {
+    return scheduler.getAllocationConfiguration().getQueueMaxAMShare(getName());
   }
 
   @Override
