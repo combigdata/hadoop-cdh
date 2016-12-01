@@ -27,6 +27,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.security.AccessControlException;
+import org.apache.hadoop.util.StringUtils;
 
 /**
  * <p>
@@ -136,8 +138,14 @@ public abstract class FileSystemContractBaseTest extends TestCase {
     } catch (IOException e) {
       // expected
     }
-    assertFalse(fs.exists(testSubDir));
-    
+
+    try {
+      assertFalse(fs.exists(testSubDir));
+    } catch (AccessControlException e) {
+      // Expected : HDFS-11132 Checks on paths under file may be rejected by
+      // file missing execute permission.
+    }
+
     Path testDeepSubDir = path("/test/hadoop/file/deep/sub/dir");
     try {
       fs.mkdirs(testDeepSubDir);
@@ -145,8 +153,14 @@ public abstract class FileSystemContractBaseTest extends TestCase {
     } catch (IOException e) {
       // expected
     }
-    assertFalse(fs.exists(testDeepSubDir));
-    
+
+    try {
+      assertFalse(fs.exists(testDeepSubDir));
+    } catch (AccessControlException e) {
+      // Expected : HDFS-11132 Checks on paths under file may be rejected by
+      // file missing execute permission.
+    }
+
   }
 
   public void testMkdirsWithUmask() throws Exception {
