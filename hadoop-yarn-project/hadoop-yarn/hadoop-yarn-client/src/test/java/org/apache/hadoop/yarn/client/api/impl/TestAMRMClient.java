@@ -90,6 +90,7 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -509,6 +510,7 @@ public class TestAMRMClient {
     }
   }
   
+  @Ignore
   @Test (timeout=60000)
   public void testAllocationWithBlacklist() throws YarnException, IOException {
     AMRMClientImpl<ContainerRequest> amClient = null;
