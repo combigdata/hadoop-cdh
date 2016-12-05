@@ -558,6 +558,7 @@ http://maven.apache.org/xsd/maven-4.0.0.xsd">
             </goals>
             <configuration>
               <createDependencyReducedPom>false</createDependencyReducedPom>
+              <shadeTestJar>true</shadeTestJar>
               <artifactSet>
                 <includes>
                   <include>io.netty:netty-all:jar:*</include>
