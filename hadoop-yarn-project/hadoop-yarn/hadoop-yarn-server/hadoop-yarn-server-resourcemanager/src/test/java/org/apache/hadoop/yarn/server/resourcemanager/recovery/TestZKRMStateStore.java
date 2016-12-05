@@ -30,6 +30,9 @@ import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -55,11 +58,13 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMApp;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
-import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.Op;
+import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
 import org.junit.Assert;
 import org.junit.Test;
+import static org.junit.Assert.assertFalse;
 
 public class TestZKRMStateStore extends RMStateStoreTestBase {
 
@@ -67,7 +72,6 @@ public class TestZKRMStateStore extends RMStateStoreTestBase {
   private static final int ZK_TIMEOUT_MS = 1000;
 
   class TestZKRMStateStoreTester implements RMStateStoreHelper {
-
     ZooKeeper client;
     TestZKRMStateStoreInternal store;
     String workingZnode =  "/jira/issue/3077/rmstore";
@@ -78,7 +82,7 @@ public class TestZKRMStateStore extends RMStateStoreTestBase {
           throws Exception {
         init(conf);
         start();
-        assertTrue(znodeWorkingPath.equals(workingZnode));
+        assertEquals(workingZnode, znodeWorkingPath);
       }
 
       @Override
@@ -384,5 +388,89 @@ public class TestZKRMStateStore extends RMStateStoreTestBase {
       assertTrue("Expected NoAuthException",
           e.getCause() instanceof KeeperException.NoAuthException);
     }
+  }
+
+  public void testTransitionWithUnreachableZK() throws Exception {
+    final AtomicBoolean zkUnreachable = new AtomicBoolean(false);
+    final CountDownLatch threadHung = new CountDownLatch(1);
+    final Configuration conf = createHARMConf("rm1,rm2", "rm1", 1234);
+    conf.setBoolean(YarnConfiguration.AUTO_FAILOVER_ENABLED, false);
+
+    // Create a state store that can simulate losing contact with the ZK node
+    TestZKRMStateStoreTester zkTester = new TestZKRMStateStoreTester() {
+      @Override
+      public RMStateStore getRMStateStore() throws Exception {
+        YarnConfiguration storeConf = new YarnConfiguration(conf);
+        workingZnode = "/Test";
+        storeConf.set(YarnConfiguration.RM_ZK_ADDRESS, hostPort);
+        storeConf.set(YarnConfiguration.ZK_RM_STATE_STORE_PARENT_PATH,
+            workingZnode);
+        storeConf.setInt(YarnConfiguration.RM_ZK_TIMEOUT_MS, 500);
+        this.client = createClient();
+        this.store = new TestZKRMStateStoreInternal(storeConf, workingZnode) {
+          @Override
+          synchronized void doStoreMultiWithRetries(final List<Op> opList)
+              throws Exception {
+            if (zkUnreachable.get()) {
+              // Let the test know that it can now proceed
+              threadHung.countDown();
+
+              // Take a long nap while holding the lock to simulate the ZK node
+              // being unreachable. This behavior models what happens in
+              // super.doStoreMultiWithRetries() when the ZK node it unreachble.
+              // If that behavior changes, then this test should also change or
+              // be phased out.
+              Thread.sleep(60000);
+            } else {
+              // Business as usual
+              super.doStoreMultiWithRetries(opList);
+            }
+          }
+        };
+        return this.store;
+      }
+    };
+
+    // Start with a single RM in HA mode
+    final RMStateStore store = zkTester.getRMStateStore();
+    final MockRM rm = new MockRM(conf, store);
+    rm.start();
+
+    // Make the RM active
+    final StateChangeRequestInfo req = new StateChangeRequestInfo(
+        HAServiceProtocol.RequestSource.REQUEST_BY_USER);
+
+    rm.getRMContext().getRMAdminService().transitionToActive(req);
+    assertEquals("RM with ZKStore didn't start",
+        Service.STATE.STARTED, rm.getServiceState());
+    assertEquals("RM should be Active",
+        HAServiceProtocol.HAServiceState.ACTIVE,
+        rm.getRMContext().getRMAdminService().getServiceStatus().getState());
+
+    // Simulate the ZK node going dark and wait for the
+    // VerifyActiveStatusThread to hang
+    zkUnreachable.set(true);
+
+    assertTrue("Unable to perform test because Verify Active Status Thread "
+        + "did not run", threadHung.await(2, TimeUnit.SECONDS));
+
+    // Try to transition the RM to standby.  Give up after 2000ms.
+    Thread standby = new Thread(new Runnable() {
+      @Override
+      public void run() {
+        try {
+          rm.getRMContext().getRMAdminService().transitionToStandby(req);
+        } catch (IOException ex) {
+          // OK to exit
+        }
+      }
+    }, "Test Unreachable ZK Thread");
+
+    standby.start();
+    standby.join(2000);
+
+    assertFalse("The thread initiating the transition to standby is hung",
+        standby.isAlive());
+    zkUnreachable.set(false);
   }
 }
