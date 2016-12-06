@@ -143,7 +143,6 @@ import org.apache.hadoop.yarn.security.client.ClientToAMTokenSecretManager;
 import org.apache.hadoop.yarn.util.Clock;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.SystemClock;
-import org.apache.log4j.LogManager;
 
 import com.google.common.annotations.VisibleForTesting;
 
@@ -1141,11 +1140,10 @@ public class MRAppMaster extends CompositeService {
       startJobs();
     }
   }
-  
+
   @Override
   public void stop() {
     super.stop();
-    TaskLog.syncLogsShutdown(logSyncer);
   }
 
   private boolean isRecoverySupported() throws IOException {
@@ -1645,7 +1643,6 @@ public class MRAppMaster extends CompositeService {
   @Override
   protected void serviceStop() throws Exception {
     super.serviceStop();
-    LogManager.shutdown();
   }
 
   public ClientService getClientService() {
