@@ -107,7 +107,7 @@ Hadoop Key Management Server (KMS) - Documentation Sets ${project.version}
 ** KMS Aggregated Audit logs
 
   Audit logs are aggregated for API accesses to the GET_KEY_VERSION,
-  GET_CURRENT_KEY, DECRYPT_EEK, GENERATE_EEK operations.
+  GET_CURRENT_KEY, DECRYPT_EEK, GENERATE_EEK, REENCRYPT\_EEK operations.
 
   Entries are grouped by the (user,key,operation) combined key for a
   configurable aggregation interval after which the number of accesses to the
@@ -477,7 +477,7 @@ $ keytool -genkey -alias tomcat -keyalg RSA
 
     * MANAGEMENT - createKey, deleteKey, rolloverNewVersion
 
-    * GENERATE_EEK - generateEncryptedKey, warmUpEncryptedKeys
+    * GENERATE_EEK - generateEncryptedKey, reencryptEncryptedKey, warmUpEncryptedKeys
 
     * DECRYPT_EEK - decryptEncryptedKey
 
@@ -886,7 +886,7 @@ GET http://HOST:PORT/kms/v1/key/<key-name>/_eek?eek_op=generate&num_keys=<number
 Content-Type: application/json
 [
   {
-    "versionName"         : "encryptionVersionName",
+    "versionName"         : "<encryptionVersionName>",
     "iv"                  : "<iv>",          //base64
     "encryptedKeyVersion" : {
         "versionName"       : "EEK",
@@ -894,7 +894,7 @@ Content-Type: application/json
     }
   },
   {
-    "versionName"         : "encryptionVersionName",
+    "versionName"         : "<encryptionVersionName>",
     "iv"                  : "<iv>",          //base64
     "encryptedKeyVersion" : {
         "versionName"       : "EEK",
@@ -933,6 +933,41 @@ Content-Type: application/json
 }
 +---+
 
+*** Re-encrypt Encrypted Key With The Latest KeyVersion
+
+  This command takes a previously generated encrypted key, and re-encrypts it using the latest KeyVersion encryption key in the KeyProvider. If the latest KeyVersion is the same as the one used to generate the encrypted key, the same encrypted key is returned.
+
+  This is usually useful after a {{{./index.html#Rollover_Key}<<<Rollover>>>}} of an encryption key. Re-encrypting the encrypted key will allow it to be encrypted using the latest version of the encryption key, but still with the same key material and initialization vector.
+
+  <REQUEST:>
+
++---+
+POST http://HOST:PORT/kms/v1/keyversion/<version-name>/_eek?eek_op=reencrypt
+Content-Type: application/json
+
+{
+  "name"        : "<key-name>",
+  "iv"          : "<iv>",          //base64
+  "material"    : "<material>",    //base64
+}
+
++---+
+
+  <RESPONSE:>
+
++---+
+200 OK
+Content-Type: application/json
+
+{
+  "versionName"         : "<encryptionVersionName>",
+  "iv"                  : "<iv>",            //base64
+  "encryptedKeyVersion" : {
+    "versionName"       : "EEK",
+    "material"          : "<material>",    //base64
+  }
+}
++---+
 
 *** Get Key Version
 
