@@ -822,7 +822,7 @@ from placing its declaration on the command line.
 
     <property>
       <name>fs.s3a.multipart.size</name>
-      <value>100M</value>
+      <value>64M</value>
       <description>How big (in bytes) to split upload or copy operations up into.
         A suffix from the set {K,M,G,T,P} may be used to scale the numeric value.
       </description>
@@ -830,7 +830,7 @@ from placing its declaration on the command line.
 
     <property>
       <name>fs.s3a.multipart.threshold</name>
-      <value>2147483647</value>
+      <value>128M</value>
       <description>How big (in bytes) to split upload or copy operations up into.
         This also controls the partition size in renamed files, as rename() involves
         copying the source file(s).
@@ -1186,7 +1186,7 @@ S3 endpoints, as disks are not used for intermediate data storage.
 
 <property>
   <name>fs.s3a.multipart.size</name>
-  <value>100M</value>
+  <value>64M</value>
   <description>How big (in bytes) to split upload or copy operations up into.
     A suffix from the set {K,M,G,T,P} may be used to scale the numeric value.
   </description>
