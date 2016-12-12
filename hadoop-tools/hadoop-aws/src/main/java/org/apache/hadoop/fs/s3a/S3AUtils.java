@@ -557,6 +557,7 @@ public final class S3AUtils {
     Preconditions.checkArgument(v >= min,
         String.format("Value of %s: %d is below the minimum value %d",
             key, v, min));
+    LOG.debug("Value of {} is {}", key, v);
     return v;
   }
 
@@ -577,6 +578,7 @@ public final class S3AUtils {
     Preconditions.checkArgument(v >= min,
         String.format("Value of %s: %d is below the minimum value %d",
             key, v, min));
+    LOG.debug("Value of {} is {}", key, v);
     return v;
   }
 
@@ -598,6 +600,7 @@ public final class S3AUtils {
     Preconditions.checkArgument(v >= min,
             String.format("Value of %s: %d is below the minimum value %d",
                     key, v, min));
+    LOG.debug("Value of {} is {}", key, v);
     return v;
   }
 
