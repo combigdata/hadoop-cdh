@@ -724,7 +724,7 @@ from placing its declaration on the command line.
 
     <property>
       <name>fs.s3a.multipart.size</name>
-      <value>64M</value>
+      <value>67108864</value>
       <description>How big (in bytes) to split upload or copy operations up into.
       This also controls the partition size in renamed files, as rename() involves
       copying the source file(s)</description>
@@ -732,7 +732,7 @@ from placing its declaration on the command line.
 
     <property>
       <name>fs.s3a.multipart.threshold</name>
-      <value>128M</value>
+      <value>134217728</value>
       <description>Threshold before uploads or copies use parallel multipart operations.</description>
     </property>
 
