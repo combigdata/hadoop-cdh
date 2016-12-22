@@ -53,10 +53,7 @@ fi
 # it is used in Tomcat's server.xml configuration file
 #
 
-# Mask the trustStorePassword
-KMS_SSL_TRUSTSTORE_PASS=`echo $CATALINA_OPTS | grep -o 'trustStorePassword=[^ ]*' | awk -F'=' '{print $2}'`
-CATALINA_OPTS_DISP=`echo ${CATALINA_OPTS} | sed -e 's/trustStorePassword=[^ ]*/trustStorePassword=***/'`
-print "Using   CATALINA_OPTS:       ${CATALINA_OPTS_DISP}"
+print "Using   CATALINA_OPTS:       ${CATALINA_OPTS}"
 
 catalina_opts="-Dkms.home.dir=${KMS_HOME}";
 catalina_opts="${catalina_opts} -Dkms.config.dir=${KMS_CONFIG}";
@@ -81,14 +78,13 @@ if [ "${1}" = "stop" ]; then
 fi
 
 # If ssl, the populate the passwords into ssl-server.xml before starting tomcat
-if [ ! "${KMS_SSL_KEYSTORE_PASS}" = "" ] || [ ! "${KMS_SSL_TRUSTSTORE_PASS}" = "" ]; then
+if [ ! "${KMS_SSL_KEYSTORE_PASS}" = "" ]; then
   # Set a KEYSTORE_PASS if not already set
   KMS_SSL_KEYSTORE_PASS=${KMS_SSL_KEYSTORE_PASS:-password}
   KMS_SSL_KEYSTORE_PASS_ESCAPED=$(hadoop_escape "$KMS_SSL_KEYSTORE_PASS")
-  KMS_SSL_TRUSTSTORE_PASS_ESCAPED=$(hadoop_escape "$KMS_SSL_TRUSTSTORE_PASS")
   cat ${CATALINA_BASE}/conf/ssl-server.xml.conf \
     | sed 's/"_kms_ssl_keystore_pass_"/'"\"${KMS_SSL_KEYSTORE_PASS_ESCAPED}\""'/g' \
-    | sed 's/"_kms_ssl_truststore_pass_"/'"\"${KMS_SSL_TRUSTSTORE_PASS_ESCAPED}\""'/g' > ${CATALINA_BASE}/conf/ssl-server.xml
+    > ${CATALINA_BASE}/conf/ssl-server.xml
   cp ${CATALINA_BASE}/conf/ssl-server.xml ${CATALINA_BASE}/conf/server.xml
 else
   cp ${CATALINA_BASE}/conf/server.xml.conf ${CATALINA_BASE}/conf/server.xml
