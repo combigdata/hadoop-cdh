@@ -460,7 +460,7 @@ public class ApplicationImpl implements Application {
       } catch (InvalidStateTransitonException e) {
         LOG.warn("Can't handle this event at current state", e);
       }
-      if (oldState != newState) {
+      if (newState != null && oldState != newState) {
         LOG.info("Application " + applicationID + " transitioned from "
             + oldState + " to " + newState);
       }
