@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.List;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
@@ -264,7 +265,10 @@ final class AclStorage {
           .setScope(AclEntryScope.ACCESS).setType(AclEntryType.GROUP).build();
       int groupEntryIndex = Collections.binarySearch(featureEntries,
           groupEntryKey, AclTransformation.ACL_ENTRY_COMPARATOR);
-      assert groupEntryIndex >= 0;
+      Preconditions.checkPositionIndex(groupEntryIndex, featureEntries.size(),
+          "Invalid group entry index after binary-searching inode: " + inode
+              .getFullPathName() + "(" + inode.getId() + ") "
+              + "with featureEntries:" + featureEntries);
       FsAction groupPerm = featureEntries.get(groupEntryIndex).getPermission();
       FsPermission newPerm = new FsPermission(perm.getUserAction(), groupPerm,
           perm.getOtherAction(), perm.getStickyBit());
