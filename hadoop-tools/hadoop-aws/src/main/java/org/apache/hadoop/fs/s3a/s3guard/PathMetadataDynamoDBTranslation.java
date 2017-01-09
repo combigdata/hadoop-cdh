@@ -101,7 +101,9 @@ final class PathMetadataDynamoDBTranslation {
       return null;
     }
 
-    path = path.makeQualified(s3aUri, null);
+    if (s3aUri != null) {
+      path = path.makeQualified(s3aUri, null);
+    }
     boolean isDir = false;
     try {
       isDir = item.getBoolean(IS_DIR);
