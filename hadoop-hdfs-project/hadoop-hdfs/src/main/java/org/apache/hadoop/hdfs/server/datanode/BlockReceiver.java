@@ -416,9 +416,9 @@ class BlockReceiver implements Closeable {
     }
     long duration = Time.monotonicNow() - begin;
     if (duration > datanodeSlowLogThresholdMs) {
-      LOG.warn("Slow flushOrSync took " + duration + "ms (threshold="
-          + datanodeSlowLogThresholdMs + "ms), isSync:" + isSync + ", flushTotalNanos="
-          + flushTotalNanos + "ns");
+      LOG.info("Slow flushOrSync took " + duration + "ms (threshold="
+          + datanodeSlowLogThresholdMs + "ms), isSync:" + isSync
+          + ", flushTotalNanos=" + flushTotalNanos + "ns");
     }
   }
 
@@ -560,7 +560,7 @@ class BlockReceiver implements Closeable {
         setLastSentTime(now);
         long duration = now - begin;
         if (duration > datanodeSlowLogThresholdMs) {
-          LOG.warn("Slow BlockReceiver write packet to mirror took " + duration
+          LOG.info("Slow BlockReceiver write packet to mirror took " + duration
               + "ms (threshold=" + datanodeSlowLogThresholdMs + "ms)");
         }
       } catch (IOException e) {
@@ -692,7 +692,7 @@ class BlockReceiver implements Closeable {
           out.write(dataBuf.array(), startByteToDisk, numBytesToDisk);
           long duration = Time.monotonicNow() - begin;
           if (duration > datanodeSlowLogThresholdMs) {
-            LOG.warn("Slow BlockReceiver write data to disk cost:" + duration
+            LOG.info("Slow BlockReceiver write data to disk cost:" + duration
                 + "ms (threshold=" + datanodeSlowLogThresholdMs + "ms)");
           }
 
@@ -855,7 +855,7 @@ class BlockReceiver implements Closeable {
         lastCacheManagementOffset = offsetInBlock;
         long duration = Time.monotonicNow() - begin;
         if (duration > datanodeSlowLogThresholdMs) {
-          LOG.warn("Slow manageWriterOsCache took " + duration
+          LOG.info("Slow manageWriterOsCache took " + duration
               + "ms (threshold=" + datanodeSlowLogThresholdMs + "ms)");
         }
       }
@@ -1533,7 +1533,7 @@ class BlockReceiver implements Closeable {
       upstreamOut.flush();
       long duration = Time.monotonicNow() - begin;
       if (duration > datanodeSlowLogThresholdMs) {
-        LOG.warn("Slow PacketResponder send ack to upstream took " + duration
+        LOG.info("Slow PacketResponder send ack to upstream took " + duration
             + "ms (threshold=" + datanodeSlowLogThresholdMs + "ms), " + myString
             + ", replyAck=" + replyAck);
       } else if (LOG.isDebugEnabled()) {
