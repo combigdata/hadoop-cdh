@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.s3a.s3guard.PathMetadata;
 import org.apache.hadoop.fs.s3a.S3AFileStatus;
 
 import org.junit.Rule;
@@ -61,7 +62,7 @@ public class TestDirListingMetadata {
   public void testEmptyListing() {
     Path path = new Path("/path");
     DirListingMetadata meta = new DirListingMetadata(path,
-        Collections.emptyList(), false);
+        Collections.<PathMetadata>emptyList(), false);
     assertEquals(path, meta.getPath());
     assertNotNull(meta.getListing());
     assertTrue(meta.getListing().isEmpty());
