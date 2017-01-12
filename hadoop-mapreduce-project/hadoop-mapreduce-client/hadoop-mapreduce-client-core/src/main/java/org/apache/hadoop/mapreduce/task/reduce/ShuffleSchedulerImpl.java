@@ -447,7 +447,7 @@ public class ShuffleSchedulerImpl<K,V> implements ShuffleScheduler<K,V> {
       pendingHosts.remove(host);
       host.markBusy();
 
-      LOG.info("Assigning " + host + " with " + host.getNumKnownMapOutputs() +
+      LOG.debug("Assigning " + host + " with " + host.getNumKnownMapOutputs() +
                " to " + Thread.currentThread().getName());
       SHUFFLE_START.set(Time.monotonicNow());
 
@@ -477,7 +477,7 @@ public class ShuffleSchedulerImpl<K,V> implements ShuffleScheduler<K,V> {
         host.addKnownMap(id);
       }
     }
-    LOG.info("assigned " + includedMaps + " of " + totalSize + " to " +
+    LOG.debug("assigned " + includedMaps + " of " + totalSize + " to " +
              host + " to " + Thread.currentThread().getName());
     return result;
   }
