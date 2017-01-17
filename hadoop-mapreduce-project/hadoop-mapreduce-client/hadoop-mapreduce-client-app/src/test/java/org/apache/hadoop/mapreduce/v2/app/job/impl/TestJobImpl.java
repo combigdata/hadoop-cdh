@@ -488,9 +488,10 @@ public class TestJobImpl {
   public void testKilledDuringKillAbort() throws Exception {
     Configuration conf = new Configuration();
     conf.set(MRJobConfig.MR_AM_STAGING_DIR, stagingDir);
+    // not initializing dispatcher to avoid potential race condition between
+    // the dispatcher thread & test thread - see MAPREDUCE-6831
     AsyncDispatcher dispatcher = new AsyncDispatcher();
-    dispatcher.init(conf);
-    dispatcher.start();
+
     OutputCommitter committer = new StubbedOutputCommitter() {
       @Override
       public synchronized void abortJob(JobContext jobContext, State state)
