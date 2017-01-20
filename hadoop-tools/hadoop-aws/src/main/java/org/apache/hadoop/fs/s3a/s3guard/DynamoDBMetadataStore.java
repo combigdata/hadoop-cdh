@@ -21,6 +21,7 @@ package org.apache.hadoop.fs.s3a.s3guard;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -302,7 +303,8 @@ public class DynamoDBMetadataStore implements MetadataStore {
               .withConsistentRead(true)
               .withMaxResultSize(1); // limit 1
           final ItemCollection<QueryOutcome> items = table.query(spec);
-          status.setIsEmptyDirectory(!(items.iterator().hasNext()));
+          Iterator itemsIterator = items.iterator();
+          status.setIsEmptyDirectory(!(itemsIterator.hasNext()));
         }
       }
 

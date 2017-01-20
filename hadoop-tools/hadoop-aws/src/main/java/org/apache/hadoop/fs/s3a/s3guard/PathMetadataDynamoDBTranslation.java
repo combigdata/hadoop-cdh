@@ -104,14 +104,26 @@ final class PathMetadataDynamoDBTranslation {
     }
 
     path = path.makeQualified(s3aUri, null);
-    boolean isDir = item.hasAttribute(IS_DIR) && item.getBoolean(IS_DIR);
+    boolean isDir = false;
+    try {
+      isDir = item.getBoolean(IS_DIR);
+    } catch(Exception e) {}
     final FileStatus fileStatus;
     if (isDir) {
       fileStatus = new S3AFileStatus(true, path, username);
     } else {
-      long len = item.hasAttribute(FILE_LENGTH) ? item.getLong(FILE_LENGTH) : 0;
-      long modTime = item.hasAttribute(MOD_TIME) ? item.getLong(MOD_TIME) : 0;
-      long block = item.hasAttribute(BLOCK_SIZE) ? item.getLong(BLOCK_SIZE) : 0;
+      long len = 0;
+      long modTime = 0;
+      long block = 0;
+      try {
+        len = item.getLong(FILE_LENGTH);
+      } catch(Exception e) {}
+       try {
+        modTime = item.getLong(MOD_TIME);
+      } catch(Exception e) {}
+      try {
+        block = item.getLong(BLOCK_SIZE);
+      } catch(Exception e) {}
       fileStatus = new S3AFileStatus(len, modTime, path, block, username);
     }
 

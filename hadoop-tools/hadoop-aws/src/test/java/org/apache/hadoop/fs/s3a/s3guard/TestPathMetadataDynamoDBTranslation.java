@@ -151,11 +151,20 @@ public class TestPathMetadataDynamoDBTranslation {
     final Path path = Path.getPathWithoutSchemeAndAuthority(status.getPath());
     assertEquals(item.get(PARENT), path.getParent().toString());
     assertEquals(item.get(CHILD), path.getName());
-    boolean isDir = item.hasAttribute(IS_DIR) && item.getBoolean(IS_DIR);
+    boolean isDir = false;
+    try {
+      isDir = item.getBoolean(IS_DIR);
+    } catch (Exception e) {}
     assertEquals(isDir, status.isDirectory());
-    long len = item.hasAttribute(FILE_LENGTH) ? item.getLong(FILE_LENGTH) : 0;
+    long len = 0;
+    try {
+      len = item.getLong(FILE_LENGTH);
+    } catch (Exception e) {}
     assertEquals(len, status.getLen());
-    long bSize = item.hasAttribute(BLOCK_SIZE) ? item.getLong(BLOCK_SIZE) : 0;
+    long bSize = 0;
+    try {
+      bSize = item.getLong(BLOCK_SIZE);
+    } catch (Exception e) {}
     assertEquals(bSize, status.getBlockSize());
 
     /*
