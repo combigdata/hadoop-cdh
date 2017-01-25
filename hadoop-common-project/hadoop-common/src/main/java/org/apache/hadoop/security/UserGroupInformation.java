@@ -21,6 +21,8 @@ import static org.apache.hadoop.fs.CommonConfigurationKeys.HADOOP_KERBEROS_MIN_S
 import static org.apache.hadoop.fs.CommonConfigurationKeys.HADOOP_KERBEROS_MIN_SECONDS_BEFORE_RELOGIN_DEFAULT;
 import static org.apache.hadoop.fs.CommonConfigurationKeys.HADOOP_USER_GROUP_METRICS_PERCENTILES_INTERVALS;
 import static org.apache.hadoop.security.UGIExceptionMessages.*;
+import static org.apache.hadoop.fs.CommonConfigurationKeys.HADOOP_TREAT_SUBJECT_EXTERNAL_KEY;
+import static org.apache.hadoop.fs.CommonConfigurationKeys.HADOOP_TREAT_SUBJECT_EXTERNAL_DEFAULT;
 import static org.apache.hadoop.util.PlatformName.IBM_JAVA;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -78,6 +80,7 @@ import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.util.Shell;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.util.Time;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -261,6 +264,29 @@ public class UserGroupInformation {
   /** Min time (in seconds) before relogin for Kerberos */
   private static long kerberosMinSecondsBeforeRelogin;
   /** The configuration to use */
+
+  /*
+   * This config is a temporary one for backward compatibility.
+   * It means whether to treat the subject passed to
+   * UserGroupInformation(Subject) as external. If true,
+   * -  no renewal thread will be created to do the renew credential
+   * -  reloginFromKeytab() and reloginFromTicketCache will not renew
+   *    credential.
+   * and it assumes that the owner of the subject to renew; if false, it means
+   * to retain the old behavior prior to fixing HADOOP-13558 and HADOOP-13805.
+   * The default is false.
+   */
+  private static boolean treatSubjectExternal = false;
+
+  /*
+   * Some test need the renewal thread to be created even if it does
+   *   UserGroupInformation.loginUserFromSubject(subject);
+   * The test code may set this variable to true via
+   *   setEnableRenewThreadCreationForTest(boolean)
+   * method.
+   */
+  private static boolean enableRenewThreadCreationForTest = false;
+
   private static Configuration conf;
 
   /**Environment variable pointing to the token cache file*/
@@ -325,6 +351,15 @@ public class UserGroupInformation {
         metrics.getGroupsQuantiles = getGroupsQuantiles;
       }
     }
+
+    treatSubjectExternal = conf.getBoolean(HADOOP_TREAT_SUBJECT_EXTERNAL_KEY,
+        HADOOP_TREAT_SUBJECT_EXTERNAL_DEFAULT);
+    if (treatSubjectExternal) {
+      LOG.info("Config " + HADOOP_TREAT_SUBJECT_EXTERNAL_KEY + " is set to "
+          + "true, the owner of the subject passed to "
+          + " UserGroupInformation(Subject) is supposed to renew the "
+          + "credential.");
+    }
   }
 
   /**
@@ -338,7 +373,19 @@ public class UserGroupInformation {
   public static void setConfiguration(Configuration conf) {
     initialize(conf, true);
   }
-  
+
+  @InterfaceAudience.Private
+  @VisibleForTesting
+  static void setEnableRenewThreadCreationForTest(boolean b) {
+    enableRenewThreadCreationForTest = b;
+  }
+
+  @InterfaceAudience.Private
+  @VisibleForTesting
+  static boolean getEnableRenewThreadCreationForTest() {
+    return enableRenewThreadCreationForTest;
+  }
+
   @InterfaceAudience.Private
   @VisibleForTesting
   public static void reset() {
@@ -347,6 +394,7 @@ public class UserGroupInformation {
     groups = null;
     setLoginUser(null);
     HadoopKerberosName.setRules(null);
+    setEnableRenewThreadCreationForTest(false);
   }
   
   /**
@@ -378,6 +426,7 @@ public class UserGroupInformation {
   private final User user;
   private final boolean isKeytab;
   private final boolean isKrbTkt;
+  private final boolean isLoginExternal;
   
   private static String OS_LOGIN_MODULE_NAME;
   private static Class<? extends Principal> OS_PRINCIPAL_CLASS;
@@ -629,28 +678,27 @@ public class UserGroupInformation {
   /**
    * Create a UserGroupInformation for the given subject.
    * This does not change the subject or acquire new credentials.
+   *
+   * The creator of subject is responsible for renewing credentials.
    * @param subject the user's subject
    */
   UserGroupInformation(Subject subject) {
-    this(subject, false);
+    this(subject, treatSubjectExternal);
   }
 
   /**
    * Create a UGI from the given subject.
    * @param subject the subject
-   * @param externalKeyTab if the subject's keytab is managed by the user.
+   * @param isLoginExternal if the subject's keytab is managed by other UGI.
    *                       Setting this to true will prevent UGI from attempting
    *                       to login the keytab, or to renew it.
    */
-  private UserGroupInformation(Subject subject, final boolean externalKeyTab) {
+  private UserGroupInformation(Subject subject, final boolean isLoginExternal) {
     this.subject = subject;
     this.user = subject.getPrincipals(User.class).iterator().next();
-    if (externalKeyTab) {
-      this.isKeytab = false;
-    } else {
-      this.isKeytab = !subject.getPrivateCredentials(KeyTab.class).isEmpty();
-    }
+    this.isKeytab = !subject.getPrivateCredentials(KeyTab.class).isEmpty();
     this.isKrbTkt = !subject.getPrivateCredentials(KerberosTicket.class).isEmpty();
+    this.isLoginExternal = isLoginExternal;
   }
   
   /**
@@ -751,7 +799,7 @@ public class UserGroupInformation {
       User ugiUser = new User(loginPrincipals.iterator().next().getName(),
           AuthenticationMethod.KERBEROS, login);
       loginSubject.getPrincipals().add(ugiUser);
-      UserGroupInformation ugi = new UserGroupInformation(loginSubject);
+      UserGroupInformation ugi = new UserGroupInformation(loginSubject, false);
       ugi.setLogin(login);
       ugi.setAuthenticationMethod(AuthenticationMethod.KERBEROS);
       return ugi;
@@ -767,7 +815,9 @@ public class UserGroupInformation {
    /**
    * Create a UserGroupInformation from a Subject with Kerberos principal.
    *
-   * @param user                The KerberosPrincipal to use in UGI
+   * @param subject             The KerberosPrincipal to use in UGI.
+   *                            The creator of subject is responsible for
+   *                            renewing credentials.
    *
    * @throws IOException
    * @throws KerberosAuthException if the kerberos login fails
@@ -828,6 +878,10 @@ public class UserGroupInformation {
    * Log in a user using the given subject
    * @parma subject the subject to use when logging in a user, or null to 
    * create a new subject.
+   *
+   * If subject is not null, the creator of subject is responsible for renewing
+   * credentials.
+   *
    * @throws IOException if login fails
    */
   @InterfaceAudience.Public
@@ -835,17 +889,25 @@ public class UserGroupInformation {
   public synchronized 
   static void loginUserFromSubject(Subject subject) throws IOException {
     ensureInitialized();
+    boolean externalSubject = false;
     try {
       if (subject == null) {
         subject = new Subject();
+      } else {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Treat subject external: " + treatSubjectExternal
+              + ". When true, assuming keytab is managed extenally since "
+              + " logged in from subject");
+        }
+        externalSubject = treatSubjectExternal;
       }
       LoginContext login =
           newLoginContext(authenticationMethod.getLoginAppName(), 
                           subject, new HadoopConfiguration());
       login.login();
-      LOG.debug("Assuming keytab is managed externally since logged in from"
-          + " subject.");
-      UserGroupInformation realUser = new UserGroupInformation(subject, true);
+
+      UserGroupInformation realUser =
+          new UserGroupInformation(subject, externalSubject);
       realUser.setLogin(login);
       realUser.setAuthenticationMethod(authenticationMethod);
       // If the HADOOP_PROXY_USER environment variable or property
@@ -916,11 +978,23 @@ public class UserGroupInformation {
     return start + (long) ((end - start) * TICKET_RENEW_WINDOW);
   }
 
+  /**
+   * Should relogin if security is enabled using Kerberos, and
+   * the Subject is not owned by another UGI.
+   * @return true if this UGI should relogin
+   */
+  private boolean shouldRelogin() {
+    return isSecurityEnabled()
+        && user.getAuthenticationMethod() == AuthenticationMethod.KERBEROS
+        && !isLoginExternal;
+  }
+
   /**Spawn a thread to do periodic renewals of kerberos credentials*/
   private void spawnAutoRenewalThreadForUserCreds() {
-    if (!isSecurityEnabled()
-        || user.getAuthenticationMethod() != AuthenticationMethod.KERBEROS
-        || isKeytab) {
+    if (getEnableRenewThreadCreationForTest()) {
+      LOG.warn("Spawning thread to auto renew user credential since " +
+          " enableRenewThreadCreationForTest was set to true.");
+    } else if (!shouldRelogin() || isKeytab) {
       return;
     }
 
@@ -1049,7 +1123,7 @@ public class UserGroupInformation {
       start = Time.now();
       login.login();
       metrics.loginSuccess.add(Time.now() - start);
-      loginUser = new UserGroupInformation(subject);
+      loginUser = new UserGroupInformation(subject, false);
       loginUser.setLogin(login);
       loginUser.setAuthenticationMethod(AuthenticationMethod.KERBEROS);
     } catch (LoginException le) {
@@ -1113,8 +1187,9 @@ public class UserGroupInformation {
   public synchronized void checkTGTAndReloginFromKeytab() throws IOException {
     if (!isSecurityEnabled()
         || user.getAuthenticationMethod() != AuthenticationMethod.KERBEROS
-        || !isKeytab)
+        || !isKeytab) {
       return;
+    }
     KerberosTicket tgt = getTGT();
     if (tgt != null && !shouldRenewImmediatelyForTests &&
         Time.now() < getRefreshTime(tgt)) {
@@ -1166,9 +1241,7 @@ public class UserGroupInformation {
   @InterfaceAudience.Public
   @InterfaceStability.Evolving
   public synchronized void reloginFromKeytab() throws IOException {
-    if (!isSecurityEnabled()
-        || user.getAuthenticationMethod() != AuthenticationMethod.KERBEROS
-        || !isKeytab) {
+    if (!shouldRelogin() || !isKeytab) {
       return;
     }
 
@@ -1237,9 +1310,7 @@ public class UserGroupInformation {
   @InterfaceAudience.Public
   @InterfaceStability.Evolving
   public synchronized void reloginFromTicketCache() throws IOException {
-    if (!isSecurityEnabled()
-        || user.getAuthenticationMethod() != AuthenticationMethod.KERBEROS
-        || !isKrbTkt) {
+    if (!shouldRelogin() || !isKrbTkt) {
       return;
     }
     LoginContext login = getLogin();
@@ -1310,7 +1381,8 @@ public class UserGroupInformation {
       start = Time.now();
       login.login();
       metrics.loginSuccess.add(Time.now() - start);
-      UserGroupInformation newLoginUser = new UserGroupInformation(subject);
+      UserGroupInformation newLoginUser =
+          new UserGroupInformation(subject, false);
       newLoginUser.setLogin(login);
       newLoginUser.setAuthenticationMethod(AuthenticationMethod.KERBEROS);
       
@@ -1383,7 +1455,7 @@ public class UserGroupInformation {
     }
     Subject subject = new Subject();
     subject.getPrincipals().add(new User(user));
-    UserGroupInformation result = new UserGroupInformation(subject);
+    UserGroupInformation result = new UserGroupInformation(subject, false);
     result.setAuthenticationMethod(authMethod);
     return result;
   }
@@ -1460,7 +1532,7 @@ public class UserGroupInformation {
     Set<Principal> principals = subject.getPrincipals();
     principals.add(new User(user));
     principals.add(new RealUser(realUser));
-    UserGroupInformation result =new UserGroupInformation(subject);
+    UserGroupInformation result =new UserGroupInformation(subject, false);
     result.setAuthenticationMethod(AuthenticationMethod.PROXY);
     return result;
   }
