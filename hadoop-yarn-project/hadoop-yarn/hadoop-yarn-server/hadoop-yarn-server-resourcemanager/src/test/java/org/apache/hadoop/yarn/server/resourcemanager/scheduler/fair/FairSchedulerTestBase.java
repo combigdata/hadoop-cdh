@@ -17,6 +17,10 @@
  */
 package org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair;
 
+import org.apache.hadoop.yarn.server.resourcemanager.MockNodes;
+import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event
+    .NodeAddedSchedulerEvent;
 import org.junit.Assert;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -69,9 +73,14 @@ public class FairSchedulerTestBase {
   private static final int SLEEP_DURATION = 10;
   private static final int SLEEP_RETRIES = 1000;
 
+  /**
+   * The list of nodes added to the cluster using the {@link #addNode} method.
+   */
+  protected final List<RMNode> rmNodes = new ArrayList<>();
+
   // Helper methods
   protected Configuration createConfiguration() {
-    Configuration conf = new YarnConfiguration();
+    conf = new YarnConfiguration();
     conf.setClass(YarnConfiguration.RM_SCHEDULER, FairScheduler.class,
         ResourceScheduler.class);
     conf.setInt(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB, 0);
@@ -272,5 +281,19 @@ public class FairSchedulerTestBase {
         app.getCurrentConsumption().getMemory());
     Assert.assertEquals(resource.getVirtualCores(),
         app.getCurrentConsumption().getVirtualCores());
+  }
+
+  /**
+   * Add a node to the cluster and track the nodes in {@link #rmNodes}
+   * @param memory memory capacity of the node
+   * @param vcores cpu capacity of the node
+   */
+  protected void addNode(int memory, int vcores) {
+    int id = rmNodes.size() + 1;
+    RMNode node =
+        MockNodes.newNodeInfo(1, Resources.createResource(memory, vcores), id,
+            "127.0.0." + id);
+    scheduler.handle(new NodeAddedSchedulerEvent(node));
+    rmNodes.add(node);
   }
 }

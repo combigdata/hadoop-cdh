@@ -77,6 +77,10 @@ public class TestFSLeafQueue extends FairSchedulerTestBase {
   @Test
   public void testUpdateDemand() {
     conf.set(FairSchedulerConfiguration.ASSIGN_MULTIPLE, "false");
+    // Set update interval to a large value so demand is not updated out of
+    // order. YARN-5264 changes this test upstream, and that is not affected
+    // by the value of update interval.
+    conf.setLong(FairSchedulerConfiguration.UPDATE_INTERVAL_MS, 60 * 1000);
     resourceManager = new MockRM(conf);
     resourceManager.start();
     scheduler = (FairScheduler) resourceManager.getResourceScheduler();
@@ -112,19 +116,15 @@ public class TestFSLeafQueue extends FairSchedulerTestBase {
     PrintWriter out = new PrintWriter(new FileWriter(ALLOC_FILE));
     out.println("<?xml version=\"1.0\"?>");
     out.println("<allocations>");
-    out.println("<queue name=\"queueA\">");
-    out.println("<minResources>2048mb,0vcores</minResources>");
-    out.println("</queue>");
-    out.println("<queue name=\"queueB\">");
-    out.println("<minResources>2048mb,0vcores</minResources>");
-    out.println("</queue>");
+    out.println("<queue name=\"queueA\"></queue>");
+    out.println("<queue name=\"queueB\"></queue>");
     out.println("</allocations>");
     out.close();
 
     resourceManager = new MockRM(conf);
     resourceManager.start();
     scheduler = (FairScheduler) resourceManager.getResourceScheduler();
-    for(FSQueue queue: scheduler.getQueueManager().getQueues()) {
+    for (FSQueue queue : scheduler.getQueueManager().getQueues()) {
       assertEquals(queue.getMetrics().getMaxApps(), Integer.MAX_VALUE);
       assertEquals(queue.getMetrics().getSchedulingPolicy(),
           SchedulingPolicy.DEFAULT_POLICY.getName());
@@ -150,162 +150,6 @@ public class TestFSLeafQueue extends FairSchedulerTestBase {
     scheduler.update();
     Collection<FSLeafQueue> queues = scheduler.getQueueManager().getLeafQueues();
     assertEquals(3, queues.size());
-
-    // Queue A should be above min share, B below.
-    FSLeafQueue queueA =
-        scheduler.getQueueManager().getLeafQueue("queueA", false);
-    FSLeafQueue queueB =
-        scheduler.getQueueManager().getLeafQueue("queueB", false);
-    assertFalse(queueA.isStarvedForMinShare());
-    assertTrue(queueB.isStarvedForMinShare());
-
-    // Node checks in again, should allocate for B
-    scheduler.handle(nodeEvent2);
-    // Now B should have min share ( = demand here)
-    assertFalse(queueB.isStarvedForMinShare());
-  }
-
-  @Test (timeout = 5000)
-  public void testIsStarvedForFairShare() throws Exception {
-    conf.set(FairSchedulerConfiguration.ALLOCATION_FILE, ALLOC_FILE);
-    PrintWriter out = new PrintWriter(new FileWriter(ALLOC_FILE));
-    out.println("<?xml version=\"1.0\"?>");
-    out.println("<allocations>");
-    out.println("<queue name=\"queueA\">");
-    out.println("<weight>.2</weight>");
-    out.println("</queue>");
-    out.println("<queue name=\"queueB\">");
-    out.println("<weight>.8</weight>");
-    out.println("<fairSharePreemptionThreshold>.4</fairSharePreemptionThreshold>");
-    out.println("<queue name=\"queueB1\">");
-    out.println("</queue>");
-    out.println("<queue name=\"queueB2\">");
-    out.println("<fairSharePreemptionThreshold>.6</fairSharePreemptionThreshold>");
-    out.println("</queue>");
-    out.println("</queue>");
-    out.println("<defaultFairSharePreemptionThreshold>.5</defaultFairSharePreemptionThreshold>");
-    out.println("</allocations>");
-    out.close();
-
-    resourceManager = new MockRM(conf);
-    resourceManager.start();
-    scheduler = (FairScheduler) resourceManager.getResourceScheduler();
-
-    // Add one big node (only care about aggregate capacity)
-    RMNode node1 =
-        MockNodes.newNodeInfo(1, Resources.createResource(10 * 1024, 10), 1,
-            "127.0.0.1");
-    NodeAddedSchedulerEvent nodeEvent1 = new NodeAddedSchedulerEvent(node1);
-    scheduler.handle(nodeEvent1);
-
-    scheduler.update();
-
-    // Queue A wants 4 * 1024. Node update gives this all to A
-    createSchedulingRequest(1 * 1024, "queueA", "user1", 4);
-    scheduler.update();
-    NodeUpdateSchedulerEvent nodeEvent2 = new NodeUpdateSchedulerEvent(node1);
-    for (int i = 0; i < 4; i ++) {
-      scheduler.handle(nodeEvent2);
-    }
-
-    QueueManager queueMgr = scheduler.getQueueManager();
-    FSLeafQueue queueA = queueMgr.getLeafQueue("queueA", false);
-    assertEquals(4 * 1024, queueA.getResourceUsage().getMemory());
-
-    // Both queue B1 and queue B2 want 3 * 1024
-    createSchedulingRequest(1 * 1024, "queueB.queueB1", "user1", 3);
-    createSchedulingRequest(1 * 1024, "queueB.queueB2", "user1", 3);
-    scheduler.update();
-    for (int i = 0; i < 4; i ++) {
-      scheduler.handle(nodeEvent2);
-    }
-
-    FSLeafQueue queueB1 = queueMgr.getLeafQueue("queueB.queueB1", false);
-    FSLeafQueue queueB2 = queueMgr.getLeafQueue("queueB.queueB2", false);
-    assertEquals(2 * 1024, queueB1.getResourceUsage().getMemory());
-    assertEquals(2 * 1024, queueB2.getResourceUsage().getMemory());
-
-    // For queue B1, the fairSharePreemptionThreshold is 0.4, and the fair share
-    // threshold is 1.6 * 1024
-    assertFalse(queueB1.isStarvedForFairShare());
-
-    // For queue B2, the fairSharePreemptionThreshold is 0.6, and the fair share
-    // threshold is 2.4 * 1024
-    assertTrue(queueB2.isStarvedForFairShare());
-
-    // Node checks in again
-    scheduler.handle(nodeEvent2);
-    scheduler.handle(nodeEvent2);
-    assertEquals(3 * 1024, queueB1.getResourceUsage().getMemory());
-    assertEquals(3 * 1024, queueB2.getResourceUsage().getMemory());
-
-    // Both queue B1 and queue B2 usages go to 3 * 1024
-    assertFalse(queueB1.isStarvedForFairShare());
-    assertFalse(queueB2.isStarvedForFairShare());
-  }
-
-  @Test (timeout = 5000)
-  public void testIsStarvedForFairShareDRF() throws Exception {
-    conf.set(FairSchedulerConfiguration.ALLOCATION_FILE, ALLOC_FILE);
-    PrintWriter out = new PrintWriter(new FileWriter(ALLOC_FILE));
-    out.println("<?xml version=\"1.0\"?>");
-    out.println("<allocations>");
-    out.println("<queue name=\"queueA\">");
-    out.println("<weight>.5</weight>");
-    out.println("</queue>");
-    out.println("<queue name=\"queueB\">");
-    out.println("<weight>.5</weight>");
-    out.println("</queue>");
-    out.println("<defaultFairSharePreemptionThreshold>1</defaultFairSharePreemptionThreshold>");
-    out.println("<defaultQueueSchedulingPolicy>drf</defaultQueueSchedulingPolicy>");
-    out.println("</allocations>");
-    out.close();
-
-    resourceManager = new MockRM(conf);
-    resourceManager.start();
-    scheduler = (FairScheduler) resourceManager.getResourceScheduler();
-
-    // Add one big node (only care about aggregate capacity)
-    RMNode node1 =
-            MockNodes.newNodeInfo(1, Resources.createResource(10 * 1024, 10), 1,
-                    "127.0.0.1");
-    NodeAddedSchedulerEvent nodeEvent1 = new NodeAddedSchedulerEvent(node1);
-    scheduler.handle(nodeEvent1);
-
-    scheduler.update();
-
-    // Queue A wants 7 * 1024, 1. Node update gives this all to A
-    createSchedulingRequest(7 * 1024, 1, "queueA", "user1", 1);
-    scheduler.update();
-    NodeUpdateSchedulerEvent nodeEvent2 = new NodeUpdateSchedulerEvent(node1);
-    scheduler.handle(nodeEvent2);
-
-    QueueManager queueMgr = scheduler.getQueueManager();
-    FSLeafQueue queueA = queueMgr.getLeafQueue("queueA", false);
-    assertEquals(7 * 1024, queueA.getResourceUsage().getMemory());
-    assertEquals(1, queueA.getResourceUsage().getVirtualCores());
-
-    // Queue B has 3 reqs :
-    // 1) 2 * 1024, 5 .. which will be granted
-    // 2) 1 * 1024, 1 .. which will be granted
-    // 3) 1 * 1024, 1 .. which wont
-    createSchedulingRequest(2 * 1024, 5, "queueB", "user1", 1);
-    createSchedulingRequest(1 * 1024, 2, "queueB", "user1", 2);
-    scheduler.update();
-    for (int i = 0; i < 3; i ++) {
-      scheduler.handle(nodeEvent2);
-    }
-
-    FSLeafQueue queueB = queueMgr.getLeafQueue("queueB", false);
-    assertEquals(3 * 1024, queueB.getResourceUsage().getMemory());
-    assertEquals(6, queueB.getResourceUsage().getVirtualCores());
-
-    scheduler.update();
-
-    // Verify that Queue us not starved for fair share..
-    // Since the Starvation logic now uses DRF when the policy = drf, The
-    // Queue should not be starved
-    assertFalse(queueB.isStarvedForFairShare());
   }
 
   @Test

@@ -17,177 +17,259 @@
  */
 package org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.yarn.api.records.Resource;
-import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.server.resourcemanager.MockNodes;
+import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.server.resourcemanager.MockRM;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeAddedSchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeUpdateSchedulerEvent;
-
-import org.apache.hadoop.yarn.util.ControlledClock;
-import org.apache.hadoop.yarn.util.resource.Resources;
 import org.junit.After;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.Arrays;
+import java.util.Collection;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
+/**
+ * Tests to verify fairshare and minshare preemption, using parameterization.
+ */
+@RunWith(Parameterized.class)
 public class TestFairSchedulerPreemption extends FairSchedulerTestBase {
-  private final static String ALLOC_FILE = new File(TEST_DIR,
-      TestFairSchedulerPreemption.class.getName() + ".xml").getAbsolutePath();
+  private static final File ALLOC_FILE = new File(TEST_DIR, "test-queues");
 
-  private ControlledClock clock;
+  // Node Capacity = NODE_CAPACITY_MULTIPLE * (1 GB or 1 vcore)
+  private static final int NODE_CAPACITY_MULTIPLE = 4;
 
-  private static class StubbedFairScheduler extends FairScheduler {
-    public int lastPreemptMemory = -1;
+  private final boolean fairsharePreemption;
 
-    @Override
-    protected void preemptResources(Resource toPreempt) {
-      lastPreemptMemory = toPreempt.getMemory();
-    }
+  // App that takes up the entire cluster
+  private FSAppAttempt greedyApp;
 
-    public void resetLastPreemptResources() {
-      lastPreemptMemory = -1;
-    }
+  // Starving app that is expected to instigate preemption
+  private FSAppAttempt starvingApp;
+
+  @Parameterized.Parameters
+  public static Collection<Boolean[]> getParameters() {
+    return Arrays.asList(new Boolean[][] {
+        {true}, {false}});
   }
 
-  @Override
-  protected Configuration createConfiguration() {
-    Configuration conf = super.createConfiguration();
-    conf.setClass(YarnConfiguration.RM_SCHEDULER, StubbedFairScheduler.class,
-        ResourceScheduler.class);
-    conf.setBoolean(FairSchedulerConfiguration.PREEMPTION, true);
-    conf.set(FairSchedulerConfiguration.ALLOCATION_FILE, ALLOC_FILE);
-    return conf;
+  public TestFairSchedulerPreemption(Boolean fairshare) throws IOException {
+    fairsharePreemption = fairshare;
+    writeAllocFile();
   }
 
   @Before
-  public void setup() throws IOException {
-    conf = createConfiguration();
-    clock = new ControlledClock();
+  public void setup() {
+    createConfiguration();
+    conf.set(FairSchedulerConfiguration.ALLOCATION_FILE,
+        ALLOC_FILE.getAbsolutePath());
+    conf.setBoolean(FairSchedulerConfiguration.PREEMPTION, true);
+    conf.setFloat(FairSchedulerConfiguration.PREEMPTION_THRESHOLD, 0f);
+    conf.setInt(FairSchedulerConfiguration.WAIT_TIME_BEFORE_KILL, 0);
   }
 
   @After
   public void teardown() {
+    ALLOC_FILE.delete();
+    conf = null;
     if (resourceManager != null) {
       resourceManager.stop();
       resourceManager = null;
     }
-    conf = null;
   }
 
-  private void startResourceManager(float utilizationThreshold) {
-    conf.setFloat(FairSchedulerConfiguration.PREEMPTION_THRESHOLD,
-        utilizationThreshold);
-    resourceManager = new MockRM(conf);
-    resourceManager.start();
-
-    assertTrue(
-        resourceManager.getResourceScheduler() instanceof StubbedFairScheduler);
-    scheduler = (FairScheduler)resourceManager.getResourceScheduler();
-
-    scheduler.setClock(clock);
-    scheduler.updateInterval = 60 * 1000;
-  }
-
-  private void registerNodeAndSubmitApp(
-      int memory, int vcores, int appContainers, int appMemory) {
-    RMNode node1 = MockNodes.newNodeInfo(
-        1, Resources.createResource(memory, vcores), 1, "node1");
-    NodeAddedSchedulerEvent nodeEvent1 = new NodeAddedSchedulerEvent(node1);
-    scheduler.handle(nodeEvent1);
-
-    assertEquals("Incorrect amount of resources in the cluster",
-        memory, scheduler.rootMetrics.getAvailableMB());
-    assertEquals("Incorrect amount of resources in the cluster",
-        vcores, scheduler.rootMetrics.getAvailableVirtualCores());
-
-    createSchedulingRequest(appMemory, "queueA", "user1", appContainers);
-    scheduler.update();
-    // Sufficient node check-ins to fully schedule containers
-    for (int i = 0; i < 3; i++) {
-      NodeUpdateSchedulerEvent nodeUpdate1 = new NodeUpdateSchedulerEvent(node1);
-      scheduler.handle(nodeUpdate1);
-    }
-    assertEquals("app1's request is not met",
-        memory - appContainers * appMemory,
-        scheduler.rootMetrics.getAvailableMB());
-  }
-
-  @Test
-  public void testPreemptionWithFreeResources() throws Exception {
+  private void writeAllocFile() throws IOException {
+    /*
+     * Queue hierarchy:
+     * root
+     * |--- preemptable
+     *      |--- child-1
+     *      |--- child-2
+     * |--- nonpreemptible
+     *      |--- child-1
+     *      |--- child-2
+     */
     PrintWriter out = new PrintWriter(new FileWriter(ALLOC_FILE));
     out.println("<?xml version=\"1.0\"?>");
     out.println("<allocations>");
-    out.println("<queue name=\"default\">");
-    out.println("<maxResources>0mb,0vcores</maxResources>");
+
+    out.println("<queue name=\"preemptable\">");
+    writePreemptionParams(out);
+
+    // Child-1
+    out.println("<queue name=\"child-1\">");
+    writeResourceParams(out);
     out.println("</queue>");
-    out.println("<queue name=\"queueA\">");
-    out.println("<weight>1</weight>");
-    out.println("<minResources>1024mb,0vcores</minResources>");
+
+    // Child-2
+    out.println("<queue name=\"child-2\">");
+    writeResourceParams(out);
     out.println("</queue>");
-    out.println("<queue name=\"queueB\">");
-    out.println("<weight>1</weight>");
-    out.println("<minResources>1024mb,0vcores</minResources>");
+
+    out.println("</queue>"); // end of preemptable queue
+
+    // Queue with preemption disallowed
+    out.println("<queue name=\"nonpreemptable\">");
+    out.println("<allowPreemptionFrom>false" +
+        "</allowPreemptionFrom>");
+    writePreemptionParams(out);
+
+    // Child-1
+    out.println("<queue name=\"child-1\">");
+    writeResourceParams(out);
     out.println("</queue>");
-    out.print("<defaultMinSharePreemptionTimeout>5</defaultMinSharePreemptionTimeout>");
-    out.print("<fairSharePreemptionTimeout>10</fairSharePreemptionTimeout>");
+
+    // Child-2
+    out.println("<queue name=\"child-2\">");
+    writeResourceParams(out);
+    out.println("</queue>");
+
+    out.println("</queue>"); // end of nonpreemptable queue
+
     out.println("</allocations>");
     out.close();
 
-    startResourceManager(0f);
-    // Create node with 4GB memory and 4 vcores
-    registerNodeAndSubmitApp(4 * 1024, 4, 2, 1024);
+    assertTrue("Allocation file does not exist, not running the test",
+        ALLOC_FILE.exists());
+  }
 
-    // Verify submitting another request triggers preemption
-    createSchedulingRequest(1024, "queueB", "user1", 1, 1);
+  private void writePreemptionParams(PrintWriter out) {
+    if (fairsharePreemption) {
+      out.println("<fairSharePreemptionThreshold>1" +
+          "</fairSharePreemptionThreshold>");
+      out.println("<fairSharePreemptionTimeout>0" +
+          "</fairSharePreemptionTimeout>");
+    } else {
+      out.println("<minSharePreemptionTimeout>0" +
+          "</minSharePreemptionTimeout>");
+    }
+  }
+
+  private void writeResourceParams(PrintWriter out) {
+    if (!fairsharePreemption) {
+      out.println("<minResources>4096mb,4vcores</minResources>");
+    }
+  }
+
+  private void setupCluster() throws IOException {
+    resourceManager = new MockRM(conf);
+    resourceManager.start();
+    scheduler = (FairScheduler) resourceManager.getResourceScheduler();
+
+    // Create and add two nodes to the cluster
+    addNode(NODE_CAPACITY_MULTIPLE * 1024, NODE_CAPACITY_MULTIPLE);
+    addNode(NODE_CAPACITY_MULTIPLE * 1024, NODE_CAPACITY_MULTIPLE);
+  }
+
+  private void sendEnoughNodeUpdatesToAssignFully() {
+    for (RMNode node : rmNodes) {
+      NodeUpdateSchedulerEvent nodeUpdateSchedulerEvent =
+          new NodeUpdateSchedulerEvent(node);
+      for (int i = 0; i < NODE_CAPACITY_MULTIPLE; i++) {
+        scheduler.handle(nodeUpdateSchedulerEvent);
+      }
+    }
+  }
+
+  /**
+   * Submit application to {@code queue1} and take over the entire cluster.
+   * Submit application with larger containers to {@code queue2} that
+   * requires preemption from the first application.
+   *
+   * @param queue1 first queue
+   * @param queue2 second queue
+   * @throws InterruptedException if interrupted while waiting
+   */
+  private void submitApps(String queue1, String queue2)
+      throws InterruptedException {
+    // Create an app that takes up all the resources on the cluster
+    ApplicationAttemptId appAttemptId1
+        = createSchedulingRequest(1024, 1, queue1, "default",
+        NODE_CAPACITY_MULTIPLE * rmNodes.size());
+    greedyApp = scheduler.getSchedulerApp(appAttemptId1);
     scheduler.update();
-    clock.tickSec(6);
+    sendEnoughNodeUpdatesToAssignFully();
+    assertEquals(8, greedyApp.getLiveContainers().size());
 
-    ((StubbedFairScheduler) scheduler).resetLastPreemptResources();
-    scheduler.preemptTasksIfNecessary();
-    assertEquals("preemptResources() should have been called", 1024,
-        ((StubbedFairScheduler) scheduler).lastPreemptMemory);
+    // Create an app that takes up all the resources on the cluster
+    ApplicationAttemptId appAttemptId2
+        = createSchedulingRequest(2048, 2, queue2, "default",
+        NODE_CAPACITY_MULTIPLE * rmNodes.size() / 2);
+    starvingApp = scheduler.getSchedulerApp(appAttemptId2);
 
-    resourceManager.stop();
+    // Sleep long enough to pass
+    Thread.sleep(10);
 
-    startResourceManager(0.8f);
-    // Create node with 4GB memory and 4 vcores
-    registerNodeAndSubmitApp(4 * 1024, 4, 3, 1024);
-
-    // Verify submitting another request doesn't trigger preemption
-    createSchedulingRequest(1024, "queueB", "user1", 1, 1);
     scheduler.update();
-    clock.tickSec(6);
+  }
 
-    ((StubbedFairScheduler) scheduler).resetLastPreemptResources();
-    scheduler.preemptTasksIfNecessary();
-    assertEquals("preemptResources() should not have been called", -1,
-        ((StubbedFairScheduler) scheduler).lastPreemptMemory);
+  private void verifyPreemption() throws InterruptedException {
+    // Sleep long enough for four containers to be preempted. Note that the
+    // starved app must be queued four times for containers to be preempted.
+    for (int i = 0; i < 10000; i++) {
+      if (greedyApp.getLiveContainers().size() == 4) {
+        break;
+      }
+      Thread.sleep(10);
+    }
 
-    resourceManager.stop();
+    // Verify the right amount of containers are preempted from greedyApp
+    assertEquals(4, greedyApp.getLiveContainers().size());
 
-    startResourceManager(0.7f);
-    // Create node with 4GB memory and 4 vcores
-    registerNodeAndSubmitApp(4 * 1024, 4, 3, 1024);
+    sendEnoughNodeUpdatesToAssignFully();
 
-    // Verify submitting another request triggers preemption
-    createSchedulingRequest(1024, "queueB", "user1", 1, 1);
-    scheduler.update();
-    clock.tickSec(6);
+    // Verify the preempted containers are assigned to starvingApp
+    assertEquals(2, starvingApp.getLiveContainers().size());
+  }
 
-    ((StubbedFairScheduler) scheduler).resetLastPreemptResources();
-    scheduler.preemptTasksIfNecessary();
-    assertEquals("preemptResources() should have been called", 1024,
-        ((StubbedFairScheduler) scheduler).lastPreemptMemory);
+  private void verifyNoPreemption() throws InterruptedException {
+    // Sleep long enough to ensure not even one container is preempted.
+    for (int i = 0; i < 600; i++) {
+      if (greedyApp.getLiveContainers().size() != 8) {
+        break;
+      }
+      Thread.sleep(10);
+    }
+    assertEquals(8, greedyApp.getLiveContainers().size());
+  }
+
+  @Test
+  public void testPreemptionWithinSameLeafQueue() throws Exception {
+    setupCluster();
+    String queue = "root.preemptable.child-1";
+    submitApps(queue, queue);
+    if (fairsharePreemption) {
+      verifyPreemption();
+    } else {
+      verifyNoPreemption();
+    }
+  }
+
+  @Test
+  public void testPreemptionBetweenTwoSiblingLeafQueues() throws Exception {
+    setupCluster();
+    submitApps("root.preemptable.child-1", "root.preemptable.child-2");
+    verifyPreemption();
+  }
+
+  @Test
+  public void testPreemptionBetweenNonSiblingQueues() throws Exception {
+    setupCluster();
+    submitApps("root.preemptable.child-1", "root.nonpreemptable.child-1");
+    verifyPreemption();
+  }
+
+  @Test
+  public void testNoPreemptionFromDisallowedQueue() throws Exception {
+    setupCluster();
+    submitApps("root.nonpreemptable.child-1", "root.preemptable.child-1");
+    verifyNoPreemption();
   }
 }

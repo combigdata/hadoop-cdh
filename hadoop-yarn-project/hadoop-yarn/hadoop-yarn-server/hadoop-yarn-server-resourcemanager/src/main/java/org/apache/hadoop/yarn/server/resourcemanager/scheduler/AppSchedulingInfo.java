@@ -271,6 +271,22 @@ public class AppSchedulingInfo {
   }
 
   /**
+   * Method to return the next resource request to be serviced.
+   *
+   * In the initial implementation, we just pick any {@link ResourceRequest}
+   * corresponding to the highest priority.
+   *
+   * @return next {@link ResourceRequest} to allocate resources for.
+   */
+  @Unstable
+  public synchronized ResourceRequest getNextResourceRequest() {
+    for (ResourceRequest rr : getAllResourceRequests()) {
+      return rr;
+    }
+    return null;
+  }
+
+  /**
    * Returns if the node is either blacklisted by the user or the system
    * @param resourceName the resourcename
    * @param useAMBlacklist true if it should check amBlacklist
