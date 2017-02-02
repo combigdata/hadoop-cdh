@@ -2528,7 +2528,9 @@ public class DFSOutputStream extends FSOutputSummer
       long duration = Time.monotonicNow() - begin;
       if (duration > dfsclientSlowLogThresholdMs) {
         DFSClient.LOG.warn("Slow waitForAckedSeqno took " + duration
-            + "ms (threshold=" + dfsclientSlowLogThresholdMs + "ms)");
+            + "ms (threshold=" + dfsclientSlowLogThresholdMs
+            + "ms). File being written: " + src + ", block: " + streamer.block
+            + ", Write pipeline datanodes: " + Arrays.toString(streamer.nodes));
       }
     } finally {
       scope.close();
