@@ -85,7 +85,6 @@ public class Dispatcher {
   private static final long GB = 1L << 30; // 1GB
   private static final long MAX_BLOCKS_SIZE_TO_FETCH = 2 * GB;
 
-  private static final int MAX_NO_PENDING_MOVE_ITERATIONS = 5;
   /**
    * the period of time to delay the usage of a DataNode after hitting
    * errors when using it for migrating data
@@ -993,6 +992,8 @@ public class Dispatcher {
     }
     if (moveExecutor == null) {
       LOG.warn("No mover threads available: skip moving " + p);
+      targetDn.removePendingBlock(p);
+      p.proxySource.removePendingBlock(p);
       return;
     }
 
