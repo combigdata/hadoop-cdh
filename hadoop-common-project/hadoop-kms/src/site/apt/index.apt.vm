@@ -82,9 +82,12 @@ Hadoop Key Management Server (KMS) - Documentation Sets ${project.version}
   of 30000 millisecond regardless the number of times the key is being access
   (to avoid stale keys to be considered current).
 
-  For the <<<getKeyVersion()>>> method, cached entries are kept with a default
-  inactivity timeout of 600000 milliseconds (10 mins). This time out is
-  configurable via the following property in the <<<etc/hadoop/kms-site.xml>>>
+  For the <<<getKeyVersion()>>> and <<<getMetadata()>>> methods, cached entries are kept with a default
+  inactivity timeout of 600000 milliseconds (10 mins).
+
+  The cache is invalidated when the key is deleted by <<<deleteKey()>>>, or when <<<invalidateCache()>>> is called.
+
+  This time out is configurable via the following property in the <<<etc/hadoop/kms-site.xml>>>
   configuration file:
 
 +---+
@@ -811,6 +814,21 @@ Content-Type: application/json
   "material"    : "<material>",    //base64, not present without GET ACL
 }
 +---+
+
+*** Invalidate Cache of a Key
+
+  <REQUEST:>
+
++---+
+POST http://HOST:PORT/kms/v1/key/<key-name>/_invalidatecache
++---+
+
+  <RESPONSE:>
+
++---+
+200 OK
++---+
+
 
 *** Delete Key
 

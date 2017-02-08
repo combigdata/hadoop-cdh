@@ -45,7 +45,8 @@ public class KeyShell extends Configured implements Tool {
       "   [" + CreateCommand.USAGE + "]\n" +
       "   [" + RollCommand.USAGE + "]\n" +
       "   [" + DeleteCommand.USAGE + "]\n" +
-      "   [" + ListCommand.USAGE + "]\n";
+      "   [" + ListCommand.USAGE + "]\n" +
+      "   [" + InvalidateCacheCommand.USAGE + "]\n";
   private static final String LIST_METADATA = "keyShell.list.metadata";
   @VisibleForTesting
   public static final String NO_VALID_PROVIDERS =
@@ -107,6 +108,7 @@ public class KeyShell extends Configured implements Tool {
    * % hadoop key roll keyName [-provider providerPath]
    * % hadoop key list [-provider providerPath]
    * % hadoop key delete keyName [-provider providerPath] [-i]
+   * % hadoop key invalidateCache keyName [-provider providerPath]
    * </pre>
    * @param args Command line arguments.
    * @return 0 on success, 1 on failure.
@@ -153,6 +155,15 @@ public class KeyShell extends Configured implements Tool {
         }
       } else if ("list".equals(args[i])) {
         command = new ListCommand();
+      } else if ("invalidateCache".equals(args[i])) {
+        String keyName = "-help";
+        if (moreTokens) {
+          keyName = args[++i];
+        }
+        command = new InvalidateCacheCommand(keyName);
+        if ("-help".equals(keyName)) {
+          return 1;
+        }
       } else if ("-size".equals(args[i]) && moreTokens) {
         options.setBitLength(Integer.parseInt(args[++i]));
       } else if ("-cipher".equals(args[i]) && moreTokens) {
@@ -224,6 +235,10 @@ public class KeyShell extends Configured implements Tool {
       out.println("=========================================================" +
           "======");
       out.println(ListCommand.USAGE + ":\n\n" + ListCommand.DESC);
+      out.println("=========================================================" +
+          "======");
+      out.println(InvalidateCacheCommand.USAGE + ":\n\n"
+          + InvalidateCacheCommand.DESC);
     }
   }
 
@@ -516,6 +531,57 @@ public class KeyShell extends Configured implements Tool {
         throw e;
       } catch (NoSuchAlgorithmException e) {
         out.println(keyName + " has not been created. " + e.toString());
+        throw e;
+      }
+    }
+
+    @Override
+    public String getUsage() {
+      return USAGE + ":\n\n" + DESC;
+    }
+  }
+
+  private class InvalidateCacheCommand extends Command {
+    public static final String USAGE =
+        "invalidateCache <keyname> [-provider <provider>] [-help]";
+    public static final String DESC =
+        "The invalidateCache subcommand invalidates the cached key versions\n"
+            + "of the specified key, on the provider indicated using the"
+            + " -provider argument.\n";
+
+    private String keyName = null;
+
+    InvalidateCacheCommand(String keyName) {
+      this.keyName = keyName;
+    }
+
+    public boolean validate() {
+      boolean rc = true;
+      provider = getKeyProvider();
+      if (provider == null) {
+        out.println("Invalid provider.");
+        rc = false;
+      }
+      if (keyName == null) {
+        out.println("Please provide a <keyname>.\n" +
+            "See the usage description by using -help.");
+        rc = false;
+      }
+      return rc;
+    }
+
+    public void execute() throws NoSuchAlgorithmException, IOException {
+      try {
+        warnIfTransientProvider();
+        out.println("Invalidating cache on KeyProvider: "
+            + provider + "\n  for key name: " + keyName);
+        provider.invalidateCache(keyName);
+        out.println("Cached keyversions of " + keyName
+            + " has been successfully invalidated.");
+        printProviderWritten();
+      } catch (IOException e) {
+        out.println("Cannot invalidate cache for key: " + keyName +
+            " within KeyProvider: " + provider + ". " + e.toString());
         throw e;
       }
     }
