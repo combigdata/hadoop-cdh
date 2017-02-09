@@ -3825,6 +3825,8 @@ public class TestFairScheduler extends FairSchedulerTestBase {
     scheduler.handle(updateEvent);
     assertEquals("Application1's AM should be finished",
         0, app1.getLiveContainers().size());
+    assertEquals("Finished application usage should be none",
+        Resources.none(), app1.getResourceUsage());
     assertEquals("Application3's AM should be running",
         1, app3.getLiveContainers().size());
     assertEquals("Application3's AM requests 1024 MB memory",
@@ -3843,6 +3845,8 @@ public class TestFairScheduler extends FairSchedulerTestBase {
         0, app4.getAMResource().getMemory());
     assertEquals("Application4's AM should not be running",
         0, app4.getLiveContainers().size());
+    assertEquals("Finished application usage should be none",
+        Resources.none(), app4.getResourceUsage());
     assertEquals("Queue1's AM resource usage should be 2048 MB memory",
         2048, queue1.getAmResourceUsage().getMemory());
 
@@ -3857,6 +3861,8 @@ public class TestFairScheduler extends FairSchedulerTestBase {
         0, app5.getAMResource().getMemory());
     assertEquals("Application5's AM should not be running",
         0, app5.getLiveContainers().size());
+    assertEquals("Finished application usage should be none",
+        Resources.none(), app5.getResourceUsage());
     assertEquals("Queue1's AM resource usage should be 2048 MB memory",
         2048, queue1.getAmResourceUsage().getMemory());
 
@@ -3868,6 +3874,8 @@ public class TestFairScheduler extends FairSchedulerTestBase {
     scheduler.handle(updateEvent);
     assertEquals("Application5's AM should not be running",
         0, app5.getLiveContainers().size());
+    assertEquals("Finished application usage should be none",
+        Resources.none(), app5.getResourceUsage());
     assertEquals("Queue1's AM resource usage should be 2048 MB memory",
         2048, queue1.getAmResourceUsage().getMemory());
 
@@ -3882,8 +3890,12 @@ public class TestFairScheduler extends FairSchedulerTestBase {
     scheduler.handle(updateEvent);
     assertEquals("Application2's AM should be finished",
         0, app2.getLiveContainers().size());
+    assertEquals("Finished application usage should be none",
+        Resources.none(), app2.getResourceUsage());
     assertEquals("Application3's AM should be finished",
         0, app3.getLiveContainers().size());
+    assertEquals("Finished application usage should be none",
+        Resources.none(), app3.getResourceUsage());
     assertEquals("Application5's AM should be running",
         1, app5.getLiveContainers().size());
     assertEquals("Application5's AM requests 2048 MB memory",
@@ -3903,6 +3915,8 @@ public class TestFairScheduler extends FairSchedulerTestBase {
     scheduler.handle(containerExpired);
     assertEquals("Application5's AM should have 0 container",
         0, app5.getLiveContainers().size());
+    assertEquals("Finished application usage should be none",
+        Resources.none(), app5.getResourceUsage());
     assertEquals("Queue1's AM resource usage should be 2048 MB memory",
         2048, queue1.getAmResourceUsage().getMemory());
     scheduler.update();
@@ -3925,6 +3939,8 @@ public class TestFairScheduler extends FairSchedulerTestBase {
     scheduler.handle(updateEvent);
     assertEquals("Application6's AM should not be running",
         0, app6.getLiveContainers().size());
+    assertEquals("Finished application usage should be none",
+        Resources.none(), app6.getResourceUsage());
     assertEquals("Application6's AM resource shouldn't be updated",
         0, app6.getAMResource().getMemory());
     assertEquals("Queue1's AM resource usage should be 2048 MB memory",
