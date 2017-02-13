@@ -127,7 +127,14 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
     
     Container container = rmContainer.getContainer();
     ContainerId containerId = container.getId();
-    
+
+    // Remove from the list of containers
+    if (liveContainers.remove(containerId) == null) {
+      LOG.info("Additional complete request on completed container " +
+          rmContainer.getContainerId());
+      return;
+    }
+
     // Remove from the list of newly allocated containers if found
     newlyAllocatedContainers.remove(rmContainer);
     
@@ -140,15 +147,12 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
         );
     LOG.info("Completed container: " + rmContainer.getContainerId() + 
         " in state: " + rmContainer.getState() + " event:" + event);
-    
-    // Remove from the list of containers
-    liveContainers.remove(rmContainer.getContainerId());
 
-    RMAuditLogger.logSuccess(getUser(), 
-        AuditConstants.RELEASE_CONTAINER, "SchedulerApp", 
+    RMAuditLogger.logSuccess(getUser(),
+        AuditConstants.RELEASE_CONTAINER, "SchedulerApp",
         getApplicationId(), containerId);
-    
-    // Update usage metrics 
+
+    // Update usage metrics
     Resource containerResource = rmContainer.getContainer().getResource();
     queue.getMetrics().releaseResources(getUser(), 1, containerResource);
     Resources.subtractFrom(currentConsumption, containerResource);
@@ -162,13 +166,13 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
 
   private synchronized void unreserveInternal(
       Priority priority, FSSchedulerNode node) {
-    Map<NodeId, RMContainer> reservedContainers = 
+    Map<NodeId, RMContainer> reservedContainers =
         this.reservedContainers.get(priority);
     RMContainer reservedContainer = reservedContainers.remove(node.getNodeID());
     if (reservedContainers.isEmpty()) {
       this.reservedContainers.remove(priority);
     }
-    
+
     // Reset the re-reservation count
     resetReReservations(priority);
 
@@ -241,10 +245,10 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
   public synchronized float getLocalityWaitFactor(
       Priority priority, int clusterNodes) {
     // Estimate: Required unique resources (i.e. hosts + racks)
-    int requiredResources = 
+    int requiredResources =
         Math.max(this.getResourceRequests(priority).size() - 1, 0);
-    
-    // waitFactor can't be more than '1' 
+
+    // waitFactor can't be more than '1'
     // i.e. no point skipping more than clustersize opportunities
     return Math.min(((float)requiredResources / clusterNodes), 1.0f);
   }
@@ -368,7 +372,7 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
       }
     }
 
-    // Required sanity check - AM can call 'allocate' to update resource 
+    // Required sanity check - AM can call 'allocate' to update resource
     // request without locking the scheduler, hence we need to check
     if (getTotalRequiredResources(priority) <= 0) {
       return null;
@@ -379,7 +383,7 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
       container =
           createContainer(node, request.getCapability(), request.getPriority());
     }
-    
+
     // Create RMContainer
     RMContainer rmContainer = new RMContainerImpl(container,
         getApplicationAttemptId(), node.getNodeID(),
@@ -387,7 +391,7 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
 
     // Add it to allContainers list.
     newlyAllocatedContainers.add(rmContainer);
-    liveContainers.put(container.getId(), rmContainer);    
+    liveContainers.put(container.getId(), rmContainer);
 
     // Update consumption and track allocations
     List<ResourceRequest> resourceRequestList = appSchedulingInfo.allocate(
@@ -402,15 +406,15 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
         new RMContainerEvent(container.getId(), RMContainerEventType.START));
 
     if (LOG.isDebugEnabled()) {
-      LOG.debug("allocate: applicationAttemptId=" 
-          + container.getId().getApplicationAttemptId() 
+      LOG.debug("allocate: applicationAttemptId="
+          + container.getId().getApplicationAttemptId()
           + " container=" + container.getId() + " host="
           + container.getNodeId().getHost() + " type=" + type);
     }
-    RMAuditLogger.logSuccess(getUser(), 
-        AuditConstants.ALLOC_CONTAINER, "SchedulerApp", 
+    RMAuditLogger.logSuccess(getUser(),
+        AuditConstants.ALLOC_CONTAINER, "SchedulerApp",
         getApplicationId(), container.getId());
-    
+
     return rmContainer;
   }
 
@@ -441,7 +445,7 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
   public Set<RMContainer> getPreemptionContainers() {
     return preemptionMap.keySet();
   }
-  
+
   @Override
   public FSLeafQueue getQueue() {
     return (FSLeafQueue)super.getQueue();
