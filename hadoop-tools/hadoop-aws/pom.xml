@@ -340,6 +340,15 @@
           <forkedProcessTimeoutInSeconds>3600</forkedProcessTimeoutInSeconds>
         </configuration>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <testExcludes>
+            <testExclude>**/TestDynamoDBMetadataStore.java</testExclude>
+          </testExcludes>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
 
