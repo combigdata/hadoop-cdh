@@ -351,10 +351,18 @@ public class TestDynamoDBMetadataStore extends MetadataStoreTestBase {
    */
   @Test
   public void testItemLacksVersion() throws Throwable {
-    intercept(IOException.class, E_NOT_VERSION_MARKER,
-        () -> verifyVersionCompatibility("table",
-            new Item().withPrimaryKey(
-                createVersionMarkerPrimaryKey(VERSION_MARKER))));
+    boolean exceptionThrown = false;
+    try {
+      verifyVersionCompatibility("table",
+          new Item().withPrimaryKey(
+              createVersionMarkerPrimaryKey(VERSION_MARKER)));
+    } catch (IOException e) {
+      exceptionThrown = true;
+      String message = e.getMessage();
+      assertTrue("Expected " + E_NOT_VERSION_MARKER +", got " + message,
+          message.contains(E_NOT_VERSION_MARKER));
+    }
+    assertTrue("Expected an exception but none was thrown", exceptionThrown);
   }
 
   /**
@@ -366,9 +374,17 @@ public class TestDynamoDBMetadataStore extends MetadataStoreTestBase {
     Table table = verifyTableInitialized(BUCKET);
     table.deleteItem(VERSION_MARKER_PRIMARY_KEY);
 
-    // create existing table
-    intercept(IOException.class, E_NO_VERSION_MARKER,
-        () -> ddbms.initTable());
+    boolean exceptionThrown = false;
+    try {
+      // create existing table
+      ddbms.initTable();
+    } catch (IOException e) {
+      exceptionThrown = true;
+      String message = e.getMessage();
+      assertTrue("Expected " + E_NO_VERSION_MARKER +", got " + message,
+          message.contains(E_NO_VERSION_MARKER));
+    }
+    assertTrue("Expected an exception but none was thrown", exceptionThrown);
   }
 
   /**
@@ -383,9 +399,17 @@ public class TestDynamoDBMetadataStore extends MetadataStoreTestBase {
     Item v200 = createVersionMarker(VERSION_MARKER, 200, 0);
     table.putItem(v200);
 
-    // create existing table
-    intercept(IOException.class, E_INCOMPATIBLE_VERSION,
-        () -> ddbms.initTable());
+    boolean exceptionThrown = false;
+    try {
+      // create existing table
+      ddbms.initTable();
+    } catch (IOException e) {
+      exceptionThrown = true;
+      String message = e.getMessage();
+      assertTrue("Expected " + E_INCOMPATIBLE_VERSION +", got " + message,
+          message.contains(E_INCOMPATIBLE_VERSION));
+    }
+    assertTrue("Expected an exception but none was thrown", exceptionThrown);
   }
 
   /**
