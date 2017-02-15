@@ -353,7 +353,7 @@ public class FSLeafQueue extends FSQueue {
     RMContainer toBePreempted = null;
 
     // If this queue is not over its fair share, reject
-    if (!preemptContainerPreCheck()) {
+    if (!canBePreempted()) {
       return toBePreempted;
     }
 
@@ -553,16 +553,6 @@ public class FSLeafQueue extends FSQueue {
     if (!isStarvedForFairShare()) {
       setLastTimeAtFairShareThreshold(now);
     }
-  }
-
-  /**
-   * Helper method to check if the queue should preempt containers
-   *
-   * @return true if check passes (can preempt) or false otherwise
-   */
-  private boolean preemptContainerPreCheck() {
-    return parent.getPolicy().checkIfUsageOverFairShare(getResourceUsage(),
-        getFairShare());
   }
 
   /**
