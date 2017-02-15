@@ -121,6 +121,11 @@ public class AsyncDispatcher extends AbstractService implements Dispatcher {
     super.serviceInit(conf);
   }
 
+  @VisibleForTesting
+  public void setExitOnDispatchException(boolean exitOnDispatchException) {
+    this.exitOnDispatchException = exitOnDispatchException;
+  }
+
   @Override
   protected void serviceStart() throws Exception {
     //start all the components

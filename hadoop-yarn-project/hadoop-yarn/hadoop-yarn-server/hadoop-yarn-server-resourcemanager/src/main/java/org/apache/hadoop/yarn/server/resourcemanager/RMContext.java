@@ -124,4 +124,6 @@ public interface RMContext {
   boolean isSchedulerReadyForAllocatingContainers();
   
   Configuration getYarnConfiguration();
+
+  ResourceManager getResourceManager();
 }

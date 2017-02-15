@@ -68,6 +68,7 @@ public class RMContextImpl implements RMContext {
 
   private Configuration yarnConfiguration;
 
+  private ResourceManager resourceManager;
   /**
    * Default constructor. To be used in conjunction with setter methods for
    * individual fields.
@@ -409,5 +410,14 @@ public class RMContextImpl implements RMContext {
 
   public void setYarnConfiguration(Configuration yarnConfiguration) {
     this.yarnConfiguration=yarnConfiguration;
+  }
+
+  @Override
+  public ResourceManager getResourceManager() {
+    return resourceManager;
+  }
+
+  public void setResourceManager(ResourceManager rm) {
+    this.resourceManager = rm;
   }
 }
