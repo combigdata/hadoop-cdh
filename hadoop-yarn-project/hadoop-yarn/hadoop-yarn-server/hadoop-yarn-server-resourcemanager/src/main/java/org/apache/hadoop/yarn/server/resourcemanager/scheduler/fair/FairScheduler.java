@@ -1545,4 +1545,8 @@ public class FairScheduler extends
   public float getReservableNodesRatio() {
     return reservableNodesRatio;
   }
+
+  long getNMHeartbeatInterval() {
+    return nmHeartbeatInterval;
+  }
 }
