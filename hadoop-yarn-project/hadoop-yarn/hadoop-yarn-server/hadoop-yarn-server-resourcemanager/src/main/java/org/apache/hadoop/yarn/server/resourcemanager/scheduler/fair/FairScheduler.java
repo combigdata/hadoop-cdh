@@ -463,7 +463,7 @@ public class FairScheduler extends
           .handle(new RMAppRejectedEvent(applicationId, msg));
       return;
     }
-  
+
     SchedulerApplication<FSAppAttempt> application =
         new SchedulerApplication<FSAppAttempt>(queue, user);
     applications.put(applicationId, application);
@@ -512,7 +512,7 @@ public class FairScheduler extends
     } else {
       maxRunningEnforcer.trackNonRunnableApp(attempt);
     }
-    
+
     queue.getMetrics().submitAppAttempt(user);
 
     LOG.info("Added Application Attempt " + applicationAttemptId
@@ -788,19 +788,16 @@ public class FairScheduler extends
         application.showRequests();
       }
 
+      Set<ContainerId> preemptionContainerIds =
+          application.getPreemptionContainerIds();
       if (LOG.isDebugEnabled()) {
-        LOG.debug("allocate: post-update" +
-            " applicationAttemptId=" + appAttemptId +
-            " #ask=" + ask.size() +
-            " reservation= " + application.getCurrentReservation());
+        LOG.debug(
+            "allocate: post-update" + " applicationAttemptId=" + appAttemptId
+                + " #ask=" + ask.size() + " reservation= " + application
+                .getCurrentReservation());
 
-        LOG.debug("Preempting " + application.getPreemptionContainers().size()
+        LOG.debug("Preempting " + preemptionContainerIds.size()
             + " container(s)");
-      }
-
-      Set<ContainerId> preemptionContainerIds = new HashSet<ContainerId>();
-      for (RMContainer container : application.getPreemptionContainers()) {
-        preemptionContainerIds.add(container.getContainerId());
       }
 
       if (application.isWaitingForAMContainer(application.getApplicationId())) {
@@ -824,7 +821,7 @@ public class FairScheduler extends
         allocation.getNMTokenList());
     }
   }
-  
+
   /**
    * Process a heartbeat update from a node.
    */
@@ -836,14 +833,14 @@ public class FairScheduler extends
     }
     eventLog.log("HEARTBEAT", nm.getHostName());
     FSSchedulerNode node = getFSSchedulerNode(nm.getNodeID());
-    
+
     List<UpdatedContainerInfo> containerInfoList = nm.pullContainerUpdates();
     List<ContainerStatus> newlyLaunchedContainers = new ArrayList<ContainerStatus>();
     List<ContainerStatus> completedContainers = new ArrayList<ContainerStatus>();
     for(UpdatedContainerInfo containerInfo : containerInfoList) {
       newlyLaunchedContainers.addAll(containerInfo.getNewlyLaunchedContainers());
       completedContainers.addAll(containerInfo.getCompletedContainers());
-    } 
+    }
     // Processing the newly launched containers
     for (ContainerStatus launchedContainer : newlyLaunchedContainers) {
       containerLaunchedOnNode(launchedContainer.getContainerId(), node);
@@ -1421,16 +1418,16 @@ public class FairScheduler extends
       if (targetQueue == oldQueue) {
         return oldQueue.getQueueName();
       }
-      
+
       if (oldQueue.isRunnableApp(attempt)) {
         verifyMoveDoesNotViolateConstraints(attempt, oldQueue, targetQueue);
       }
-      
+
       executeMove(app, attempt, oldQueue, targetQueue);
       return targetQueue.getQueueName();
     }
   }
-  
+
   private void verifyMoveDoesNotViolateConstraints(FSAppAttempt app,
       FSLeafQueue oldQueue, FSLeafQueue targetQueue) throws YarnException {
     String queueName = targetQueue.getQueueName();
@@ -1530,7 +1527,7 @@ public class FairScheduler extends
    * Process resource update on a node and update Queue.
    */
   @Override
-  public synchronized void updateNodeResource(RMNode nm, 
+  public synchronized void updateNodeResource(RMNode nm,
       ResourceOption resourceOption) {
     super.updateNodeResource(nm, resourceOption);
     updateRootQueueMetrics();
