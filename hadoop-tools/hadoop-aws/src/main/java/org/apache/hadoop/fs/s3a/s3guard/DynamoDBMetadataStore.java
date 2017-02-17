@@ -266,7 +266,7 @@ public class DynamoDBMetadataStore implements MetadataStore {
         ReflectionUtils.newInstance(clsDdb, conf)
             .createDynamoDBClient(conf);
     dynamoDB = new DynamoDB(dynamoDBClient);
-    //region = dynamoDBClient.getEndpointPrefix();
+    region = dynamoDBClient.getEndpointPrefix();
 
     initTable();
   }
