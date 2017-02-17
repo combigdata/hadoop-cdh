@@ -354,6 +354,9 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <forkedProcessTimeoutInSeconds>3600</forkedProcessTimeoutInSeconds>
+          <excludes>
+            <exclude>**/TestDynamoDBMetadataStore.java</exclude>
+          </excludes>
         </configuration>
       </plugin>
       <plugin>
@@ -395,14 +398,6 @@
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <configuration>
-          <testExcludes>
-            <testExclude>**/TestDynamoDBMetadataStore.java</testExclude>
-          </testExcludes>
-        </configuration>
-      </plugin>
-      <plugin>
         <artifactId>maven-dependency-plugin</artifactId>
         <executions>
           <execution>
