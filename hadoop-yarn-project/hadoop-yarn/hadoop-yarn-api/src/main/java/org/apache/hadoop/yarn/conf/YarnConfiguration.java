@@ -1681,6 +1681,11 @@ public class YarnConfiguration extends Configuration {
       YARN_PREFIX + "am.blacklisting.disable-failure-threshold";
   public static final float DEFAULT_AM_BLACKLISTING_DISABLE_THRESHOLD = 0.8f;
 
+  public static final String APP_ATTEMPT_DIAGNOSTICS_LIMIT_KC =
+          YARN_PREFIX + "app.attempt.diagnostics.limit.kc";
+
+  public static final int DEFAULT_APP_ATTEMPT_DIAGNOSTICS_LIMIT_KC = 64;
+
 
   public YarnConfiguration() {
     super();
