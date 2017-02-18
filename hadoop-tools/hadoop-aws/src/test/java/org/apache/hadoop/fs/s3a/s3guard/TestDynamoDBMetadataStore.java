@@ -285,13 +285,13 @@ public class TestDynamoDBMetadataStore extends MetadataStoreTestBase {
     ms.put(new PathMetadata(basicFileStatus(newDir, 0, true)));
 
     final Collection<PathMetadata> oldMetas =
-        numDelete < 0 ? null : new ArrayList<>(numDelete);
+        numDelete < 0 ? null : new ArrayList<PathMetadata>(numDelete);
     for (int i = 0; i < numDelete; i++) {
       oldMetas.add(new PathMetadata(
           basicFileStatus(new Path(oldDir, "child" + i), i, true)));
     }
     final Collection<PathMetadata> newMetas =
-        numPut < 0 ? null : new ArrayList<>(numPut);
+        numPut < 0 ? null : new ArrayList<PathMetadata>(numPut);
     for (int i = 0; i < numPut; i++) {
       newMetas.add(new PathMetadata(
           basicFileStatus(new Path(newDir, "child" + i), i, false)));
