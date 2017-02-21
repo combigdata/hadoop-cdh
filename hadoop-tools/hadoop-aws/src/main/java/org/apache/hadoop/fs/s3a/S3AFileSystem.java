@@ -30,6 +30,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -113,7 +115,8 @@ public class S3AFileSystem extends FileSystem {
   private long partSize;
   private boolean enableMultiObjectsDelete;
   private TransferManager transfers;
-  private ExecutorService threadPoolExecutor;
+  private ExecutorService boundedThreadPool;
+  private ExecutorService unboundedThreadPool;
   private long multiPartThreshold;
   public static final Logger LOG = LoggerFactory.getLogger(S3AFileSystem.class);
   private CannedAccessControlList cannedACL;
@@ -202,9 +205,17 @@ public class S3AFileSystem extends FileSystem {
         totalTasks = 1;
       }
       long keepAliveTime = conf.getLong(KEEPALIVE_TIME, DEFAULT_KEEPALIVE_TIME);
-      threadPoolExecutor = new BlockingThreadPoolExecutorService(maxThreads,
-          maxThreads + totalTasks, keepAliveTime, TimeUnit.SECONDS,
+      boundedThreadPool = new BlockingThreadPoolExecutorService(
+          maxThreads,
+          maxThreads + totalTasks,
+          keepAliveTime, TimeUnit.SECONDS,
           "s3a-transfer-shared");
+      unboundedThreadPool = new ThreadPoolExecutor(
+          maxThreads, Integer.MAX_VALUE,
+          keepAliveTime, TimeUnit.SECONDS,
+          new LinkedBlockingQueue<Runnable>(),
+          BlockingThreadPoolExecutorService.newDaemonThreadFactory(
+              "s3a-transfer-unbounded"));
 
       initTransferManager();
 
@@ -265,7 +276,7 @@ public class S3AFileSystem extends FileSystem {
     transferConfiguration.setMultipartCopyPartSize(partSize);
     transferConfiguration.setMultipartCopyThreshold(multiPartThreshold);
 
-    transfers = new TransferManager(s3, threadPoolExecutor);
+    transfers = new TransferManager(s3, unboundedThreadPool);
     transfers.setConfiguration(transferConfiguration);
   }
 
@@ -501,7 +512,7 @@ public class S3AFileSystem extends FileSystem {
               cannedACL,
               partSize,
               multiPartThreshold,
-              threadPoolExecutor),
+              boundedThreadPool),
           statistics);
     }
     // We pass null to FSDataOutputStream so it won't count writes that
@@ -1671,6 +1682,8 @@ public class S3AFileSystem extends FileSystem {
           .append(serverSideEncryptionAlgorithm)
           .append('\'');
     }
+    sb.append(", boundedExecutor=").append(boundedThreadPool);
+    sb.append(", unboundedExecutor=").append(unboundedThreadPool);
     sb.append(", statistics {")
         .append(statistics)
         .append("}");
