@@ -332,6 +332,7 @@ public class TestMaintenanceState extends AdminStatesBaseTest {
 
   private void testExpectedReplication(int replicationFactor,
       int expectedReplicasInRead) throws IOException {
+    setup();
     startCluster(1, 5);
 
     final Path file = new Path("/testExpectedReplication.dat");
@@ -351,6 +352,7 @@ public class TestMaintenanceState extends AdminStatesBaseTest {
         nodeOutofService));
 
     cleanupFile(fileSys, file);
+    teardown();
   }
 
   /**
@@ -491,6 +493,7 @@ public class TestMaintenanceState extends AdminStatesBaseTest {
 
   private void testDecommissionDifferentNodeAfterMaintenance(int repl)
       throws Exception {
+    setup();
     startCluster(1, 5);
 
     final Path file =
@@ -518,6 +521,7 @@ public class TestMaintenanceState extends AdminStatesBaseTest {
     assertNull(checkWithRetry(ns, fileSys, file, repl + 1, null));
 
     cleanupFile(fileSys, file);
+    teardown();
   }
 
 
@@ -547,6 +551,7 @@ public class TestMaintenanceState extends AdminStatesBaseTest {
    */
   private void testChangeReplicationFactor(int oldFactor, int newFactor,
       int expectedLiveReplicas) throws IOException {
+    setup();
     LOG.info("Starting testChangeReplicationFactor {} {} {}",
         oldFactor, newFactor, expectedLiveReplicas);
     startCluster(1, 5);
@@ -579,6 +584,7 @@ public class TestMaintenanceState extends AdminStatesBaseTest {
     assertNull(checkWithRetry(ns, fileSys, file, newFactor, null));
 
     cleanupFile(fileSys, file);
+    teardown();
   }
 
 
