@@ -261,12 +261,15 @@ public class Balancer {
         DFSConfigKeys.DFS_DATANODE_BALANCE_MAX_NUM_CONCURRENT_MOVES_KEY,
         DFSConfigKeys.DFS_DATANODE_BALANCE_MAX_NUM_CONCURRENT_MOVES_DEFAULT);
     final int blockMoveTimeout = conf.getInt(
-            DFSConfigKeys.DFS_BALANCER_BLOCK_MOVE_TIMEOUT,
-            DFSConfigKeys.DFS_BALANCER_BLOCK_MOVE_TIMEOUT_DEFAULT);
+        DFSConfigKeys.DFS_BALANCER_BLOCK_MOVE_TIMEOUT,
+        DFSConfigKeys.DFS_BALANCER_BLOCK_MOVE_TIMEOUT_DEFAULT);
+    final int maxNoMoveInterval = conf.getInt(
+        DFSConfigKeys.DFS_BALANCER_MAX_NO_MOVE_INTERVAL_KEY,
+        DFSConfigKeys.DFS_BALANCER_MAX_NO_MOVE_INTERVAL_DEFAULT);
     this.nnc = theblockpool;
     this.dispatcher = new Dispatcher(theblockpool, p.includedNodes,
         p.excludedNodes, movedWinWidth, moverThreads, dispatcherThreads,
-        maxConcurrentMovesPerNode, blockMoveTimeout, conf);
+        maxConcurrentMovesPerNode, blockMoveTimeout, maxNoMoveInterval, conf);
 
     this.threshold = p.threshold;
     this.policy = p.policy;
