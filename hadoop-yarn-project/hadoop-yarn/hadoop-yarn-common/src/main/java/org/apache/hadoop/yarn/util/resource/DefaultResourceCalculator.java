@@ -26,7 +26,8 @@ import org.apache.hadoop.yarn.api.records.Resource;
 public class DefaultResourceCalculator extends ResourceCalculator {
   
   @Override
-  public int compare(Resource unused, Resource lhs, Resource rhs) {
+  public int compare(Resource unused, Resource lhs, Resource rhs,
+      boolean singleType) {
     // Only consider memory
     return lhs.getMemory() - rhs.getMemory();
   }
