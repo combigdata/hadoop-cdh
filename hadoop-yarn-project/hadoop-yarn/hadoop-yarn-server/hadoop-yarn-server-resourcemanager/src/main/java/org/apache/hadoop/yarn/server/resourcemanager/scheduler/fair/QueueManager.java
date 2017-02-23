@@ -511,7 +511,7 @@ public class QueueManager {
       // Set scheduling policies and update queue metrics
       try {
         SchedulingPolicy policy = queueConf.getSchedulingPolicy(queue.getName());
-        policy.initialize(scheduler.getClusterResource());
+        policy.initialize(scheduler.getContext());
         queue.setPolicy(policy);
 
         queueMetrics.setMaxApps(queueConf.getQueueMaxApps(queue.getName()));
