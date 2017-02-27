@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.locks.Lock;
 
 /**
  * Thread that handles FairScheduler preemption.
@@ -68,7 +69,13 @@ class FSPreemptionThread extends Thread {
       FSAppAttempt starvedApp;
       try{
         starvedApp = context.getStarvedApps().take();
-        preemptContainers(identifyContainersToPreempt(starvedApp));
+        // CLOUDERA-ONLY. In the upstream code, the scheduler has separate
+        // read/write locks, but our version just uses synchronized.
+        // Hold the scheduler lock so this is not concurrent with the
+        // update thread.
+        synchronized (scheduler) {
+          preemptContainers(identifyContainersToPreempt(starvedApp));
+        }
         starvedApp.preemptionTriggered(delayBeforeNextStarvationCheck);
       } catch (InterruptedException e) {
         LOG.info("Preemption thread interrupted! Exiting.");
