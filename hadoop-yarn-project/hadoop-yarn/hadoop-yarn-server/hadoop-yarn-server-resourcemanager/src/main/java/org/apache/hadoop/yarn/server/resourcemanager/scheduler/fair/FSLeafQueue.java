@@ -341,37 +341,28 @@ public class FSLeafQueue extends FSQueue {
     // Limit demand to maxResources
     Resource maxRes = scheduler.getAllocationConfiguration()
         .getMaxResources(getName());
-    demand = Resources.createResource(0);
+    Resource tmpDemand = Resources.createResource(0);
     readLock.lock();
     try {
       for (FSAppAttempt sched : runnableApps) {
-        updateDemandForApp(sched);
+        sched.updateDemand();
+        Resources.addTo(tmpDemand, sched.getDemand());
       }
       for (FSAppAttempt sched : nonRunnableApps) {
-        updateDemandForApp(sched);
+        sched.updateDemand();
+        Resources.addTo(tmpDemand, sched.getDemand());
       }
     } finally {
       readLock.unlock();
     }
     // Cap demand to maxShare to limit allocation to maxShare
-    demand = Resources.componentwiseMin(demand, maxRes);
+    demand = Resources.componentwiseMin(tmpDemand, maxRes);
     if (LOG.isDebugEnabled()) {
       LOG.debug("The updated demand for " + getName() + " is " + demand
           + "; the max is " + maxRes);
       LOG.debug("The updated fairshare for " + getName() + " is "
           + getFairShare());
     }
-  }
-  
-  private void updateDemandForApp(FSAppAttempt sched) {
-    sched.updateDemand();
-    Resource toAdd = sched.getDemand();
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("Counting resource from " + sched.getName() + " " + toAdd
-          + "; Total resource consumption for " + getName() + " now "
-          + demand);
-    }
-    demand = Resources.add(demand, toAdd);
   }
 
   @Override
