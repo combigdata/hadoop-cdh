@@ -158,7 +158,7 @@ public class TestDynamoDBMetadataStore extends MetadataStoreTestBase {
         throws IOException {
       final Configuration conf = getConf();
       final AWSCredentialsProvider credentials =
-          createAWSCredentialProviderSet(null, conf, null);
+          createAWSCredentialProviderSet(null, conf);
       final ClientConfiguration awsConf =
           DefaultS3ClientFactory.createAwsConf(conf);
       LOG.info("Creating AmazonDynamoDB client using endpoint {}", ddbEndpoint);
