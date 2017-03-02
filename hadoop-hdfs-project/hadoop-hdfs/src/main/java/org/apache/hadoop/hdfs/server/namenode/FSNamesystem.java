@@ -1370,10 +1370,12 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
         cacheManager.stopMonitorThread();
         cacheManager.clearDirectiveStats();
       }
-      blockManager.getDatanodeManager().clearPendingCachingCommands();
-      blockManager.getDatanodeManager().setShouldSendCachingCommands(false);
-      // Don't want to keep replication queues when not in Active.
-      blockManager.clearQueues();
+      if (blockManager != null) {
+        blockManager.getDatanodeManager().clearPendingCachingCommands();
+        blockManager.getDatanodeManager().setShouldSendCachingCommands(false);
+        // Don't want to keep replication queues when not in Active.
+        blockManager.clearQueues();
+      }
       initializedReplQueues = false;
     } finally {
       writeUnlock();
