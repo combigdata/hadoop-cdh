@@ -161,3 +161,9 @@ $ keytool -genkey -alias tomcat -keyalg RSA
   <<<swebhdfs://>>> scheme. Make sure the JVM is picking up the truststore
   containing the public key of the SSL certificate if using a self-signed
   certificate.
+
+  In order to support some old SSL clients, the default encryption ciphers
+  include a few relatively weaker ciphers. Set environment variable
+  `HTTPFS_SSL_CIPHERS` or property `httpfs.ssl.ciphers` to override. The value
+  is a comma separated list of ciphers documented in this
+  [Tomcat Wiki](https://wiki.apache.org/tomcat/Security/Ciphers).
