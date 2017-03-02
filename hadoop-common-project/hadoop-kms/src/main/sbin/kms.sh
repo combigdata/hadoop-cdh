@@ -56,7 +56,8 @@ fi
 print "Using   CATALINA_OPTS:       ${CATALINA_OPTS}"
 
 catalina_opts="-Dproc_kms"
-catalina_opts="${catalina_opts} -Djava.library.path=${JAVA_LIBRARY_PATH}";
+catalina_opts="${catalina_opts} -Dkms.log.dir=${KMS_LOG}"
+catalina_opts="${catalina_opts} -Djava.library.path=${JAVA_LIBRARY_PATH}"
 
 print "Adding to CATALINA_OPTS:     ${catalina_opts}"
 print "Found KMS_SSL_KEYSTORE_PASS:     `echo ${KMS_SSL_KEYSTORE_PASS} | sed 's/./*/g'`"
@@ -81,7 +82,6 @@ if [[ "${1}" = "start" || "${1}" = "run" ]]; then
   catalina_init_properties
   catalina_set_property "kms.home.dir" "${KMS_HOME}"
   catalina_set_property "kms.config.dir" "${KMS_CONFIG}"
-  catalina_set_property "kms.log.dir" "${KMS_LOG}"
   catalina_set_property "kms.temp.dir" "${KMS_TEMP}"
   catalina_set_property "kms.admin.port" "${KMS_ADMIN_PORT}"
   catalina_set_property "kms.http.port" "${KMS_HTTP_PORT}"
