@@ -328,7 +328,8 @@ public class FairScheduler extends
    * fair shares, deficits, minimum slot allocations, and amount of used and
    * required resources per job.
    */
-  protected synchronized void update() {
+  @VisibleForTesting
+  public synchronized void update() {
     FSQueue rootQueue = queueMgr.getRootQueue();
 
     // Recursively update demands for all queues

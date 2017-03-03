@@ -81,45 +81,74 @@ import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.ipc.YarnRPC;
 import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.apache.hadoop.yarn.server.MiniYARNCluster;
+import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttempt;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttemptState;
+import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNode;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacityScheduler;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.NodeUpdateSchedulerEvent;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FairScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.security.AMRMTokenSecretManager;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
 import org.apache.hadoop.yarn.util.Records;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.mortbay.log.Log;
 
+import com.google.common.base.Supplier;
+
+/**
+ * Test application master client class to resource manager.
+ */
+@RunWith(value = Parameterized.class)
 public class TestAMRMClient {
-  static Configuration conf = null;
-  static MiniYARNCluster yarnCluster = null;
-  static YarnClient yarnClient = null;
-  static List<NodeReport> nodeReports = null;
-  static ApplicationAttemptId attemptId = null;
-  static int nodeCount = 3;
+  private String schedulerName = null;
+  private Configuration conf = null;
+  private MiniYARNCluster yarnCluster = null;
+  private YarnClient yarnClient = null;
+  private List<NodeReport> nodeReports = null;
+  private ApplicationAttemptId attemptId = null;
+  private int nodeCount = 3;
   
   static final int rolling_interval_sec = 13;
   static final long am_expire_ms = 4000;
 
-  static Resource capability;
-  static Priority priority;
-  static Priority priority2;
-  static String node;
-  static String rack;
-  static String[] nodes;
-  static String[] racks;
+  private Resource capability;
+  private Priority priority;
+  private Priority priority2;
+  private String node;
+  private String rack;
+  private String[] nodes;
+  private String[] racks;
   private final static int DEFAULT_ITERATION = 3;
-  
-  @BeforeClass
-  public static void setup() throws Exception {
+
+  public TestAMRMClient(String schedulerName) {
+    this.schedulerName = schedulerName;
+  }
+
+  @Parameterized.Parameters
+  public static Collection<Object[]> data() {
+    List<Object[]> list = new ArrayList<Object[]>(2);
+    list.add(new Object[] {CapacityScheduler.class.getName()});
+    list.add(new Object[] {FairScheduler.class.getName()});
+    return list;
+  }
+
+  @Before
+  public void setup() throws Exception {
     // start minicluster
     conf = new YarnConfiguration();
+    conf.set(YarnConfiguration.RM_SCHEDULER, schedulerName);
     conf.setLong(
       YarnConfiguration.RM_AMRM_TOKEN_MASTER_KEY_ROLLING_INTERVAL_SECS,
       rolling_interval_sec);
@@ -151,11 +180,7 @@ public class TestAMRMClient {
     rack = nodeReports.get(0).getRackName();
     nodes = new String[]{ node };
     racks = new String[]{ rack };
-  }
-  
-  @SuppressWarnings("deprecation")
-  @Before
-  public void startApp() throws Exception {
+
     // submit new app
     ApplicationSubmissionContext appContext = 
         yarnClient.createApplication().getApplicationSubmissionContext();
@@ -213,13 +238,10 @@ public class TestAMRMClient {
   }
   
   @After
-  public void cancelApp() throws YarnException, IOException {
+  public void teardown() throws YarnException, IOException {
     yarnClient.killApplication(attemptId.getApplicationId());
     attemptId = null;
-  }
-  
-  @AfterClass
-  public static void tearDown() {
+
     if (yarnClient != null && yarnClient.getServiceState() == STATE.STARTED) {
       yarnClient.stop();
     }
@@ -487,8 +509,8 @@ public class TestAMRMClient {
           amClient.releaseAssignedContainer(container.getId());
         }
         if(allocatedContainerCount < containersRequestedAny) {
-          // sleep to let NM's heartbeat to RM and trigger allocations
-          sleep(100);
+          // let NM heartbeat to RM and trigger allocations
+          triggerSchedulingWithNMHeartBeat();
         }
       }
       
@@ -498,7 +520,7 @@ public class TestAMRMClient {
       assertEquals(0, amClient.ask.size());
       assertEquals(0, allocResponse.getAllocatedContainers().size());
       // 0 requests left. everything got cleaned up
-      assertTrue(amClient.remoteRequestsTable.isEmpty());      
+      assertTrue(amClient.remoteRequestsTable.isEmpty());
       
       amClient.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED,
           null, null);
@@ -509,7 +531,27 @@ public class TestAMRMClient {
       }
     }
   }
-  
+
+  /**
+   * Make sure we get allocations regardless of timing issues.
+   */
+  private void triggerSchedulingWithNMHeartBeat() {
+    // Simulate fair scheduler update thread
+    RMContext context = yarnCluster.getResourceManager().getRMContext();
+    if (context.getScheduler() instanceof FairScheduler) {
+      FairScheduler scheduler = (FairScheduler)context.getScheduler();
+      scheduler.update();
+    }
+    // Trigger NM's heartbeat to RM and trigger allocations
+    for (RMNode rmNode : context.getRMNodes().values()) {
+      context.getScheduler().handle(new NodeUpdateSchedulerEvent(rmNode));
+    }
+    if (context.getScheduler() instanceof FairScheduler) {
+      FairScheduler scheduler = (FairScheduler)context.getScheduler();
+      scheduler.update();
+    }
+  }
+
   @Ignore
   @Test (timeout=60000)
   public void testAllocationWithBlacklist() throws YarnException, IOException {
@@ -642,8 +684,8 @@ public class TestAMRMClient {
       allocatedContainerCount += allocResponse.getAllocatedContainers().size();
         
       if(allocatedContainerCount == 0) {
-        // sleep to let NM's heartbeat to RM and trigger allocations
-        sleep(100);
+        // let NM heartbeat to RM and trigger allocations
+        triggerSchedulingWithNMHeartBeat();
       }
     }
     return allocatedContainerCount;
@@ -700,8 +742,8 @@ public class TestAMRMClient {
     Assert.assertEquals("a && b", client.ask.iterator().next()
         .getNodeLabelExpression());
   }
-    
-  private void testAllocation(final AMRMClientImpl<ContainerRequest> amClient)  
+
+  private void testAllocation(final AMRMClientImpl<ContainerRequest> amClient)
       throws YarnException, IOException {
     // setup container request
     
@@ -720,7 +762,7 @@ public class TestAMRMClient {
         new ContainerRequest(capability, nodes, racks, priority));
     amClient.removeContainerRequest(
         new ContainerRequest(capability, nodes, racks, priority));
-    
+
     int containersRequestedNode = amClient.remoteRequestsTable.get(priority)
         .get(node).get(capability).remoteRequest.getNumContainers();
     int containersRequestedRack = amClient.remoteRequestsTable.get(priority)
@@ -766,8 +808,8 @@ public class TestAMRMClient {
       }
       
       if(allocatedContainerCount < containersRequestedAny) {
-        // sleep to let NM's heartbeat to RM and trigger allocations
-        sleep(100);
+        // let NM heartbeat to RM and trigger allocations
+        triggerSchedulingWithNMHeartBeat();
       }
     }
     
@@ -825,7 +867,7 @@ public class TestAMRMClient {
     // verify that the remove request made in between makeRequest and allocate 
     // has not been lost
     assertEquals(0, snoopRequest.getNumContainers());
-    
+
     iterationsLeft = 3;
     // do a few iterations to ensure RM is not going send new containers
     while(!releases.isEmpty() || iterationsLeft-- > 0) {
@@ -844,8 +886,8 @@ public class TestAMRMClient {
         }
       }
       if(iterationsLeft > 0) {
-        // sleep to make sure NM's heartbeat
-        sleep(100);
+        // let NM heartbeat to RM and trigger allocations
+        triggerSchedulingWithNMHeartBeat();
       }
     }
     assertEquals(0, amClient.ask.size());
@@ -923,12 +965,7 @@ public class TestAMRMClient {
       while (System.currentTimeMillis() - startTime <
           rolling_interval_sec * 1000) {
         amClient.allocate(0.1f);
-        try {
-          Thread.sleep(1000);
-        } catch (InterruptedException e) {
-          // TODO Auto-generated catch block
-          e.printStackTrace();
-        }
+        sleep(1000);
       }
       amClient.allocate(0.1f);
 
@@ -957,11 +994,7 @@ public class TestAMRMClient {
           }
         }
         amClient.allocate(0.1f);
-        try {
-          Thread.sleep(1000);
-        } catch (InterruptedException e) {
-          // DO NOTHING
-        }
+        sleep(1000);
       }
 
       try {
