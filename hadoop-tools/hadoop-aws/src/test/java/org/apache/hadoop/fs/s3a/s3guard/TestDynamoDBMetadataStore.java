@@ -243,8 +243,11 @@ public class TestDynamoDBMetadataStore extends MetadataStoreTestBase {
       verifyTableInitialized(tableName);
       assertNotNull(ddbms.getTable());
       assertEquals(tableName, ddbms.getTable().getTableName());
-      assertEquals("DynamoDB table should be in the same region as S3 bucket",
-          s3afs.getBucketLocation(tableName),
+      String expectedRegion = conf.get(Constants.S3GUARD_DDB_REGION_KEY,
+          s3afs.getBucketLocation(tableName));
+      assertEquals("DynamoDB table should be in configured region or the same" +
+              " region as S3 bucket",
+          expectedRegion,
           ddbms.getRegion());
     }
   }
@@ -258,6 +261,8 @@ public class TestDynamoDBMetadataStore extends MetadataStoreTestBase {
     final String tableName = "testInitializeWithConfiguration";
     final Configuration conf = getFileSystem().getConf();
     conf.unset(Constants.S3GUARD_DDB_TABLE_NAME_KEY);
+    String savedRegion = conf.get(Constants.S3GUARD_DDB_REGION_KEY,
+        getFileSystem().getBucketLocation());
     conf.unset(Constants.S3GUARD_DDB_REGION_KEY);
     try {
       DynamoDBMetadataStore ddbms = new DynamoDBMetadataStore();
@@ -274,8 +279,7 @@ public class TestDynamoDBMetadataStore extends MetadataStoreTestBase {
     } catch (IllegalArgumentException ignored) {
     }
     // config region
-    conf.set(Constants.S3GUARD_DDB_REGION_KEY,
-        getFileSystem().getBucketLocation());
+    conf.set(Constants.S3GUARD_DDB_REGION_KEY, savedRegion);
     try (DynamoDBMetadataStore ddbms = new DynamoDBMetadataStore()) {
       ddbms.initialize(conf);
       verifyTableInitialized(tableName);
@@ -397,7 +401,9 @@ public class TestDynamoDBMetadataStore extends MetadataStoreTestBase {
   @Test
   public void testTableVersionRequired() throws Exception {
     final DynamoDBMetadataStore ddbms = createContract().getMetadataStore();
-    Table table = verifyTableInitialized(BUCKET);
+    String tableName = getFileSystem().getConf().get(Constants
+        .S3GUARD_DDB_TABLE_NAME_KEY, BUCKET);
+    Table table = verifyTableInitialized(tableName);
     table.deleteItem(VERSION_MARKER_PRIMARY_KEY);
 
     boolean exceptionThrown = false;
@@ -420,7 +426,9 @@ public class TestDynamoDBMetadataStore extends MetadataStoreTestBase {
   @Test
   public void testTableVersionMismatch() throws Exception {
     final DynamoDBMetadataStore ddbms = createContract().getMetadataStore();
-    Table table = verifyTableInitialized(BUCKET);
+    String tableName = getFileSystem().getConf().get(Constants
+        .S3GUARD_DDB_TABLE_NAME_KEY, BUCKET);
+    Table table = verifyTableInitialized(tableName);
     table.deleteItem(VERSION_MARKER_PRIMARY_KEY);
     Item v200 = createVersionMarker(VERSION_MARKER, 200, 0);
     table.putItem(v200);
