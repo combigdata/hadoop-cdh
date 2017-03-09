@@ -1,3 +1,0 @@
-PATCH-2139
-YARN-3251 Fixed a deadlock in CapacityScheduler when computing absoluteMaxAvailableCapacity in LeafQueue
-- 
