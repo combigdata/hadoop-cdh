@@ -22,6 +22,9 @@ package org.apache.hadoop.hdfs.server.datanode;
 import java.io.File;
 import java.io.IOException;
 
+import com.google.common.base.Supplier;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.hdfs.protocol.DatanodeID;
@@ -29,6 +32,7 @@ import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.impl.FsDatasetTestUtil;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeRegistration;
 import org.apache.hadoop.hdfs.server.protocol.InterDatanodeProtocol;
+import org.apache.hadoop.test.GenericTestUtils;
 
 /**
  * Utility class for accessing package-private DataNode information during tests.
@@ -36,6 +40,7 @@ import org.apache.hadoop.hdfs.server.protocol.InterDatanodeProtocol;
  * dependencies to {@link MiniDFSCluster}.
  */
 public class DataNodeTestUtils {
+  private static final Log LOG = LogFactory.getLog(DataNodeTestUtils.class);
   private static final String DIR_FAILURE_SUFFIX = ".origin";
 
   public static DatanodeRegistration 
@@ -164,5 +169,27 @@ public class DataNodeTestUtils {
         }
       }
     }
+  }
+
+  /**
+   * Call and wait DataNode to detect disk failure.
+   *
+   * @param dn
+   * @throws Exception
+   */
+  public static void waitForDiskError(final DataNode dn)
+      throws Exception {
+    LOG.info("Starting to wait for datanode to detect disk failure.");
+    final long lastDiskErrorCheck = dn.getLastDiskErrorCheck();
+    dn.checkDiskErrorAsync();
+    // Wait 10 seconds for checkDiskError thread to finish and discover volume
+    // failures.
+    GenericTestUtils.waitFor(new Supplier<Boolean>() {
+
+      @Override
+      public Boolean get() {
+        return dn.getLastDiskErrorCheck() != lastDiskErrorCheck;
+      }
+    }, 100, 10000);
   }
 }
