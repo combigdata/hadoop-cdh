@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import com.amazonaws.event.ProgressEvent;
 import com.amazonaws.event.ProgressEventType;
 import com.amazonaws.event.ProgressListener;
+import org.apache.hadoop.fs.FileStatus;
 import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.runners.MethodSorters;
@@ -37,7 +38,6 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.StorageStatistics;
 import org.apache.hadoop.fs.contract.ContractTestUtils;
-import org.apache.hadoop.fs.s3a.S3AFileStatus;
 import org.apache.hadoop.fs.s3a.S3AFileSystem;
 import org.apache.hadoop.fs.s3a.Statistic;
 import org.apache.hadoop.util.Progressable;
@@ -211,7 +211,7 @@ public abstract class AbstractSTestS3AHugeFiles extends S3AScaleTestBase {
     assertEquals("active put requests in \n" + fs,
         0, gaugeValue(putRequestsActive));
     ContractTestUtils.assertPathExists(fs, "Huge file", hugefile);
-    S3AFileStatus status = fs.getFileStatus(hugefile);
+    FileStatus status = fs.getFileStatus(hugefile);
     ContractTestUtils.assertIsFile(hugefile, status);
     assertEquals("File size in " + status, filesize, status.getLen());
     progress.verifyNoFailures("Put file " + hugefile + " of size " + filesize);
@@ -304,7 +304,7 @@ public abstract class AbstractSTestS3AHugeFiles extends S3AScaleTestBase {
     String filetype = encrypted ? "encrypted file" : "file";
     describe("Positioned reads of %s %s", filetype, hugefile);
     S3AFileSystem fs = getFileSystem();
-    S3AFileStatus status = fs.getFileStatus(hugefile);
+    FileStatus status = fs.getFileStatus(hugefile);
     long filesize = status.getLen();
     int ops = 0;
     final int bufferSize = 8192;
@@ -344,7 +344,7 @@ public abstract class AbstractSTestS3AHugeFiles extends S3AScaleTestBase {
     assumeHugeFileExists();
     describe("Reading %s", hugefile);
     S3AFileSystem fs = getFileSystem();
-    S3AFileStatus status = fs.getFileStatus(hugefile);
+    FileStatus status = fs.getFileStatus(hugefile);
     long filesize = status.getLen();
     long blocks = filesize / uploadBlockSize;
     byte[] data = new byte[uploadBlockSize];
@@ -370,7 +370,7 @@ public abstract class AbstractSTestS3AHugeFiles extends S3AScaleTestBase {
     assumeHugeFileExists();
     describe("renaming %s to %s", hugefile, hugefileRenamed);
     S3AFileSystem fs = getFileSystem();
-    S3AFileStatus status = fs.getFileStatus(hugefile);
+    FileStatus status = fs.getFileStatus(hugefile);
     long filesize = status.getLen();
     fs.delete(hugefileRenamed, false);
     ContractTestUtils.NanoTimer timer = new ContractTestUtils.NanoTimer();
@@ -381,7 +381,7 @@ public abstract class AbstractSTestS3AHugeFiles extends S3AScaleTestBase {
         toHuman(timer.nanosPerOperation(mb)));
     bandwidth(timer, filesize);
     logFSState();
-    S3AFileStatus destFileStatus = fs.getFileStatus(hugefileRenamed);
+    FileStatus destFileStatus = fs.getFileStatus(hugefileRenamed);
     assertEquals(filesize, destFileStatus.getLen());
 
     // rename back
