@@ -37,6 +37,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.QueueACL;
 import org.apache.hadoop.yarn.api.records.QueueUserACLInfo;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ActiveUsersManager;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.SchedulerAppUtils;
@@ -574,5 +575,35 @@ public class FSLeafQueue extends FSQueue {
     Resource resourceUsage = getResourceUsage();
     return Resources.lessThan(policy.getResourceCalculator(),
             scheduler.getClusterResource(), resourceUsage, desiredShare);
+  }
+
+  @Override
+  protected void dumpStateInternal(StringBuilder sb) {
+    ResourceWeights weights =
+        scheduler.getAllocationConfiguration().getQueueWeight(getName());
+    Resource maxShare =
+        scheduler.getAllocationConfiguration().getMaxResources(getName());
+    Resource minShare =
+        scheduler.getAllocationConfiguration().getMinResources(getName());
+    float maxAMShare=
+        scheduler.getAllocationConfiguration().getQueueMaxAMShare(getName());
+
+    sb.append("{Name: " + getName() +
+        ", Weight: " + weights +
+        ", Policy: " + policy.getName() +
+        ", FairShare: " + getFairShare() +
+        ", SteadyFairShare: " + getSteadyFairShare() +
+        ", MaxShare: " + maxShare +
+        ", MinShare: " + minShare +
+        ", ResourceUsage: " + getResourceUsage() +
+        ", Demand: " + getDemand() +
+        ", Runnable: " + getNumRunnableApps() +
+        ", NumPendingApps: " + getNumPendingApps() +
+        ", NonRunnable: " + getNumNonRunnableApps() +
+        ", MaxAMShare: " + maxAMShare +
+        ", MaxAMResource: " + computeMaxAMResource() +
+        ", AMResourceUsage: " + getAmResourceUsage() +
+        ", LastTimeAtMinShare: " + lastTimeAtMinShare +
+        "}");
   }
 }
