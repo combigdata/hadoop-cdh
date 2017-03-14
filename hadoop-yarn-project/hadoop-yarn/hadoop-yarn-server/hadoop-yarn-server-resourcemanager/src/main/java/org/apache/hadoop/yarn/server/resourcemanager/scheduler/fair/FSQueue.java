@@ -335,12 +335,23 @@ public abstract class FSQueue implements Queue, Schedulable {
    * @return true if check passes (can assign) or false otherwise
    */
   protected boolean assignContainerPreCheck(FSSchedulerNode node) {
-    if (!Resources.fitsIn(getResourceUsage(),
-        scheduler.getAllocationConfiguration().getMaxResources(getName()))
-        || node.getReservedContainer() != null) {
+    if (node.getReservedContainer() != null) {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Assigning container failed on node '" + node.getNodeName()
+            + " because it has reserved containers.");
+      }
       return false;
+    } else if (!Resources.fitsIn(getResourceUsage(),
+        scheduler.getAllocationConfiguration().getMaxResources(getName()))) {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Assigning container failed on node '" + node.getNodeName()
+            + " because queue resource usage is larger than MaxShare: "
+            + dumpState());
+      }
+      return false;
+    } else {
+      return true;
     }
-    return true;
   }
 
   /**
@@ -374,6 +385,11 @@ public abstract class FSQueue implements Queue, Schedulable {
         Resources.add(getResourceUsage(), additionalResource);
 
     if (!Resources.fitsIn(usagePlusAddition, getMaxShare())) {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Resource usage plus resource request: " + usagePlusAddition
+            + " exceeds maximum resource allowed:" + getMaxShare()
+            + " in queue " + getName());
+      }
       return false;
     }
 
@@ -383,4 +399,23 @@ public abstract class FSQueue implements Queue, Schedulable {
     }
     return true;
   }
+
+  /**
+   * Recursively dump states of all queues.
+   *
+   * @return a string which holds all queue states
+   */
+  public String dumpState() {
+    StringBuilder sb = new StringBuilder();
+    dumpStateInternal(sb);
+    return sb.toString();
+  }
+
+
+  /**
+   * Recursively dump states of all queues.
+   *
+   * @param sb the {code StringBuilder} which holds queue states
+   */
+  protected abstract void dumpStateInternal(StringBuilder sb);
 }
