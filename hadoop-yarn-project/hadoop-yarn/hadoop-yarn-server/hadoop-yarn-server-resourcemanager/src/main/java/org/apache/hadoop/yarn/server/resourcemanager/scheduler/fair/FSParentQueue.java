@@ -37,6 +37,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.QueueACL;
 import org.apache.hadoop.yarn.api.records.QueueUserACLInfo;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
 import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer;
 import org.apache.hadoop.yarn.util.resource.Resources;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ActiveUsersManager;
@@ -361,5 +362,35 @@ public class FSParentQueue extends FSQueue {
       SchedulerApplicationAttempt schedulerAttempt, RMContainer rmContainer) {
     // TODO Auto-generated method stub
     
+  }
+
+  @Override
+  protected void dumpStateInternal(StringBuilder sb) {
+    ResourceWeights weights =
+        scheduler.getAllocationConfiguration().getQueueWeight(getName());
+    Resource maxShare =
+        scheduler.getAllocationConfiguration().getMaxResources(getName());
+    Resource minShare =
+        scheduler.getAllocationConfiguration().getMinResources(getName());
+    float maxAMShare=
+        scheduler.getAllocationConfiguration().getQueueMaxAMShare(getName());
+
+    sb.append("{Name: " + getName() +
+        ", Weight: " + weights +
+        ", Policy: " + policy.getName() +
+        ", FairShare: " + getFairShare() +
+        ", SteadyFairShare: " + getSteadyFairShare() +
+        ", MaxShare: " + maxShare +
+        ", MinShare: " + minShare +
+        ", ResourceUsage: " + getResourceUsage() +
+        ", Demand: " + getDemand() +
+        ", MaxAMShare: " + maxAMShare +
+        ", Runnable: " + getNumRunnableApps() +
+        "}");
+
+    for(FSQueue child : getChildQueues()) {
+      sb.append(", ");
+      child.dumpStateInternal(sb);
+    }
   }
 }
