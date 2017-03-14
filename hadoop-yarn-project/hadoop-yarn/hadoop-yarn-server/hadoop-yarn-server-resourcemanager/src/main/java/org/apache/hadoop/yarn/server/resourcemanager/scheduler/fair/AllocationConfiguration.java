@@ -238,6 +238,16 @@ public class AllocationConfiguration {
   }
 
   /**
+   * Set the maximum resource allocation for the given queue.
+   *
+   * @param queue the target queue
+   * @param maxResource the maximum resource allocation
+   */
+  void setMaxResources(String queue, Resource maxResource) {
+    maxQueueResources.put(queue, maxResource);
+  }
+
+  /**
    * Get the maximum resource allocation for the given queue.
    * @return the cap set on this queue, or Integer.MAX_VALUE if not set.
    */
