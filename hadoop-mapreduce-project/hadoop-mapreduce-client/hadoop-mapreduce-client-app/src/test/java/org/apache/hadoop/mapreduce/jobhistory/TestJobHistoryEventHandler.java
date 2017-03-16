@@ -79,6 +79,7 @@ import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.junit.Test;
 import org.mockito.Mockito;
+import org.junit.Ignore;
 
 public class TestJobHistoryEventHandler {
 
@@ -555,6 +556,7 @@ public class TestJobHistoryEventHandler {
 
   // Have JobHistoryEventHandler handle some events and make sure they get
   // stored to the Timeline store
+  @Ignore("TimelineEventHandling is not supported in CDH 5")
   @Test (timeout=50000)
   public void testTimelineEventHandling() throws Exception {
     TestParams t = new TestParams(false);
