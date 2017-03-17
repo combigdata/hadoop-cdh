@@ -121,14 +121,14 @@ final class PathMetadataDynamoDBTranslation {
 
     Path parent = new Path(Constants.FS_S3A + ":/" + parentStr + "/");
     Path path = new Path(parent, childStr);
-    boolean isDir = item.hasAttribute(IS_DIR) && item.getBoolean(IS_DIR);
+    boolean isDir = item.isPresent(IS_DIR) && item.getBoolean(IS_DIR);
     final FileStatus fileStatus;
     if (isDir) {
       fileStatus = DynamoDBMetadataStore.makeDirStatus(path, username);
     } else {
-      long len = item.hasAttribute(FILE_LENGTH) ? item.getLong(FILE_LENGTH) : 0;
-      long modTime = item.hasAttribute(MOD_TIME) ? item.getLong(MOD_TIME) : 0;
-      long block = item.hasAttribute(BLOCK_SIZE) ? item.getLong(BLOCK_SIZE) : 0;
+      long len = item.isPresent(FILE_LENGTH) ? item.getLong(FILE_LENGTH) : 0;
+      long modTime = item.isPresent(MOD_TIME) ? item.getLong(MOD_TIME) : 0;
+      long block = item.isPresent(BLOCK_SIZE) ? item.getLong(BLOCK_SIZE) : 0;
       fileStatus = new FileStatus(len, false, 1, block, modTime, 0, null,
           username, username, path);
     }
@@ -186,7 +186,7 @@ final class PathMetadataDynamoDBTranslation {
    * @throws IOException if the item is not a version marker
    */
   static int extractVersionFromMarker(Item marker) throws IOException {
-    if (marker.hasAttribute(TABLE_VERSION)) {
+    if (marker.isPresent(TABLE_VERSION)) {
       return marker.getInt(TABLE_VERSION);
     } else {
       throw new IOException(E_NOT_VERSION_MARKER + marker);
@@ -200,7 +200,7 @@ final class PathMetadataDynamoDBTranslation {
    * @throws IOException if the item is not a version marker
    */
   static Long extractCreationTimeFromMarker(Item marker) throws IOException {
-    if (marker.hasAttribute(TABLE_CREATED)) {
+    if (marker.isPresent(TABLE_CREATED)) {
       return marker.getLong(TABLE_CREATED);
     } else {
       return null;
@@ -294,5 +294,4 @@ final class PathMetadataDynamoDBTranslation {
    */
   private PathMetadataDynamoDBTranslation() {
   }
-
 }
