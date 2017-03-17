@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -350,7 +351,8 @@ public class DynamoDBMetadataStore implements MetadataStore {
               .withConsistentRead(true)
               .withMaxResultSize(1); // limit 1
           final ItemCollection<QueryOutcome> items = table.query(spec);
-          boolean hasChildren = items.iterator().hasNext();
+          Iterator iterator = items.iterator();
+          boolean hasChildren = iterator.hasNext();
           // When this class has support for authoritative
           // (fully-cached) directory listings, we may also be able to answer
           // TRUE here.  Until then, we don't know if we have full listing or
