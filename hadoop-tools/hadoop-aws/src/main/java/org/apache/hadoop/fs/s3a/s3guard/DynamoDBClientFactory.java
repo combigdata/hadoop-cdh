@@ -23,7 +23,8 @@ import java.io.IOException;
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
+import com.amazonaws.services.s3.model.Region;
 import com.google.common.base.Preconditions;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
@@ -84,7 +85,7 @@ interface DynamoDBClientFactory extends Configurable {
           "No DynamoDB region is provided!");
       LOG.debug("Creating DynamoDB client in region {}", region);
 
-      return AmazonDynamoDBClientBuilder.standard()
+      return DDBBuilder.standard()
           .withCredentials(credentials)
           .withClientConfiguration(awsConf)
           .withRegion(region)
@@ -92,4 +93,51 @@ interface DynamoDBClientFactory extends Configurable {
     }
   }
 
+  /**
+   * Compatibility shim for older versions of Dynamo SDK that lack
+   * AmazonDynamoDBClientBuilder.
+   */
+  public class DDBBuilder {
+    Region region;
+    ClientConfiguration awsConf;
+    AWSCredentialsProvider credentials;
+
+
+    public static DDBBuilder standard() {
+      return new DDBBuilder();
+    }
+
+    public DDBBuilder withCredentials(AWSCredentialsProvider creds) {
+      credentials = creds;
+      return this;
+    }
+
+    DDBBuilder withClientConfiguration(ClientConfiguration conf) {
+      awsConf = conf;
+      return this;
+    }
+
+    DDBBuilder withRegion(String regionString) {
+      try {
+        region = Region.fromValue(regionString);
+      } catch (IllegalArgumentException e) {
+        final String msg = "Region '" + regionString + "' is invalid.";
+        LOG.error(msg);
+        throw new IllegalArgumentException(msg, e);
+      }
+      return this;
+    }
+
+    AmazonDynamoDBClient build() {
+      if (region == null || awsConf == null || credentials == null) {
+        Preconditions.checkArgument(region != null && awsConf != null &&
+          credentials != null, "Region, AWS config, or credentials missing");
+      }
+      AmazonDynamoDBClient ddb = new AmazonDynamoDBClient(credentials, awsConf);
+      ddb.withRegion(region.toAWSRegion());
+      return ddb;
+    }
+
+    private DDBBuilder() { };
+  }
 }
