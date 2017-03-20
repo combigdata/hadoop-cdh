@@ -6,6 +6,7 @@ org/apache/hadoop/fs/viewfs/ViewFsBaseTest.java
 org/apache/hadoop/ha/TestZKFailoverControllerStress.java
 
 org/apache/hadoop/mapred/TestLocalJobSubmission.java
+org/apache/hadoop/mapred/TestMRTimelineEventHandling.java
 
 org/apache/hadoop/mapreduce/jobhistory/TestJobHistoryEventHandler.java
 
