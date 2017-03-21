@@ -119,7 +119,7 @@ interface DynamoDBClientFactory extends Configurable {
    * AmazonDynamoDBClientBuilder.
    */
   public class DDBBuilder {
-    Region region;
+    Regions region;
     ClientConfiguration awsConf;
     AWSCredentialsProvider credentials;
 
@@ -140,7 +140,7 @@ interface DynamoDBClientFactory extends Configurable {
 
     DDBBuilder withRegion(String regionString) {
       try {
-        region = Region.fromValue(regionString);
+        region = Regions.fromName(regionString);
       } catch (IllegalArgumentException e) {
         final String msg = "Region '" + regionString + "' is invalid.";
         LOG.error(msg);
@@ -155,7 +155,7 @@ interface DynamoDBClientFactory extends Configurable {
           credentials != null, "Region, AWS config, or credentials missing");
       }
       AmazonDynamoDBClient ddb = new AmazonDynamoDBClient(credentials, awsConf);
-      ddb.withRegion(region.toAWSRegion());
+      ddb.withRegion(region);
       return ddb;
     }
 
