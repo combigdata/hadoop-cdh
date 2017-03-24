@@ -119,7 +119,7 @@ public final class PBImageXmlWriter {
   public static final String INODE_SECTION_PERMISSION = "permission";
   public static final String INODE_SECTION_BLOCKS = "blocks";
   public static final String INODE_SECTION_BLOCK = "block";
-  public static final String INODE_SECTION_GEMSTAMP = "genstamp";
+  public static final String INODE_SECTION_GENSTAMP = "genstamp";
   public static final String INODE_SECTION_NUM_BYTES = "numBytes";
   public static final String INODE_SECTION_FILE_UNDER_CONSTRUCTION =
       "file-under-construction";
@@ -189,6 +189,8 @@ public final class PBImageXmlWriter {
       "childrenSize";
   public static final String SNAPSHOT_DIFF_SECTION_IS_SNAPSHOT_ROOT =
       "isSnapshotRoot";
+  public static final String SNAPSHOT_DIFF_SECTION_SNAPSHOT_COPY =
+      "snapshotCopy";
   public static final String SNAPSHOT_DIFF_SECTION_CREATED_LIST_SIZE =
       "createdListSize";
   public static final String SNAPSHOT_DIFF_SECTION_DELETED_INODE =
@@ -476,7 +478,7 @@ public final class PBImageXmlWriter {
       for (BlockProto b : f.getBlocksList()) {
         out.print("<" + INODE_SECTION_BLOCK + ">");
         o(SECTION_ID, b.getBlockId())
-            .o(INODE_SECTION_GEMSTAMP, b.getGenStamp())
+            .o(INODE_SECTION_GENSTAMP, b.getGenStamp())
             .o(INODE_SECTION_NUM_BYTES, b.getNumBytes());
         out.print("</" + INODE_SECTION_BLOCK + ">\n");
       }
@@ -654,6 +656,12 @@ public final class PBImageXmlWriter {
           o(SNAPSHOT_DIFF_SECTION_SNAPSHOT_ID, f.getSnapshotId())
               .o(SNAPSHOT_DIFF_SECTION_SIZE, f.getFileSize())
               .o(SECTION_NAME, f.getName().toStringUtf8());
+          INodeSection.INodeFile snapshotCopy = f.getSnapshotCopy();
+          if (snapshotCopy != null) {
+            out.print("<" + SNAPSHOT_DIFF_SECTION_SNAPSHOT_COPY + ">");
+            dumpINodeFile(snapshotCopy);
+            out.print("</" + SNAPSHOT_DIFF_SECTION_SNAPSHOT_COPY + ">\n");
+          }
           out.print("</" + SNAPSHOT_DIFF_SECTION_FILE_DIFF + ">\n");
         }
       }
@@ -666,9 +674,14 @@ public final class PBImageXmlWriter {
           o(SNAPSHOT_DIFF_SECTION_SNAPSHOT_ID, d.getSnapshotId())
               .o(SNAPSHOT_DIFF_SECTION_CHILDREN_SIZE, d.getChildrenSize())
               .o(SNAPSHOT_DIFF_SECTION_IS_SNAPSHOT_ROOT, d.getIsSnapshotRoot())
-              .o(SECTION_NAME, d.getName().toStringUtf8())
-              .o(SNAPSHOT_DIFF_SECTION_CREATED_LIST_SIZE,
-                  d.getCreatedListSize());
+              .o(SECTION_NAME, d.getName().toStringUtf8());
+          INodeDirectory snapshotCopy = d.getSnapshotCopy();
+          if (snapshotCopy != null) {
+            out.print("<" + SNAPSHOT_DIFF_SECTION_SNAPSHOT_COPY + ">");
+            dumpINodeDirectory(snapshotCopy);
+            out.print("</" + SNAPSHOT_DIFF_SECTION_SNAPSHOT_COPY + ">\n");
+          }
+          o(SNAPSHOT_DIFF_SECTION_CREATED_LIST_SIZE, d.getCreatedListSize());
           for (long did : d.getDeletedINodeList()) {
             o(SNAPSHOT_DIFF_SECTION_DELETED_INODE, did);
           }
