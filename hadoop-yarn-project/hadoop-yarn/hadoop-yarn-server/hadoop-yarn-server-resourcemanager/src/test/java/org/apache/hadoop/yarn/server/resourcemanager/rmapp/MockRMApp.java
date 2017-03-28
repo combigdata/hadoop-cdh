@@ -19,7 +19,9 @@
 package org.apache.hadoop.yarn.server.resourcemanager.rmapp;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -31,8 +33,10 @@ import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.api.records.LogAggregationStatus;
 import org.apache.hadoop.yarn.api.records.NodeId;
+import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.ReservationId;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.api.records.impl.pb.ApplicationSubmissionContextPBImpl;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
@@ -57,11 +61,14 @@ public class MockRMApp implements RMApp {
   StringBuilder diagnostics = new StringBuilder();
   RMAppAttempt attempt;
   int maxAppAttempts = 1;
+  List<ResourceRequest> amReqs;
 
   public MockRMApp(int newid, long time, RMAppState newState) {
     finish = time;
     id = MockApps.newAppID(newid);
     state = newState;
+    amReqs = Collections.singletonList(ResourceRequest.newInstance(
+        Priority.UNDEFINED, "0.0.0.0", Resource.newInstance(0, 0), 1));
   }
 
   public MockRMApp(int newid, long time, RMAppState newState, String userName) {
@@ -265,6 +272,11 @@ public class MockRMApp implements RMApp {
   @Override
   public ReservationId getReservationId() {
     throw new UnsupportedOperationException("Not supported yet.");
+  }
+  
+  @Override
+  public List<ResourceRequest> getAMResourceRequests() {
+    return this.amReqs;
   }
 
   @Override

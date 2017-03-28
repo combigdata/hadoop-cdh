@@ -146,6 +146,7 @@ import org.apache.hadoop.yarn.server.utils.BuilderUtils;
 import org.apache.hadoop.yarn.util.Clock;
 import org.apache.hadoop.yarn.util.Records;
 import org.apache.hadoop.yarn.util.UTCClock;
+import org.apache.hadoop.yarn.util.resource.ResourceCalculator;
 import org.apache.hadoop.yarn.util.resource.Resources;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -154,6 +155,8 @@ import org.junit.Test;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 public class TestClientRMService {
 
@@ -1195,9 +1198,9 @@ public class TestClientRMService {
         spy(new RMAppImpl(applicationId3, rmContext, config, null, null,
             queueName, asContext, yarnScheduler, null,
             System.currentTimeMillis(), "YARN", null,
-            BuilderUtils.newResourceRequest(
+            Collections.singletonList(BuilderUtils.newResourceRequest(
                 RMAppAttemptImpl.AM_CONTAINER_PRIORITY, ResourceRequest.ANY,
-                Resource.newInstance(1024, 1), 1)){
+                Resource.newInstance(1024, 1), 1))){
                   @Override
                   public ApplicationReport createAndGetApplicationReport(
                       String clientUserName, boolean allowAccess) {
@@ -1261,6 +1264,17 @@ public class TestClientRMService {
         Arrays.asList(getApplicationAttemptId(103)));
     ApplicationAttemptId attemptId = getApplicationAttemptId(1);
     when(yarnScheduler.getAppResourceUsageReport(attemptId)).thenReturn(null);
+
+    ResourceCalculator rs = mock(ResourceCalculator.class);
+    when(yarnScheduler.getResourceCalculator()).thenReturn(rs);
+    when(rs.normalize((Resource) any(), (Resource) any(), (Resource) any(), (Resource) any()))
+        .thenAnswer(new Answer<Resource>() {
+          @Override
+          public Resource answer(InvocationOnMock invocationOnMock)
+              throws Throwable {
+            return (Resource) invocationOnMock.getArguments()[0];
+          }
+        });
     return yarnScheduler;
   }
 

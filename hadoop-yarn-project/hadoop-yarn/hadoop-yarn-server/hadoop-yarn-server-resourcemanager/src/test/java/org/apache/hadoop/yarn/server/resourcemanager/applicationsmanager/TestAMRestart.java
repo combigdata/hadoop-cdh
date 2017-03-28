@@ -237,7 +237,7 @@ public class TestAMRestart {
     rm1.stop();
   }
 
-  private List<Container> allocateContainers(MockNM nm1, MockAM am1,
+  public static List<Container> allocateContainers(MockNM nm1, MockAM am1,
       int NUM_CONTAINERS) throws Exception {
     // allocate NUM_CONTAINERS containers
     am1.allocate("127.0.0.1", 1024, NUM_CONTAINERS,

@@ -187,7 +187,7 @@ public class RMAppImpl implements RMApp, Recoverable {
   private RMAppEvent eventCausingFinalSaving;
   private RMAppState targetedFinalState;
   private RMAppState recoveredFinalState;
-  private ResourceRequest amReq;
+  private List<ResourceRequest> amReqs;
 
   Object transitionTodo;
 
@@ -400,8 +400,8 @@ public class RMAppImpl implements RMApp, Recoverable {
       Configuration config, String name, String user, String queue,
       ApplicationSubmissionContext submissionContext, YarnScheduler scheduler,
       ApplicationMasterService masterService, long submitTime,
-      String applicationType, Set<String> applicationTags, 
-      ResourceRequest amReq) {
+      String applicationType, Set<String> applicationTags,
+      List<ResourceRequest> amReqs) {
 
     this.systemClock = new SystemClock();
 
@@ -420,7 +420,7 @@ public class RMAppImpl implements RMApp, Recoverable {
     this.startTime = this.systemClock.getTime();
     this.applicationType = applicationType;
     this.applicationTags = applicationTags;
-    this.amReq = amReq;
+    this.amReqs = amReqs;
 
     int globalMaxAppAttempts = conf.getInt(YarnConfiguration.RM_AM_MAX_ATTEMPTS,
         YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS);
@@ -838,7 +838,9 @@ public class RMAppImpl implements RMApp, Recoverable {
     } else {
       if (amBlacklistingEnabled) {
         currentAMBlacklist = new SimpleBlacklistManager(
-            scheduler.getNumClusterNodes(), blacklistDisableThreshold);
+            RMServerUtils.getApplicableNodeCountForAM(rmContext, conf,
+                getAMResourceRequests()),
+            blacklistDisableThreshold);
       } else {
         currentAMBlacklist = new DisabledBlacklistManager();
       }
@@ -850,7 +852,7 @@ public class RMAppImpl implements RMApp, Recoverable {
           // previously failed attempts(which should not include Preempted,
           // hardware error and NM resync) + 1) equal to the max-attempt
           // limit.
-          maxAppAttempts == (getNumFailedAppAttempts() + 1), amReq,
+          maxAppAttempts == (getNumFailedAppAttempts() + 1), amReqs,
           currentAMBlacklist);
     attempts.put(appAttemptId, attempt);
     currentAttempt = attempt;
@@ -1479,6 +1481,11 @@ public class RMAppImpl implements RMApp, Recoverable {
       tokens.rewind();
     }
     return credentials;
+  }
+  
+  @Override
+  public List<ResourceRequest> getAMResourceRequests() {
+    return this.amReqs;
   }
 
   @Override

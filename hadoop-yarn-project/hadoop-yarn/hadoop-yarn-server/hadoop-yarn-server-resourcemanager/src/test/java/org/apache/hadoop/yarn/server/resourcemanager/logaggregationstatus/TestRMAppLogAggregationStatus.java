@@ -53,6 +53,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppState;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNodeImpl;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNodeStartedEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmnode.RMNodeStatusEvent;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.YarnScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.SchedulerEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.event.SchedulerEventType;
@@ -60,6 +61,7 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -111,6 +113,10 @@ public class TestRMAppLogAggregationStatus {
         new TestSchedulerEventDispatcher());
 
     appId = ApplicationId.newInstance(System.currentTimeMillis(), 1);
+
+    rmContext = Mockito.spy(rmContext);
+    ResourceScheduler rs = Mockito.mock(ResourceScheduler.class);
+    Mockito.when(rmContext.getScheduler()).thenReturn(rs);
   }
 
   @After

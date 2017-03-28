@@ -583,4 +583,9 @@ public abstract class AbstractYarnScheduler
   protected void refreshMaximumAllocation(Resource newMaxAlloc) {
     nodeTracker.setConfiguredMaxAllocation(newMaxAlloc);
   }
+
+  @Override
+  public List<NodeId> getNodeIds(String resourceName) {
+    return nodeTracker.getNodeIdsByResourceName(resourceName);
+  }
 }

@@ -33,6 +33,7 @@ import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -520,6 +521,8 @@ public class TestApplicationLimits {
     ResourceRequest amResourceRequest = mock(ResourceRequest.class);
     Resource amResource = Resources.createResource(0, 0);
     when(amResourceRequest.getCapability()).thenReturn(amResource);
+    when(rmApp.getAMResourceRequests()).thenReturn(
+        Collections.singletonList(amResourceRequest));
     Mockito.doReturn(rmApp).when(spyApps).get((ApplicationId)Matchers.any());
     when(spyRMContext.getRMApps()).thenReturn(spyApps);
 

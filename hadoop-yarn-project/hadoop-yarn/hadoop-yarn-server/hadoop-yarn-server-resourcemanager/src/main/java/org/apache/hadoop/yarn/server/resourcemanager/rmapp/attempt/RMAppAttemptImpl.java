@@ -195,7 +195,7 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
   private Object transitionTodo;
   
   private RMAppAttemptMetrics attemptMetrics = null;
-  private ResourceRequest amReq = null;
+  private List<ResourceRequest> amReqs = null;
   private BlacklistManager blacklistedNodesForAM = null;
 
   private static final StateMachineFactory<RMAppAttemptImpl,
@@ -446,16 +446,16 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
       RMContext rmContext, YarnScheduler scheduler,
       ApplicationMasterService masterService,
       ApplicationSubmissionContext submissionContext,
-      Configuration conf, boolean maybeLastAttempt, ResourceRequest amReq) {
+      Configuration conf, boolean maybeLastAttempt, List<ResourceRequest> amReqs) {
     this(appAttemptId, rmContext, scheduler, masterService, submissionContext,
-        conf, maybeLastAttempt, amReq, new DisabledBlacklistManager());
+        conf, maybeLastAttempt, amReqs, new DisabledBlacklistManager());
   }
 
   public RMAppAttemptImpl(ApplicationAttemptId appAttemptId,
       RMContext rmContext, YarnScheduler scheduler,
       ApplicationMasterService masterService,
       ApplicationSubmissionContext submissionContext,
-      Configuration conf, boolean maybeLastAttempt, ResourceRequest amReq,
+      Configuration conf, boolean maybeLastAttempt, List<ResourceRequest> amReqs,
       BlacklistManager amBlacklist) {
     this.conf = conf;
     this.applicationAttemptId = appAttemptId;
@@ -476,7 +476,7 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
     this.attemptMetrics =
         new RMAppAttemptMetrics(applicationAttemptId, rmContext);
 
-    this.amReq = amReq;
+    this.amReqs = amReqs;
     this.blacklistedNodesForAM = amBlacklist;
 
     final int diagnosticsLimitKC = getDiagnosticsLimitKCOrThrow(conf);
@@ -1008,17 +1008,21 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
         // will be passed to scheduler, and scheduler will deduct the number after
         // AM container allocated
         
-        // Currently, following fields are all hard code,
+        // Currently, following fields are all hard coded,
         // TODO: change these fields when we want to support
-        // priority/resource-name/relax-locality specification for AM containers
-        // allocation.
-        appAttempt.amReq.setNumContainers(1);
-        appAttempt.amReq.setPriority(AM_CONTAINER_PRIORITY);
-        appAttempt.amReq.setResourceName(ResourceRequest.ANY);
-        appAttempt.amReq.setRelaxLocality(true);
+        // priority or multiple containers AM container allocation.
+        for (ResourceRequest amReq : appAttempt.amReqs) {
+          amReq.setNumContainers(1);
+          amReq.setPriority(AM_CONTAINER_PRIORITY);
+        }
 
-        appAttempt.getAMBlacklist().refreshNodeHostCount(
-            appAttempt.scheduler.getNumClusterNodes());
+        int numNodes =
+            RMServerUtils.getApplicableNodeCountForAM(appAttempt.rmContext,
+                appAttempt.conf, appAttempt.amReqs);
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Setting node count for blacklist to " + numNodes);
+        }
+        appAttempt.getAMBlacklist().refreshNodeHostCount(numNodes);
 
         BlacklistUpdates amBlacklist = appAttempt.getAMBlacklist()
             .getBlacklistUpdates();
@@ -1031,7 +1035,7 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
         Allocation amContainerAllocation =
             appAttempt.scheduler.allocate(
                 appAttempt.applicationAttemptId,
-                Collections.singletonList(appAttempt.amReq),
+                appAttempt.amReqs,
                 EMPTY_CONTAINER_RELEASE_LIST,
                 amBlacklist.getAdditions(),
                 amBlacklist.getRemovals());

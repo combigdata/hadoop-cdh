@@ -36,6 +36,7 @@ import org.apache.hadoop.yarn.api.records.LogAggregationStatus;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.ReservationId;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.api.protocolrecords.LogAggregationReport;
@@ -53,6 +54,7 @@ import com.google.common.collect.Lists;
 public abstract class MockAsm extends MockApps {
 
   public static class ApplicationBase implements RMApp {
+    List<ResourceRequest> amReqs;
     @Override
     public String getUser() {
       throw new UnsupportedOperationException("Not supported yet.");
@@ -184,6 +186,11 @@ public abstract class MockAsm extends MockApps {
     @Override
     public ReservationId getReservationId() {
       throw new UnsupportedOperationException("Not supported yet.");
+    }
+    
+    @Override
+    public List<ResourceRequest> getAMResourceRequests() {
+      return this.amReqs;
     }
 
     @Override
