@@ -125,6 +125,7 @@ Transparent Encryption in HDFS
 *** dfs.encryption.key.provider.uri
 
   The KeyProvider to use when interacting with encryption keys used when reading and writing to an encryption zone.
+  HDFS clients will use the provider path returned from Namenode via getServerDefaults. If namenode doesn't support returning key provider uri then client's conf will be used.
 
 ** Selecting an encryption algorithm and codec
 

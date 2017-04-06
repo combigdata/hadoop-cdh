@@ -355,6 +355,12 @@ public class CommonConfigurationKeysPublic {
   public static final String  HADOOP_SECURITY_IMPERSONATION_PROVIDER_CLASS =
     "hadoop.security.impersonation.provider.class";
 
+  // After backport HDFS-10489, we should replace 
+  //   "dfs.encryption.key.provider.uri" with "hadoop.security.key.provider.path"
+  // here
+  public static final String HADOOP_SECURITY_KEY_PROVIDER_PATH =
+    "dfs.encryption.key.provider.uri";
+
   //  <!--- KMSClientProvider configurations —>
   /** See <a href="{@docRoot}/../core-default.html">core-default.xml</a> */
   public static final String KMS_CLIENT_ENC_KEY_CACHE_SIZE =
