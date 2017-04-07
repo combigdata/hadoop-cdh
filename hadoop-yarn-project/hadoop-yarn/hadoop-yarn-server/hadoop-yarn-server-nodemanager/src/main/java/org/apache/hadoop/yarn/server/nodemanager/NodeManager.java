@@ -76,6 +76,24 @@ public class NodeManager extends CompositeService
     implements EventHandler<NodeManagerEvent> {
 
   /**
+   * Node manager return status codes.
+   */
+  public enum NodeManagerStatus {
+    NO_ERROR(0),
+    EXCEPTION(1);
+
+    private int exitCode;
+
+    NodeManagerStatus(int exitCode) {
+      this.exitCode = exitCode;
+    }
+
+    public int getExitCode() {
+      return exitCode;
+    }
+  }
+
+  /**
    * Priority of the NodeManager shutdown hook.
    */
   public static final int SHUTDOWN_HOOK_PRIORITY = 30;
@@ -330,7 +348,7 @@ public class NodeManager extends CompositeService
     return "NodeManager";
   }
 
-  protected void shutDown() {
+  protected void shutDown(final int exitCode) {
     new Thread() {
       @Override
       public void run() {
@@ -341,7 +359,7 @@ public class NodeManager extends CompositeService
         } finally {
           if (shouldExitOnShutdownEvent
               && !ShutdownHookManager.get().isShutdownInProgress()) {
-            ExitUtil.terminate(-1);
+            ExitUtil.terminate(exitCode);
           }
         }
       }
@@ -366,7 +384,7 @@ public class NodeManager extends CompositeService
             .rebootNodeStatusUpdaterAndRegisterWithRM();
         } catch (YarnRuntimeException e) {
           LOG.fatal("Error while rebooting NodeStatusUpdater.", e);
-          shutDown();
+          shutDown(NodeManagerStatus.EXCEPTION.getExitCode());
         }
       }
     }.start();
@@ -553,7 +571,7 @@ public class NodeManager extends CompositeService
   public void handle(NodeManagerEvent event) {
     switch (event.getType()) {
     case SHUTDOWN:
-      shutDown();
+      shutDown(NodeManagerStatus.NO_ERROR.getExitCode());
       break;
     case RESYNC:
       resyncWithRM();
