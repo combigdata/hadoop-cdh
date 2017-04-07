@@ -192,7 +192,7 @@ public class DynamoDBMetadataStore implements MetadataStore {
   private Configuration conf;
   private String username;
 
-  private RetryPolicy batchRetryPolicy;
+  private RetryPolicy dataAccessRetryPolicy;
 
   /**
    * A utility function to create DynamoDB instance.
@@ -275,7 +275,7 @@ public class DynamoDBMetadataStore implements MetadataStore {
   private void setMaxRetries(Configuration config) {
     int maxRetries = config.getInt(S3GUARD_DDB_MAX_RETRIES,
         S3GUARD_DDB_MAX_RETRIES_DEFAULT);
-    batchRetryPolicy = RetryPolicies
+    dataAccessRetryPolicy = RetryPolicies
         .exponentialBackoffRetry(maxRetries, MIN_RETRY_SLEEP_MSEC,
             TimeUnit.MILLISECONDS);
   }
@@ -519,7 +519,7 @@ public class DynamoDBMetadataStore implements MetadataStore {
   private void retryBackoff(int retryCount) throws IOException {
     try {
       // Our RetryPolicy ignores everything but retryCount here.
-      RetryPolicy.RetryAction action = batchRetryPolicy.shouldRetry(null,
+      RetryPolicy.RetryAction action = dataAccessRetryPolicy.shouldRetry(null,
           retryCount, 0, true);
       if (action.action == RetryPolicy.RetryAction.RetryDecision.FAIL) {
         throw new IOException(
@@ -766,7 +766,7 @@ public class DynamoDBMetadataStore implements MetadataStore {
     Item versionMarker = table.getItem(versionMarkerKey);
     while (versionMarker == null) {
       try {
-        RetryPolicy.RetryAction action = batchRetryPolicy.shouldRetry(null,
+        RetryPolicy.RetryAction action = dataAccessRetryPolicy.shouldRetry(null,
             retryCount, 0, true);
         if (action.action == RetryPolicy.RetryAction.RetryDecision.FAIL) {
           break;
@@ -777,6 +777,7 @@ public class DynamoDBMetadataStore implements MetadataStore {
       } catch (Exception e) {
         throw new IOException("initTable: Unexpected exception", e);
       }
+      retryCount++;
       versionMarker = table.getItem(versionMarkerKey);
     }
     return versionMarker;
