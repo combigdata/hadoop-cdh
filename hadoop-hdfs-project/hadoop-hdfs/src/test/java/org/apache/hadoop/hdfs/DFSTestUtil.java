@@ -810,7 +810,22 @@ public class DFSTestUtil {
     out.write(toAppend);
     out.close();
   }
-  
+
+  /**
+   * Append specified length of bytes to a given file, starting with new block.
+   * @param fs The file system
+   * @param p Path of the file to append
+   * @param length Length of bytes to append to the file
+   * NOTE: CDH doesn't have HDFS-3689 until CDH6. So the following method
+   * won't be able to support variable length block. The passed length need
+   * to be the same as block length.
+   * @throws IOException
+   */
+  public static void appendFileNewBlock(DistributedFileSystem fs,
+      Path p, int length) throws IOException {
+    appendFile(fs, p, length);
+  }
+
   /**
    * @return url content as string (UTF-8 encoding assumed)
    */
