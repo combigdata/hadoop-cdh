@@ -57,7 +57,7 @@ import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.webapp.util.WebAppUtils;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
-public class RMContainerImpl implements RMContainer, Comparable<RMContainer> {
+public class RMContainerImpl implements RMContainer {
 
   private static final Log LOG = LogFactory.getLog(RMContainerImpl.class);
 
