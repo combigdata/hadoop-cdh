@@ -39,7 +39,8 @@ import org.apache.hadoop.yarn.event.EventHandler;
  * when resources are being reserved to fill space for a future container 
  * allocation.
  */
-public interface RMContainer extends EventHandler<RMContainerEvent> {
+public interface RMContainer extends EventHandler<RMContainerEvent>,
+    Comparable<RMContainer> {
 
   ContainerId getContainerId();
 
