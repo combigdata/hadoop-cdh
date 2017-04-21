@@ -66,6 +66,12 @@ public interface MRJobConfig {
 
   public static final String QUEUE_NAME = "mapreduce.job.queuename";
 
+  /**
+   * Specify strict locality on a comma-separated list of racks and/or nodes.
+   * Syntax: /rack or /rack/node or node (assumes /default-rack)
+   */
+  public static final String AM_STRICT_LOCALITY = "mapreduce.job.am.strict-locality";
+
   public static final String RESERVATION_ID = "mapreduce.job.reservation.id";
 
   public static final String JOB_TAGS = "mapreduce.job.tags";
