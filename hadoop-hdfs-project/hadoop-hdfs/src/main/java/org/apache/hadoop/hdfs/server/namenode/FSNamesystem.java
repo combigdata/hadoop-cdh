@@ -942,7 +942,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       
       this.dtSecretManager = createDelegationTokenSecretManager(conf);
       this.dir = new FSDirectory(this, conf);
-      this.snapshotManager = new SnapshotManager(dir);
+      this.snapshotManager = new SnapshotManager(conf, dir);
       this.cacheManager = new CacheManager(this, conf, blockManager);
       this.safeMode = new SafeModeInfo(conf);
       this.topConf = new TopConf(conf);
@@ -3160,12 +3160,13 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
           " for client " + clientMachine +
           " because pendingCreates is non-null but no leases found.");
       }
+      INodesInPath iip = INodesInPath.fromINode(fileInode);
       if (force) {
         // close now: no need to wait for soft lease expiration and 
         // close only the file src
         LOG.info("recoverLease: " + lease + ", src=" + src +
           " from client " + clientName);
-        return internalReleaseLease(lease, src, holder);
+        return internalReleaseLease(lease, src, iip, holder);
       } else {
         assert lease.getHolder().equals(clientName) :
           "Current lease holder " + lease.getHolder() +
@@ -3177,7 +3178,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
         if (lease.expiredSoftLimit()) {
           LOG.info("startFile: recover " + lease + ", src=" + src + " client "
               + clientName);
-          if (internalReleaseLease(lease, src, null)) {
+          if (internalReleaseLease(lease, src, iip, null)) {
             return true;
           } else {
             throw new RecoveryInProgressException(
@@ -4626,6 +4627,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
   /**
    * Move a file that is being written to be immutable.
    * @param src The filename
+   * @param iip The INodesInPath for src
    * @param lease The lease for the client creating the file
    * @param recoveryLeaseHolder reassign lease to this holder if the last block
    *        needs recovery; keep current holder if null.
@@ -4637,15 +4639,14 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
    *         false if block recovery has been initiated. Since the lease owner
    *         has been changed and logged, caller should call logSync().
    */
-  boolean internalReleaseLease(Lease lease, String src, 
+  boolean internalReleaseLease(Lease lease, String src, INodesInPath iip,
       String recoveryLeaseHolder) throws AlreadyBeingCreatedException, 
       IOException, UnresolvedLinkException {
     LOG.info("Recovering " + lease + ", src=" + src);
     assert !isInSafeMode();
     assert hasWriteLock();
 
-    final INodesInPath iip = dir.getLastINodeInPath(src);
-    final INodeFile pendingFile = iip.getINode(0).asFile();
+    final INodeFile pendingFile = iip.getLastINode().asFile();
     int nrBlocks = pendingFile.numBlocks();
     BlockInfo[] blocks = pendingFile.getBlocks();
 
@@ -8344,7 +8345,8 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       dir.verifySnapshotName(snapshotName, snapshotRoot);
       dir.writeLock();
       try {
-        snapshotPath = snapshotManager.createSnapshot(snapshotRoot, snapshotName);
+        snapshotPath = snapshotManager.createSnapshot(leaseManager,
+            snapshotRoot, snapshotName);
       } finally {
         dir.writeUnlock();
       }

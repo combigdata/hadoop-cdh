@@ -273,7 +273,7 @@ public class FSDirectory implements Closeable {
     ezManager = new EncryptionZoneManager(this, conf);
   }
     
-  private FSNamesystem getFSNamesystem() {
+  FSNamesystem getFSNamesystem() {
     return namesystem;
   }
 

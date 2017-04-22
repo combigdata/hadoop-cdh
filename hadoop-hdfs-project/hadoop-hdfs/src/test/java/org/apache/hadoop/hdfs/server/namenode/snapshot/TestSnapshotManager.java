@@ -25,10 +25,12 @@ import static org.mockito.Mockito.spy;
 
 import java.util.ArrayList;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.protocol.SnapshotException;
 import org.apache.hadoop.hdfs.server.namenode.FSDirectory;
 import org.apache.hadoop.hdfs.server.namenode.INode;
 import org.apache.hadoop.hdfs.server.namenode.INodeDirectory;
+import org.apache.hadoop.hdfs.server.namenode.LeaseManager;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -46,24 +48,25 @@ public class TestSnapshotManager {
   public void testSnapshotLimits() throws Exception {
     // Setup mock objects for SnapshotManager.createSnapshot.
     //
+    LeaseManager leaseManager = mock(LeaseManager.class);
     INodeDirectory ids = mock(INodeDirectory.class);
     FSDirectory fsdir = mock(FSDirectory.class);
 
-    SnapshotManager sm = spy(new SnapshotManager(fsdir));
+    SnapshotManager sm = spy(new SnapshotManager(new Configuration(), fsdir));
     doReturn(ids).when(sm).getSnapshottableRoot(anyString());
     doReturn(testMaxSnapshotLimit).when(sm).getMaxSnapshotID();
 
     // Create testMaxSnapshotLimit snapshots. These should all succeed.
     //
     for (Integer i = 0; i < testMaxSnapshotLimit; ++i) {
-      sm.createSnapshot("dummy", i.toString());
+      sm.createSnapshot(leaseManager, "dummy", i.toString());
     }
 
     // Attempt to create one more snapshot. This should fail due to snapshot
     // ID rollover.
     //
     try {
-      sm.createSnapshot("dummy", "shouldFailSnapshot");
+      sm.createSnapshot(leaseManager, "dummy", "shouldFailSnapshot");
       Assert.fail("Expected SnapshotException not thrown");
     } catch (SnapshotException se) {
       Assert.assertTrue(
@@ -78,7 +81,7 @@ public class TestSnapshotManager {
     // to snapshot ID rollover.
     //
     try {
-      sm.createSnapshot("dummy", "shouldFailSnapshot2");
+      sm.createSnapshot(leaseManager, "dummy", "shouldFailSnapshot2");
       Assert.fail("Expected SnapshotException not thrown");
     } catch (SnapshotException se) {
       Assert.assertTrue(
