@@ -214,7 +214,8 @@ class CGroupsHandlerImpl implements CGroupsHandler {
     return ret;
   }
 
-  private static String findControllerInMtab(String controller,
+  @VisibleForTesting
+  static String findControllerInMtab(String controller,
       Map<String, List<String>> entries) {
     for (Map.Entry<String, List<String>> e : entries.entrySet()) {
       if (e.getValue().contains(controller)) {
