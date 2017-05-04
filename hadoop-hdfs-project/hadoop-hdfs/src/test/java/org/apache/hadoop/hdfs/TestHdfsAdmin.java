@@ -20,15 +20,20 @@ package org.apache.hadoop.hdfs;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.crypto.key.JavaKeyStoreProvider;
+import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.FileSystemTestHelper;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.client.HdfsAdmin;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -92,5 +97,34 @@ public class TestHdfsAdmin {
   @Test(expected = IllegalArgumentException.class)
   public void testHdfsAdminWithBadUri() throws IOException, URISyntaxException {
     new HdfsAdmin(new URI("file:///bad-scheme"), conf);
+  }
+
+  private static String getKeyProviderURI() {
+    FileSystemTestHelper helper = new FileSystemTestHelper();
+    // Set up java key store
+    String testRoot = helper.getTestRootDir();
+    File testRootDir = new File(testRoot).getAbsoluteFile();
+    return JavaKeyStoreProvider.SCHEME_NAME + "://file" +
+        new Path(testRootDir.toString(), "test.jks").toUri();
+  }
+
+  @Test
+  public void testGetKeyProvider() throws IOException {
+    HdfsAdmin hdfsAdmin = new HdfsAdmin(FileSystem.getDefaultUri(conf), conf);
+    Assert.assertNull("should return null for an non-encrypted cluster",
+        hdfsAdmin.getKeyProvider());
+
+    shutDownCluster();
+
+    Configuration conf = new Configuration();
+    conf.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_KEY_PROVIDER_PATH,
+        getKeyProviderURI());
+
+    cluster = new MiniDFSCluster.Builder(conf).numDataNodes(2).build();
+    cluster.waitActive();
+    hdfsAdmin = new HdfsAdmin(FileSystem.getDefaultUri(conf), conf);
+
+    Assert.assertNotNull("should not return null for an encrypted cluster",
+        hdfsAdmin.getKeyProvider());
   }
 }

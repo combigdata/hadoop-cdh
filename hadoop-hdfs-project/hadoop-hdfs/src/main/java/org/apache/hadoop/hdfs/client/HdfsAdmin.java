@@ -26,6 +26,7 @@ import org.apache.hadoop.HadoopIllegalArgumentException;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.crypto.key.KeyProvider;
 import org.apache.hadoop.fs.CacheFlag;
 import org.apache.hadoop.fs.FileEncryptionInfo;
 import org.apache.hadoop.fs.FileStatus;
@@ -235,6 +236,17 @@ public class HdfsAdmin {
    */
   public RemoteIterator<CachePoolEntry> listCachePools() throws IOException {
     return dfs.listCachePools();
+  }
+
+  /**
+   * Get KeyProvider if present.
+   *
+   * @return the key provider if encryption is enabled on HDFS.
+   *         Otherwise, it returns null.
+   * @throws IOException on RPC exception to the NN.
+   */
+  public KeyProvider getKeyProvider() throws IOException {
+    return dfs.getClient().getKeyProvider();
   }
 
   /**

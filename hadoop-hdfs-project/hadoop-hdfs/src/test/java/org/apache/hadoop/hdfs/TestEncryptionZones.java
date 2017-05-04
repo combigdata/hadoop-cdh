@@ -130,6 +130,7 @@ import static org.apache.hadoop.test.MetricsAsserts.getMetrics;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -349,6 +350,7 @@ public class TestEncryptionZones {
   @Test
   public void testBasicOperations() throws Exception {
 
+    assertNotNull("key provider is not present", dfsAdmin.getKeyProvider());
     int numZones = 0;
     /* Number of EZs should be 0 if no EZ is created */
     assertEquals("Unexpected number of encryption zones!", numZones,
@@ -1776,7 +1778,7 @@ public class TestEncryptionZones {
     URI namenodeKeyProviderUri = URI.create(getKeyProviderURI());
     URI clientKeyProviderUri =
         cluster.getFileSystem().getClient().getKeyProviderUri();
-    Assert.assertNotNull(clientKeyProviderUri);
+    assertNotNull(clientKeyProviderUri);
     // Since the client and the namenode share the same conf, they will have
     // identical key provider.
     Assert.assertEquals("Key Provider for client and namenode are different",
