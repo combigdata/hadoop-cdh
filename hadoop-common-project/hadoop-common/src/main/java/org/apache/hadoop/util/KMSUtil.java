@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 
 /**
  * Utils for KMS.
@@ -50,20 +51,21 @@ public final class KMSUtil {
   public static KeyProvider createKeyProvider(final Configuration conf,
       final String configKeyName) throws IOException {
     LOG.debug("Creating key provider with config key {}", configKeyName);
-    final String providerUriStr = conf.getTrimmed(configKeyName);
+    final String providerUriStr = conf.getTrimmed(configKeyName, "");
     // No provider set in conf
-    if (providerUriStr == null || providerUriStr.isEmpty()) {
+    if (providerUriStr.isEmpty()) {
       return null;
     }
-    return createKeyProviderFromUri(conf, URI.create(providerUriStr));
-  }
-
-  public static KeyProvider createKeyProviderFromUri(final Configuration conf,
-      final URI providerUri) throws IOException {
+    final URI providerUri;
+    try {
+      providerUri = new URI(providerUriStr);
+    } catch (URISyntaxException e) {
+      throw new IOException(e);
+    }
     KeyProvider keyProvider = KeyProviderFactory.get(providerUri, conf);
     if (keyProvider == null) {
-      throw new IOException("Could not instantiate KeyProvider for uri: " +
-          providerUri);
+      throw new IOException("Could not instantiate KeyProvider from " +
+          configKeyName + " setting of '" + providerUriStr + "'");
     }
     if (keyProvider.isTransient()) {
       throw new IOException("KeyProvider " + keyProvider.toString()
