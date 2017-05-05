@@ -54,7 +54,6 @@ public class FsServerDefaults implements Writable {
   private boolean encryptDataTransfer;
   private long trashInterval;
   private DataChecksum.Type checksumType;
-  private String keyProviderUri;
 
   public FsServerDefaults() {
   }
@@ -62,8 +61,7 @@ public class FsServerDefaults implements Writable {
   public FsServerDefaults(long blockSize, int bytesPerChecksum,
       int writePacketSize, short replication, int fileBufferSize,
       boolean encryptDataTransfer, long trashInterval,
-      DataChecksum.Type checksumType,
-      String keyProviderUri) {
+      DataChecksum.Type checksumType) {
     this.blockSize = blockSize;
     this.bytesPerChecksum = bytesPerChecksum;
     this.writePacketSize = writePacketSize;
@@ -72,7 +70,6 @@ public class FsServerDefaults implements Writable {
     this.encryptDataTransfer = encryptDataTransfer;
     this.trashInterval = trashInterval;
     this.checksumType = checksumType;
-    this.keyProviderUri = keyProviderUri;
   }
 
   public long getBlockSize() {
@@ -105,14 +102,6 @@ public class FsServerDefaults implements Writable {
 
   public DataChecksum.Type getChecksumType() {
     return checksumType;
-  }
-
-  /* null means old style namenode.
-   * "" (empty string) means namenode is upgraded but EZ is not supported.
-   * some string means that value is the key provider.
-   */
-  public String getKeyProviderUri() {
-    return keyProviderUri;
   }
 
   // /////////////////////////////////////////

@@ -28,8 +28,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.crypto.key.KeyProvider;
-import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
-import org.apache.hadoop.util.KMSUtil;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
@@ -63,29 +61,29 @@ public class KeyProviderCache {
         .build();
   }
 
-  public KeyProvider get(final Configuration conf,
-      final URI serverProviderUri) {
-    if (serverProviderUri == null) {
+  public KeyProvider get(final Configuration conf) {
+    URI kpURI = createKeyProviderURI(conf);
+    if (kpURI == null) {
       return null;
     }
     try {
-      return cache.get(serverProviderUri, new Callable<KeyProvider>() {
+      return cache.get(kpURI, new Callable<KeyProvider>() {
         @Override
         public KeyProvider call() throws Exception {
-          return KMSUtil.createKeyProviderFromUri(conf, serverProviderUri);
+          return DFSUtil.createKeyProvider(conf);
         }
       });
     } catch (Exception e) {
-      LOG.error("Could not create KeyProvider for DFSClient !!", e);
+      LOG.error("Could not create KeyProvider for DFSClient !!", e.getCause());
       return null;
     }
   }
 
   private URI createKeyProviderURI(Configuration conf) {
-    final String providerUriStr = conf.getTrimmed(
-        CommonConfigurationKeysPublic.HADOOP_SECURITY_KEY_PROVIDER_PATH);
+    final String providerUriStr =
+        conf.getTrimmed(DFSConfigKeys.DFS_ENCRYPTION_KEY_PROVIDER_URI, "");
     // No provider set in conf
-    if (providerUriStr == null || providerUriStr.isEmpty()) {
+    if (providerUriStr.isEmpty()) {
       LOG.error("Could not find uri with key ["
           + DFSConfigKeys.DFS_ENCRYPTION_KEY_PROVIDER_URI
           + "] to create a keyProvider !!");
