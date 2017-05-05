@@ -25,7 +25,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.crypto.key.KeyProvider;
 import org.apache.hadoop.crypto.key.KeyProviderFactory;
 import org.apache.hadoop.crypto.key.kms.KMSClientProvider;
-import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -97,42 +96,29 @@ public class TestKeyProviderCache {
     Configuration conf = new Configuration();
     conf.set(DFSConfigKeys.DFS_ENCRYPTION_KEY_PROVIDER_URI,
         "dummy://foo:bar@test_provider1");
-    KeyProvider keyProvider1 = kpCache.get(conf,
-        getKeyProviderUriFromConf(conf));
+    KeyProvider keyProvider1 = kpCache.get(conf);
     Assert.assertNotNull("Returned Key Provider is null !!", keyProvider1);
 
     conf.set(DFSConfigKeys.DFS_ENCRYPTION_KEY_PROVIDER_URI,
         "dummy://foo:bar@test_provider1");
-    KeyProvider keyProvider2 = kpCache.get(conf,
-        getKeyProviderUriFromConf(conf));
+    KeyProvider keyProvider2 = kpCache.get(conf);
 
     Assert.assertTrue("Different KeyProviders returned !!",
         keyProvider1 == keyProvider2);
 
     conf.set(DFSConfigKeys.DFS_ENCRYPTION_KEY_PROVIDER_URI,
         "dummy://test_provider3");
-    KeyProvider keyProvider3 = kpCache.get(conf,
-        getKeyProviderUriFromConf(conf));
+    KeyProvider keyProvider3 = kpCache.get(conf);
 
     Assert.assertFalse("Same KeyProviders returned !!",
         keyProvider1 == keyProvider3);
 
     conf.set(DFSConfigKeys.DFS_ENCRYPTION_KEY_PROVIDER_URI,
         "dummy://hello:there@test_provider1");
-    KeyProvider keyProvider4 = kpCache.get(conf,
-        getKeyProviderUriFromConf(conf));
+    KeyProvider keyProvider4 = kpCache.get(conf);
 
     Assert.assertFalse("Same KeyProviders returned !!",
         keyProvider1 == keyProvider4);
 
-  }
-
-  private URI getKeyProviderUriFromConf(Configuration conf) {
-    String providerUriStr = conf.get(
-        CommonConfigurationKeysPublic.HADOOP_SECURITY_KEY_PROVIDER_PATH);
-    if (providerUriStr == null || providerUriStr.isEmpty()) {
-      return null;
-    }
-    return URI.create(providerUriStr);
   }
 }
