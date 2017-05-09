@@ -97,8 +97,9 @@ public class EmbeddedElectorService extends AbstractService
 
     elector.ensureParentZNode();
     if (!isParentZnodeSafe(clusterId)) {
-      notifyFatalError(electionZNode + " znode has invalid data! "+
-          "Might need formatting!");
+      notifyFatalError(String.format("invalid data in znode, %s, " +
+          "which may require the state store to be reformatted",
+          electionZNode));
     }
 
     super.serviceInit(conf);
