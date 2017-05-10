@@ -31,6 +31,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.UnresolvedLinkException;
 import org.apache.hadoop.fs.XAttr;
 import org.apache.hadoop.fs.XAttrSetFlag;
 import org.apache.hadoop.hdfs.protocol.NSQuotaExceededException;
@@ -38,18 +39,21 @@ import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.DFSTestUtil;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
+import org.apache.hadoop.hdfs.protocol.QuotaExceededException;
 import org.apache.hadoop.test.GenericTestUtils;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
+import org.mockito.Mockito;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.when;
 
 /**
  * Test {@link FSDirectory}, the in-memory namespace tree.
@@ -380,5 +384,50 @@ public class TestFSDirectory {
     newXAttrs = fsdir.setINodeXAttrs(existingXAttrs, toAdd,
         EnumSet.of(XAttrSetFlag.CREATE, XAttrSetFlag.REPLACE));
     verifyXAttrsPresent(newXAttrs, 4);
+  }
+
+  private boolean unprotectedSetTimes(long atime, long atime0, long precision,
+      long mtime, boolean force) throws QuotaExceededException,
+      UnresolvedLinkException {
+    FSDirectory fsd = Mockito.mock(FSDirectory.class);
+    FSNamesystem fsn = Mockito.mock(FSNamesystem.class);
+    INodesInPath iip = Mockito.mock(INodesInPath.class);
+    INode inode = Mockito.mock(INode.class);
+
+    when(fsd.getFSNamesystem()).thenReturn(fsn);
+    when(fsn.getAccessTimePrecision()).thenReturn(precision);
+    when(fsd.getINodesInPath("", true)).thenReturn(iip);
+    when(fsd.getLastINodeInPath("")).thenReturn(iip);
+    when(fsd.hasWriteLock()).thenReturn(Boolean.TRUE);
+    when(iip.getLastINode()).thenReturn(inode);
+    when(iip.getLatestSnapshotId()).thenReturn(Mockito.anyInt());
+    when(inode.getAccessTime()).thenReturn(atime0);
+    when(fsd.unprotectedSetTimes("", mtime, atime, force)).thenCallRealMethod();
+    return fsd.unprotectedSetTimes("", mtime, atime, force);
+  }
+
+  @Test
+  public void testUnprotectedSetTimes() throws Exception {
+    // atime < access time + precision
+    assertFalse("SetTimes should not update access time "
+            + "because it's within the last precision interval",
+        unprotectedSetTimes(100, 0, 1000, -1, false));
+
+    // atime = access time + precision
+    assertFalse("SetTimes should not update access time "
+            + "because it's within the last precision interval",
+        unprotectedSetTimes(1000, 0, 1000, -1, false));
+
+    // atime > access time + precision
+    assertTrue("SetTimes should update access time",
+        unprotectedSetTimes(1011, 10, 1000, -1, false));
+
+    // atime < access time + precision, but force is set
+    assertTrue("SetTimes should update access time",
+        unprotectedSetTimes(100, 0, 1000, -1, true));
+
+    // atime < access time + precision, but mtime is set
+    assertTrue("SetTimes should update access time",
+        unprotectedSetTimes(100, 0, 1000, 1, false));
   }
 }

@@ -2511,18 +2511,14 @@ public class FSDirectory implements Closeable {
       inode = inode.setModificationTime(mtime, latest);
       status = true;
     }
-    if (atime != -1) {
-      long inodeTime = inode.getAccessTime();
-
-      // if the last access time update was within the last precision interval, then
-      // no need to store access time
-      if (atime <= inodeTime + getFSNamesystem().getAccessTimePrecision() && !force) {
-        status =  false;
-      } else {
-        inode.setAccessTime(atime, latest);
-        status = true;
-      }
-    } 
+    // if the last access time update was within the last precision interval,
+    // then no need to store access time
+    if (atime != -1 && (status || force
+        || (atime > inode.getAccessTime()
+        + getFSNamesystem().getAccessTimePrecision()))) {
+      inode.setAccessTime(atime, latest);
+      status = true;
+    }
     return status;
   }
 
