@@ -6386,6 +6386,11 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     return initializedReplQueues;
   }
 
+  @VisibleForTesting
+  public void setInitializedReplQueues(boolean v) {
+    this.initializedReplQueues = v;
+  }
+
   private boolean shouldPopulateReplQueues() {
     if(haContext == null || haContext.getState() == null)
       return false;
@@ -8109,6 +8114,11 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
   @Override
   public CacheManager getCacheManager() {
     return cacheManager;
+  }
+
+  @VisibleForTesting
+  public HAContext getHAContext() {
+    return haContext;
   }
 
   @Override  // NameNodeMXBean
