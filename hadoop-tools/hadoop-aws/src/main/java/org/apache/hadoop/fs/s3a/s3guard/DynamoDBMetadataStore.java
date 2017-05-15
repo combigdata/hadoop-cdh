@@ -59,6 +59,8 @@ import com.google.common.base.Preconditions;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.s3a.Constants;
+import org.apache.hadoop.fs.s3a.S3AFileStatus;
+import org.apache.hadoop.fs.s3a.S3AUtils;
 import org.apache.hadoop.fs.s3a.Tristate;
 import org.apache.hadoop.io.retry.RetryPolicies;
 import org.apache.hadoop.io.retry.RetryPolicy;
@@ -184,6 +186,11 @@ public class DynamoDBMetadataStore implements MetadataStore {
   /** Initial delay for retries when batched operations get throttled by
    * DynamoDB. Value is {@value} msec. */
   public static final long MIN_RETRY_SLEEP_MSEC = 100;
+
+  private static final ValueMap deleteTrackingValueMap =
+      new ValueMap().withBoolean(":true", true);
+
+  private static final String IS_DELETED = "is_deleted";
 
   private DynamoDB dynamoDB;
   private String region;
@@ -337,7 +344,10 @@ public class DynamoDBMetadataStore implements MetadataStore {
         final GetItemSpec spec = new GetItemSpec()
             .withPrimaryKey(pathToKey(path))
             .withConsistentRead(true); // strictly consistent read
-        final Item item = table.getItem(spec);
+        Item item = table.getItem(spec);
+        if (!itemExists(item)) {
+          item = null;
+        }
         meta = itemToPathMetadata(item, username);
         LOG.debug("Get from table {} in region {} returning for {}: {}",
             tableName, region, path, meta);
@@ -350,7 +360,9 @@ public class DynamoDBMetadataStore implements MetadataStore {
           final QuerySpec spec = new QuerySpec()
               .withHashKey(pathToParentKeyAttribute(path))
               .withConsistentRead(true)
-              .withMaxResultSize(1); // limit 1
+              .withMaxResultSize(1) // limit 1
+              .withFilterExpression(IS_DELETED + " <> :true")
+              .withValueMap(deleteTrackingValueMap);
           final ItemCollection<QueryOutcome> items = table.query(spec);
           Iterator iterator = items.iterator();
           boolean hasChildren = iterator.hasNext();
@@ -390,7 +402,9 @@ public class DynamoDBMetadataStore implements MetadataStore {
     try {
       final QuerySpec spec = new QuerySpec()
           .withHashKey(pathToParentKeyAttribute(path))
-          .withConsistentRead(true); // strictly consistent read
+          .withConsistentRead(true) // strictly consistent read
+          .withFilterExpression(IS_DELETED + " <> :true")
+          .withValueMap(deleteTrackingValueMap);
       final ItemCollection<QueryOutcome> items = table.query(spec);
 
       final List<PathMetadata> metas = new ArrayList<>();
@@ -566,7 +580,7 @@ public class DynamoDBMetadataStore implements MetadataStore {
           .withPrimaryKey(pathToKey(path))
           .withConsistentRead(true); // strictly consistent read
       final Item item = table.getItem(spec);
-      if (item == null) {
+      if (!itemExists(item)) {
         final FileStatus status = makeDirStatus(path, username);
         metasToPut.add(new PathMetadata(status, Tristate.FALSE));
         path = path.getParent();
@@ -577,7 +591,17 @@ public class DynamoDBMetadataStore implements MetadataStore {
     return metasToPut;
   }
 
-  /** Create a directory FileStatus using current system time as mod time. */
+  private boolean itemExists(Item item) {
+    if (item == null) {
+      return false;
+    }
+    if (item.isPresent(IS_DELETED) && item.getBoolean(IS_DELETED)) {
+      return false;
+    }
+    return true;
+  }
+
+    /** Create a directory FileStatus using current system time as mod time. */
   static FileStatus makeDirStatus(Path f, String owner) {
     return  new FileStatus(0, true, 1, 0, System.currentTimeMillis(), 0,
         null, owner, owner, f);
@@ -921,4 +945,28 @@ public class DynamoDBMetadataStore implements MetadataStore {
     Preconditions.checkNotNull(meta.getFileStatus().getPath());
   }
 
+  /* CLOUDERA-BUILD: test support for writing future schema. */
+  @VisibleForTesting
+  public void _delete_with_tombstone(Path path) throws IOException {
+    path = checkPath(path);
+    LOG.debug("Deleting from table {} in region {}: {}",
+        tableName, region, path);
+
+    // deleting nonexistent item consumes 1 write capacity; skip it
+    if (path.isRoot()) {
+      LOG.debug("Skip deleting root directory as it does not exist in table");
+      return;
+    }
+
+    try {
+      FileStatus status = S3AUtils.createUploadFileStatus(path,
+          false /* isDir always false for tombstones */, 0, 0, "nobody");
+      PathMetadata meta = new PathMetadata(status);
+      Item item = PathMetadataDynamoDBTranslation.pathMetadataToItem(meta);
+      item.withBoolean(IS_DELETED, true);
+      table.putItem(item);
+    } catch (AmazonClientException e) {
+      throw translateException("delete", path, e);
+    }
+  }
 }
