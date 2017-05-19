@@ -18,10 +18,13 @@
 
 package org.apache.hadoop.fs;
 
+import java.util.Arrays;
+
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.crypto.CipherSuite;
 import org.apache.hadoop.crypto.JceAesCtrCryptoCodec;
 import org.apache.hadoop.crypto.OpensslAesCtrCryptoCodec;
+import org.apache.hadoop.util.StringUtils;
 
 /** 
  * This class contains constants for configuration keys used
@@ -301,13 +304,15 @@ public class CommonConfigurationKeysPublic {
       "hadoop.security.sensitive-config-keys";
   /** See <a href="{@docRoot}/../core-default.html">core-default.xml</a> */
   public static final String HADOOP_SECURITY_SENSITIVE_CONFIG_KEYS_DEFAULT =
-      "secret$" + "," +
-      "password$" + "," +
-      "ssl.keystore.pass$" + "," +
-      "fs.s3.*[Ss]ecret.?[Kk]ey" + "," +
-      "fs.azure\\.account.key.*" + "," +
-      "dfs.webhdfs.oauth2.[a-z]+.token" + "," +
-      HADOOP_SECURITY_SENSITIVE_CONFIG_KEYS;
+      StringUtils.join(",", Arrays.asList(
+          "secret$",
+          "password$",
+          "ssl.keystore.pass$",
+          "fs.s3.*[Ss]ecret.?[Kk]ey",
+          "fs.azure\\.account.key.*",
+          "credential$",
+          "oauth.*token$",
+          HADOOP_SECURITY_SENSITIVE_CONFIG_KEYS));
 
   @Deprecated
   /** Only used by HttpServer. */
