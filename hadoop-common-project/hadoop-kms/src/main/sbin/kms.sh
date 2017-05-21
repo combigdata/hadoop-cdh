@@ -55,7 +55,8 @@ fi
 
 print "Using   CATALINA_OPTS:       ${CATALINA_OPTS}"
 
-catalina_opts="-Dkms.home.dir=${KMS_HOME}";
+catalina_opts="-Dproc_kms"
+catalina_opts="${catalina_opts} -Dkms.home.dir=${KMS_HOME}";
 catalina_opts="${catalina_opts} -Dkms.config.dir=${KMS_CONFIG}";
 catalina_opts="${catalina_opts} -Dkms.log.dir=${KMS_LOG}";
 catalina_opts="${catalina_opts} -Dkms.temp.dir=${KMS_TEMP}";
