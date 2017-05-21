@@ -282,6 +282,12 @@ $ keytool -genkey -alias tomcat -keyalg RSA
   NOTE: You need to restart the KMS for the configuration changes to take
   effect.
 
+  In order to support some old SSL clients, the default encryption ciphers
+  include a few relatively weaker ciphers. Set environment variable
+  `KMS_SSL_CIPHERS` or property `kms.ssl.ciphers` to override. The value is a
+  comma separated list of ciphers documented in this
+  [Tomcat Wiki](https://wiki.apache.org/tomcat/Security/Ciphers).
+
 *** KMS Access Control
 
   KMS ACLs configuration are defined in the KMS <<<etc/hadoop/kms-acls.xml>>>
