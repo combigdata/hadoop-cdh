@@ -401,6 +401,12 @@ public class RMAppManager implements EventHandler<RMAppManagerEvent>,
           amReq.setPriority(RMAppAttemptImpl.AM_CONTAINER_PRIORITY);
         }
 
+        // set label expression for AM ANY request if not set
+        if (null == anyReq.getNodeLabelExpression()) {
+          anyReq.setNodeLabelExpression(submissionContext
+              .getNodeLabelExpression());
+        }
+
         // Put ANY request at the front
         if (!amReqs.get(0).equals(anyReq)) {
           amReqs.remove(anyReq);
