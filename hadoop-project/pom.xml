@@ -98,7 +98,7 @@
     <maven-surefire-plugin.version>${cdh.surefire.version}</maven-surefire-plugin.version>
     <maven-surefire-report-plugin.version>${maven-surefire-plugin.version}</maven-surefire-report-plugin.version>
     <maven-failsafe-plugin.version>${maven-surefire-plugin.version}</maven-failsafe-plugin.version>
-    <aws-java-sdk.version>1.11.86</aws-java-sdk.version>
+    <aws-java-sdk.version>1.11.134</aws-java-sdk.version>
     <surefire.fork.timeout>900</surefire.fork.timeout>
   </properties>
 
@@ -684,7 +684,7 @@
       <dependency>
         <groupId>com.amazonaws</groupId>
         <artifactId>DynamoDBLocal</artifactId>
-        <version>${aws-java-sdk.version}</version>
+        <version>[1.11.86,2.0)</version>
       </dependency>
       <dependency>
         <groupId>org.apache.mina</groupId>
