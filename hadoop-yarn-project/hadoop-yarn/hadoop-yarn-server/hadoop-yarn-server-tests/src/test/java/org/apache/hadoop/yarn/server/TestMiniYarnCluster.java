@@ -25,6 +25,8 @@ import org.apache.hadoop.yarn.server.resourcemanager.HATestUtil;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
+
 public class TestMiniYarnCluster {
   @Test
   public void testTimelineServiceStartInMiniCluster() throws Exception {
@@ -116,7 +118,7 @@ public class TestMiniYarnCluster {
   }
 
   @Test
-  public void testMultiRMConf() {
+  public void testMultiRMConf() throws IOException {
     String RM1_NODE_ID = "rm1", RM2_NODE_ID = "rm2";
     int RM1_PORT_BASE = 10000, RM2_PORT_BASE = 20000;
     Configuration conf = new YarnConfiguration();
