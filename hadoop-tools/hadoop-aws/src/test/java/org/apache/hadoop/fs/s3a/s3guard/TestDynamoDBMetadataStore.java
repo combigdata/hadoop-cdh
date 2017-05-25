@@ -293,7 +293,7 @@ public class TestDynamoDBMetadataStore extends MetadataStoreTestBase {
     if (oldMetas != null) {
       // put all metadata of old paths and verify
       ms.put(new DirListingMetadata(oldDir, oldMetas, false));
-      assertEquals(0, ms.listChildren(newDir).numEntries());
+      assertEquals(0, ms.listChildren(newDir).withoutTombstones().numEntries());
       assertTrue(CollectionUtils.isEqualCollection(oldMetas,
           ms.listChildren(oldDir).getListing()));
 
@@ -305,7 +305,7 @@ public class TestDynamoDBMetadataStore extends MetadataStoreTestBase {
 
     // move the old paths to new paths and verify
     ms.move(pathsToDelete, newMetas);
-    assertEquals(0, ms.listChildren(oldDir).numEntries());
+    assertEquals(0, ms.listChildren(oldDir).withoutTombstones().numEntries());
     if (newMetas != null) {
       assertTrue(CollectionUtils.isEqualCollection(newMetas,
           ms.listChildren(newDir).getListing()));
