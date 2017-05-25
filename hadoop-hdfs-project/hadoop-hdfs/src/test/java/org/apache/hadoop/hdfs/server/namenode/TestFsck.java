@@ -65,6 +65,7 @@ import org.apache.hadoop.hdfs.DFSUtil;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
+import org.apache.hadoop.hdfs.MiniDFSNNTopology;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.protocol.CorruptFileBlocks;
 import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
@@ -77,6 +78,7 @@ import org.apache.hadoop.hdfs.server.blockmanagement.BlockManager;
 import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeDescriptor;
 import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeManager;
 import org.apache.hadoop.hdfs.server.namenode.NamenodeFsck.Result;
+import org.apache.hadoop.hdfs.server.namenode.ha.HATestUtil;
 import org.apache.hadoop.hdfs.server.protocol.NamenodeProtocols;
 import org.apache.hadoop.test.GenericTestUtils;
 import org.apache.hadoop.hdfs.tools.DFSck;
@@ -84,6 +86,7 @@ import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.net.NetworkTopology;
 import org.apache.hadoop.security.AccessControlException;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.test.GenericTestUtils;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -1538,4 +1541,40 @@ public class TestFsck {
     }
   }
 
+  @Test(timeout = 300000)
+  public void testFsckCorruptWhenOneReplicaIsCorrupt()
+      throws Exception {
+    Configuration conf = new HdfsConfiguration();
+    final MiniDFSCluster cluster = new MiniDFSCluster.Builder(conf)
+        .nnTopology(MiniDFSNNTopology.simpleHATopology()).numDataNodes(2)
+        .build();
+    try {
+      cluster.waitActive();
+      FileSystem fs = HATestUtil.configureFailoverFs(cluster, conf);
+      cluster.transitionToActive(0);
+      String filePath = "/appendTest";
+      Path fileName = new Path(filePath);
+      DFSTestUtil.createFile(fs, fileName, 512, (short) 2, 0);
+      DFSTestUtil.waitReplication(fs, fileName, (short) 2);
+      assertTrue("File not created", fs.exists(fileName));
+      cluster.getDataNodes().get(1).shutdown();
+      DFSTestUtil.appendFile(fs, fileName, "appendCorruptBlock");
+      cluster.restartDataNode(1, true);
+      GenericTestUtils.waitFor(new Supplier<Boolean>() {
+        @Override
+        public Boolean get() {
+          return (
+              cluster.getNameNode(0).getNamesystem().getCorruptReplicaBlocks()
+                  > 0);
+        }
+      }, 100, 5000);
+
+      DFSTestUtil.appendFile(fs, fileName, "appendCorruptBlock");
+      runFsck(cluster.getConfiguration(0), 0, true, "/");
+    }finally {
+      if(cluster!=null){
+        cluster.shutdown();
+      }
+    }
+  }
 }

@@ -7233,8 +7233,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     }
 
     // Update old block with the new generation stamp and new length
-    blockinfo.setNumBytes(newBlock.getNumBytes());
-    blockinfo.setGenerationStampAndVerifyReplicas(newBlock.getGenerationStamp());
+    blockManager.updateLastBlock(blockinfo, newBlock);
 
     // find the DatanodeDescriptor objects
     final DatanodeStorageInfo[] storages = blockManager.getDatanodeManager()
