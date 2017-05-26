@@ -29,9 +29,9 @@ function build() {
     echo ----
     echo
     if [ "$_CODE_COVERAGE" == "true" ]; then
-      mvn -f ${_POM} -e clean install ${_MAVEN_FLAGS} -DskipTests -Pcloudera-clover
+      mvn -f ${_POM} -e clean install ${_MAVEN_FLAGS} -DskipTests -Pcloudera-clover -Dmaven.javadoc.skip=true
     else
-      mvn -f ${_POM} -e clean install ${_MAVEN_FLAGS} -DskipTests
+      mvn -f ${_POM} -e clean install ${_MAVEN_FLAGS} -DskipTests -Dmaven.javadoc.skip=true
     fi
   else
     echo
