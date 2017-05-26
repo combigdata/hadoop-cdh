@@ -39,6 +39,7 @@ import java.net.URL;
 import java.security.PrivilegedExceptionAction;
 import java.util.Random;
 
+import com.google.common.collect.ImmutableList;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -51,6 +52,9 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RemoteIterator;
+import org.apache.hadoop.fs.permission.AclEntry;
+import org.apache.hadoop.fs.permission.AclEntryScope;
+import org.apache.hadoop.fs.permission.AclEntryType;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
@@ -347,9 +351,19 @@ public class TestWebHDFS {
   }
 
   @Test(timeout=300000)
-  public void testNumericalUserName() throws Exception {
+  public void testCustomizedUserAndGroupNames() throws Exception {
     final Configuration conf = WebHdfsTestUtil.createConf();
-    conf.set(DFSConfigKeys.DFS_WEBHDFS_USER_PATTERN_KEY, "^[A-Za-z0-9_][A-Za-z0-9._-]*[$]?$");
+    conf.setBoolean(DFSConfigKeys.DFS_NAMENODE_ACLS_ENABLED_KEY, true);
+    // Modify username pattern to allow numeric usernames
+    conf.set(DFSConfigKeys.DFS_WEBHDFS_USER_PATTERN_KEY, "^[A-Za-z0-9_][A-Za-z0-9" +
+        "._-]*[$]?$");
+    // Modify acl pattern to allow numeric and "@" characters user/groups
+    // in ACL spec
+    conf.set(DFSConfigKeys.DFS_WEBHDFS_ACL_PERMISSION_PATTERN_KEY,
+        "^(default:)?(user|group|mask|other):" +
+            "[[0-9A-Za-z_][@A-Za-z0-9._-]]*:([rwx-]{3})?(,(default:)?" +
+            "(user|group|mask|other):[[0-9A-Za-z_][@A-Za-z0-9._-]]*:" +
+            "([rwx-]{3})?)*$");
     final MiniDFSCluster cluster =
         new MiniDFSCluster.Builder(conf).numDataNodes(1).build();
     try {
@@ -358,6 +372,7 @@ public class TestWebHDFS {
           .setPermission(new Path("/"),
               new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
 
+      // Test a numeric username
       UserGroupInformation.createUserForTesting("123", new String[]{"my-group"})
         .doAs(new PrivilegedExceptionAction<Void>() {
           @Override
@@ -366,6 +381,21 @@ public class TestWebHDFS {
                 WebHdfsFileSystem.SCHEME);
             Path d = new Path("/my-dir");
             Assert.assertTrue(fs.mkdirs(d));
+            // Test also specifying a default ACL with a numeric username
+            // and another of a groupname with '@'
+            fs.modifyAclEntries(d, ImmutableList.of(
+                new AclEntry.Builder()
+                    .setPermission(FsAction.READ)
+                    .setScope(AclEntryScope.DEFAULT)
+                    .setType(AclEntryType.USER)
+                    .setName("11010")
+                    .build(),
+                new AclEntry.Builder()
+                    .setPermission(FsAction.READ_WRITE)
+                    .setType(AclEntryType.GROUP)
+                    .setName("foo@bar")
+                    .build()
+            ));
             return null;
           }
         });

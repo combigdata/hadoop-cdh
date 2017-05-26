@@ -42,6 +42,7 @@ import org.apache.hadoop.hdfs.client.HdfsDataInputStream;
 import org.apache.hadoop.hdfs.security.token.delegation.DelegationTokenIdentifier;
 import org.apache.hadoop.hdfs.web.JsonUtil;
 import org.apache.hadoop.hdfs.web.WebHdfsFileSystem;
+import org.apache.hadoop.hdfs.web.resources.AclPermissionParam;
 import org.apache.hadoop.hdfs.web.resources.GetOpParam;
 import org.apache.hadoop.hdfs.web.resources.PostOpParam;
 import org.apache.hadoop.hdfs.web.resources.PutOpParam;
@@ -97,8 +98,11 @@ public class WebHdfsHandler extends SimpleChannelInboundHandler<HttpRequest> {
     this.confForCreate = confForCreate;
     /** set user pattern based on configuration file */
     UserParam.setUserPattern(
-            conf.get(DFSConfigKeys.DFS_WEBHDFS_USER_PATTERN_KEY,
-                    DFSConfigKeys.DFS_WEBHDFS_USER_PATTERN_DEFAULT));
+        conf.get(DFSConfigKeys.DFS_WEBHDFS_USER_PATTERN_KEY,
+            DFSConfigKeys.DFS_WEBHDFS_USER_PATTERN_DEFAULT));
+    AclPermissionParam.setAclPermissionPattern(
+        conf.get(DFSConfigKeys.DFS_WEBHDFS_ACL_PERMISSION_PATTERN_KEY,
+            DFSConfigKeys.DFS_WEBHDFS_ACL_PERMISSION_PATTERN_DEFAULT));
   }
 
   @Override
