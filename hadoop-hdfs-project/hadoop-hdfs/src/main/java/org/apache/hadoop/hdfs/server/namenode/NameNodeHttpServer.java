@@ -33,6 +33,7 @@ import org.apache.hadoop.hdfs.server.common.JspHelper;
 import org.apache.hadoop.hdfs.server.namenode.startupprogress.StartupProgress;
 import org.apache.hadoop.hdfs.server.namenode.web.resources.NamenodeWebHdfsMethods;
 import org.apache.hadoop.hdfs.web.WebHdfsFileSystem;
+import org.apache.hadoop.hdfs.web.resources.AclPermissionParam;
 import org.apache.hadoop.hdfs.web.resources.Param;
 import org.apache.hadoop.hdfs.web.resources.UserParam;
 import org.apache.hadoop.http.HttpConfig;
@@ -72,6 +73,9 @@ public class NameNodeHttpServer {
       UserParam.setUserPattern(conf.get(
           DFSConfigKeys.DFS_WEBHDFS_USER_PATTERN_KEY,
           DFSConfigKeys.DFS_WEBHDFS_USER_PATTERN_DEFAULT));
+      AclPermissionParam.setAclPermissionPattern(conf.get(
+          DFSConfigKeys.DFS_WEBHDFS_ACL_PERMISSION_PATTERN_KEY,
+          DFSConfigKeys.DFS_WEBHDFS_ACL_PERMISSION_PATTERN_DEFAULT));
 
       // add authentication filter for webhdfs
       final String className = conf.get(
