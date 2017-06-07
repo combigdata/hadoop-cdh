@@ -34,6 +34,7 @@ import java.util.Arrays;
 
 import org.apache.commons.logging.Log;
 import org.apache.hadoop.fs.ChecksumException;
+import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants;
 import org.apache.hadoop.hdfs.protocol.datatransfer.PacketHeader;
@@ -293,6 +294,7 @@ class BlockSender implements java.io.Closeable {
         LengthInputStream metaIn = null;
         boolean keepMetaInOpen = false;
         try {
+          DataNodeFaultInjector.get().throwTooManyOpenFiles();
           metaIn = datanode.data.getMetaDataInputStream(block);
           if (!corruptChecksumOk || metaIn != null) {
             if (metaIn == null) {
@@ -321,6 +323,16 @@ class BlockSender implements java.io.Closeable {
           } else {
             LOG.warn("Could not find metadata file for " + block);
           }
+        } catch (FileNotFoundException e) {
+          if ((e.getMessage() != null) && !(e.getMessage()
+              .contains("Too many open files"))) {
+            // The replica is on its volume map but not on disk
+            datanode
+                .notifyNamenodeDeletedBlock(block, replica.getStorageUuid());
+            datanode.data.invalidate(block.getBlockPoolId(),
+                new Block[] {block.getLocalBlock()});
+          }
+          throw e;
         } finally {
           if (!keepMetaInOpen) {
             IOUtils.closeStream(metaIn);
