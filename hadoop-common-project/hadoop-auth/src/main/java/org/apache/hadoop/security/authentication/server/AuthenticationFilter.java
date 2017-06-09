@@ -523,6 +523,10 @@ public class AuthenticationFilter implements Filter {
       AuthenticationToken token;
       try {
         token = getToken(httpRequest);
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Got token {} from httpRequest {}", token,
+              getRequestURL(httpRequest));
+        }
       }
       catch (AuthenticationException ex) {
         LOG.warn("AuthenticationToken ignored: " + ex.getMessage());
@@ -533,7 +537,8 @@ public class AuthenticationFilter implements Filter {
       if (authHandler.managementOperation(token, httpRequest, httpResponse)) {
         if (token == null) {
           if (LOG.isDebugEnabled()) {
-            LOG.debug("Request [{}] triggering authentication", getRequestURL(httpRequest));
+            LOG.debug("Request [{}] triggering authentication. handler: {}",
+                getRequestURL(httpRequest), authHandler.getClass());
           }
           token = authHandler.authenticate(httpRequest, httpResponse);
           if (token != null && token.getExpires() != 0 &&
@@ -574,6 +579,10 @@ public class AuthenticationFilter implements Filter {
           doFilter(filterChain, httpRequest, httpResponse);
         }
       } else {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("managementOperation returned false for request {}."
+                  + " token: {}", getRequestURL(httpRequest), token);
+        }
         unauthorizedResponse = false;
       }
     } catch (AuthenticationException ex) {
