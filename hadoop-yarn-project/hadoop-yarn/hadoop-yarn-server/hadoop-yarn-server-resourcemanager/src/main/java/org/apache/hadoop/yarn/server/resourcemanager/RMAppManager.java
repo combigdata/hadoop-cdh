@@ -419,11 +419,7 @@ public class RMAppManager implements EventHandler<RMAppManagerEvent>,
               scheduler.getMaximumResourceCapability(),
               submissionContext.getQueue(), scheduler, isRecovery);
 
-          SchedulerUtils.normalizeRequest(amReq, scheduler.getResourceCalculator(),
-              scheduler.getClusterResource(),
-              scheduler.getMinimumResourceCapability(),
-              scheduler.getMaximumResourceCapability(),
-              scheduler.getMinimumResourceCapability());
+          scheduler.normalizeResource(amReq);
         }
         return amReqs;
       } catch (InvalidResourceRequestException e) {

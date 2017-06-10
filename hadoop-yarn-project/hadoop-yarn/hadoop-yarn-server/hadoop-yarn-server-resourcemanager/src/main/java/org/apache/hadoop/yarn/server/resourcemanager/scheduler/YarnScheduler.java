@@ -287,4 +287,12 @@ public interface YarnScheduler extends EventHandler<SchedulerEvent> {
    * @return SchedulerNode corresponds to nodeId
    */
   SchedulerNode getSchedulerNode(NodeId nodeId);
+
+  /**
+   * Normalize a resource request.
+   *
+   * @param requestedResource the resource to be normalized
+   * @return the normalized resource
+   */
+  public void normalizeResource(ResourceRequest requestedResource);
 }
