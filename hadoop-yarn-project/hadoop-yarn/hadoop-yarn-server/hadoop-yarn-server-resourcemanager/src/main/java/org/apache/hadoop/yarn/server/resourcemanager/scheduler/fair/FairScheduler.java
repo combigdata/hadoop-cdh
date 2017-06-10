@@ -762,6 +762,16 @@ public class FairScheduler extends
   }
 
   @Override
+  public void normalizeResource(ResourceRequest requestedResource) {
+    SchedulerUtils.normalizeRequest(requestedResource,
+        DOMINANT_RESOURCE_CALCULATOR,
+        null,
+        minimumAllocation,
+        getMaximumResourceCapability(),
+        incrAllocation);
+  }
+
+  @Override
   public Allocation allocate(ApplicationAttemptId appAttemptId,
       List<ResourceRequest> ask, List<ContainerId> release,
       List<String> blacklistAdditions, List<String> blacklistRemovals) {

@@ -588,4 +588,14 @@ public abstract class AbstractYarnScheduler
   public List<NodeId> getNodeIds(String resourceName) {
     return nodeTracker.getNodeIdsByResourceName(resourceName);
   }
+
+  @Override
+  public void normalizeResource(ResourceRequest requestedResource) {
+    SchedulerUtils.normalizeRequest(requestedResource,
+        getResourceCalculator(),
+        null,
+        getMinimumResourceCapability(),
+        getMaximumResourceCapability(),
+        getMinimumResourceCapability());
+  }
 }
