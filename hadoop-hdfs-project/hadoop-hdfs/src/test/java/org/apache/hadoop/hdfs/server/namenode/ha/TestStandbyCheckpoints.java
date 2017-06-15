@@ -21,12 +21,12 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
-import com.google.common.io.Files;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.DFSTestUtil;
@@ -113,7 +113,9 @@ public class TestStandbyCheckpoints {
   }
 
   protected Configuration setupCommonConfig() {
-    tmpOivImgDir = Files.createTempDir();
+    tmpOivImgDir = new File(MiniDFSCluster.getBaseDirectory(),
+        "TestStandbyCheckpoints");
+    tmpOivImgDir.mkdirs();
 
     Configuration conf = new Configuration();
     conf.setInt(DFSConfigKeys.DFS_NAMENODE_CHECKPOINT_CHECK_PERIOD_KEY, 1);
@@ -133,6 +135,10 @@ public class TestStandbyCheckpoints {
   public void shutdownCluster() throws IOException {
     if (cluster != null) {
       cluster.shutdown();
+    }
+
+    if (tmpOivImgDir != null) {
+      FileUtil.fullyDelete(tmpOivImgDir);
     }
   }
 
