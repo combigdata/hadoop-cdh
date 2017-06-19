@@ -226,6 +226,7 @@ HDFS Commands Guide
           [-shutdownDatanode <datanode_host:ipc_port> [upgrade]]
           [-getDatanodeInfo <datanode_host:ipc_port>]
           [-triggerBlockReport [-incremental] <datanode_host:ipc_port>]
+          [-listOpenFiles]
           [-help [cmd]]>>>
 +------------------------------------------+
 
@@ -366,6 +367,9 @@ HDFS Commands Guide
                   | block report for the given datanode.  If 'incremental' is
                   | specified, it will be | an incremental block report;
                   | otherwise, it will be a full block report.
+*-----------------+-----------------------------------------------------------+
+| -listOpenFiles  | List all open files currently managed by the NameNode along
+                  | with client name and client machine accessing them.
 *-----------------+-----------------------------------------------------------+
 | -help [cmd]     | Displays help for the given command or all commands if none
                   | is specified.

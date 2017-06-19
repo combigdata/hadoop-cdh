@@ -40,7 +40,13 @@ public class HdfsConstants {
   /* Hidden constructor */
   protected HdfsConstants() {
   }
-  
+
+  /**
+   * The inode id validation of lease check will be skipped when the request
+   * uses GRANDFATHER_INODE_ID for backward compatibility.
+   */
+  public static final long GRANDFATHER_INODE_ID = 0;
+
   /**
    * HDFS Protocol Names:  
    */

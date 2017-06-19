@@ -18,20 +18,26 @@
 package org.apache.hadoop.hdfs;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.HashMap;
+import java.util.HashSet;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.crypto.key.JavaKeyStoreProvider;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
+import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileSystemTestHelper;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.hdfs.client.HdfsAdmin;
+import org.apache.hadoop.hdfs.protocol.OpenFileEntry;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -40,12 +46,19 @@ import org.junit.Test;
 public class TestHdfsAdmin {
   
   private static final Path TEST_PATH = new Path("/test");
+  private static final short REPL = 1;
+  private static final int SIZE = 128;
+  private static final int OPEN_FILES_BATCH_SIZE = 5;
   private final Configuration conf = new Configuration();
   private MiniDFSCluster cluster;
   
   @Before
   public void setUpCluster() throws IOException {
-    cluster = new MiniDFSCluster.Builder(conf).numDataNodes(0).build();
+    conf.setLong(
+        DFSConfigKeys.DFS_NAMENODE_LIST_OPENFILES_NUM_RESPONSES,
+        OPEN_FILES_BATCH_SIZE);
+    cluster = new MiniDFSCluster.Builder(conf).numDataNodes(2).build();
+    cluster.waitActive();
   }
   
   @After
@@ -126,5 +139,55 @@ public class TestHdfsAdmin {
 
     Assert.assertNotNull("should not return null for an encrypted cluster",
         hdfsAdmin.getKeyProvider());
+  }
+
+  @Test(timeout = 120000L)
+  public void testListOpenFiles() throws IOException {
+    HashSet<Path> closedFileSet = new HashSet<>();
+    HashMap<Path, FSDataOutputStream> openFileMap = new HashMap<>();
+    FileSystem fs = FileSystem.get(conf);
+    verifyOpenFiles(closedFileSet, openFileMap);
+
+    int numClosedFiles = OPEN_FILES_BATCH_SIZE * 4;
+    int numOpenFiles = (OPEN_FILES_BATCH_SIZE * 3) + 1;
+    for (int i = 0; i < numClosedFiles; i++) {
+      Path filePath = new Path("/closed-file-" + i);
+      DFSTestUtil.createFile(fs, filePath, SIZE, REPL, 0);
+      closedFileSet.add(filePath);
+    }
+    verifyOpenFiles(closedFileSet, openFileMap);
+
+    openFileMap.putAll(
+        DFSTestUtil.createOpenFiles(fs, "open-file-1", numOpenFiles));
+    verifyOpenFiles(closedFileSet, openFileMap);
+
+    closedFileSet.addAll(DFSTestUtil.closeOpenFiles(openFileMap,
+        openFileMap.size() / 2));
+    verifyOpenFiles(closedFileSet, openFileMap);
+
+    openFileMap.putAll(
+        DFSTestUtil.createOpenFiles(fs, "open-file-2", 10));
+    verifyOpenFiles(closedFileSet, openFileMap);
+
+    while(openFileMap.size() > 0) {
+      closedFileSet.addAll(DFSTestUtil.closeOpenFiles(openFileMap, 1));
+      verifyOpenFiles(closedFileSet, openFileMap);
+    }
+  }
+
+  private void verifyOpenFiles(HashSet<Path> closedFiles,
+      HashMap<Path, FSDataOutputStream> openFileMap) throws IOException {
+    HdfsAdmin hdfsAdmin = new HdfsAdmin(FileSystem.getDefaultUri(conf), conf);
+    HashSet<Path> openFiles = new HashSet<>(openFileMap.keySet());
+    RemoteIterator<OpenFileEntry> openFilesRemoteItr =
+        hdfsAdmin.listOpenFiles();
+    while (openFilesRemoteItr.hasNext()) {
+      String filePath = openFilesRemoteItr.next().getFilePath();
+      assertFalse(filePath + " should not be listed under open files!",
+          closedFiles.contains(filePath));
+      assertTrue(filePath + " is not listed under open files!",
+          openFiles.remove(new Path(filePath)));
+    }
+    assertTrue("Not all open files are listed!", openFiles.isEmpty());
   }
 }
