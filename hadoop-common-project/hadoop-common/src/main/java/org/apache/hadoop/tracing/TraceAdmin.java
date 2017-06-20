@@ -159,7 +159,7 @@ public class TraceAdmin extends Configured implements Tool {
       System.err.println("You must specify a host with -host.");
       return 1;
     }
-    if (args.size() < 0) {
+    if (args.isEmpty()) {
       System.err.println("You must specify an operation.");
       return 1;
     }
