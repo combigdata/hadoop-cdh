@@ -36,6 +36,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
 
 import static org.junit.Assert.*;
+import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_NAMENODE_FSLOCK_FAIR_KEY;
 
 /**
  * Tests the FSNamesystemLock, looking at lock compatibilities and
@@ -47,11 +48,11 @@ public class TestFSNamesystemLock {
   public void testFsLockFairness() throws IOException, InterruptedException{
     Configuration conf = new Configuration();
 
-    conf.setBoolean("dfs.namenode.fslock.fair", true);
+    conf.setBoolean(DFS_NAMENODE_FSLOCK_FAIR_KEY, true);
     FSNamesystemLock fsnLock = new FSNamesystemLock(conf);
     assertTrue(fsnLock.coarseLock.isFair());
 
-    conf.setBoolean("dfs.namenode.fslock.fair", false);
+    conf.setBoolean(DFS_NAMENODE_FSLOCK_FAIR_KEY, false);
     fsnLock = new FSNamesystemLock(conf);
     assertFalse(fsnLock.coarseLock.isFair());
   }
@@ -97,7 +98,7 @@ public class TestFSNamesystemLock {
     final int threadCount = 3;
     final CountDownLatch latch = new CountDownLatch(threadCount);
     final Configuration conf = new Configuration();
-    conf.setBoolean("dfs.namenode.fslock.fair", true);
+    conf.setBoolean(DFS_NAMENODE_FSLOCK_FAIR_KEY, true);
     final FSNamesystemLock rwLock = new FSNamesystemLock(conf);
     rwLock.writeLock();
     ExecutorService helper = Executors.newFixedThreadPool(threadCount);

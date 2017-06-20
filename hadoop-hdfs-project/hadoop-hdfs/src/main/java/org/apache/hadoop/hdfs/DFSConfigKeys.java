@@ -429,6 +429,10 @@ public class DFSConfigKeys extends CommonConfigurationKeys {
   public static final long
       DFS_NAMENODE_MAX_LOCK_HOLD_TO_RELEASE_LEASE_MS_DEFAULT = 25;
 
+  public static final String DFS_NAMENODE_FSLOCK_FAIR_KEY =
+      "dfs.namenode.fslock.fair";
+  public static final boolean DFS_NAMENODE_FSLOCK_FAIR_DEFAULT = true;
+
   // Threshold for how long namenode locks must be held for the
   // event to be logged
   public static final String  DFS_NAMENODE_WRITE_LOCK_REPORTING_THRESHOLD_MS_KEY =
