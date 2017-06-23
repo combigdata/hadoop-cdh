@@ -558,18 +558,36 @@ public class MockRM extends ResourceManager {
     node.handle(new RMNodeEvent(nm.getNodeId(), RMNodeEventType.EXPIRE));
   }
 
+  private RMNode getRMNode(NodeId nodeId) {
+    RMNode node = getRMContext().getRMNodes().get(nodeId);
+    if (node == null) {
+      node = getRMContext().getInactiveRMNodes().get(nodeId);
+    }
+    return node;
+  }
+
   public void NMwaitForState(NodeId nodeid, NodeState finalState)
       throws Exception {
-    RMNode node = getRMContext().getRMNodes().get(nodeid);
-    if (node == null) {
-      node = getRMContext().getInactiveRMNodes().get(nodeid);
+    int timeWaiting = 0;
+    RMNode node = getRMNode(nodeid);
+    while (node == null) {
+      if (timeWaiting >= 20 * 1000) {
+        break;
+      }
+      node = getRMNode(nodeid);
+      Thread.sleep(10);
+      timeWaiting += 10;
     }
-    Assert.assertNotNull("node shouldn't be null", node);
-    int timeoutSecs = 0;
-    while (!finalState.equals(node.getState()) && timeoutSecs++ < 20) {
-      System.out.println("Node State is : " + node.getState()
+    Assert.assertNotNull("node shouldn't be null (timedout)", node);
+    while (!finalState.equals(node.getState())) {
+      if (timeWaiting >= 20 * 1000) {
+        break;
+      }
+
+      LOG.info("Node State is : " + node.getState()
           + " Waiting for state : " + finalState);
-      Thread.sleep(500);
+      Thread.sleep(10);
+      timeWaiting += 10;
     }
     System.out.println("Node State is : " + node.getState());
     Assert.assertEquals("Node state is not correct (timedout)", finalState,
