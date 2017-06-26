@@ -76,7 +76,7 @@ class LeaseRenewer {
 
   /** Get a {@link LeaseRenewer} instance */
   static LeaseRenewer getInstance(final String authority,
-      final UserGroupInformation ugi, final DFSClient dfsc) throws IOException {
+      final UserGroupInformation ugi, final DFSClient dfsc) {
     final LeaseRenewer r = Factory.INSTANCE.get(authority, ugi);
     r.addClient(dfsc);
     return r;
