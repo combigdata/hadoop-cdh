@@ -639,6 +639,8 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
       chosenNode = retval.info;
       InetSocketAddress targetAddr = retval.addr;
       StorageType storageType = retval.storageType;
+      // Latest block if refreshed by chooseDatanode()
+      targetBlock = retval.block;
 
       try {
         ExtendedBlock blk = targetBlock.getBlock();
@@ -1068,7 +1070,7 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
       DFSClient.LOG.debug("Connecting to datanode " + dnAddr);
     }
     InetSocketAddress targetAddr = NetUtils.createSocketAddr(dnAddr);
-    return new DNAddrPair(chosenNode, targetAddr, storageType);
+    return new DNAddrPair(chosenNode, targetAddr, storageType, block);
   }
 
   private static String getBestNodeDNAddrPairErrorString(
@@ -1100,11 +1102,11 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
       byte[] buf, int offset,
       Map<ExtendedBlock, Set<DatanodeInfo>> corruptedBlockMap)
       throws IOException {
-    block = getBlockAt(block.getStartOffset(), false);
     while (true) {
       DNAddrPair addressPair = chooseDataNode(block, null);
+      block = addressPair.block;
       try {
-        actualGetFromOneDataNode(addressPair, block, start, end, buf, offset,
+        actualGetFromOneDataNode(addressPair, start, end, buf, offset,
             corruptedBlockMap);
         return;
       } catch (IOException e) {
@@ -1128,7 +1130,7 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
         TraceScope scope = dfsClient.getTracer().
             newScope("hedgedRead" + hedgedReadId, parentSpanId);
         try {
-          actualGetFromOneDataNode(datanode, block, start, end, buf, offset,
+          actualGetFromOneDataNode(datanode, start, end, buf, offset,
               corruptedBlockMap);
           return bb;
         } finally {
@@ -1139,20 +1141,16 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
   }
 
   private void actualGetFromOneDataNode(final DNAddrPair datanode,
-      LocatedBlock block, final long start, final long end, byte[] buf,
-      int offset, Map<ExtendedBlock, Set<DatanodeInfo>> corruptedBlockMap)
+      final long start, final long end, byte[] buf, int offset,
+      Map<ExtendedBlock, Set<DatanodeInfo>> corruptedBlockMap)
       throws IOException {
     DFSClientFaultInjector.get().startFetchFromDatanode();
     int refetchToken = 1; // only need to get a new access token once
     int refetchEncryptionKey = 1; // only need to get a new encryption key once
-
+    LocatedBlock block = datanode.block;
     while (true) {
-      // cached block locations may have been updated by chooseDataNode()
-      // or fetchBlockAt(). Always get the latest list of locations at the
-      // start of the loop.
       CachingStrategy curCachingStrategy;
       boolean allowShortCircuitLocalReads;
-      block = getBlockAt(block.getStartOffset(), false);
       synchronized(infoLock) {
         curCachingStrategy = cachingStrategy;
         allowShortCircuitLocalReads = !shortCircuitForbidden();
@@ -1211,7 +1209,6 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
           // The encryption key used is invalid.
           refetchEncryptionKey--;
           dfsClient.clearDataEncryptionKey();
-          continue;
         } else if (refetchToken > 0 && tokenRefetchNeeded(e, targetAddr)) {
           refetchToken--;
           try {
@@ -1219,7 +1216,6 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
           } catch (IOException fbae) {
             // ignore IOE, since we can retry it later in a loop
           }
-          continue;
         } else {
           String msg = "Failed to connect to " + targetAddr + " for file "
               + src + " for block " + block.getBlock() + ":" + e;
@@ -1227,6 +1223,9 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
           addToDeadNodes(chosenNode);
           throw new IOException(msg);
         }
+        // Refresh the block for updated tokens in case of token failures or
+        // encryption key failures.
+        block = getBlockAt(block.getStartOffset(), false);
       } finally {
         if (reader != null) {
           reader.close();
@@ -1253,7 +1252,6 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
     ByteBuffer bb = null;
     int len = (int) (end - start + 1);
     int hedgedReadId = 0;
-    block = getBlockAt(block.getStartOffset(), false);
     while (true) {
       // see HDFS-6591, this metric is used to verify/catch unnecessary loops
       hedgedReadOpsLoopNumForTesting++;
@@ -1263,6 +1261,8 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
         // chooseDataNode is a commitment. If no node, we go to
         // the NN to reget block locations. Only go here on first read.
         chosenNode = chooseDataNode(block, ignored);
+        // Latest block, if refreshed internally
+        block = chosenNode.block;
         bb = ByteBuffer.allocate(len);
         Callable<ByteBuffer> getFromDataNodeCallable = getFromOneDataNode(
             chosenNode, block, start, end, bb, corruptedBlockMap,
@@ -1303,6 +1303,8 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
           } catch (IOException ioe) {
             chosenNode = chooseDataNode(block, ignored);
           }
+          // Latest block, if refreshed internally
+          block = chosenNode.block;
           bb = ByteBuffer.allocate(len);
           Callable<ByteBuffer> getFromDataNodeCallable = getFromOneDataNode(
               chosenNode, block, start, end, bb, corruptedBlockMap,
@@ -1664,12 +1666,14 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
     final DatanodeInfo info;
     final InetSocketAddress addr;
     final StorageType storageType;
+    final LocatedBlock block;
 
     DNAddrPair(DatanodeInfo info, InetSocketAddress addr,
-        StorageType storageType) {
+        StorageType storageType, LocatedBlock block) {
       this.info = info;
       this.addr = addr;
       this.storageType = storageType;
+      this.block = block;
     }
   }
 
