@@ -37,6 +37,7 @@ import org.apache.hadoop.hdfs.util.Diff.ListType;
 
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.SignedBytes;
+import org.apache.hadoop.util.ChunkedArrayList;
 
 /**
  * A class describing the difference between snapshots of a snapshottable
@@ -186,7 +187,7 @@ class SnapshotDiffInfo {
    * @return A {@link SnapshotDiffReport} describing the difference
    */
   public SnapshotDiffReport generateReport() {
-    List<DiffReportEntry> diffReportList = new ArrayList<DiffReportEntry>();
+    List<DiffReportEntry> diffReportList = new ChunkedArrayList<>();
     for (INode node : diffMap.keySet()) {
       diffReportList.add(new DiffReportEntry(DiffType.MODIFY, diffMap
           .get(node), null));
@@ -212,7 +213,7 @@ class SnapshotDiffInfo {
    */
   private List<DiffReportEntry> generateReport(ChildrenDiff dirDiff,
       byte[][] parentPath, boolean fromEarlier, Map<Long, RenameEntry> renameMap) {
-    List<DiffReportEntry> list = new ArrayList<DiffReportEntry>();
+    List<DiffReportEntry> list = new ChunkedArrayList<>();
     List<INode> created = dirDiff.getList(ListType.CREATED);
     List<INode> deleted = dirDiff.getList(ListType.DELETED);
     byte[][] fullPath = new byte[parentPath.length + 1][];
