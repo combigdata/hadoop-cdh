@@ -51,6 +51,7 @@ public abstract class FSQueue implements Queue, Schedulable {
 
   private Resource fairShare = Resources.createResource(0, 0);
   private Resource steadyFairShare = Resources.createResource(0, 0);
+  private Resource reservedResource = Resources.createResource(0, 0);
   private final String name;
   protected final FairScheduler scheduler;
   private final FSQueueMetrics metrics;
@@ -114,7 +115,13 @@ public abstract class FSQueue implements Queue, Schedulable {
   public Resource getMinShare() {
     return scheduler.getAllocationConfiguration().getMinResources(getName());
   }
-  
+
+  public Resource getReservedResource() {
+    reservedResource.setMemory(metrics.getReservedMB());
+    reservedResource.setVirtualCores(metrics.getReservedVirtualCores());
+    return reservedResource;
+  }
+
   @Override
   public Resource getMaxShare() {
     return scheduler.getAllocationConfiguration().getMaxResources(getName());
