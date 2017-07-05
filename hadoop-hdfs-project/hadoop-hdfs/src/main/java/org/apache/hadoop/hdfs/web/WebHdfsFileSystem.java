@@ -719,7 +719,7 @@ public class WebHdfsFileSystem extends FileSystem
 
           if (isRetry || isFailoverAndRetry) {
             LOG.info("Retrying connect to namenode: " + nnAddr
-                + ". Already tried " + retry + " time(s); retry policy is "
+                + ". Already retried " + retry + " time(s); retry policy is "
                 + retryPolicy + ", delay " + a.delayMillis + "ms.");
 
             if (isFailoverAndRetry) {
