@@ -1060,8 +1060,10 @@ public class Client {
                   return;
                 }
                 
-                if (LOG.isDebugEnabled())
-                  LOG.debug(getName() + " sending #" + call.id);
+                if (LOG.isDebugEnabled()) {
+                  LOG.debug(getName() + " sending #" + call.id
+                      + " " + call.rpcRequest);
+                }
          
                 byte[] data = d.getData();
                 int totalLength = d.getLength();
