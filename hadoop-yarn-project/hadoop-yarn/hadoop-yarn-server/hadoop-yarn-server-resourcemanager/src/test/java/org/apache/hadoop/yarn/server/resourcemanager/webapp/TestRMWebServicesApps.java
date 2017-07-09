@@ -1315,7 +1315,7 @@ public class TestRMWebServicesApps extends JerseyTest {
   public void verifyAppInfo(JSONObject info, RMApp app) throws JSONException,
       Exception {
 
-    assertEquals("incorrect number of elements", 27, info.length());
+    assertEquals("incorrect number of elements", 29, info.length());
 
     verifyAppInfoGeneric(app, info.getString("id"), info.getString("user"),
         info.getString("name"), info.getString("applicationType"),

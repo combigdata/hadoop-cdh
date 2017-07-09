@@ -79,6 +79,8 @@ public class AppInfo {
   protected String amHostHttpAddress;
   protected int allocatedMB;
   protected int allocatedVCores;
+  protected int reservedMB;
+  protected int reservedVCores;
   protected int runningContainers;
   protected long memorySeconds;
   protected long vcoreSeconds;
@@ -153,8 +155,11 @@ public class AppInfo {
               .getApplicationResourceUsageReport();
           if (resourceReport != null) {
             Resource usedResources = resourceReport.getUsedResources();
+            Resource reservedResources = resourceReport.getReservedResources();
             allocatedMB = usedResources.getMemory();
             allocatedVCores = usedResources.getVirtualCores();
+            reservedMB = reservedResources.getMemory();
+            reservedVCores = reservedResources.getVirtualCores();
             runningContainers = resourceReport.getNumUsedContainers();
           }
         }
@@ -279,6 +284,14 @@ public class AppInfo {
     return this.allocatedVCores;
   }
   
+  public long getReservedMB() {
+    return this.reservedMB;
+  }
+
+  public long getReservedVCores() {
+    return this.reservedVCores;
+  }
+
   public int getPreemptedMB() {
     return preemptedResourceMB;
   }
