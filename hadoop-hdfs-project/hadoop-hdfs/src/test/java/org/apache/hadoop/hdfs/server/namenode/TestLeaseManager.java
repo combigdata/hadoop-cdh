@@ -17,9 +17,10 @@
  */
 package org.apache.hadoop.hdfs.server.namenode;
 
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -35,7 +36,9 @@ import com.google.common.collect.Lists;
 import org.apache.hadoop.hdfs.protocol.QuotaExceededException;
 import org.apache.hadoop.hdfs.server.blockmanagement.BlockInfo;
 import org.apache.hadoop.hdfs.server.namenode.snapshot.Snapshot;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -49,6 +52,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.mockito.Mockito.*;
 
 public class TestLeaseManager {
+  @Rule
+  public Timeout timeout = new Timeout(300000);
+
   private static final long GRANDFATHER_INODE_ID = 0;
 
   public static long maxLockHoldToReleaseLeaseMs = 100;
@@ -73,7 +79,7 @@ public class TestLeaseManager {
 
   /** Check that LeaseManager.checkLease release some leases
    */
-  @Test(timeout = 30000)
+  @Test
   public void testCheckLease() throws InterruptedException {
     LeaseManager lm = new LeaseManager(makeMockFsNameSystem());
     final long numLease = 100;
@@ -93,6 +99,33 @@ public class TestLeaseManager {
     //Initiate a call to checkLease. This should exit within the test timeout
     lm.checkLeases();
     assertTrue(lm.countLease() < numLease);
+  }
+
+  @Test
+  public void testCountPath() {
+    LeaseManager lm = new LeaseManager(makeMockFsNameSystem());
+
+    lm.addLease("holder1", 1);
+    assertThat(lm.countPath(), is(1L));
+
+    lm.addLease("holder2", 2);
+    assertThat(lm.countPath(), is(2L));
+    lm.addLease("holder2", 2);                   // Duplicate addition
+    assertThat(lm.countPath(), is(2L));
+
+    assertThat(lm.countPath(), is(2L));
+
+    // Remove a couple of non-existing leases. countPath should not change.
+    lm.removeLease("holder2", stubInodeFile(3));
+    lm.removeLease("InvalidLeaseHolder", stubInodeFile(1));
+    assertThat(lm.countPath(), is(2L));
+
+    INodeFile file = stubInodeFile(1);
+    lm.reassignLease(lm.getLease(file), file, "holder2");
+    assertThat(lm.countPath(), is(2L));          // Count unchanged on reassign
+
+    lm.removeLease("holder2", stubInodeFile(2)); // Remove existing
+    assertThat(lm.countPath(), is(1L));
   }
 
   /**

@@ -23,6 +23,7 @@ import static org.apache.hadoop.util.Time.now;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -233,7 +234,14 @@ public class LeaseManager {
 
   /** @return the number of leases currently in the system */
   @VisibleForTesting
-  public synchronized int countLease() {return sortedLeases.size();}
+  public synchronized int countLease() {
+    return sortedLeases.size();
+  }
+
+  /** @return the number of paths contained in all leases */
+  synchronized long countPath() {
+    return leasesById.size();
+  }
 
   /**
    * Adds (or re-adds) the lease for the specified file.
@@ -376,7 +384,9 @@ public class LeaseManager {
       return holder.hashCode();
     }
     
-    private Collection<Long> getFiles() { return files; }
+    private Collection<Long> getFiles() {
+      return Collections.unmodifiableCollection(files);
+    }
 
     String getHolder() {
       return holder;
