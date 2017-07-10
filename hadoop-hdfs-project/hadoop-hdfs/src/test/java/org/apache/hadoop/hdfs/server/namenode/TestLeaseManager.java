@@ -73,12 +73,12 @@ public class TestLeaseManager {
 
   /** Check that LeaseManager.checkLease release some leases
    */
-  @Test (timeout=30000)
+  @Test(timeout = 30000)
   public void testCheckLease() throws InterruptedException {
     LeaseManager lm = new LeaseManager(makeMockFsNameSystem());
+    final long numLease = 100;
     final long expiryTime = 0;
-
-    long numLease = 100;
+    final long waitTime = expiryTime + 1;
 
     //Make sure the leases we are going to add exceed the hard limit
     lm.setLeasePeriod(expiryTime, expiryTime);
@@ -88,6 +88,7 @@ public class TestLeaseManager {
       lm.addLease("holder"+i, INodeId.ROOT_INODE_ID + i);
     }
     assertEquals(numLease, lm.countLease());
+    Thread.sleep(waitTime);
 
     //Initiate a call to checkLease. This should exit within the test timeout
     lm.checkLeases();
