@@ -19,6 +19,7 @@ package org.apache.hadoop.fs.http.server;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hdfs.web.SWebHdfsFileSystem;
 import org.apache.hadoop.hdfs.web.WebHdfsFileSystem;
 import org.apache.hadoop.security.authentication.server.AuthenticationFilter;
 import org.apache.hadoop.security.token.delegation.web.DelegationTokenAuthenticationFilter;
@@ -91,8 +92,12 @@ public class HttpFSAuthenticationFilter
       throw new RuntimeException("Could not read HttpFS signature secret file: " + signatureSecretFile);
     }
     setAuthHandlerClass(props);
+    String dtkind = WebHdfsFileSystem.TOKEN_KIND.toString();
+    if (conf.getBoolean("httpfs.ssl.enabled", false)) {
+      dtkind = SWebHdfsFileSystem.TOKEN_KIND.toString();
+    }
     props.setProperty(KerberosDelegationTokenAuthenticationHandler.TOKEN_KIND,
-        WebHdfsFileSystem.TOKEN_KIND.toString());
+                      dtkind);
     return props;
   }
 
