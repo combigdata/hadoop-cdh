@@ -572,11 +572,7 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
       Container reservedContainer, NodeType type) {
 
     Priority priority = request.getPriority();
-    RMContainer nodeReservedContainer = node.getReservedContainer();
-    boolean reservableForThisApp = nodeReservedContainer == null ||
-        nodeReservedContainer.getApplicationAttemptId()
-            .equals(getApplicationAttemptId());
-    if (reservableForThisApp && !reservationExceedsThreshold(node, type)) {
+    if (!reservationExceedsThreshold(node, type)) {
       LOG.info("Making reservation: node=" + node.getNodeName() +
               " app_id=" + getApplicationId());
       if (reservedContainer == null) {
@@ -1000,7 +996,7 @@ public class FSAppAttempt extends SchedulerApplicationAttempt
   /**
    * Is application starved for fairshare or minshare
    */
-  boolean isStarved() {
+  private boolean isStarved() {
     return isStarvedForFairShare() || !Resources.isNone(minshareStarvation);
   }
 

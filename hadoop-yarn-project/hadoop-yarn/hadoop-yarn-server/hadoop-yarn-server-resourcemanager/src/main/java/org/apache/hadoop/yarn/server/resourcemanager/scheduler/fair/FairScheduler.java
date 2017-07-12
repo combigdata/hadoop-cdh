@@ -26,7 +26,6 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -136,6 +135,7 @@ public class FairScheduler extends
   private static final Log LOG = LogFactory.getLog(FairScheduler.class);
   private static final Log STATE_DUMP_LOG =
       LogFactory.getLog(FairScheduler.class.getName() + ".statedump");
+
   private static final ResourceCalculator RESOURCE_CALCULATOR =
       new DefaultResourceCalculator();
   private static final ResourceCalculator DOMINANT_RESOURCE_CALCULATOR =
@@ -952,31 +952,6 @@ public class FairScheduler extends
     }
   }
 
-  /**
-   * Assign preempted containers to the applications that have reserved
-   * resources for preempted containers.
-   * @param node Node to check
-   * @return assignment has occurred
-   */
-  static boolean assignPreemptedContainers(FSSchedulerNode node) {
-    boolean assignedAny = false;
-    for (Map.Entry<FSAppAttempt, Resource> entry :
-        node.getPreemptionList().entrySet()) {
-      FSAppAttempt app = entry.getKey();
-      Resource preemptionPending = Resources.clone(entry.getValue());
-      while (!app.isStopped() && !Resources.isNone(preemptionPending)) {
-        Resource assigned = app.assignContainer(node);
-        if (Resources.isNone(assigned)) {
-          // Fail to assign, let's not try further
-          break;
-        }
-        assignedAny = true;
-        Resources.subtractFromNonNegative(preemptionPending, assigned);
-      }
-    }
-    return assignedAny;
-  }
-
   @VisibleForTesting
   synchronized void attemptScheduling(FSSchedulerNode node) {
     if (rmContext.isWorkPreservingRecoveryEnabled()
@@ -994,17 +969,11 @@ public class FairScheduler extends
     }
 
     // Assign new containers...
-    // 1. Ensure containers are assigned to the apps that preempted
-    // 2. Check for reserved applications
-    // 3. Schedule if there are no reservations
+    // 1. Check for reserved applications
+    // 2. Schedule if there are no reservations
 
-    // Apps may wait for preempted containers
-    // We have to satisfy these first to avoid cases, when we preempt
-    // a container for A from B and C gets the preempted containers,
-    // when C does not qualify for preemption itself.
-    assignPreemptedContainers(node);
-    FSAppAttempt reservedAppSchedulable = node.getReservedAppSchedulable();
     boolean validReservation = false;
+    FSAppAttempt reservedAppSchedulable = node.getReservedAppSchedulable();
     if (reservedAppSchedulable != null) {
       validReservation = reservedAppSchedulable.assignReservedContainer(node);
     }
