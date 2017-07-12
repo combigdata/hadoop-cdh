@@ -27,7 +27,6 @@ import org.apache.hadoop.yarn.util.ControlledClock;
 import org.apache.hadoop.yarn.util.SystemClock;
 import org.junit.After;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import org.junit.Before;
 import org.junit.Test;
@@ -286,30 +285,11 @@ public class TestFairSchedulerPreemption extends FairSchedulerTestBase {
         8 - 2 * numStarvedAppContainers,
         greedyApp.getQueue().getMetrics().getAggregatePreemptedContainers());
 
-    // Verify the node is reserved for the starvingApp
-    for (RMNode rmNode : rmNodes) {
-      FSSchedulerNode node = (FSSchedulerNode)
-          scheduler.getNodeTracker().getNode(rmNode.getNodeID());
-      if (node.getContainersForPreemption().size() > 0) {
-        assertTrue("node should be reserved for the starvingApp",
-            node.getPreemptionList().keySet().contains(starvingApp));
-      }
-    }
-
     sendEnoughNodeUpdatesToAssignFully();
 
     // Verify the preempted containers are assigned to starvingApp
     assertEquals("Starved app is not assigned the right # of containers",
         numStarvedAppContainers, starvingApp.getLiveContainers().size());
-
-    // Verify the node is not reserved for the starvingApp anymore
-    for (RMNode rmNode : rmNodes) {
-      FSSchedulerNode node = (FSSchedulerNode)
-          scheduler.getNodeTracker().getNode(rmNode.getNodeID());
-      if (node.getContainersForPreemption().size() > 0) {
-        assertFalse(node.getPreemptionList().keySet().contains(starvingApp));
-      }
-    }
   }
 
   private void verifyNoPreemption() throws InterruptedException {
