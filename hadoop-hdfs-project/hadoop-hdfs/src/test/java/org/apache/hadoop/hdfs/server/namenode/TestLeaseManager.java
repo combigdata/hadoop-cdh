@@ -21,6 +21,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
@@ -39,7 +40,6 @@ import org.mockito.Mockito;
 
 import java.util.ArrayList;
 
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.*;
 
 public class TestLeaseManager {
@@ -66,29 +66,28 @@ public class TestLeaseManager {
     assertEquals(0, lm.getINodeIdWithLeases().size());
   }
 
-  /** Check that even if LeaseManager.checkLease is not able to relinquish
-   * leases, the Namenode does't enter an infinite loop while holding the FSN
-   * write lock and thus become unresponsive
+  /** Check that LeaseManager.checkLease release some leases
    */
   @Test
   public void testCheckLeaseNotInfiniteLoop() throws InterruptedException {
     LeaseManager lm = new LeaseManager(makeMockFsNameSystem());
+    final long numLease = 100;
     final int leaseExpiryTime = 0;
     final int waitTime = leaseExpiryTime + 1;
 
     //Make sure the leases we are going to add exceed the hard limit
     lm.setLeasePeriod(leaseExpiryTime, leaseExpiryTime);
 
-    //Add some leases to the LeaseManager
-    lm.addLease("holder1", INodeId.ROOT_INODE_ID + 1);
-    lm.addLease("holder2", INodeId.ROOT_INODE_ID + 2);
-    lm.addLease("holder3", INodeId.ROOT_INODE_ID + 3);
-    assertEquals(lm.countLease(), 3);
+    for (long i = 0; i <= numLease - 1; i++) {
+      //Add some leases to the LeaseManager
+      lm.addLease("holder"+i, INodeId.ROOT_INODE_ID + i);
+    }
+    assertEquals(numLease, lm.countLease());
     Thread.sleep(waitTime);
 
     //Initiate a call to checkLease. This should exit within the test timeout
     lm.checkLeases();
-    assertEquals(lm.countLease(), 0);
+    assertTrue(lm.countLease() < numLease);
   }
 
   @Test
@@ -163,6 +162,7 @@ public class TestLeaseManager {
     when(fsn.isRunning()).thenReturn(true);
     when(fsn.hasWriteLock()).thenReturn(true);
     when(fsn.getFSDirectory()).thenReturn(dir);
+    when(fsn.getMaxLockHoldToReleaseLeaseMs()).thenReturn(maxLockHoldToReleaseLeaseMs);
     return fsn;
   }
 
