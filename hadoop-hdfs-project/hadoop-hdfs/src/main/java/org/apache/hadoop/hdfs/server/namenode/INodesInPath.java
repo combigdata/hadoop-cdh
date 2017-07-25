@@ -377,9 +377,9 @@ public class INodesInPath {
    *         otherwise, i < 0, return the (length + i)-th inode.
    */
   public INode getINode(int i) {
-    return inodes[i >= 0? i: inodes.length + i];
+    return inodes[(i < 0) ? inodes.length + i : i];
   }
-  
+
   /** @return the last inode. */
   public INode getLastINode() {
     return inodes[inodes.length - 1];

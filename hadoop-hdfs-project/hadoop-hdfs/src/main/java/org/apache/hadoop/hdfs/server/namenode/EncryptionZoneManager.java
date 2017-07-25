@@ -362,8 +362,8 @@ public class EncryptionZoneManager {
     if (!hasCreatedEncryptionZone()) {
       return null;
     }
-    for (int i = inodes.length - 1; i >= 0; i--) {
-      final INode inode = inodes[i];
+    for (int i = iip.length() - 1; i >= 0; i--) {
+      final INode inode = iip.getINode(i);
       if (inode != null) {
         final EncryptionZoneInt ezi = encryptionZones.get(inode.getId());
         if (ezi != null) {
