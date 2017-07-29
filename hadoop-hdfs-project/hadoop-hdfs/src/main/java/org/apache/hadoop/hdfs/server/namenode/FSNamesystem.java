@@ -4054,11 +4054,29 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       Options.Rename... options) throws IOException {
     assert hasWriteLock();
     if (isPermissionEnabled) {
-      // Rename does not operates on link targets
-      // Do not resolveLink when checking permissions of src and dst
-      // Check write access to parent of src
-      checkPermission(pc, src, false, null, FsAction.WRITE, null, null, false,
-          false);
+      boolean renameToTrash = false;
+      if (null != options &&
+          Arrays.asList(options).
+              contains(Options.Rename.TO_TRASH)) {
+        renameToTrash = true;
+      }
+
+      if(renameToTrash) {
+        // if destination is the trash directory,
+        // besides the permission check on "rename"
+        // we need to enforce the check for "delete"
+        // otherwise, it would expose a
+        // security hole that stuff moved to trash
+        // will be deleted by superuser
+        checkPermission(pc, src, false, null, FsAction.WRITE, null,
+            FsAction.ALL, true, false);
+      } else {
+        // Rename does not operate on link targets
+        // Do not resolveLink when checking permissions of src and dst
+        // Check write access to parent of src
+        checkPermission(pc, src, false, null, FsAction.WRITE, null,
+            null, false, false);
+      }
       // Check write access to ancestor of dst
       checkPermission(pc, dst, false, FsAction.WRITE, null, null, null, false,
           false);
