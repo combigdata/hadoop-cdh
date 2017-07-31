@@ -55,6 +55,9 @@
   <build>
     <plugins>
       <plugin>
+        <artifactId>maven-compiler-plugin</artifactId>
+      </plugin>
+      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-plugin-plugin</artifactId>
         <version>${maven.dependency.version}</version>
@@ -67,6 +70,7 @@
             <goals>
               <goal>descriptor</goal>
             </goals>
+            <phase>compile</phase>
           </execution>
         </executions>
       </plugin>
