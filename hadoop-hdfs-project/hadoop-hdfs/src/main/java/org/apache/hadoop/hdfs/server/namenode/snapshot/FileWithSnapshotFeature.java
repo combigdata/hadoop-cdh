@@ -172,8 +172,12 @@ public class FileWithSnapshotFeature implements INode.Feature {
     if (isCurrentFileDeleted()) {
       final FileDiff last = getDiffs().getLast();
       max = last == null? 0: last.getFileSize();
-    } else { 
-      max = file.computeFileSize();
+    } else {
+      // Upstream has HDFS-7056 Snapshot support for file truncate fix
+      // which computes the max file size by using the preferred block
+      // size for the last UC block. Replicating similar fix here so
+      // as not to exclude the last UC block.
+      max = file.computeFileSize(true, file.isUnderConstruction());
     }
 
     collectBlocksBeyondMax(file, max, info);
