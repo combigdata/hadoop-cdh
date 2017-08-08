@@ -27,8 +27,15 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.linux.privileged.PrivilegedOperationExecutor;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.LinkedList;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Provides mechanisms to get various resource handlers - cpu, memory, network,
@@ -155,5 +162,43 @@ public class ResourceHandlerModule {
   @VisibleForTesting
   static void nullifyResourceHandlerChain() throws ResourceHandlerException {
     resourceHandlerChain = null;
+  }
+
+  /**
+   * If a cgroup mount directory is specified, it returns cgroup directories
+   * with valid names.
+   * The requirement is that each hierarchy has to be named with the comma
+   * separated names of subsystems supported.
+   * For example: /sys/fs/cgroup/cpu,cpuacct
+   * @param cgroupMountPath Root cgroup mount path (/sys/fs/cgroup in the
+   *                        example above)
+   * @return A path to cgroup subsystem set mapping in the same format as
+   *         {@link CGroupsHandlerImpl#parseMtab(String)}
+   * @throws IOException if the specified directory cannot be listed
+   */
+  public static Map<String, List<String>> parseConfiguredCGroupPath(
+      String cgroupMountPath) throws IOException {
+    File cgroupDir = new File(cgroupMountPath);
+    File[] list = cgroupDir.listFiles();
+    if (list == null) {
+      throw new IOException("Empty cgroup mount directory specified: " +
+          cgroupMountPath);
+    }
+
+    Map<String, List<String>> pathSubsystemMappings = new HashMap<>();
+    Set<String> validCGroups =
+        CGroupsHandler.CGroupController.getValidCGroups();
+    for (File candidate: list) {
+      List<String> cgroupList =
+          new LinkedList<>(Arrays.asList(candidate.getName().split(",")));
+      // Collect the valid subsystem names
+      cgroupList.retainAll(validCGroups);
+      if (!cgroupList.isEmpty()) {
+        if (candidate.isDirectory() && candidate.canWrite()) {
+          pathSubsystemMappings.put(candidate.getAbsolutePath(), cgroupList);
+        }
+      }
+    }
+    return pathSubsystemMappings;
   }
 }

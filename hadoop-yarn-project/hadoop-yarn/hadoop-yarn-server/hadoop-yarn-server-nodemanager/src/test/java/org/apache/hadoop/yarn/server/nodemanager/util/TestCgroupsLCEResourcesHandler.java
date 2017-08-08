@@ -39,6 +39,9 @@ import java.util.Map;
 import java.util.Scanner;
 import java.util.concurrent.CountDownLatch;
 
+import static org.mockito.Mockito.when;
+
+@Deprecated
 public class TestCgroupsLCEResourcesHandler {
   static File cgroupDir = null;
 
@@ -376,4 +379,32 @@ public class TestCgroupsLCEResourcesHandler {
       FileUtils.deleteQuietly(memory);
     }
   }
+
+  @Test
+  public void testManualCgroupSetting() throws IOException {
+    CgroupsLCEResourcesHandler handler = new CgroupsLCEResourcesHandler();
+    YarnConfiguration conf = new YarnConfiguration();
+    conf.set(YarnConfiguration.NM_LINUX_CONTAINER_CGROUPS_MOUNT_PATH,
+        cgroupDir.getAbsolutePath());
+    handler.setConf(conf);
+    File cpu = new File(new File(cgroupDir, "cpuacct,cpu"), "/hadoop-yarn");
+
+    try {
+      Assert.assertTrue("temp dir should be created", cpu.mkdirs());
+
+      final int numProcessors = 4;
+      ResourceCalculatorPlugin plugin =
+              Mockito.mock(ResourceCalculatorPlugin.class);
+      Mockito.doReturn(numProcessors).when(plugin).getNumProcessors();
+      when(plugin.getNumProcessors()).thenReturn(8);
+      handler.init(null, plugin);
+
+      Assert.assertEquals("CPU CGRoup path was not set", cpu.getParent(),
+          handler.getControllerPaths().get("cpu"));
+
+    } finally {
+      FileUtils.deleteQuietly(cpu);
+    }
+  }
+
 }
