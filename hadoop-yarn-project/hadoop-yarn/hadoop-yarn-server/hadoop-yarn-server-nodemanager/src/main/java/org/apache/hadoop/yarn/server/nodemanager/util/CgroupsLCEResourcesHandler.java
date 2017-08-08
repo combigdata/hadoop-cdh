@@ -22,14 +22,13 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.Writer;
-import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -51,6 +50,7 @@ import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.nodemanager.LinuxContainerExecutor;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.linux.privileged.PrivilegedOperation;
+import org.apache.hadoop.yarn.server.nodemanager.containermanager.linux.resources.ResourceHandlerModule;
 import org.apache.hadoop.yarn.util.Clock;
 import org.apache.hadoop.yarn.util.ResourceCalculatorPlugin;
 import org.apache.hadoop.yarn.util.SystemClock;
@@ -80,11 +80,11 @@ public class CgroupsLCEResourcesHandler implements LCEResourcesHandler {
 
   private long deleteCgroupTimeout;
   private long deleteCgroupDelay;
-  // package private for testing purposes
+  @VisibleForTesting
   Clock clock;
 
   private float yarnProcessors;
-  
+
   public CgroupsLCEResourcesHandler() {
     this.controllerPaths = new HashMap<String, String>();
     clock = new SystemClock();
@@ -124,8 +124,10 @@ public class CgroupsLCEResourcesHandler implements LCEResourcesHandler {
     this.strictResourceUsageMode =
         conf
           .getBoolean(
-            YarnConfiguration.NM_LINUX_CONTAINER_CGROUPS_STRICT_RESOURCE_USAGE,
-            YarnConfiguration.DEFAULT_NM_LINUX_CONTAINER_CGROUPS_STRICT_RESOURCE_USAGE);
+            YarnConfiguration
+                .NM_LINUX_CONTAINER_CGROUPS_STRICT_RESOURCE_USAGE,
+            YarnConfiguration
+                .DEFAULT_NM_LINUX_CONTAINER_CGROUPS_STRICT_RESOURCE_USAGE);
 
     int len = cgroupPrefix.length();
     if (cgroupPrefix.charAt(len - 1) == '/') {
@@ -242,7 +244,7 @@ public class CgroupsLCEResourcesHandler implements LCEResourcesHandler {
       LOG.debug("createCgroup: " + path);
     }
 
-    if (! new File(path).mkdir()) {
+    if (!new File(path).mkdir()) {
       throw new IOException("Failed to create cgroup at " + path);
     }
   }
@@ -290,7 +292,8 @@ public class CgroupsLCEResourcesHandler implements LCEResourcesHandler {
       try (BufferedReader inl =
             new BufferedReader(new InputStreamReader(new FileInputStream(cgf
               + "/tasks"), "UTF-8"))) {
-        if ((str = inl.readLine()) != null) {
+        str = inl.readLine();
+        if (str != null) {
           LOG.debug("First line in cgroup tasks file: " + cgf + " " + str);
         }
       } catch (IOException e) {
@@ -383,9 +386,9 @@ public class CgroupsLCEResourcesHandler implements LCEResourcesHandler {
               (containerVCores * yarnProcessors) / (float) nodeVCores;
           int[] limits = getOverallLimits(containerCPU);
           updateCgroup(CONTROLLER_CPU, containerName, CPU_PERIOD_US,
-            String.valueOf(limits[0]));
+              String.valueOf(limits[0]));
           updateCgroup(CONTROLLER_CPU, containerName, CPU_QUOTA_US,
-            String.valueOf(limits[1]));
+              String.valueOf(limits[1]));
         }
       }
     }
@@ -494,7 +497,16 @@ public class CgroupsLCEResourcesHandler implements LCEResourcesHandler {
 
   private void initializeControllerPaths() throws IOException {
     String controllerPath;
-    Map<String, List<String>> parsedMtab = parseMtab();
+    Map<String, List<String>> parsedMtab = null;
+
+    if (this.cgroupMountPath != null && !this.cgroupMount) {
+      parsedMtab = ResourceHandlerModule.
+          parseConfiguredCGroupPath(this.cgroupMountPath);
+    }
+
+    if (parsedMtab == null) {
+      parsedMtab = parseMtab();
+    }
 
     // CPU
 
