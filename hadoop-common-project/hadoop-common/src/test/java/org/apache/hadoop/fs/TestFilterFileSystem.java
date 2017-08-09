@@ -336,6 +336,17 @@ public class TestFilterFileSystem {
     verify(mockFs).setWriteChecksum(eq(true));
   }
 
+  @Test
+  public void testRenameOptions() throws Exception {
+    FileSystem mockFs = mock(FileSystem.class);
+    FileSystem fs = new FilterFileSystem(mockFs);
+    Path src = new Path("/src");
+    Path dst = new Path("/dest");
+    Rename opt = Rename.TO_TRASH;
+    fs.rename(src, dst, opt);
+    verify(mockFs).rename(eq(src), eq(dst), eq(opt));
+  }
+
   private void checkInit(FilterFileSystem fs, boolean expectInit)
       throws Exception {
     URI uri = URI.create("filter:/");
