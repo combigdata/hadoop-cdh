@@ -1218,7 +1218,7 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
     // AFTER the initial saving on app-attempt-start
     // These fields can be visible from outside only after they are saved in
     // StateStore
-    String diags = null;
+    BoundedAppender diags = new BoundedAppender(diagnostics.limit);
     String finalTrackingUrl = null;
     FinalApplicationStatus finalStatus = null;
     int exitStatus = ContainerExitStatus.INVALID;
@@ -1226,28 +1226,28 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
     case LAUNCH_FAILED:
       RMAppAttemptLaunchFailedEvent launchFaileEvent =
           (RMAppAttemptLaunchFailedEvent) event;
-      diags = launchFaileEvent.getMessage();
+      diags.append(launchFaileEvent.getMessage());
       break;
     case REGISTERED:
-      diags = getUnexpectedAMRegisteredDiagnostics();
+      diags.append(getUnexpectedAMRegisteredDiagnostics());
       break;
     case UNREGISTERED:
       RMAppAttemptUnregistrationEvent unregisterEvent =
           (RMAppAttemptUnregistrationEvent) event;
-      diags = unregisterEvent.getDiagnostics();
+      diags.append(unregisterEvent.getDiagnostics());
       finalTrackingUrl = sanitizeTrackingUrl(unregisterEvent.getFinalTrackingUrl());
       finalStatus = unregisterEvent.getFinalApplicationStatus();
       break;
     case CONTAINER_FINISHED:
       RMAppAttemptContainerFinishedEvent finishEvent =
           (RMAppAttemptContainerFinishedEvent) event;
-      diags = getAMContainerCrashedDiagnostics(finishEvent);
+      diags.append(getAMContainerCrashedDiagnostics(finishEvent));
       exitStatus = finishEvent.getContainerStatus().getExitStatus();
       break;
     case KILL:
       break;
     case EXPIRE:
-      diags = getAMExpiredDiagnostics(event);
+      diags.append(getAMExpiredDiagnostics(event));
       break;
     default:
       break;
@@ -1261,7 +1261,7 @@ public class RMAppAttemptImpl implements RMAppAttempt, Recoverable {
         ApplicationAttemptStateData.newInstance(
             applicationAttemptId,  getMasterContainer(),
             rmStore.getCredentialsFromAppAttempt(this),
-            startTime, stateToBeStored, finalTrackingUrl, diags,
+            startTime, stateToBeStored, finalTrackingUrl, diags.toString(),
             finalStatus, exitStatus,
           getFinishTime(), resUsage.getMemorySeconds(),
           resUsage.getVcoreSeconds());
