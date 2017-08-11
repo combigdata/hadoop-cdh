@@ -2896,7 +2896,8 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
       JsonGenerator dumpGenerator = dumpFactory.createJsonGenerator(out);
       dumpGenerator.writeStartObject();
       dumpGenerator.writeFieldName("property");
-      appendJSONProperty(dumpGenerator, config, propertyName);
+      appendJSONProperty(dumpGenerator, config, propertyName,
+          new ConfigRedactor(config));
       dumpGenerator.writeEndObject();
       dumpGenerator.flush();
     }
@@ -2936,11 +2937,11 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
     dumpGenerator.writeFieldName("properties");
     dumpGenerator.writeStartArray();
     dumpGenerator.flush();
+    ConfigRedactor redactor = new ConfigRedactor(config);
     synchronized (config) {
       for (Map.Entry<Object,Object> item: config.getProps().entrySet()) {
-        appendJSONProperty(dumpGenerator,
-            config,
-            item.getKey().toString());
+        appendJSONProperty(dumpGenerator, config, item.getKey().toString(),
+            redactor);
       }
     }
     dumpGenerator.writeEndArray();
@@ -2958,12 +2959,14 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    * @throws IOException
    */
   private static void appendJSONProperty(JsonGenerator jsonGen,
-      Configuration config, String name) throws IOException {
+      Configuration config, String name, ConfigRedactor redactor)
+      throws IOException {
     // skip writing if given property name is empty or null
     if(!Strings.isNullOrEmpty(name) && jsonGen != null) {
       jsonGen.writeStartObject();
       jsonGen.writeStringField("key", name);
-      jsonGen.writeStringField("value", config.get(name));
+      jsonGen.writeStringField("value",
+          redactor.redact(name, config.get(name)));
       jsonGen.writeBooleanField("isFinal",
           config.finalParameters.contains(name));
       String[] resources = config.updatingResource.get(name);
