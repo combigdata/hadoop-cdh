@@ -78,12 +78,20 @@ public interface INodeFileAttributes extends INodeAttributes {
       return header;
     }
 
+    /**
+     * Compare the metadata with another INodeFile.
+     * AclFeature needs equals() check on top of object reference
+     * check as HDFS-7456 AclFeature de-duplication fix available
+     * in the upstream is not backported yet.
+     */
     @Override
     public boolean metadataEquals(INodeFileAttributes other) {
       return other != null
           && getHeaderLong()== other.getHeaderLong()
           && getPermissionLong() == other.getPermissionLong()
-          && getAclFeature() == other.getAclFeature()
+          && ((getAclFeature() == other.getAclFeature()) ||
+          (getAclFeature() != null && other.getAclFeature() != null &&
+              getAclFeature().equals(other.getAclFeature())))
           && getXAttrFeature() == other.getXAttrFeature();
     }
   }

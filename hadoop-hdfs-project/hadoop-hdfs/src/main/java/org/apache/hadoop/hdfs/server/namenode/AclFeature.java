@@ -18,6 +18,8 @@
 
 package org.apache.hadoop.hdfs.server.namenode;
 
+import java.util.Arrays;
+
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.fs.permission.AclEntry;
 
@@ -55,5 +57,21 @@ public class AclFeature implements INode.Feature {
     Preconditions.checkPositionIndex(pos, entries.length,
         "Invalid position for AclEntry");
     return entries[pos];
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (o == null) {
+      return false;
+    }
+    if (getClass() != o.getClass()) {
+      return false;
+    }
+    return Arrays.equals(entries, ((AclFeature) o).entries);
+  }
+
+  @Override
+  public int hashCode() {
+    return Arrays.hashCode(entries);
   }
 }

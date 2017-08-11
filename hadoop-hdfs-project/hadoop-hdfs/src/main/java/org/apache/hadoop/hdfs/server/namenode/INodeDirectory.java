@@ -811,14 +811,19 @@ public class INodeDirectory extends INodeWithAdditionalFields
   }
   
   /**
-   * Compare the metadata with another INodeDirectory
+   * Compare the metadata with another INodeDirectory.
+   * AclFeature needs equals() check on top of object reference
+   * check as HDFS-7456 AclFeature de-duplication fix available
+   * in the upstream is not backported yet.
    */
   @Override
   public boolean metadataEquals(INodeDirectoryAttributes other) {
     return other != null
         && getQuotaCounts().equals(other.getQuotaCounts())
         && getPermissionLong() == other.getPermissionLong()
-        && getAclFeature() == other.getAclFeature()
+        && ((getAclFeature() == other.getAclFeature()) ||
+        (getAclFeature() != null && other.getAclFeature() != null &&
+            getAclFeature().equals(other.getAclFeature())))
         && getXAttrFeature() == other.getXAttrFeature();
   }
   

@@ -17,6 +17,16 @@
  */
 package org.apache.hadoop.hdfs.server.namenode.snapshot;
 
+import static org.apache.hadoop.fs.permission.AclEntryScope.ACCESS;
+import static org.apache.hadoop.fs.permission.AclEntryScope.DEFAULT;
+import static org.apache.hadoop.fs.permission.AclEntryType.GROUP;
+import static org.apache.hadoop.fs.permission.AclEntryType.MASK;
+import static org.apache.hadoop.fs.permission.AclEntryType.OTHER;
+import static org.apache.hadoop.fs.permission.AclEntryType.USER;
+import static org.apache.hadoop.fs.permission.FsAction.ALL;
+import static org.apache.hadoop.fs.permission.FsAction.READ_EXECUTE;
+import static org.apache.hadoop.hdfs.server.namenode.AclTestHelpers.aclEntry;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -24,12 +34,18 @@ import static org.junit.Assert.fail;
 import java.io.IOException;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Random;
 
+import com.google.common.collect.Lists;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Options.Rename;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.AclEntry;
+import org.apache.hadoop.fs.permission.AclStatus;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.DFSTestUtil;
 import org.apache.hadoop.hdfs.DFSUtil;
@@ -40,8 +56,10 @@ import org.apache.hadoop.hdfs.client.HdfsDataOutputStream.SyncFlag;
 import org.apache.hadoop.hdfs.protocol.SnapshotDiffReport;
 import org.apache.hadoop.hdfs.protocol.SnapshotDiffReport.DiffReportEntry;
 import org.apache.hadoop.hdfs.protocol.SnapshotDiffReport.DiffType;
+import org.apache.hadoop.hdfs.server.namenode.AclTestHelpers;
 import org.apache.hadoop.hdfs.server.namenode.NameNode;
 import org.apache.hadoop.hdfs.server.namenode.NameNodeAdapter;
+import org.apache.hadoop.hdfs.server.namenode.TestAuthorizationProvider.MyAuthorizationProvider;
 import org.apache.hadoop.test.GenericTestUtils;
 import org.junit.After;
 import org.junit.Assert;
@@ -676,4 +694,83 @@ public class TestSnapshotDiffReport {
 
   }
 
+  public static class TestAuthorizationProviderForSnapDiff
+      extends MyAuthorizationProvider {
+    @Override
+    protected boolean useDefault(INodeAuthorizationInfo iNode) {
+      return true;
+    }
+  }
+
+  /**
+   * AclFeature in the SnapshotCopy and the AclFeature provided by the
+   * Authorization Provider could be same contents wise. Make sure the
+   * snapshot diff doesn't report such files as modified.
+   */
+  @Test
+  public void testSetSameACLAndSnapshotDiff() throws Exception {
+    tearDown();
+    conf = new Configuration();
+    conf.setBoolean(
+        DFSConfigKeys.DFS_NAMENODE_SNAPSHOT_CAPTURE_OPENFILES, true);
+    conf.setBoolean(DFSConfigKeys.DFS_NAMENODE_ACLS_ENABLED_KEY, true);
+    conf.set(DFSConfigKeys.DFS_NAMENODE_AUTHORIZATION_PROVIDER_KEY,
+        TestAuthorizationProviderForSnapDiff.class.getName());
+    cluster = new MiniDFSCluster.Builder(conf).numDataNodes(REPLICATION)
+        .format(true).build();
+    cluster.waitActive();
+    hdfs = cluster.getFileSystem();
+
+    final Path dirPath = new Path("/snapdir");;
+    final Path filePath = new Path(dirPath, "file1");
+    FileSystem.mkdirs(hdfs, dirPath, FsPermission.createImmutable((short)0755));
+    DFSTestUtil.createFile(hdfs, filePath, 1, (short) 1, 1);
+    SnapshotTestHelper.createSnapshot(hdfs, dirPath, "S0");
+
+    List<AclEntry> dirAclSpec = Lists.newArrayList(
+        aclEntry(DEFAULT, USER, "hdfs", READ_EXECUTE));
+    hdfs.modifyAclEntries(dirPath, dirAclSpec);
+
+    List<AclEntry> fileAclSpec = Lists.newArrayList(
+        aclEntry(ACCESS, USER, ALL),
+        aclEntry(ACCESS, USER, "s3", ALL),
+        aclEntry(ACCESS, GROUP, ALL),
+        aclEntry(ACCESS, MASK, ALL),
+        aclEntry(ACCESS, OTHER, ALL));
+    hdfs.modifyAclEntries(filePath, fileAclSpec);
+    hdfs.setPermission(filePath, FsPermission.createImmutable((short)0755));
+
+    AclStatus dirAclStatus = hdfs.getAclStatus(dirPath);
+    AclEntry[] dirAcls = dirAclStatus.getEntries().toArray(new AclEntry[0]);
+    assertArrayEquals(
+        new AclEntry[] {
+            aclEntry(DEFAULT, USER, ALL),
+            aclEntry(DEFAULT, USER, "hdfs", READ_EXECUTE),
+            aclEntry(DEFAULT, GROUP, READ_EXECUTE),
+            aclEntry(DEFAULT, MASK, READ_EXECUTE),
+            aclEntry(DEFAULT, OTHER, READ_EXECUTE)
+        }, dirAcls);
+    AclTestHelpers.assertPermission(hdfs, dirPath, ((short)010755));
+
+    AclStatus fileAclStatus = hdfs.getAclStatus(filePath);
+    AclEntry[] fileAcls = fileAclStatus.getEntries().toArray(new AclEntry[0]);
+    assertArrayEquals(
+        new AclEntry[] {
+            aclEntry(ACCESS, USER, "s3", ALL),
+            aclEntry(ACCESS, GROUP, ALL)
+        }, fileAcls);
+    AclTestHelpers.assertPermission(hdfs, filePath, ((short)010755));
+
+    List<AclEntry> sameDirAclSpec = Lists.newArrayList(dirAcls);
+    hdfs.setAcl(dirPath, sameDirAclSpec);
+    hdfs.setAcl(filePath, fileAclSpec);
+    SnapshotTestHelper.createSnapshot(hdfs, dirPath, "S1");
+
+    hdfs.setAcl(dirPath, sameDirAclSpec);
+    hdfs.setAcl(filePath, fileAclSpec);
+    SnapshotTestHelper.createSnapshot(hdfs, dirPath, "S2");
+
+    verifyDiffReport(dirPath, "S1", "S2",
+        new DiffReportEntry(DiffType.MODIFY, DFSUtil.string2Bytes("")));
+  }
 }

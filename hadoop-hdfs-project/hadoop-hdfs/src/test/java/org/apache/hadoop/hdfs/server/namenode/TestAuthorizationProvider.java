@@ -123,7 +123,7 @@ public class TestAuthorizationProvider {
           ignoreEmptyDir);
     }
 
-    private boolean useDefault(INodeAuthorizationInfo iNode) {
+    protected boolean useDefault(INodeAuthorizationInfo iNode) {
       return !iNode.getFullPathName().startsWith("/user/authz");
     }
 
