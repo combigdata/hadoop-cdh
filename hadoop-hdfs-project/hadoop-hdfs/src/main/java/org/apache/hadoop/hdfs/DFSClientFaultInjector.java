@@ -36,6 +36,9 @@ public class DFSClientFaultInjector {
   public static DFSClientFaultInjector get() {
     return instance;
   }
+  public static void set(DFSClientFaultInjector instance) {
+    DFSClientFaultInjector.instance = instance;
+  }
 
   public boolean corruptPacket() {
     return false;
