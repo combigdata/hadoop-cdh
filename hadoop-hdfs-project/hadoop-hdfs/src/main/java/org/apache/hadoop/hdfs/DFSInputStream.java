@@ -19,8 +19,10 @@ package org.apache.hadoop.hdfs;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedByInterruptException;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -296,7 +298,7 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
     try {
       Thread.sleep(waitTime);
     } catch (InterruptedException e) {
-      throw new IOException(
+      throw new InterruptedIOException(
           "Interrupted while getting the last block length.");
     }
   }
@@ -368,6 +370,7 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
           return n;
         }
       } catch (IOException ioe) {
+        checkInterrupted(ioe);
         if (ioe instanceof RemoteException) {
           if (((RemoteException) ioe).unwrapRemoteException() instanceof
               ReplicaNotFoundException) {
@@ -406,7 +409,8 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
         try {
           Thread.sleep(500); // delay between retries.
         } catch (InterruptedException e) {
-          throw new IOException("Interrupted while getting the length.");
+          throw new InterruptedIOException(
+              "Interrupted while getting the length.");
         }
       }
 
@@ -676,6 +680,7 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
         }
         return chosenNode;
       } catch (IOException ex) {
+        checkInterrupted(ex);
         if (ex instanceof InvalidEncryptionKeyException && refetchEncryptionKey > 0) {
           DFSClient.LOG.info("Will fetch a new encryption key and retry, " 
               + "encryption key was invalid when connecting to " + targetAddr
@@ -694,6 +699,15 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
           addToDeadNodes(chosenNode);
         }
       }
+    }
+  }
+
+  private void checkInterrupted(IOException e) throws IOException {
+    if (Thread.currentThread().isInterrupted() &&
+        (e instanceof ClosedByInterruptException ||
+            e instanceof InterruptedIOException)) {
+      DFSClient.LOG.debug("The reading thread has been interrupted.", e);
+      throw e;
     }
   }
 
@@ -902,6 +916,7 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
         } catch (ChecksumException ce) {
           throw ce;            
         } catch (IOException e) {
+          checkInterrupted(e);
           if (retries == 1) {
             DFSClient.LOG.warn("DFS Read", e);
           }
@@ -1019,9 +1034,12 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
           final int timeWindow = dfsClient.getConf().timeWindow;
           double waitTime = timeWindow * failures +       // grace period for the last round of attempt
             timeWindow * (failures + 1) * DFSUtil.getRandom().nextDouble(); // expanding time window for each failure
-          DFSClient.LOG.warn("DFS chooseDataNode: got # " + (failures + 1) + " IOException, will wait for " + waitTime + " msec.");
+          DFSClient.LOG.warn("DFS chooseDataNode: got # " + (failures + 1) +
+              " IOException, will wait for " + waitTime + " msec.");
           Thread.sleep((long)waitTime);
-        } catch (InterruptedException iex) {
+        } catch (InterruptedException e) {
+          throw new InterruptedIOException(
+              "Interrupted while choosing DataNode for read.");
         }
         deadNodes.clear(); //2nd option is to remove only nodes[blockId]
         openInfo();
@@ -1110,7 +1128,8 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
             corruptedBlockMap);
         return;
       } catch (IOException e) {
-        // Ignore. Already processed inside the function.
+        checkInterrupted(e); // check if the read has been interrupted
+        // Ignore other IOException. Already processed inside the function.
         // Loop through to try the next node.
       }
     }
@@ -1202,6 +1221,7 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
         addToDeadNodes(chosenNode);
         throw new IOException(msg);
       } catch (IOException e) {
+        checkInterrupted(e);
         if (e instanceof InvalidEncryptionKeyException && refetchEncryptionKey > 0) {
           DFSClient.LOG.info("Will fetch a new encryption key and retry, " 
               + "encryption key was invalid when connecting to " + targetAddr
@@ -1288,10 +1308,11 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
           ignored.add(chosenNode.info);
           dfsClient.getHedgedReadMetrics().incHedgedReadOps();
           continue; // no need to refresh block locations
-        } catch (InterruptedException e) {
-          // Ignore
         } catch (ExecutionException e) {
-          // Ignore already logged in the call.
+          // Ignore
+        } catch (InterruptedException e) {
+          throw new InterruptedIOException(
+              "Interrupted while waiting for reading task");
         }
       } else {
         // We are starting up a 'hedged' read. We have a read already
@@ -1582,6 +1603,7 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
                 + " from " + getCurrentBlock() + " of " + src + " from "
                 + currentNode, e);
           }
+          checkInterrupted(e);
         }
       }
     }
