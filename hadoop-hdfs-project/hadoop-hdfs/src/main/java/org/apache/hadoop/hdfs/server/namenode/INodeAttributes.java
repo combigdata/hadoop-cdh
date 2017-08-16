@@ -96,7 +96,7 @@ public interface INodeAttributes {
     SnapshotCopy(INode inode) {
       this.name = inode.getLocalNameBytes();
       this.permission = inode.getPermissionLong();
-      this.aclFeature = inode.getAclFeature();
+      this.aclFeature = inode.getFsimageAclFeature();
       this.modificationTime = inode.getModificationTime();
       this.accessTime = inode.getAccessTime();
       this.xAttrFeature = inode.getXAttrFeature();

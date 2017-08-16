@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 import com.google.common.collect.Lists;
@@ -56,6 +57,7 @@ import org.apache.hadoop.hdfs.client.HdfsDataOutputStream.SyncFlag;
 import org.apache.hadoop.hdfs.protocol.SnapshotDiffReport;
 import org.apache.hadoop.hdfs.protocol.SnapshotDiffReport.DiffReportEntry;
 import org.apache.hadoop.hdfs.protocol.SnapshotDiffReport.DiffType;
+import org.apache.hadoop.hdfs.server.namenode.AclFeature;
 import org.apache.hadoop.hdfs.server.namenode.AclTestHelpers;
 import org.apache.hadoop.hdfs.server.namenode.NameNode;
 import org.apache.hadoop.hdfs.server.namenode.NameNodeAdapter;
@@ -696,9 +698,68 @@ public class TestSnapshotDiffReport {
 
   public static class TestAuthorizationProviderForSnapDiff
       extends MyAuthorizationProvider {
+    private static boolean useDefault = false;
+    private static final Map<Long, AclFeature> aclFeatureMap =
+        new HashMap<>();
+    private static final Map<Long, FsPermission> permissionMap =
+        new HashMap<>();
+
     @Override
     protected boolean useDefault(INodeAuthorizationInfo iNode) {
-      return true;
+      return useDefault;
+    }
+
+    @Override
+    public void setPermission(INodeAuthorizationInfo node,
+        FsPermission permission) {
+      if (useDefault(node)) {
+        super.setPermission(node, permission);
+      } else {
+        permissionMap.put(node.getId(), permission);
+      }
+    }
+
+    @Override
+    public FsPermission getFsPermission(
+        INodeAuthorizationInfo node, int snapshotId) {
+      FsPermission permission;
+      if (useDefault(node)) {
+        return super.getFsPermission(node, snapshotId);
+      } else {
+        permission = permissionMap.get(node.getId());
+        if (permission == null) {
+          return  new FsPermission((short)0770);
+        }
+        return permission;
+      }
+    }
+
+    @Override
+    public AclFeature getAclFeature(INodeAuthorizationInfo node,
+        int snapshotId) {
+      if (useDefault(node)) {
+        return super.getAclFeature(node, snapshotId);
+      } else {
+        return aclFeatureMap.get(node.getId());
+      }
+    }
+
+    @Override
+    public void removeAclFeature(INodeAuthorizationInfo node) {
+      if (useDefault(node)) {
+        super.removeAclFeature(node);
+      } else {
+        aclFeatureMap.remove(node.getId());
+      }
+    }
+
+    @Override
+    public void addAclFeature(INodeAuthorizationInfo node, AclFeature f) {
+      if (useDefault(node)) {
+        super.addAclFeature(node, f);
+      } else {
+        aclFeatureMap.put(node.getId(), f);
+      }
     }
   }
 
@@ -708,8 +769,32 @@ public class TestSnapshotDiffReport {
    * snapshot diff doesn't report such files as modified.
    */
   @Test
-  public void testSetSameACLAndSnapshotDiff() throws Exception {
+  public void testSetSameACLAndSnapDiffWithAuthProvider() throws Exception {
     tearDown();
+    TestAuthorizationProviderForSnapDiff.useDefault = false;
+    testSetSameACLAndSnapDiffImpl();
+  }
+
+  /**
+   * AclFeature in the SnapshotCopy and the AclFeature in the current version
+   * could be same contents wise. Make sure the snapshot diff doesn't report
+   * such files as modified.
+   */
+  @Test
+  public void testSetSameACLAndSnapDiffWithoutAuthProvider() throws Exception {
+    tearDown();
+    TestAuthorizationProviderForSnapDiff.useDefault = true;
+    testSetSameACLAndSnapDiffImpl();
+  }
+
+  /**
+   * Get Acls for a file/dir and set the same Acl again on to same file/dir.
+   * Verify the snapshot diff across setAcl() doesn't report the file/dir as
+   * modified. Restart the NameNode, verify if the snapshots are rebuilt
+   * properly and the snapshot diff gives the same result. Repeat the
+   * setAcl() verification after the NameNode restart.
+   */
+  private void testSetSameACLAndSnapDiffImpl() throws Exception {
     conf = new Configuration();
     conf.setBoolean(
         DFSConfigKeys.DFS_NAMENODE_SNAPSHOT_CAPTURE_OPENFILES, true);
@@ -728,8 +813,13 @@ public class TestSnapshotDiffReport {
     SnapshotTestHelper.createSnapshot(hdfs, dirPath, "S0");
 
     List<AclEntry> dirAclSpec = Lists.newArrayList(
-        aclEntry(DEFAULT, USER, "hdfs", READ_EXECUTE));
-    hdfs.modifyAclEntries(dirPath, dirAclSpec);
+        aclEntry(ACCESS, USER, READ_EXECUTE),
+        aclEntry(ACCESS, USER, "hdfs", READ_EXECUTE),
+        aclEntry(ACCESS, GROUP, READ_EXECUTE),
+        aclEntry(ACCESS, GROUP, "hdfs", READ_EXECUTE),
+        aclEntry(ACCESS, OTHER, READ_EXECUTE));
+    hdfs.setAcl(dirPath, dirAclSpec);
+    hdfs.setPermission(dirPath, FsPermission.createImmutable((short)0755));
 
     List<AclEntry> fileAclSpec = Lists.newArrayList(
         aclEntry(ACCESS, USER, ALL),
@@ -744,11 +834,9 @@ public class TestSnapshotDiffReport {
     AclEntry[] dirAcls = dirAclStatus.getEntries().toArray(new AclEntry[0]);
     assertArrayEquals(
         new AclEntry[] {
-            aclEntry(DEFAULT, USER, ALL),
-            aclEntry(DEFAULT, USER, "hdfs", READ_EXECUTE),
-            aclEntry(DEFAULT, GROUP, READ_EXECUTE),
-            aclEntry(DEFAULT, MASK, READ_EXECUTE),
-            aclEntry(DEFAULT, OTHER, READ_EXECUTE)
+            aclEntry(ACCESS, USER, "hdfs", READ_EXECUTE),
+            aclEntry(ACCESS, GROUP, READ_EXECUTE),
+            aclEntry(ACCESS, GROUP, "hdfs", READ_EXECUTE),
         }, dirAcls);
     AclTestHelpers.assertPermission(hdfs, dirPath, ((short)010755));
 
@@ -761,16 +849,31 @@ public class TestSnapshotDiffReport {
         }, fileAcls);
     AclTestHelpers.assertPermission(hdfs, filePath, ((short)010755));
 
-    List<AclEntry> sameDirAclSpec = Lists.newArrayList(dirAcls);
-    hdfs.setAcl(dirPath, sameDirAclSpec);
+    hdfs.setAcl(dirPath, dirAclSpec);
     hdfs.setAcl(filePath, fileAclSpec);
     SnapshotTestHelper.createSnapshot(hdfs, dirPath, "S1");
 
-    hdfs.setAcl(dirPath, sameDirAclSpec);
+    hdfs.setAcl(dirPath, dirAclSpec);
     hdfs.setAcl(filePath, fileAclSpec);
     SnapshotTestHelper.createSnapshot(hdfs, dirPath, "S2");
 
     verifyDiffReport(dirPath, "S1", "S2",
+        new DiffReportEntry(DiffType.MODIFY, DFSUtil.string2Bytes("")));
+
+    restartNameNode();
+    cluster.waitActive();
+
+    verifyDiffReport(dirPath, "S1", "S2",
+        new DiffReportEntry(DiffType.MODIFY, DFSUtil.string2Bytes("")));
+
+    hdfs.setAcl(dirPath, dirAclSpec);
+    hdfs.setAcl(filePath, fileAclSpec);
+    SnapshotTestHelper.createSnapshot(hdfs, dirPath, "S3");
+
+    verifyDiffReport(dirPath, "S2", "S3",
+        new DiffReportEntry(DiffType.MODIFY, DFSUtil.string2Bytes("")));
+
+    verifyDiffReport(dirPath, "S1", "S3",
         new DiffReportEntry(DiffType.MODIFY, DFSUtil.string2Bytes("")));
   }
 }
