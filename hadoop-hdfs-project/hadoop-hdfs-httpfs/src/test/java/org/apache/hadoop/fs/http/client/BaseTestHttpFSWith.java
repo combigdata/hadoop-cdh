@@ -33,6 +33,7 @@ import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.DFSTestUtil;
+import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.test.HFSTestCase;
 import org.apache.hadoop.test.HadoopUsersConfTestHelper;
@@ -67,6 +68,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -943,7 +945,7 @@ System.out.println("#");
     WORKING_DIRECTORY, MKDIRS, SET_TIMES, SET_PERMISSION, SET_OWNER, 
     SET_REPLICATION, CHECKSUM, CONTENT_SUMMARY, FILEACLS, DIRACLS, SET_XATTR,
     GET_XATTRS, REMOVE_XATTR, LIST_XATTRS, ENCRYPTION, LIST_STATUS_BATCH,
-    GETTRASHROOT
+    GETTRASHROOT, CREATE_SNAPSHOT, RENAME_SNAPSHOT, DELETE_SNAPSHOT
   }
 
   private void operation(Operation op) throws Exception {
@@ -1023,6 +1025,15 @@ System.out.println("#");
     case GETTRASHROOT:
       testTrashRoot();
       break;
+    case CREATE_SNAPSHOT:
+      testCreateSnapshot();
+      break;
+    case RENAME_SNAPSHOT:
+      testRenameSnapshot();
+      break;
+    case DELETE_SNAPSHOT:
+      testDeleteSnapshot();
+      break;
     }
   }
 
@@ -1067,6 +1078,99 @@ System.out.println("#");
         return null;
       }
     });
+  }
+
+  private void testCreateSnapshot(String snapshotName) throws Exception {
+    if (!this.isLocalFS()) {
+      Path snapshottablePath = new Path("/tmp/tmp-snap-test");
+      createSnapshotTestsPreconditions(snapshottablePath);
+      //Now get the FileSystem instance that's being tested
+      FileSystem fs = this.getHttpFSFileSystem();
+      if (snapshotName == null) {
+        fs.createSnapshot(snapshottablePath);
+      } else {
+        fs.createSnapshot(snapshottablePath, snapshotName);
+      }
+      Path snapshotsDir = new Path("/tmp/tmp-snap-test/.snapshot");
+      FileStatus[] snapshotItems = fs.listStatus(snapshotsDir);
+      assertTrue("Should have exactly one snapshot.",
+          snapshotItems.length == 1);
+      String resultingSnapName = snapshotItems[0].getPath().getName();
+      if (snapshotName == null) {
+        assertTrue("Snapshot auto generated name not matching pattern",
+            Pattern.matches("(s)(\\d{8})(-)(\\d{6})(\\.)(\\d{3})",
+                resultingSnapName));
+      } else {
+        assertTrue("Snapshot name is not same as passed name.",
+            snapshotName.equals(resultingSnapName));
+      }
+      cleanSnapshotTests(snapshottablePath, resultingSnapName);
+    }
+  }
+
+  private void testCreateSnapshot() throws Exception {
+    testCreateSnapshot(null);
+    testCreateSnapshot("snap-with-name");
+  }
+
+  private void createSnapshotTestsPreconditions(Path snapshottablePath)
+      throws Exception {
+    //Needed to get a DistributedFileSystem instance, in order to
+    //call allowSnapshot on the newly created directory
+    DistributedFileSystem distributedFs = (DistributedFileSystem)
+        FileSystem.get(snapshottablePath.toUri(), this.getProxiedFSConf());
+    distributedFs.mkdirs(snapshottablePath);
+    distributedFs.allowSnapshot(snapshottablePath);
+    Path subdirPath = new Path("/tmp/tmp-snap-test/subdir");
+    distributedFs.mkdirs(subdirPath);
+
+  }
+
+  private void cleanSnapshotTests(Path snapshottablePath,
+                                  String resultingSnapName) throws Exception {
+    DistributedFileSystem distributedFs = (DistributedFileSystem)
+        FileSystem.get(snapshottablePath.toUri(), this.getProxiedFSConf());
+    distributedFs.deleteSnapshot(snapshottablePath, resultingSnapName);
+    distributedFs.delete(snapshottablePath, true);
+  }
+
+  private void testRenameSnapshot() throws Exception {
+    if (!this.isLocalFS()) {
+      Path snapshottablePath = new Path("/tmp/tmp-snap-test");
+      createSnapshotTestsPreconditions(snapshottablePath);
+      //Now get the FileSystem instance that's being tested
+      FileSystem fs = this.getHttpFSFileSystem();
+      fs.createSnapshot(snapshottablePath, "snap-to-rename");
+      fs.renameSnapshot(snapshottablePath, "snap-to-rename",
+          "snap-new-name");
+      Path snapshotsDir = new Path("/tmp/tmp-snap-test/.snapshot");
+      FileStatus[] snapshotItems = fs.listStatus(snapshotsDir);
+      assertTrue("Should have exactly one snapshot.",
+          snapshotItems.length == 1);
+      String resultingSnapName = snapshotItems[0].getPath().getName();
+      assertTrue("Snapshot name is not same as passed name.",
+          "snap-new-name".equals(resultingSnapName));
+      cleanSnapshotTests(snapshottablePath, resultingSnapName);
+    }
+  }
+
+  private void testDeleteSnapshot() throws Exception {
+    if (!this.isLocalFS()) {
+      Path snapshottablePath = new Path("/tmp/tmp-snap-test");
+      createSnapshotTestsPreconditions(snapshottablePath);
+      //Now get the FileSystem instance that's being tested
+      FileSystem fs = this.getHttpFSFileSystem();
+      fs.createSnapshot(snapshottablePath, "snap-to-delete");
+      Path snapshotsDir = new Path("/tmp/tmp-snap-test/.snapshot");
+      FileStatus[] snapshotItems = fs.listStatus(snapshotsDir);
+      assertTrue("Should have exactly one snapshot.",
+          snapshotItems.length == 1);
+      fs.deleteSnapshot(snapshottablePath, "snap-to-delete");
+      snapshotItems = fs.listStatus(snapshotsDir);
+      assertTrue("There should be no snapshot anymore.",
+          snapshotItems.length == 0);
+      fs.delete(snapshottablePath, true);
+    }
   }
 
 }
