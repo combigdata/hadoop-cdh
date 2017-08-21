@@ -151,7 +151,7 @@ public class TestPread {
     FSDataInputStream stm = fileSys.open(name);
     byte[] expected = new byte[12 * blockSize];
     if (simulatedStorage) {
-      for (int i= 0; i < expected.length; i++) {  
+      for (int i= 0; i < expected.length; i++) {
         expected[i] = SimulatedFSDataset.DEFAULT_DATABYTE;
       }
     } else {
@@ -626,7 +626,7 @@ public class TestPread {
    */
   @Test
   public void testPreadFailureWithChangedBlockLocations() throws Exception {
-    doPreadTestWithChangedLocations();
+    doPreadTestWithChangedLocations(1);
   }
 
   /**
@@ -639,21 +639,36 @@ public class TestPread {
    * 7. Consider next calls to getBlockLocations() always returns DN3 as last
    * location.<br>
    */
-  @Test
+  @Test(timeout = 60000)
   public void testPreadHedgedFailureWithChangedBlockLocations()
       throws Exception {
     isHedgedRead = true;
-    doPreadTestWithChangedLocations();
+    DFSClientFaultInjector old = DFSClientFaultInjector.get();
+    try {
+      DFSClientFaultInjector.set(new DFSClientFaultInjector() {
+        public void sleepBeforeHedgedGet() {
+          try {
+            Thread.sleep(500);
+          } catch (InterruptedException e) {
+          }
+        }
+      });
+      doPreadTestWithChangedLocations(2);
+    } finally {
+      DFSClientFaultInjector.set(old);
+    }
   }
 
-  private void doPreadTestWithChangedLocations()
+  private void doPreadTestWithChangedLocations(int maxFailures)
       throws IOException, TimeoutException, InterruptedException {
     GenericTestUtils.setLogLevel(DFSClient.LOG, Level.DEBUG);
     Configuration conf = new HdfsConfiguration();
     conf.setInt(DFSConfigKeys.DFS_REPLICATION_KEY, 2);
     conf.setInt(DFSConfigKeys.DFS_HEARTBEAT_INTERVAL_KEY, 1);
     if (isHedgedRead) {
+      conf.setInt(DFSConfigKeys.DFS_DFSCLIENT_HEDGED_READ_THRESHOLD_MILLIS, 100);
       conf.setInt(DFSConfigKeys.DFS_DFSCLIENT_HEDGED_READ_THREADPOOL_SIZE, 2);
+      conf.setInt(DFSConfigKeys.DFS_CLIENT_RETRY_WINDOW_BASE, 1000);
     }
     MiniDFSCluster cluster =
         new MiniDFSCluster.Builder(conf).numDataNodes(3).build();
@@ -748,6 +763,9 @@ public class TestPread {
       int n = din.read(0, buf, 0, data.length());
       assertEquals(data.length(), n);
       assertEquals("Data should be read", data, new String(buf, 0, n));
+      assertTrue("Read should complete with maximum " + maxFailures
+              + " failures, but completed with " + din.failures,
+          din.failures <= maxFailures);
       DFSClient.LOG.info("Read completed");
     } finally {
       cluster.shutdown();
