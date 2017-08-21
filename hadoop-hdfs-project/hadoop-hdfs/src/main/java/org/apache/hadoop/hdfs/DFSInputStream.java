@@ -241,7 +241,7 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
    * back to the namenode to get a new list of block locations, and is
    * capped at maxBlockAcquireFailures
    */
-  private int failures = 0;
+  protected int failures = 0;
 
   /* XXX Use of CocurrentHashMap is temp fix. Need to fix 
    * parallel accesses to DFSInputStream (through ptreads) properly */
@@ -999,57 +999,81 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
 
   private DNAddrPair chooseDataNode(LocatedBlock block,
       Collection<DatanodeInfo> ignoredNodes) throws IOException {
+    return chooseDataNode(block, ignoredNodes, true);
+  }
+
+  /**
+   * Choose datanode to read from.
+   *
+   * @param block             Block to choose datanode addr from
+   * @param ignoredNodes      Ignored nodes inside.
+   * @param refetchIfRequired Whether to refetch if no nodes to chose
+   *                          from.
+   * @return Returns chosen DNAddrPair; Can be null if refetchIfRequired is
+   * false.
+   */
+  private DNAddrPair chooseDataNode(LocatedBlock block,
+      Collection<DatanodeInfo> ignoredNodes, boolean refetchIfRequired)
+      throws IOException {
     while (true) {
       try {
         return getBestNodeDNAddrPair(block, ignoredNodes);
       } catch (IOException ie) {
-        String errMsg = getBestNodeDNAddrPairErrorString(block.getLocations(),
-          deadNodes, ignoredNodes);
-        String blockInfo = block.getBlock() + " file=" + src;
-        if (failures >= dfsClient.getMaxBlockAcquireFailures()) {
-          String description = "Could not obtain block: " + blockInfo;
-          DFSClient.LOG.warn(description + errMsg
-              + ". Throwing a BlockMissingException");
-          throw new BlockMissingException(src, description,
-              block.getStartOffset());
+        if (refetchIfRequired) {
+          block = refetchLocations(block, ignoredNodes);
+        } else {
+          return null;
         }
-
-        DatanodeInfo[] nodes = block.getLocations();
-        if (nodes == null || nodes.length == 0) {
-          DFSClient.LOG.info("No node available for " + blockInfo);
-        }
-        DFSClient.LOG.info("Could not obtain " + block.getBlock()
-            + " from any node: " + ie + errMsg
-            + ". Will get new block locations from namenode and retry...");
-        try {
-          // Introducing a random factor to the wait time before another retry.
-          // The wait time is dependent on # of failures and a random factor.
-          // At the first time of getting a BlockMissingException, the wait time
-          // is a random number between 0..3000 ms. If the first retry
-          // still fails, we will wait 3000 ms grace period before the 2nd retry.
-          // Also at the second retry, the waiting window is expanded to 6000 ms
-          // alleviating the request rate from the server. Similarly the 3rd retry
-          // will wait 6000ms grace period before retry and the waiting window is
-          // expanded to 9000ms. 
-          final int timeWindow = dfsClient.getConf().timeWindow;
-          double waitTime = timeWindow * failures +       // grace period for the last round of attempt
-            timeWindow * (failures + 1) * DFSUtil.getRandom().nextDouble(); // expanding time window for each failure
-          DFSClient.LOG.warn("DFS chooseDataNode: got # " + (failures + 1) +
-              " IOException, will wait for " + waitTime + " msec.");
-          Thread.sleep((long)waitTime);
-        } catch (InterruptedException e) {
-          throw new InterruptedIOException(
-              "Interrupted while choosing DataNode for read.");
-        }
-        deadNodes.clear(); //2nd option is to remove only nodes[blockId]
-        openInfo();
-        block = getBlockAt(block.getStartOffset(), false);
-        failures++;
-        continue;
       }
     }
   }
 
+  private LocatedBlock refetchLocations(LocatedBlock block,
+      Collection<DatanodeInfo> ignoredNodes) throws IOException {
+    String errMsg = getBestNodeDNAddrPairErrorString(block.getLocations(),
+        deadNodes, ignoredNodes);
+    String blockInfo = block.getBlock() + " file=" + src;
+    if (failures >= dfsClient.getMaxBlockAcquireFailures()) {
+      String description = "Could not obtain block: " + blockInfo;
+      DFSClient.LOG.warn(description + errMsg
+          + ". Throwing a BlockMissingException");
+      throw new BlockMissingException(src, description,
+          block.getStartOffset());
+    }
+
+    DatanodeInfo[] nodes = block.getLocations();
+    if (nodes == null || nodes.length == 0) {
+      DFSClient.LOG.info("No node available for " + blockInfo);
+    }
+    DFSClient.LOG.info("Could not obtain " + block.getBlock()
+        + " from any node: " + errMsg
+        + ". Will get new block locations from namenode and retry...");
+    try {
+      // Introducing a random factor to the wait time before another retry.
+      // The wait time is dependent on # of failures and a random factor.
+      // At the first time of getting a BlockMissingException, the wait time
+      // is a random number between 0..3000 ms. If the first retry
+      // still fails, we will wait 3000 ms grace period before the 2nd retry.
+      // Also at the second retry, the waiting window is expanded to 6000 ms
+      // alleviating the request rate from the server. Similarly the 3rd retry
+      // will wait 6000ms grace period before retry and the waiting window is
+      // expanded to 9000ms.
+      final int timeWindow = dfsClient.getConf().timeWindow;
+      double waitTime = timeWindow * failures +       // grace period for the last round of attempt
+          timeWindow * (failures + 1) * DFSUtil.getRandom().nextDouble(); // expanding time window for each failure
+      DFSClient.LOG.warn("DFS chooseDataNode: got # " + (failures + 1) +
+          " IOException, will wait for " + waitTime + " msec.");
+      Thread.sleep((long)waitTime);
+    } catch (InterruptedException e) {
+      throw new InterruptedIOException(
+          "Interrupted while choosing DataNode for read.");
+    }
+    deadNodes.clear(); //2nd option is to remove only nodes[blockId]
+    openInfo();
+    block = getBlockAt(block.getStartOffset(), false);
+    failures++;
+    return block;
+  }
   /**
    * Get the best node from which to stream the data.
    * @param block LocatedBlock, containing nodes in priority order.
@@ -1144,6 +1168,7 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
     return new Callable<ByteBuffer>() {
       @Override
       public ByteBuffer call() throws Exception {
+        DFSClientFaultInjector.get().sleepBeforeHedgedGet();
         byte[] buf = bb.array();
         int offset = bb.position();
         TraceScope scope = dfsClient.getTracer().
@@ -1321,21 +1346,22 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
         // We are starting up a 'hedged' read. We have a read already
         // ongoing. Call getBestNodeDNAddrPair instead of chooseDataNode.
         // If no nodes to do hedged reads against, pass.
+        boolean refetch = false;
         try {
-          try {
-            chosenNode = getBestNodeDNAddrPair(block, ignored);
-          } catch (IOException ioe) {
-            chosenNode = chooseDataNode(block, ignored);
+          chosenNode = chooseDataNode(block, ignored, false);
+          if (chosenNode != null) {
+            // Latest block, if refreshed internally
+            block = chosenNode.block;
+            bb = ByteBuffer.allocate(len);
+            Callable<ByteBuffer> getFromDataNodeCallable = getFromOneDataNode(
+                chosenNode, block, start, end, bb, corruptedBlockMap,
+                hedgedReadId++);
+            Future<ByteBuffer> oneMoreRequest = hedgedService
+                .submit(getFromDataNodeCallable);
+            futures.add(oneMoreRequest);
+          } else {
+            refetch = true;
           }
-          // Latest block, if refreshed internally
-          block = chosenNode.block;
-          bb = ByteBuffer.allocate(len);
-          Callable<ByteBuffer> getFromDataNodeCallable = getFromOneDataNode(
-              chosenNode, block, start, end, bb, corruptedBlockMap,
-              hedgedReadId++);
-          Future<ByteBuffer> oneMoreRequest = hedgedService
-              .submit(getFromDataNodeCallable);
-          futures.add(oneMoreRequest);
         } catch (IOException ioe) {
           if (DFSClient.LOG.isDebugEnabled()) {
             DFSClient.LOG.debug("Failed getting node for hedged read: "
@@ -1354,6 +1380,9 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
           return;
         } catch (InterruptedException ie) {
           // Ignore and retry
+        }
+        if (refetch) {
+          refetchLocations(block, ignored);
         }
         // We got here if exception. Ignore this node on next go around IFF
         // we found a chosenNode to hedge read against.
