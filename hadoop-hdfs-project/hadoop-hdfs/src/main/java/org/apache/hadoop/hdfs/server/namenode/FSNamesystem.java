@@ -96,7 +96,6 @@ import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_STORAGE_POLICY_ENABLED_DE
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_SUPPORT_APPEND_DEFAULT;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_SUPPORT_APPEND_KEY;
 import static org.apache.hadoop.hdfs.server.common.HdfsServerConstants.SECURITY_XATTR_UNREADABLE_BY_SUPERUSER;
-import org.apache.hadoop.hdfs.protocol.OpenFileEntry;
 import static org.apache.hadoop.util.Time.now;
 
 import java.io.BufferedWriter;
@@ -151,6 +150,7 @@ import org.apache.hadoop.crypto.CipherSuite;
 import org.apache.hadoop.crypto.CryptoProtocolVersion;
 import org.apache.hadoop.crypto.key.KeyProvider;
 import org.apache.hadoop.crypto.CryptoCodec;
+import org.apache.hadoop.crypto.key.KeyProvider.KeyVersion;
 import org.apache.hadoop.crypto.key.KeyProviderCryptoExtension;
 import org.apache.hadoop.hdfs.AddBlockFlag;
 import org.apache.hadoop.fs.BatchedRemoteIterator.BatchedListEntries;
@@ -203,10 +203,12 @@ import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants;
 import org.apache.hadoop.hdfs.protocol.LastBlockWithStatus;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants.DatanodeReportType;
+import org.apache.hadoop.hdfs.protocol.HdfsConstants.ReencryptAction;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants.SafeModeAction;
 import org.apache.hadoop.hdfs.protocol.HdfsFileStatus;
 import org.apache.hadoop.hdfs.protocol.LocatedBlock;
 import org.apache.hadoop.hdfs.protocol.LocatedBlocks;
+import org.apache.hadoop.hdfs.protocol.OpenFileEntry;
 import org.apache.hadoop.hdfs.protocol.QuotaExceededException;
 import org.apache.hadoop.hdfs.protocol.RecoveryInProgressException;
 import org.apache.hadoop.hdfs.protocol.RollingUpgradeException;
@@ -215,6 +217,7 @@ import org.apache.hadoop.hdfs.protocol.SnapshotAccessControlException;
 import org.apache.hadoop.hdfs.protocol.SnapshotException;
 import org.apache.hadoop.hdfs.protocol.SnapshotDiffReport;
 import org.apache.hadoop.hdfs.protocol.SnapshottableDirectoryStatus;
+import org.apache.hadoop.hdfs.protocol.ZoneReencryptionStatus;
 import org.apache.hadoop.hdfs.protocol.datatransfer.ReplaceDatanodeOnFailure;
 import org.apache.hadoop.hdfs.security.token.block.BlockTokenSecretManager;
 import org.apache.hadoop.hdfs.security.token.block.BlockTokenSecretManager.AccessMode;
@@ -1312,6 +1315,8 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
 
       // Enable quota checks.
       dir.enableQuotaChecks();
+      dir.ezManager.startReencryptThreads();
+
       if (haEnabled) {
         // Renew all of the leases before becoming active.
         // This is because, while we were in standby mode,
@@ -1412,6 +1417,9 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
         // so that the tailer starts from the right spot.
         getFSImage().updateLastAppliedTxIdFromWritten();
       }
+      if (dir != null) {
+        dir.ezManager.stopReencryptThread();
+      }
       if (cacheManager != null) {
         cacheManager.stopMonitorThread();
         cacheManager.clearDirectiveStats();
@@ -1504,7 +1512,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
    * @throws SafeModeException
    *           Otherwise if NameNode is in SafeMode.
    */
-  private void checkNameNodeSafeMode(String errorMsg)
+  void checkNameNodeSafeMode(String errorMsg)
       throws RetriableException, SafeModeException {
     if (isInSafeMode()) {
       SafeModeException se = new SafeModeException(errorMsg, safeMode);
@@ -2947,7 +2955,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
 
       // Set encryption attributes if necessary
       if (feInfo != null) {
-        dir.setFileEncryptionInfo(src, feInfo);
+        dir.setFileEncryptionInfo(src, feInfo, XAttrSetFlag.CREATE);
         newNode = dir.getInode(newNode.getId()).asFile();
       }
 
@@ -9358,6 +9366,86 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       readUnlock();
       logAuditEvent(success, "listEncryptionZones", null);
     }
+  }
+
+  void reencryptEncryptionZone(final String zone, final ReencryptAction action)
+      throws IOException {
+    final CacheEntry cacheEntry = RetryCache.waitForCompletion(retryCache);
+    if (cacheEntry != null && cacheEntry.isSuccess()) {
+      return; // Return previous response
+    }
+    boolean success = false;
+    try {
+      Preconditions.checkNotNull(zone, "zone is null.");
+      checkSuperuserPrivilege();
+      checkOperation(OperationCategory.WRITE);
+      checkNameNodeSafeMode("NameNode in safemode, cannot " + action
+          + " re-encryption on zone " + zone);
+      reencryptEncryptionZoneInt(zone, action, cacheEntry != null);
+      success = true;
+    } finally {
+      logAuditEvent(success, action + "reencryption", zone, null, null);
+      RetryCache.setState(cacheEntry, success);
+
+    }
+  }
+
+  BatchedListEntries<ZoneReencryptionStatus> listReencryptionStatus(
+      final long prevId) throws IOException {
+    final String operationName = "listReencryptionStatus";
+    boolean success = false;
+    checkSuperuserPrivilege();
+    checkOperation(OperationCategory.READ);
+    readLock();
+    try {
+      checkSuperuserPrivilege();
+      checkOperation(OperationCategory.READ);
+      final BatchedListEntries<ZoneReencryptionStatus> ret =
+          dir.listReencryptionStatus(prevId);
+      success = true;
+      return ret;
+    } finally {
+      readUnlock();
+      logAuditEvent(success, operationName, null);
+    }
+  }
+
+  private void reencryptEncryptionZoneInt(final String zone,
+      final ReencryptAction action, final boolean logRetryCache)
+      throws IOException {
+    if (getProvider() == null) {
+      throw new IOException("No key provider configured, re-encryption "
+          + "operation is rejected");
+    }
+    FSPermissionChecker pc = getPermissionChecker();
+    // get keyVersionName out of the lock. This keyVersionName will be used
+    // as the target keyVersion for the entire re-encryption.
+    // This means all edek's keyVersion will be compared with this one, and
+    // kms is only contacted if the edek's keyVersion is different.
+    final KeyVersion kv = dir.getLatestKeyVersion(zone, pc);
+    provider.invalidateCache(kv.getName());
+    writeLock();
+    try {
+      checkSuperuserPrivilege();
+      checkOperation(OperationCategory.WRITE);
+      checkNameNodeSafeMode(
+          "NameNode in safemode, cannot " + action + " re-encryption on zone "
+              + zone);
+      switch (action) {
+      case START:
+        dir.reencryptEncryptionZone(zone, kv.getVersionName(), logRetryCache);
+        break;
+      case CANCEL:
+        dir.cancelReencryptEncryptionZone(zone, logRetryCache);
+        break;
+      default:
+        throw new IOException(
+            "Re-encryption action " + action + " is not supported");
+      }
+    } finally {
+      writeUnlock();
+    }
+    getEditLog().logSync();
   }
 
   /**

@@ -115,6 +115,13 @@ public class HdfsConstants {
     ALL, LIVE, DEAD, DECOMMISSIONING, ENTERING_MAINTENANCE
   }
 
+  /**
+   * Re-encrypt encryption zone actions.
+   */
+  public enum ReencryptAction {
+    CANCEL, START
+  }
+
   // An invalid transaction ID that will never be seen in a real namesystem.
   public static final long INVALID_TXID = -12345;
 

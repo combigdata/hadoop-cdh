@@ -62,6 +62,7 @@ import org.apache.hadoop.hdfs.protocol.RollingUpgradeInfo;
 import org.apache.hadoop.hdfs.protocol.SnapshotAccessControlException;
 import org.apache.hadoop.hdfs.protocol.SnapshotDiffReport;
 import org.apache.hadoop.hdfs.protocol.SnapshottableDirectoryStatus;
+import org.apache.hadoop.hdfs.protocol.ZoneReencryptionStatus;
 import org.apache.hadoop.hdfs.security.token.block.DataEncryptionKey;
 import org.apache.hadoop.hdfs.security.token.delegation.DelegationTokenIdentifier;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeStorageReport;
@@ -939,6 +940,28 @@ public class AuthorizationProviderProxyClientProtocol implements ClientProtocol 
     try {
       AuthorizationProvider.beginClientOp();
       return server.listEncryptionZones(prevId);
+    } finally {
+      AuthorizationProvider.endClientOp();
+    }
+  }
+
+  @Override
+  public void reencryptEncryptionZone(String zone, HdfsConstants.ReencryptAction action)
+      throws IOException {
+    try {
+      AuthorizationProvider.beginClientOp();
+      server.reencryptEncryptionZone(zone, action);
+    } finally {
+      AuthorizationProvider.endClientOp();
+    }
+  }
+
+  @Override
+  public BatchedRemoteIterator.BatchedEntries<ZoneReencryptionStatus>
+  listReencryptionStatus(long id) throws IOException {
+    try {
+      AuthorizationProvider.beginClientOp();
+      return server.listReencryptionStatus(id);
     } finally {
       AuthorizationProvider.endClientOp();
     }

@@ -40,6 +40,8 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.crypto.CipherSuite;
 import org.apache.hadoop.crypto.CryptoProtocolVersion;
+import org.apache.hadoop.crypto.key.KeyProvider.KeyVersion;
+import org.apache.hadoop.crypto.key.KeyProviderCryptoExtension;
 import org.apache.hadoop.fs.ContentSummary;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileEncryptionInfo;
@@ -77,7 +79,10 @@ import org.apache.hadoop.hdfs.protocol.LocatedBlocks;
 import org.apache.hadoop.hdfs.protocol.QuotaExceededException;
 import org.apache.hadoop.hdfs.protocol.SnapshotAccessControlException;
 import org.apache.hadoop.hdfs.protocol.SnapshotException;
+import org.apache.hadoop.hdfs.protocol.ZoneReencryptionStatus;
 import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos;
+import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos.ReencryptionInfoProto;
+import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos.ZoneEncryptionInfoProto;
 import org.apache.hadoop.hdfs.protocolPB.PBHelper;
 import org.apache.hadoop.hdfs.server.blockmanagement.BlockInfo;
 import org.apache.hadoop.hdfs.server.blockmanagement.BlockInfoUnderConstruction;
@@ -87,6 +92,7 @@ import org.apache.hadoop.hdfs.server.blockmanagement.DatanodeStorageInfo;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants.BlockUCState;
 import org.apache.hadoop.hdfs.server.namenode.INode.BlocksMapUpdateInfo;
 import org.apache.hadoop.hdfs.server.namenode.INodeReference.WithCount;
+import org.apache.hadoop.hdfs.server.namenode.ReencryptionUpdater.FileEdekInfo;
 import org.apache.hadoop.hdfs.server.namenode.snapshot.DirectorySnapshottableFeature;
 import org.apache.hadoop.hdfs.server.namenode.snapshot.Snapshot;
 import org.apache.hadoop.hdfs.server.namenode.snapshot.Snapshot.Root;
@@ -99,6 +105,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import org.apache.hadoop.security.AccessControlException;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.util.Time;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -279,6 +286,10 @@ public class FSDirectory implements Closeable {
 
   private BlockManager getBlockManager() {
     return getFSNamesystem().getBlockManager();
+  }
+
+  KeyProviderCryptoExtension getProvider() {
+    return getFSNamesystem().getProvider();
   }
 
   /** @return the root directory inode. */
@@ -2353,6 +2364,13 @@ public class FSDirectory implements Closeable {
               PBHelper.convert(ezProto.getSuite()),
               PBHelper.convert(ezProto.getCryptoProtocolVersion()),
               ezProto.getKeyName());
+          if (ezProto.hasReencryptionProto()) {
+            final ReencryptionInfoProto reProto = ezProto.getReencryptionProto();
+            // inodes parents may not be loaded if this is done during fsimage
+            // loading so cannot set full path now. Pass in null to indicate that.
+            ezManager.getReencryptionStatus()
+                .updateZoneStatus(inode.getId(), null, reProto);
+          }
         } catch (InvalidProtocolBufferException e) {
           NameNode.LOG.warn("Error parsing protocol buffer of " +
               "EZ XAttr " + xattr.getName() + " dir:" + inode.getFullPathName());
@@ -2981,11 +2999,192 @@ public class FSDirectory implements Closeable {
     }
   }
 
+  void reencryptEncryptionZone(final String zone, final String keyVersionName,
+      final boolean logRetryCache) throws IOException {
+    final List<XAttr> xAttrs = Lists.newArrayListWithCapacity(1);
+    writeLock();
+    try {
+      final INodesInPath iip = getINodesInPath4Write(zone);
+      final XAttr xattr = ezManager
+          .reencryptEncryptionZone(iip, keyVersionName);
+      xAttrs.add(xattr);
+    } finally {
+      writeUnlock();
+    }
+    getFSNamesystem().getEditLog().logSetXAttrs(zone, xAttrs, logRetryCache);
+  }
+
+  void cancelReencryptEncryptionZone(final String zone,
+      final boolean logRetryCache) throws IOException {
+    final List<XAttr> xattrs;
+    writeLock();
+    try {
+      final INodesInPath iip = getINodesInPath4Write(zone);
+      xattrs = ezManager.cancelReencryptEncryptionZone(iip);
+    } finally {
+      writeUnlock();
+    }
+    if (xattrs != null && !xattrs.isEmpty()) {
+      getFSNamesystem().getEditLog().logSetXAttrs(zone, xattrs, logRetryCache);
+    }
+  }
+
+  BatchedListEntries<ZoneReencryptionStatus> listReencryptionStatus(
+      final long prevId) throws IOException {
+    readLock();
+    try {
+      return ezManager.listReencryptionStatus(prevId);
+    } finally {
+      readUnlock();
+    }
+  }
+
+  /**
+   * Update re-encryption progress (submitted). Caller should
+   * logSync after calling this, outside of the FSN lock.
+   * <p>
+   * The reencryption status is updated during SetXAttrs.
+   */
+  XAttr updateReencryptionSubmitted(final INodesInPath iip,
+      final String ezKeyVersionName) throws IOException {
+    assert hasWriteLock();
+    Preconditions.checkNotNull(ezKeyVersionName, "ezKeyVersionName is null.");
+    final ZoneEncryptionInfoProto zoneProto = getZoneEncryptionInfoProto(iip);
+    Preconditions.checkNotNull(zoneProto, "ZoneEncryptionInfoProto is null.");
+
+    final ReencryptionInfoProto newProto = PBHelper
+        .convert(ezKeyVersionName, Time.now(), false, 0, 0, null, null);
+    final ZoneEncryptionInfoProto newZoneProto = PBHelper
+        .convert(PBHelper.convert(zoneProto.getSuite()),
+            PBHelper.convert(zoneProto.getCryptoProtocolVersion()),
+            zoneProto.getKeyName(), newProto);
+
+    final XAttr xattr = XAttrHelper
+        .buildXAttr(CRYPTO_XATTR_ENCRYPTION_ZONE, newZoneProto.toByteArray());
+    final List<XAttr> xattrs = Lists.newArrayListWithCapacity(1);
+    xattrs.add(xattr);
+    unprotectedSetXAttrs(iip.getPath(), xattrs,
+        EnumSet.of(XAttrSetFlag.REPLACE));
+    return xattr;
+  }
+
+  /**
+   * Update re-encryption progress (start, checkpoint). Caller should
+   * logSync after calling this, outside of the FSN lock.
+   * <p>
+   * The reencryption status is updated during SetXAttrs.
+   * Original reencryption status is passed in to get existing information
+   * such as ezkeyVersionName and submissionTime.
+   */
+  XAttr updateReencryptionProgress(final INode zoneNode,
+      final ZoneReencryptionStatus origStatus, final String lastFile,
+      final long numReencrypted, final long numFailures) throws IOException {
+    assert hasWriteLock();
+    Preconditions.checkNotNull(zoneNode, "Zone node is null");
+    INodesInPath iip = INodesInPath.fromINode(zoneNode);
+    final ZoneEncryptionInfoProto zoneProto = getZoneEncryptionInfoProto(iip);
+    Preconditions.checkNotNull(zoneProto, "ZoneEncryptionInfoProto is null.");
+    Preconditions.checkNotNull(origStatus, "Null status for " + iip.getPath());
+
+    final ReencryptionInfoProto newProto = PBHelper
+        .convert(origStatus.getEzKeyVersionName(),
+            origStatus.getSubmissionTime(), false,
+            origStatus.getFilesReencrypted() + numReencrypted,
+            origStatus.getNumReencryptionFailures() + numFailures, null,
+            lastFile);
+
+    final ZoneEncryptionInfoProto newZoneProto = PBHelper
+        .convert(PBHelper.convert(zoneProto.getSuite()),
+            PBHelper.convert(zoneProto.getCryptoProtocolVersion()),
+            zoneProto.getKeyName(), newProto);
+
+    final XAttr xattr = XAttrHelper
+        .buildXAttr(CRYPTO_XATTR_ENCRYPTION_ZONE, newZoneProto.toByteArray());
+    final List<XAttr> xattrs = Lists.newArrayListWithCapacity(1);
+    xattrs.add(xattr);
+    unprotectedSetXAttrs(iip.getPath(), xattrs,
+        EnumSet.of(XAttrSetFlag.REPLACE));
+    return xattr;
+  }
+
+  /**
+   * Log re-encrypt complete (cancel, or 100% re-encrypt) to edits.
+   * Caller should logSync after calling this, outside of the FSN lock.
+   * <p>
+   * Original reencryption status is passed in to get existing information,
+   * this should include whether it is finished due to cancellation.
+   * The reencryption status is updated during SetXAttrs for completion time.
+   */
+  List<XAttr> updateReencryptionFinish(final INodesInPath zoneIIP,
+      final ZoneReencryptionStatus origStatus) throws IOException {
+    assert origStatus != null;
+    assert hasWriteLock();
+    ezManager.getReencryptionStatus()
+        .markZoneCompleted(zoneIIP.getLastINode().getId());
+    final XAttr xattr =
+        generateNewXAttrForReencryptionFinish(zoneIIP, origStatus);
+    final List<XAttr> xattrs = Lists.newArrayListWithCapacity(1);
+    xattrs.add(xattr);
+    unprotectedSetXAttrs(zoneIIP.getPath(), xattrs,
+        EnumSet.of(XAttrSetFlag.REPLACE));
+    return xattrs;
+  }
+
+  XAttr generateNewXAttrForReencryptionFinish(final INodesInPath iip,
+      final ZoneReencryptionStatus status) throws IOException {
+    final ZoneEncryptionInfoProto zoneProto = getZoneEncryptionInfoProto(iip);
+    final ReencryptionInfoProto newRiProto = PBHelper
+        .convert(status.getEzKeyVersionName(), status.getSubmissionTime(),
+            status.isCanceled(), status.getFilesReencrypted(),
+            status.getNumReencryptionFailures(), Time.now(), null);
+
+    final ZoneEncryptionInfoProto newZoneProto = PBHelper
+        .convert(PBHelper.convert(zoneProto.getSuite()),
+            PBHelper.convert(zoneProto.getCryptoProtocolVersion()),
+            zoneProto.getKeyName(), newRiProto);
+
+    final XAttr xattr = XAttrHelper
+        .buildXAttr(CRYPTO_XATTR_ENCRYPTION_ZONE, newZoneProto.toByteArray());
+    return xattr;
+  }
+
+  private ZoneEncryptionInfoProto getZoneEncryptionInfoProto(
+      final INodesInPath iip) throws IOException {
+    final XAttr fileXAttr = unprotectedGetXAttrByName(iip.getLastINode(),
+        Snapshot.CURRENT_STATE_ID, CRYPTO_XATTR_ENCRYPTION_ZONE);
+    if (fileXAttr == null) {
+      throw new IOException(
+          "Could not find reencryption XAttr for file " + iip.getPath());
+    }
+    try {
+      return ZoneEncryptionInfoProto.parseFrom(fileXAttr.getValue());
+    } catch (InvalidProtocolBufferException e) {
+      throw new IOException(
+          "Could not parse file encryption info for " + "inode " + iip
+              .getPath(), e);
+    }
+  }
+
+  /**
+   * Save the batch's edeks to file xattrs.
+   */
+  void saveFileXAttrsForBatch(List<FileEdekInfo> batch) {
+    assert getFSNamesystem().hasWriteLock();
+    if (batch != null && !batch.isEmpty()) {
+      for (FileEdekInfo entry : batch) {
+        final INode inode = getInode(entry.getInodeId());
+        Preconditions.checkNotNull(inode);
+        getFSNamesystem().getEditLog().logSetXAttrs(inode.getFullPathName(),
+            inode.getXAttrFeature().getXAttrs(), false);
+      }
+    }
+  }
+
   /**
    * Set the FileEncryptionInfo for an INode.
    */
-  void setFileEncryptionInfo(String src, FileEncryptionInfo info)
-      throws IOException {
+  void setFileEncryptionInfo(String src, FileEncryptionInfo info,
+      final XAttrSetFlag flag) throws IOException {
     // Make the PB for the xattr
     final HdfsProtos.PerFileEncryptionInfoProto proto =
         PBHelper.convertPerFileEncInfo(info);
@@ -2997,7 +3196,7 @@ public class FSDirectory implements Closeable {
 
     writeLock();
     try {
-      unprotectedSetXAttrs(src, xAttrs, EnumSet.of(XAttrSetFlag.CREATE));
+      unprotectedSetXAttrs(src, xAttrs, EnumSet.of(flag));
     } finally {
       writeUnlock();
     }
@@ -3067,6 +3266,36 @@ public class FSDirectory implements Closeable {
     }
   }
 
+  /**
+   * Get the last key version name for the given EZ. This will contact
+   * the KMS to getKeyVersions.
+   * @param zone the encryption zone
+   * @param pc the permission checker
+   * @return the last element from the list of keyVersionNames returned by KMS.
+   * @throws IOException
+   */
+  KeyVersion getLatestKeyVersion(final String zone,
+      final FSPermissionChecker pc) throws IOException {
+    final EncryptionZone ez;
+    assert getProvider() != null;
+    readLock();
+    try {
+      final INodesInPath iip = getINodesInPath(zone, true);
+      if (iip.getLastINode() == null) {
+        throw new FileNotFoundException(zone + " does not exist.");
+      }
+      ezManager.checkEncryptionZoneRoot(iip.getLastINode(), iip.getPath());
+      ez = getEZForPath(iip);
+    } finally {
+      readUnlock();
+    }
+    // Contact KMS out of locks.
+    KeyVersion currKv = getProvider().getCurrentKey(ez.getKeyName());
+    Preconditions.checkNotNull(currKv,
+        "No current key versions for key name " + ez.getKeyName());
+    return currKv;
+  }
+
   void setXAttrs(final String src, final List<XAttr> xAttrs,
       final EnumSet<XAttrSetFlag> flag) throws IOException {
     writeLock();
@@ -3102,6 +3331,12 @@ public class FSDirectory implements Closeable {
             PBHelper.convert(ezProto.getSuite()),
             PBHelper.convert(ezProto.getCryptoProtocolVersion()),
             ezProto.getKeyName());
+
+        if (ezProto.hasReencryptionProto()) {
+          ReencryptionInfoProto reProto = ezProto.getReencryptionProto();
+          ezManager.getReencryptionStatus()
+              .updateZoneStatus(inode.getId(), iip.getPath(), reProto);
+        }
       }
 
       if (!isFile && SECURITY_XATTR_UNREADABLE_BY_SUPERUSER.equals(xaName)) {
