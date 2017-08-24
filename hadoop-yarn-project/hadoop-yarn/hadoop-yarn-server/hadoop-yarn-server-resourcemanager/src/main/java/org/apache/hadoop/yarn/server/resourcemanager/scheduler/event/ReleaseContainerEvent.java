@@ -16,10 +16,31 @@
  * limitations under the License.
  */
 
-import Ember from 'ember';
+package org.apache.hadoop.yarn.server.resourcemanager.scheduler.event;
 
-export default Ember.Route.extend({
-  beforeModel() {
-    this.transitionTo('yarn-queues.root');
+import org.apache.hadoop.yarn.server.resourcemanager.rmcontainer.RMContainer;
+
+/**
+ * Event used to release a container.
+ */
+public class ReleaseContainerEvent extends SchedulerEvent {
+
+  private final RMContainer container;
+
+  /**
+   * Create Event.
+   * @param rmContainer RMContainer.
+   */
+  public ReleaseContainerEvent(RMContainer rmContainer) {
+    super(SchedulerEventType.RELEASE_CONTAINER);
+    this.container = rmContainer;
   }
-});
+
+  /**
+   * Get RMContainer.
+   * @return RMContainer.
+   */
+  public RMContainer getContainer() {
+    return container;
+  }
+}
