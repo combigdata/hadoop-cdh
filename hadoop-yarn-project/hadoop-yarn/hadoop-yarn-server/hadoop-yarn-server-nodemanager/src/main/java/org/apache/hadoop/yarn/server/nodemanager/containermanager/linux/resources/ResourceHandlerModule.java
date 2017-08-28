@@ -194,7 +194,7 @@ public class ResourceHandlerModule {
       // Collect the valid subsystem names
       cgroupList.retainAll(validCGroups);
       if (!cgroupList.isEmpty()) {
-        if (candidate.isDirectory() && candidate.canWrite()) {
+        if (candidate.isDirectory()) {
           pathSubsystemMappings.put(candidate.getAbsolutePath(), cgroupList);
         }
       }
