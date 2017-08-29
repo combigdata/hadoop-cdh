@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Random;
 
 import com.google.common.collect.ImmutableList;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -40,12 +41,14 @@ import org.apache.hadoop.hdfs.DFSTestUtil;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.hdfs.protocol.QuotaExceededException;
+import org.apache.hadoop.hdfs.server.namenode.snapshot.SnapshotManager;
 import org.apache.hadoop.test.GenericTestUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
+
 import org.mockito.Mockito;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -389,12 +392,15 @@ public class TestFSDirectory {
   private boolean unprotectedSetTimes(long atime, long atime0, long precision,
       long mtime, boolean force) throws QuotaExceededException,
       UnresolvedLinkException {
-    FSDirectory fsd = Mockito.mock(FSDirectory.class);
     FSNamesystem fsn = Mockito.mock(FSNamesystem.class);
+    SnapshotManager ssMgr = Mockito.mock(SnapshotManager.class);
+    FSDirectory fsd = Mockito.mock(FSDirectory.class);
     INodesInPath iip = Mockito.mock(INodesInPath.class);
     INode inode = Mockito.mock(INode.class);
 
     when(fsd.getFSNamesystem()).thenReturn(fsn);
+    when(fsn.getSnapshotManager()).thenReturn(ssMgr);
+    when(ssMgr.getSkipCaptureAccessTimeOnlyChange()).thenReturn(false);
     when(fsn.getAccessTimePrecision()).thenReturn(precision);
     when(fsd.getINodesInPath("", true)).thenReturn(iip);
     when(fsd.getLastINodeInPath("")).thenReturn(iip);

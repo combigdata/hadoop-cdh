@@ -2535,7 +2535,9 @@ public class FSDirectory implements Closeable {
     if (atime != -1 && (status || force
         || (atime > inode.getAccessTime()
         + getFSNamesystem().getAccessTimePrecision()))) {
-      inode.setAccessTime(atime, latest);
+      inode.setAccessTime(atime, latest,
+          getFSNamesystem().getSnapshotManager().
+          getSkipCaptureAccessTimeOnlyChange());
       status = true;
     }
     return status;
