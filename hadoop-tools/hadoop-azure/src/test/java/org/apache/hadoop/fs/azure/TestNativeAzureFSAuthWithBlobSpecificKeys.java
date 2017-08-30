@@ -15,33 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.hadoop.yarn.server.resourcemanager.webapp.dao;
 
-import java.util.ArrayList;
+package org.apache.hadoop.fs.azure;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlRootElement;
+import org.apache.hadoop.conf.Configuration;
 
-@XmlRootElement(name = "apps")
-@XmlAccessorType(XmlAccessType.FIELD)
-public class AppsInfo {
+import static org.apache.hadoop.fs.azure.SecureStorageInterfaceImpl.KEY_USE_CONTAINER_SASKEY_FOR_ALL_ACCESS;
 
-  protected ArrayList<AppInfo> app = new ArrayList<AppInfo>();
+/**
+ * Test class to hold all WASB authorization tests that use blob-specific keys
+ * to access storage.
+ */
+public class TestNativeAzureFSAuthWithBlobSpecificKeys
+    extends TestNativeAzureFileSystemAuthorizationWithOwner {
 
-  public AppsInfo() {
-  } // JAXB needs this
-
-  public void add(AppInfo appinfo) {
-    app.add(appinfo);
+  @Override
+  public Configuration getConfiguration() {
+    Configuration conf = super.getConfiguration();
+    conf.set(KEY_USE_CONTAINER_SASKEY_FOR_ALL_ACCESS, "false");
+    return conf;
   }
 
-  public ArrayList<AppInfo> getApps() {
-    return app;
+  @Override
+  protected AzureBlobStorageTestAccount createTestAccount() throws Exception {
+    Configuration conf = getConfiguration();
+    return AzureBlobStorageTestAccount.create(conf);
   }
-
-  public void addAll(ArrayList<AppInfo> appsInfo) {
-    app.addAll(appsInfo);
-  }
-
 }
