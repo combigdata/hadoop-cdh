@@ -599,13 +599,14 @@ public class EncryptionZoneManager {
    * Re-encrypts the given encryption zone path. If the given path is not the
    * root of an encryption zone, an exception is thrown.
    */
-  XAttr reencryptEncryptionZone(final INodesInPath zoneIIP,
+  List<XAttr> reencryptEncryptionZone(final INodesInPath zoneIIP,
       final String keyVersionName) throws IOException {
     assert dir.hasWriteLock();
     if (reencryptionHandler == null) {
       throw new IOException("No key provider configured, re-encryption "
           + "operation is rejected");
     }
+    final List<XAttr> xAttrs = Lists.newArrayListWithCapacity(1);
     final INode inode = zoneIIP.getLastINode();
     final String zoneName = zoneIIP.getPath();
     checkEncryptionZoneRoot(inode, zoneName);
@@ -615,9 +616,11 @@ public class EncryptionZoneManager {
     }
     LOG.info("Zone {}({}) is submitted for re-encryption.", zoneName,
         inode.getId());
-    XAttr ret = dir.updateReencryptionSubmitted(zoneIIP, keyVersionName);
+    final XAttr xattr = dir
+        .updateReencryptionSubmitted(zoneIIP, keyVersionName);
+    xAttrs.add(xattr);
     reencryptionHandler.notifyNewSubmission();
-    return ret;
+    return xAttrs;
   }
 
   /**
