@@ -341,6 +341,13 @@ public class LeaseManager {
     return lease;
   }
 
+  synchronized void removeLease(long inodeId) {
+    final Lease lease = leasesById.get(inodeId);
+    if (lease != null) {
+      removeLease(lease, inodeId);
+    }
+  }
+
   /**
    * Remove the specified lease and src.
    */
@@ -565,6 +572,12 @@ public class LeaseManager {
           // Sanity check to make sure the path is correct
           if (!p.startsWith("/")) {
             throw new IOException("Invalid path in the lease " + p);
+          }
+          final INodeFile lastINode = iip.getLastINode().asFile();
+          if (fsnamesystem.isFileDeleted(lastINode)) {
+            // INode referred by the lease could have been deleted.
+            removeLease(lastINode.getId());
+            continue;
           }
           boolean completed = fsnamesystem.internalReleaseLease(
               leaseToCheck, p, iip, newHolder);
