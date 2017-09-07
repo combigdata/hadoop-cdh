@@ -39,6 +39,8 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.security.PrivilegedExceptionAction;
@@ -48,9 +50,13 @@ import java.util.Map;
 import java.util.Set;
 
 public class TestAuthorizationProvider {
+	private static final Logger LOG =
+	    LoggerFactory.getLogger(TestAuthorizationProvider.class);
   private MiniDFSCluster miniDFS;
   private static final Set<String> CALLED = new HashSet<String>();
-  
+  private static final short HDFS_PERMISSION = 0777;
+  private static final short PROVIDER_PERMISSION = 0775;
+
   public static class MyAuthorizationProvider extends AuthorizationProvider {
     private AuthorizationProvider defaultProvider;
 
@@ -184,7 +190,7 @@ public class TestAuthorizationProvider {
       if (useDefault(node)) {
         permission = defaultProvider.getFsPermission(node, snapshotId);
       } else {
-        permission = new FsPermission((short)0770);
+        permission = new FsPermission(PROVIDER_PERMISSION);
       }
       return permission;
     }
@@ -228,6 +234,9 @@ public class TestAuthorizationProvider {
     conf.set(DFSConfigKeys.DFS_NAMENODE_AUTHORIZATION_PROVIDER_KEY, 
         MyAuthorizationProvider.class.getName());
     conf.setBoolean(DFSConfigKeys.DFS_NAMENODE_ACLS_ENABLED_KEY, true);
+    conf.set(
+        DFSConfigKeys.DFS_NAMENODE_AUTHORIZATION_PROVIDER_BYPASS_USERS_KEY,
+        " u2,, ,u3, ");
     EditLogFileOutputStream.setShouldSkipFsyncForTesting(true);
     miniDFS = new MiniDFSCluster.Builder(conf).build();
   }
@@ -330,6 +339,78 @@ public class TestAuthorizationProvider {
 
   }
 
+  private class AssertHelper {
+    private boolean bypass = true;
+    AssertHelper(boolean bp) {
+      bypass = bp;
+    }
+    public void doAssert(boolean x) {
+      if (bypass) {
+        Assert.assertFalse(x);
+      } else {
+        Assert.assertTrue(x);
+      }
+    }
+  }
+
+  private void testBypassProviderHelper(final String[] users,
+      final short expectedPermission, final boolean bypass) throws Exception {
+    final AssertHelper asserter = new AssertHelper(bypass);
+
+    Assert.assertTrue(CALLED.contains("start"));
+
+    FileSystem fs = FileSystem.get(miniDFS.getConfiguration(0));
+    final Path userPath = new Path("/user");
+    final Path authz = new Path("/user/authz");
+    final Path authzChild = new Path("/user/authz/child2");
+
+    fs.mkdirs(userPath);
+    fs.setPermission(userPath, new FsPermission(HDFS_PERMISSION));
+    fs.mkdirs(authz);
+    fs.setPermission(authz, new FsPermission(HDFS_PERMISSION));
+    fs.mkdirs(authzChild);
+    fs.setPermission(authzChild, new FsPermission(HDFS_PERMISSION));
+    for(String user : users) {
+      UserGroupInformation ugiBypass =
+          UserGroupInformation.createUserForTesting(user,
+              new String[]{"g1"});
+      ugiBypass.doAs(new PrivilegedExceptionAction<Void>() {
+        @Override
+        public Void run() throws Exception {
+          FileSystem fs = FileSystem.get(miniDFS.getConfiguration(0));
+          Assert.assertEquals(expectedPermission,
+              fs.getFileStatus(authzChild).getPermission().toShort());
+          asserter.doAssert(CALLED.contains("checkPermission"));
+
+          CALLED.clear();
+          Assert.assertEquals(expectedPermission,
+              fs.listStatus(userPath)[0].getPermission().toShort());
+          asserter.doAssert(
+              CALLED.contains("checkPermission"));
+
+          CALLED.clear();
+          fs.getAclStatus(authzChild);
+          asserter.doAssert(CALLED.contains("checkPermission"));
+          return null;
+        }
+      });
+    }
+  }
+
+  @Test
+  public void testAuthzDelegationToProvider() throws Exception {
+    LOG.info("Test not bypassing provider");
+    String[] users = {"u1"};
+    testBypassProviderHelper(users, PROVIDER_PERMISSION, false);
+  }
+
+  @Test
+  public void testAuthzBypassingProvider() throws Exception {
+    LOG.info("Test bypassing provider");
+    String[] users = {"u2", "u3"};
+    testBypassProviderHelper(users, HDFS_PERMISSION, true);
+  }
+
   @Test
   public void testCustomProvider() throws Exception {
     FileSystem fs = FileSystem.get(miniDFS.getConfiguration(0));
@@ -342,7 +423,8 @@ public class TestAuthorizationProvider {
     status = fs.getFileStatus(new Path("/user/authz"));
     Assert.assertEquals("foo", status.getOwner());
     Assert.assertEquals("bar", status.getGroup());
-    Assert.assertEquals(new FsPermission((short) 0770), status.getPermission());
+    Assert.assertEquals(new FsPermission(PROVIDER_PERMISSION),
+        status.getPermission());
     
     // The following code test that the username/groupname supplied by 
     // the customized authorization provider does not get saved to fsimage
@@ -370,6 +452,7 @@ public class TestAuthorizationProvider {
     status = fs.getFileStatus(new Path("/user/authz"));
     Assert.assertEquals("foo", status.getOwner());
     Assert.assertEquals("bar", status.getGroup());
-    Assert.assertEquals(new FsPermission((short) 0770), status.getPermission());
+    Assert.assertEquals(new FsPermission(PROVIDER_PERMISSION),
+        status.getPermission());
   }
 }

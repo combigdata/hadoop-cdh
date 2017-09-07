@@ -19,13 +19,19 @@ package org.apache.hadoop.hdfs.server.namenode;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.UnresolvedLinkException;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.server.namenode.snapshot.Snapshot;
 import org.apache.hadoop.security.AccessControlException;
+import org.apache.hadoop.security.UserGroupInformation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -50,6 +56,7 @@ import java.util.Set;
 @InterfaceAudience.Public
 @InterfaceStability.Unstable
 public abstract class AuthorizationProvider {
+  static final Logger LOG = LoggerFactory.getLogger(FSDirectory.class);
 
   private static final ThreadLocal<Boolean> CLIENT_OP_TL =
       new ThreadLocal<Boolean>() {
@@ -67,8 +74,29 @@ public abstract class AuthorizationProvider {
     CLIENT_OP_TL.set(Boolean.FALSE);
   }
 
-  private static AuthorizationProvider provider = 
+  private static AuthorizationProvider defaultProvider = 
       new DefaultAuthorizationProvider();
+  
+  private static AuthorizationProvider provider = 
+      defaultProvider;
+
+  // A HashSet of principals of users for whom the external attribute provider
+  // will be bypassed
+  private static HashSet<String> usersToBypassExtAttrProvider = null;
+
+  /**
+   * Return attributeProvider or null if ugi is to bypass attributeProvider.
+   * @param ugi
+   * @return configured attributeProvider or null
+   */
+  private static AuthorizationProvider getUserFilteredAttributeProvider(
+      UserGroupInformation ugi) {
+    if (provider == null ||
+        (ugi != null && isUserBypassingExtAttrProvider(ugi.getUserName()))) {
+      return defaultProvider;
+    }
+    return provider;
+  }
 
   /**
    * Return the authorization provider singleton for the NameNode.
@@ -76,7 +104,16 @@ public abstract class AuthorizationProvider {
    * @return the authorization provider
    */
   public static AuthorizationProvider get() {
-    return provider;  
+    if (!isUsersToBypassExtAttrProviderConfigured()) {
+      return provider;
+    }
+    UserGroupInformation ugi = null;
+    try {
+      ugi = NameNode.getRemoteUser();
+    } catch (IOException ioe) {
+      LOG.warn("Call to NameNode.getRemoteUser() failed.", ioe);
+    }
+    return getUserFilteredAttributeProvider(ugi);    
   }
 
   /**
@@ -87,7 +124,44 @@ public abstract class AuthorizationProvider {
    */
   static void set(AuthorizationProvider authzProvider) {
     provider = (authzProvider != null) ? authzProvider 
-                                       : new DefaultAuthorizationProvider();
+                                       : defaultProvider;
+  }
+
+  /*
+   * Init users to bypass external provider based on conf.
+   */
+  static void initUsersToBypassExtProvider(Configuration conf) {
+    String[] bypassUsers = conf.getTrimmedStrings(
+        DFSConfigKeys.DFS_NAMENODE_AUTHORIZATION_PROVIDER_BYPASS_USERS_KEY,
+        DFSConfigKeys.DFS_NAMENODE_AUTHORIZATION_PROVIDER_BYPASS_USERS_DEFAULT);
+    for(int i = 0; i < bypassUsers.length; i++) {
+      String tmp = bypassUsers[i].trim();
+      if (!tmp.isEmpty()) {
+        if (usersToBypassExtAttrProvider == null) {
+          usersToBypassExtAttrProvider = new HashSet<String>();
+        }
+        LOG.info("Add user " + tmp + " to the list that will bypass external"
+            + " attribute provider.");
+        usersToBypassExtAttrProvider.add(tmp);
+      }
+    }
+  }
+
+  /**
+   * Check if a usersToByPassExtAttrProvider is configured.
+   */
+  private static boolean isUsersToBypassExtAttrProviderConfigured() {
+    return (usersToBypassExtAttrProvider != null);
+  }
+
+  /**
+   * Check if a given user is configured to bypass external attribute provider.
+   * @param user user principal
+   * @return true if the user is to bypass external attribute provider
+   */
+  private static boolean isUserBypassingExtAttrProvider(final String user) {
+    return isUsersToBypassExtAttrProviderConfigured() &&
+          usersToBypassExtAttrProvider.contains(user);
   }
 
   /**
