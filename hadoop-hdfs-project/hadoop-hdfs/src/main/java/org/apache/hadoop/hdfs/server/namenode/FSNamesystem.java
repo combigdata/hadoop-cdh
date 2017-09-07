@@ -1227,6 +1227,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
         DefaultAuthorizationProvider.class,
         AuthorizationProvider.class), conf);
     authzProvider.start();
+    AuthorizationProvider.initUsersToBypassExtProvider(conf);
     AuthorizationProvider.set(authzProvider);
     snapshotManager.initAuthorizationProvider();
   }

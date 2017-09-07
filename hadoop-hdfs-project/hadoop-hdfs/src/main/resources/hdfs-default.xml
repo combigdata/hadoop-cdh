@@ -2706,6 +2706,26 @@
   </description>
 </property>
 
+<property>
+  <name>dfs.namenode.authorization.provider.class</name>
+  <value></value>
+  <description>
+    Name of class to use for delegating HDFS authorization.
+  </description>
+</property>
+
+<property>
+  <name>dfs.namenode.authorization.provider.bypass.users</name>
+  <value></value>
+  <description>
+    A list of user principals (in secure cluster) or user names (in insecure
+    cluster) for whom the external attribute provider will be bypassed for all
+    operations. This means file attributes stored in HDFS instead of the
+    external provider will be used for permission checking and be returned when
+    requested.
+  </description>
+</property>
+
   <property>
     <name>dfs.lock.suppress.warning.interval</name>
     <value>10s</value>
