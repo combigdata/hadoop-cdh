@@ -7095,7 +7095,8 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     return blockId;
   }
 
-  private boolean isFileDeleted(INodeFile file) {
+  boolean isFileDeleted(INodeFile file) {
+    assert hasReadLock();
     // Not in the inodeMap or in the snapshot but marked deleted.
     if (dir.getInode(file.getId()) == null) {
       return true;
