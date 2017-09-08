@@ -172,6 +172,11 @@
       <scope>compile</scope>
     </dependency>
     <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
       <scope>compile</scope>
@@ -1060,7 +1065,7 @@
                             <argument>--project</argument>
                             <argument>YARN</argument>
                             <argument>--projecttitle</argument>
-                            <argument>"Apache Hadoop"</argument>
+                            <argument>Apache Hadoop</argument>
                             <argument>--usetoday</argument>
                             <argument>--version</argument>
                             <argument>${project.version}</argument>

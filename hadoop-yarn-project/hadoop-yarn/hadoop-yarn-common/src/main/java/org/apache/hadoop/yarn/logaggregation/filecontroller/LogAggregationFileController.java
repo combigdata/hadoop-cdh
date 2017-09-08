@@ -24,6 +24,10 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,9 +35,8 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.conf.Configuration;
@@ -41,14 +44,22 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.yarn.api.records.ApplicationAccessType;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.logaggregation.LogAggregationUtils;
+import org.apache.hadoop.yarn.webapp.View.ViewContext;
+import org.apache.hadoop.yarn.webapp.view.HtmlBlock.Block;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.hadoop.yarn.logaggregation.AggregatedLogFormat.LogKey;
 import org.apache.hadoop.yarn.logaggregation.AggregatedLogFormat.LogValue;
+import org.apache.hadoop.yarn.logaggregation.ContainerLogMeta;
+import org.apache.hadoop.yarn.logaggregation.ContainerLogsRequest;
 
 /**
  * Base class to implement Log Aggregation File Controller.
@@ -57,7 +68,7 @@ import org.apache.hadoop.yarn.logaggregation.AggregatedLogFormat.LogValue;
 @Unstable
 public abstract class LogAggregationFileController {
 
-  private static final Log LOG = LogFactory.getLog(
+  private static final Logger LOG = LoggerFactory.getLogger(
       LogAggregationFileController.class);
 
   /*
@@ -166,6 +177,75 @@ public abstract class LogAggregationFileController {
    */
   public abstract void postWrite(LogAggregationFileControllerContext record)
       throws Exception;
+
+  protected PrintStream createPrintStream(String localDir, String nodeId,
+      String containerId) throws IOException {
+    PrintStream out = System.out;
+    if(localDir != null && !localDir.isEmpty()) {
+      Path nodePath = new Path(localDir, LogAggregationUtils
+          .getNodeString(nodeId));
+      Files.createDirectories(Paths.get(nodePath.toString()));
+      Path containerLogPath = new Path(nodePath, containerId);
+      out = new PrintStream(containerLogPath.toString(), "UTF-8");
+    }
+    return out;
+  }
+
+  protected void closePrintStream(OutputStream out) {
+    if (out != System.out) {
+      IOUtils.cleanupWithLogger(LOG, out);
+    }
+  }
+
+  /**
+   * Output container log.
+   * @param logRequest {@link ContainerLogsRequest}
+   * @param os the output stream
+   * @return true if we can read the aggregated logs successfully
+   * @throws IOException if we can not access the log file.
+   */
+  public abstract boolean readAggregatedLogs(ContainerLogsRequest logRequest,
+      OutputStream os) throws IOException;
+
+  /**
+   * Return a list of {@link ContainerLogMeta} for an application
+   * from Remote FileSystem.
+   *
+   * @param logRequest {@link ContainerLogsRequest}
+   * @return a list of {@link ContainerLogMeta}
+   * @throws IOException if there is no available log file
+   */
+  public abstract List<ContainerLogMeta> readAggregatedLogsMeta(
+      ContainerLogsRequest logRequest) throws IOException;
+
+  /**
+   * Render Aggregated Logs block.
+   * @param html the html
+   * @param context the ViewContext
+   */
+  public abstract void renderAggregatedLogsBlock(Block html,
+      ViewContext context);
+
+  /**
+   * Returns the owner of the application.
+   *
+   * @param aggregatedLogPath the aggregatedLog path
+   * @return the application owner
+   * @throws IOException if we can not get the application owner
+   */
+  public abstract String getApplicationOwner(Path aggregatedLogPath)
+      throws IOException;
+
+  /**
+   * Returns ACLs for the application. An empty map is returned if no ACLs are
+   * found.
+   *
+   * @param aggregatedLogPath the aggregatedLog path.
+   * @return a map of the Application ACLs.
+   * @throws IOException if we can not get the application acls
+   */
+  public abstract Map<ApplicationAccessType, String> getApplicationAcls(
+      Path aggregatedLogPath) throws IOException;
 
   /**
    * Verify and create the remote log directory.
