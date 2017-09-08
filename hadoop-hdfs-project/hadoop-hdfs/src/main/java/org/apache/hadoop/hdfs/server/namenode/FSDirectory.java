@@ -42,7 +42,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.crypto.CipherSuite;
 import org.apache.hadoop.crypto.CryptoProtocolVersion;
 import org.apache.hadoop.crypto.key.KeyProviderCryptoExtension;
-import org.apache.hadoop.crypto.key.KeyProviderCryptoExtension.CryptoExtension;
 import org.apache.hadoop.crypto.key.KeyProviderCryptoExtension.EncryptedKeyVersion;
 import org.apache.hadoop.fs.ContentSummary;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
@@ -3274,9 +3273,7 @@ public class FSDirectory implements Closeable {
     // drain the local cache of the key provider.
     // Do not invalidateCache on the server, since that's the responsibility
     // when rolling the key version.
-    if (getProvider() instanceof CryptoExtension) {
-      ((CryptoExtension) getProvider()).drain(keyName);
-    }
+    getProvider().drain(keyName);
     final EncryptedKeyVersion edek;
     try {
       edek = getProvider().generateEncryptedKey(keyName);
