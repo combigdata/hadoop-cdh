@@ -88,8 +88,7 @@ public class LoadBalancingKMSClientProvider extends KeyProvider implements
     this.providers = providers;
     this.currentIdx = new AtomicInteger((int)(seed % providers.length));
     int maxNumRetries = conf.getInt(CommonConfigurationKeysPublic.
-            KMS_CLIENT_FAILOVER_MAX_RETRIES_KEY,
-        CommonConfigurationKeysPublic.KMS_CLIENT_FAILOVER_MAX_RETRIES_DEFAULT);
+        KMS_CLIENT_FAILOVER_MAX_RETRIES_KEY, providers.length);
     int sleepBaseMillis = conf.getInt(CommonConfigurationKeysPublic.
         KMS_CLIENT_FAILOVER_SLEEP_BASE_MILLIS_KEY,
         CommonConfigurationKeysPublic.
