@@ -148,9 +148,9 @@ public class LoadBalancingKMSClientProvider extends KeyProvider implements
               + " providers(depending on {}={} setting and numProviders={})"
               + " in the group OR the exception is not recoverable",
               CommonConfigurationKeysPublic.KMS_CLIENT_FAILOVER_MAX_RETRIES_KEY,
-              getConf().getInt(CommonConfigurationKeysPublic.
-                      KMS_CLIENT_FAILOVER_MAX_RETRIES_KEY,
-                  CommonConfigurationKeysPublic.KMS_CLIENT_FAILOVER_MAX_RETRIES_DEFAULT),
+              getConf().getInt(
+                  CommonConfigurationKeysPublic.
+                  KMS_CLIENT_FAILOVER_MAX_RETRIES_KEY, providers.length),
               providers.length);
           throw ex;
         }
