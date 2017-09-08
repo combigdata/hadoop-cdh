@@ -373,7 +373,7 @@ public class CommonConfigurationKeysPublic {
   public static final String  HADOOP_SECURITY_IMPERSONATION_PROVIDER_CLASS =
     "hadoop.security.impersonation.provider.class";
 
-  // After backport HDFS-10489, we should replace
+  // After backport HDFS-10489, we should replace 
   //   "dfs.encryption.key.provider.uri" with "hadoop.security.key.provider.path"
   // here
   public static final String HADOOP_SECURITY_KEY_PROVIDER_PATH =
@@ -406,37 +406,8 @@ public class CommonConfigurationKeysPublic {
   /** Default value for KMS_CLIENT_ENC_KEY_CACHE_EXPIRY (12 hrs)*/
   public static final int KMS_CLIENT_ENC_KEY_CACHE_EXPIRY_DEFAULT = 43200000;
 
-  /**
-   * @see
-   * <a href="{@docRoot}/../hadoop-project-dist/hadoop-common/core-default.xml">
-   * core-default.xml</a>
-   */
-  /** Default value is the number of providers specified. */
-  public static final String KMS_CLIENT_FAILOVER_MAX_RETRIES_KEY =
-      "hadoop.security.kms.client.failover.max.retries";
-
-  /**
-   * @see
-   * <a href="{@docRoot}/../hadoop-project-dist/hadoop-common/core-default.xml">
-   * core-default.xml</a>
-   */
-  public static final String KMS_CLIENT_FAILOVER_SLEEP_BASE_MILLIS_KEY =
-      "hadoop.security.kms.client.failover.sleep.base.millis";
-  /**  Default value is 100 ms. */
-  public static final int KMS_CLIENT_FAILOVER_SLEEP_BASE_MILLIS_DEFAULT  = 100;
-
-  /**
-   * @see
-   * <a href="{@docRoot}/../hadoop-project-dist/hadoop-common/core-default.xml">
-   * core-default.xml</a>
-   */
-  public static final String KMS_CLIENT_FAILOVER_SLEEP_MAX_MILLIS_KEY =
-      "hadoop.security.kms.client.failover.sleep.max.millis";
-  /** Default value is 2 secs. */
-  public static final int KMS_CLIENT_FAILOVER_SLEEP_MAX_MILLIS_DEFAULT  = 2000;
-
   /** See <a href="{@docRoot}/../core-default.html">core-default.xml</a> */
-  public static final String HADOOP_SECURITY_JAVA_SECURE_RANDOM_ALGORITHM_KEY =
+  public static final String HADOOP_SECURITY_JAVA_SECURE_RANDOM_ALGORITHM_KEY = 
     "hadoop.security.java.secure.random.algorithm";
   /** Defalt value for HADOOP_SECURITY_JAVA_SECURE_RANDOM_ALGORITHM_KEY */
   public static final String HADOOP_SECURITY_JAVA_SECURE_RANDOM_ALGORITHM_DEFAULT = 
