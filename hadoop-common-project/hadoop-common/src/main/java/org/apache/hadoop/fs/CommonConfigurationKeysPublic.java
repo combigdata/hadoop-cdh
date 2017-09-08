@@ -415,9 +415,6 @@ public class CommonConfigurationKeysPublic {
   public static final String KMS_CLIENT_FAILOVER_MAX_RETRIES_KEY =
       "hadoop.security.kms.client.failover.max.retries";
 
-  /** CLOUDERA-BUILD: default value of max_retreis. */
-  public static final int KMS_CLIENT_FAILOVER_MAX_RETRIES_DEFAULT = 15;
-
   /**
    * @see
    * <a href="{@docRoot}/../hadoop-project-dist/hadoop-common/core-default.xml">

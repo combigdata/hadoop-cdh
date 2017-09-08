@@ -558,7 +558,8 @@ public class TestLoadBalancingKMSClientProvider {
   }
 
   /**
-   * CDH-57314 changed the default. Tests the new default number of retires.
+   * Tests whether retryPolicy retries number of times equals to number of
+   * providers if conf kms.client.failover.max.attempts is not set.
    * @throws Exception
    */
   @Test
@@ -582,14 +583,10 @@ public class TestLoadBalancingKMSClientProvider {
     } catch (Exception e) {
      assert (e instanceof ConnectTimeoutException);
     }
-    verify(p1, Mockito.atLeast(7)).createKey(Mockito.eq("test3"),
+    verify(p1, Mockito.times(2)).createKey(Mockito.eq("test3"),
             Mockito.any(Options.class));
-    verify(p1, Mockito.atMost(8)).createKey(Mockito.eq("test3"),
-        Mockito.any(Options.class));
-    verify(p2, Mockito.atLeast(7)).createKey(Mockito.eq("test3"),
+    verify(p2, Mockito.times(1)).createKey(Mockito.eq("test3"),
             Mockito.any(Options.class));
-    verify(p1, Mockito.atLeast(8)).createKey(Mockito.eq("test3"),
-        Mockito.any(Options.class));
   }
 
   /**
