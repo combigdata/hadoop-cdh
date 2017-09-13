@@ -574,6 +574,9 @@ public class SaslRpcClient {
 
     @Override
     public int read(byte[] buf, int off, int len) throws IOException {
+      if (len == 0) {
+        return 0;
+      }
       synchronized(unwrappedRpcBuffer) {
         // fill the buffer with the next RPC message
         if (unwrappedRpcBuffer.remaining() == 0) {
