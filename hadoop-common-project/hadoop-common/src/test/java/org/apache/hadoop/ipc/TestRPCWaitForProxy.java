@@ -20,6 +20,7 @@ package org.apache.hadoop.ipc;
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,6 +73,7 @@ public class TestRPCWaitForProxy extends TestRpcBase {
    *
    * @throws Throwable any exception other than that which was expected
    */
+  @Ignore("TODO: Fix and re-enable these flaky tests.")
   @Test(timeout = 10000)
   public void testInterruptedWaitForProxy() throws Throwable {
     RpcThread worker = new RpcThread(100);

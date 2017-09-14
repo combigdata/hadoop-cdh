@@ -47,6 +47,7 @@ import org.apache.hadoop.util.StringUtils;
 import org.apache.log4j.Level;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -66,6 +67,7 @@ import static org.junit.Assume.assumeTrue;
 /**
  * Test striped file write operation with data node failures.
  */
+@Ignore("TODO: Fix and re-enable these flaky tests.")
 public class TestDFSStripedOutputStreamWithFailure {
   public static final Log LOG = LogFactory.getLog(
       TestDFSStripedOutputStreamWithFailure.class);
