@@ -236,6 +236,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.net.InetAddresses;
+
 import org.apache.htrace.core.Tracer;
 
 /********************************************************
@@ -273,6 +274,7 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
   final SocketFactory socketFactory;
   final ReplaceDatanodeOnFailure dtpReplaceDatanodeOnFailure;
   final FileSystem.Statistics stats;
+  final short dtpReplaceDatanodeOnFailureReplication;
   private final URI namenodeUri;
   private final Random r = new Random();
   private SocketAddress[] localInterfaceAddrs;
@@ -700,7 +702,19 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
     this.stats = stats;
     this.socketFactory = NetUtils.getSocketFactory(conf, ClientProtocol.class);
     this.dtpReplaceDatanodeOnFailure = ReplaceDatanodeOnFailure.get(conf);
-
+    this.dtpReplaceDatanodeOnFailureReplication = (short) conf
+        .getInt(
+            DFSConfigKeys.
+                DFS_CLIENT_WRITE_REPLACE_DATANODE_ON_FAILURE_MIN_REPLICATION_KEY,
+            DFSConfigKeys.
+                DFS_CLIENT_WRITE_REPLACE_DATANODE_ON_FAILURE_MIN_REPLICATION_DEFAULT);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(
+          "Sets " +
+              DFSConfigKeys.
+              DFS_CLIENT_WRITE_REPLACE_DATANODE_ON_FAILURE_MIN_REPLICATION_KEY
+              + " to " + dtpReplaceDatanodeOnFailureReplication);
+    }
     this.ugi = UserGroupInformation.getCurrentUser();
     
     this.namenodeUri = nameNodeUri;
