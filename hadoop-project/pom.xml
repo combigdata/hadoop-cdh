@@ -1282,11 +1282,7 @@
         <dependency>
           <groupId>org.apache.kerby</groupId>
           <artifactId>kerb-simplekdc</artifactId>
-<<<<<<< HEAD
           <version>${cdh.kerby.version}</version>
-=======
-          <version>1.0.1</version>
->>>>>>> upstream/branch-3.0
         </dependency>
         <dependency>
           <groupId>org.apache.geronimo.specs</groupId>
