@@ -58,7 +58,7 @@ import org.apache.hadoop.hdfs.DFSUtilClient;
 import org.apache.hadoop.hdfs.inotify.Event;
 import org.apache.hadoop.hdfs.inotify.EventBatch;
 import org.apache.hadoop.hdfs.inotify.EventBatchList;
-import org.apache.hadoop.hdfs.protocol.AddECPolicyResponse;
+import org.apache.hadoop.hdfs.protocol.AddErasureCodingPolicyResponse;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.protocol.BlockStoragePolicy;
 import org.apache.hadoop.hdfs.protocol.BlockType;
@@ -76,7 +76,7 @@ import org.apache.hadoop.hdfs.protocol.DatanodeInfo.DatanodeInfoBuilder;
 import org.apache.hadoop.hdfs.protocol.DatanodeInfo.AdminStates;
 import org.apache.hadoop.hdfs.protocol.DatanodeLocalInfo;
 import org.apache.hadoop.hdfs.protocol.DirectoryListing;
-import org.apache.hadoop.hdfs.protocol.ECBlockGroupsStats;
+import org.apache.hadoop.hdfs.protocol.ECBlockGroupStats;
 import org.apache.hadoop.hdfs.protocol.EncryptionZone;
 import org.apache.hadoop.hdfs.protocol.ErasureCodingPolicy;
 import org.apache.hadoop.hdfs.protocol.ErasureCodingPolicyState;
@@ -92,7 +92,7 @@ import org.apache.hadoop.hdfs.protocol.HdfsLocatedFileStatus;
 import org.apache.hadoop.hdfs.protocol.LocatedBlock;
 import org.apache.hadoop.hdfs.protocol.LocatedBlocks;
 import org.apache.hadoop.hdfs.protocol.LocatedStripedBlock;
-import org.apache.hadoop.hdfs.protocol.BlocksStats;
+import org.apache.hadoop.hdfs.protocol.ReplicatedBlockStats;
 import org.apache.hadoop.hdfs.protocol.OpenFileEntry;
 import org.apache.hadoop.hdfs.protocol.RollingUpgradeInfo;
 import org.apache.hadoop.hdfs.protocol.RollingUpgradeStatus;
@@ -122,8 +122,8 @@ import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.Create
 import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.DatanodeReportTypeProto;
 import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.DatanodeStorageReportProto;
 import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.GetEditsFromTxidResponseProto;
-import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.GetFsECBlockGroupsStatsResponseProto;
-import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.GetFsBlocksStatsResponseProto;
+import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.GetFsECBlockGroupStatsResponseProto;
+import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.GetFsReplicatedBlockStatsResponseProto;
 import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.GetFsStatsResponseProto;
 import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.OpenFilesBatchResponseProto;
 import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.RollingUpgradeActionProto;
@@ -137,7 +137,7 @@ import org.apache.hadoop.hdfs.protocol.proto.EncryptionZonesProtos.ReencryptionS
 import org.apache.hadoop.hdfs.protocol.proto.EncryptionZonesProtos.ZoneReencryptionStatusProto;
 import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos;
 import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos.AccessModeProto;
-import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos.AddECPolicyResponseProto;
+import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos.AddErasureCodingPolicyResponseProto;
 import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos.BlockProto;
 import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos.BlockStoragePolicyProto;
 import org.apache.hadoop.hdfs.protocol.proto.HdfsProtos.BlockTypeProto;
@@ -1810,17 +1810,17 @@ public class PBHelperClient {
     return result;
   }
 
-  public static BlocksStats convert(
-      GetFsBlocksStatsResponseProto res) {
-    return new BlocksStats(res.getLowRedundancy(),
+  public static ReplicatedBlockStats convert(
+      GetFsReplicatedBlockStatsResponseProto res) {
+    return new ReplicatedBlockStats(res.getLowRedundancy(),
         res.getCorruptBlocks(), res.getMissingBlocks(),
         res.getMissingReplOneBlocks(), res.getBlocksInFuture(),
         res.getPendingDeletionBlocks());
   }
 
-  public static ECBlockGroupsStats convert(
-      GetFsECBlockGroupsStatsResponseProto res) {
-    return new ECBlockGroupsStats(res.getLowRedundancy(),
+  public static ECBlockGroupStats convert(
+      GetFsECBlockGroupStatsResponseProto res) {
+    return new ECBlockGroupStats(res.getLowRedundancy(),
         res.getCorruptBlocks(), res.getMissingBlocks(),
         res.getBlocksInFuture(), res.getPendingDeletionBlocks());
   }
@@ -2236,37 +2236,37 @@ public class PBHelperClient {
     return result.build();
   }
 
-  public static GetFsBlocksStatsResponseProto convert(
-      BlocksStats blocksStats) {
-    GetFsBlocksStatsResponseProto.Builder result =
-        GetFsBlocksStatsResponseProto.newBuilder();
+  public static GetFsReplicatedBlockStatsResponseProto convert(
+      ReplicatedBlockStats replicatedBlockStats) {
+    GetFsReplicatedBlockStatsResponseProto.Builder result =
+        GetFsReplicatedBlockStatsResponseProto.newBuilder();
     result.setLowRedundancy(
-        blocksStats.getLowRedundancyBlocksStat());
+        replicatedBlockStats.getLowRedundancyBlocks());
     result.setCorruptBlocks(
-        blocksStats.getCorruptBlocksStat());
+        replicatedBlockStats.getCorruptBlocks());
     result.setMissingBlocks(
-        blocksStats.getMissingReplicaBlocksStat());
+        replicatedBlockStats.getMissingReplicaBlocks());
     result.setMissingReplOneBlocks(
-        blocksStats.getMissingReplicationOneBlocksStat());
+        replicatedBlockStats.getMissingReplicationOneBlocks());
     result.setBlocksInFuture(
-        blocksStats.getBytesInFutureBlocksStat());
+        replicatedBlockStats.getBytesInFutureBlocks());
     result.setPendingDeletionBlocks(
-        blocksStats.getPendingDeletionBlocksStat());
+        replicatedBlockStats.getPendingDeletionBlocks());
     return result.build();
   }
 
-  public static GetFsECBlockGroupsStatsResponseProto convert(
-      ECBlockGroupsStats ecBlockGroupsStats) {
-    GetFsECBlockGroupsStatsResponseProto.Builder result =
-        GetFsECBlockGroupsStatsResponseProto.newBuilder();
+  public static GetFsECBlockGroupStatsResponseProto convert(
+      ECBlockGroupStats ecBlockGroupStats) {
+    GetFsECBlockGroupStatsResponseProto.Builder result =
+        GetFsECBlockGroupStatsResponseProto.newBuilder();
     result.setLowRedundancy(
-        ecBlockGroupsStats.getLowRedundancyBlockGroupsStat());
-    result.setCorruptBlocks(ecBlockGroupsStats.getCorruptBlockGroupsStat());
-    result.setMissingBlocks(ecBlockGroupsStats.getMissingBlockGroupsStat());
+        ecBlockGroupStats.getLowRedundancyBlockGroups());
+    result.setCorruptBlocks(ecBlockGroupStats.getCorruptBlockGroups());
+    result.setMissingBlocks(ecBlockGroupStats.getMissingBlockGroups());
     result.setBlocksInFuture(
-        ecBlockGroupsStats.getBytesInFutureBlockGroupsStat());
+        ecBlockGroupStats.getBytesInFutureBlockGroups());
     result.setPendingDeletionBlocks(
-        ecBlockGroupsStats.getPendingDeletionBlockGroupsStat());
+        ecBlockGroupStats.getPendingDeletionBlocks());
     return result.build();
   }
 
@@ -2981,10 +2981,11 @@ public class PBHelperClient {
     return builder.build();
   }
 
-  public static AddECPolicyResponseProto convertAddECPolicyResponse(
-      AddECPolicyResponse response) {
-    AddECPolicyResponseProto.Builder builder =
-        AddECPolicyResponseProto.newBuilder()
+  public static AddErasureCodingPolicyResponseProto
+      convertAddErasureCodingPolicyResponse(
+          AddErasureCodingPolicyResponse response) {
+    AddErasureCodingPolicyResponseProto.Builder builder =
+        AddErasureCodingPolicyResponseProto.newBuilder()
         .setPolicy(convertErasureCodingPolicy(response.getPolicy()))
         .setSucceed(response.isSucceed());
     if (!response.isSucceed()) {
@@ -2993,13 +2994,14 @@ public class PBHelperClient {
     return builder.build();
   }
 
-  public static AddECPolicyResponse convertAddECPolicyResponse(
-      AddECPolicyResponseProto proto) {
+  public static AddErasureCodingPolicyResponse
+      convertAddErasureCodingPolicyResponse(
+          AddErasureCodingPolicyResponseProto proto) {
     ErasureCodingPolicy policy = convertErasureCodingPolicy(proto.getPolicy());
     if (proto.getSucceed()) {
-      return new AddECPolicyResponse(policy);
+      return new AddErasureCodingPolicyResponse(policy);
     } else {
-      return new AddECPolicyResponse(policy, proto.getErrorMsg());
+      return new AddErasureCodingPolicyResponse(policy, proto.getErrorMsg());
     }
   }
 

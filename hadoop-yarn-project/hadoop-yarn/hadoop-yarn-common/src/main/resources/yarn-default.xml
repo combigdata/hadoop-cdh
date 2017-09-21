@@ -988,6 +988,12 @@
   </property>
 
   <property>
+    <description>Comma separated List of container state transition listeners.</description>
+    <name>yarn.nodemanager.container-state-transition-listener.classes</name>
+    <value></value>
+  </property>
+
+  <property>
     <description>Number of threads container manager uses.</description>
     <name>yarn.nodemanager.container-manager.thread-count</name>
     <value>20</value>
@@ -3295,6 +3301,15 @@
     </description>
     <name>yarn.timeline-service.entity-group-fs-store.with-user-dir</name>
     <value>false</value>
+  </property>
+
+  <property>
+    <name>yarn.resourcemanager.display.per-user-apps</name>
+    <value>false</value>
+      <description>
+        Flag to enable display of applications per user as an admin
+        configuration.
+      </description>
   </property>
 
 </configuration>

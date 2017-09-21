@@ -690,7 +690,8 @@ public class SchedulerApplicationAttempt implements SchedulableEntity {
       if (autoUpdate) {
         this.rmContext.getDispatcher().getEventHandler().handle(
             new RMNodeUpdateContainerEvent(rmContainer.getNodeId(),
-                Collections.singletonList(rmContainer.getContainer())));
+                Collections.singletonMap(
+                    rmContainer.getContainer(), updateType)));
       } else {
         rmContainer.handle(new RMContainerUpdatesAcquiredEvent(
             rmContainer.getContainerId(),
@@ -1131,9 +1132,11 @@ public class SchedulerApplicationAttempt implements SchedulableEntity {
       }
       LOG.info("SchedulerAttempt " + getApplicationAttemptId()
           + " is recovering container " + rmContainer.getContainerId());
-      liveContainers.put(rmContainer.getContainerId(), rmContainer);
-      attemptResourceUsage.incUsed(node.getPartition(),
-          rmContainer.getContainer().getResource());
+      addRMContainer(rmContainer.getContainerId(), rmContainer);
+      if (rmContainer.getExecutionType() == ExecutionType.GUARANTEED) {
+        attemptResourceUsage.incUsed(node.getPartition(),
+            rmContainer.getContainer().getResource());
+      }
 
       // resourceLimit: updated when LeafQueue#recoverContainer#allocateResource
       // is called.
