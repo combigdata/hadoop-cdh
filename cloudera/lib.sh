@@ -214,11 +214,11 @@ function setupJava() {
     1.8)
       MAVEN_OPTS="-Xmx1g -Xms128m"
       JAVA_OPTS="-Xmx4g -Xms1g"
-      if [[ -z $JAVA8_HOME ]]; then
-        echo JAVA8_HOME is not set
+      if [[ -z $JAVA_1_8_HOME ]]; then
+        echo JAVA_1_8_HOME is not set
         exit 1
       fi
-      JAVA_HOME=${JAVA8_HOME}
+      JAVA_HOME=${JAVA_1_8_HOME}
       JAVA_VERSION=1.8
       ;;
 
