@@ -1903,7 +1903,8 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     return serverDefaults.getBlockSize();
   }
 
-  FsServerDefaults getServerDefaults() throws StandbyException {
+  @VisibleForTesting
+  public FsServerDefaults getServerDefaults() throws StandbyException {
     checkOperation(OperationCategory.READ);
     return serverDefaults;
   }

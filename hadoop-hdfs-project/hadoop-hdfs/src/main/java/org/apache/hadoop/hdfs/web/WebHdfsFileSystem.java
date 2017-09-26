@@ -55,6 +55,7 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FSInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.FsServerDefaults;
 import org.apache.hadoop.fs.GlobalStorageStatistics;
 import org.apache.hadoop.fs.GlobalStorageStatistics.StorageStatisticsProvider;
 import org.apache.hadoop.fs.StorageStatistics;
@@ -1026,7 +1027,7 @@ public class WebHdfsFileSystem extends FileSystem
     final HttpOpParam.Op op = PutOpParam.Op.SETXATTR;
     if (value != null) {
       new FsPathRunner(op, p, new XAttrNameParam(name), new XAttrValueParam(
-          XAttrCodec.encodeValue(value, XAttrCodec.HEX)), 
+          XAttrCodec.encodeValue(value, XAttrCodec.HEX)),
           new XAttrSetFlagParam(flag)).run();
     } else {
       new FsPathRunner(op, p, new XAttrNameParam(name), 
@@ -1627,6 +1628,22 @@ public class WebHdfsFileSystem extends FileSystem
   public String getCanonicalServiceName() {
     return tokenServiceName == null ? super.getCanonicalServiceName()
         : tokenServiceName.toString();
+  }
+
+  /*
+   * Caller of this method should handle UnsupportedOperationException in case
+   * when new client is talking to old namenode that don't support
+   * FsServerDefaults call.
+   */
+  @Override
+  public FsServerDefaults getServerDefaults() throws IOException {
+    final HttpOpParam.Op op = GetOpParam.Op.GETSERVERDEFAULTS;
+    return new FsPathResponseRunner<FsServerDefaults>(op, null) {
+      @Override
+      FsServerDefaults decodeResponse(Map<?, ?> json) throws IOException {
+        return JsonUtil.toFsServerDefaults(json);
+      }
+    }.run();
   }
 
   @VisibleForTesting
