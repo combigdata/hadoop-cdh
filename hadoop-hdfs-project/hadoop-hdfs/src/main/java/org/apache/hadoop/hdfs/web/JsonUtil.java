@@ -50,6 +50,8 @@ import java.util.*;
 public class JsonUtil {
   private static final Object[] EMPTY_OBJECT_ARRAY = {};
   private static final DatanodeInfo[] EMPTY_DATANODE_INFO_ARRAY = {};
+  static final String UNSUPPPORTED_EXCEPTION_STR =
+          UnsupportedOperationException.class.getName();
 
   // Reuse ObjectMapper instance for improving performance.
   // ObjectMapper is thread safe as long as we always configure instance
@@ -116,6 +118,9 @@ public class JsonUtil {
     final Map<?, ?> m = (Map<?, ?>)json.get(RemoteException.class.getSimpleName());
     final String message = (String)m.get("message");
     final String javaClassName = (String)m.get("javaClassName");
+    if (UNSUPPPORTED_EXCEPTION_STR.equals(javaClassName)) {
+      throw new UnsupportedOperationException(message);
+    }
     return new RemoteException(javaClassName, message);
   }
 
@@ -891,5 +896,52 @@ public class JsonUtil {
     } else {
       return new byte[0];
     }
+  }
+
+  /*
+   * The parameters which have default value -1 are required fields according
+   * to hdfs.proto.
+   * The default values for optional fields are taken from
+   * hdfs.proto#FsServerDefaultsProto.
+   */
+  public static FsServerDefaults toFsServerDefaults(final Map<?, ?> json) {
+    if (json == null) {
+      return null;
+    }
+    Map<?, ?> m =
+                (Map<?, ?>) json.get(FsServerDefaults.class.getSimpleName());
+    long blockSize = getLong(m, "blockSize", -1);
+    int bytesPerChecksum = getInt(m, "bytesPerChecksum", -1);
+    int writePacketSize = getInt(m, "writePacketSize", -1);
+    short replication = (short) getInt(m, "replication", -1);
+    int fileBufferSize = getInt(m, "fileBufferSize", -1);
+    boolean encryptDataTransfer = m.containsKey("encryptDataTransfer")
+        ? (Boolean) m.get("encryptDataTransfer")
+        : false;
+    long trashInterval = getLong(m, "trashInterval", 0);
+    DataChecksum.Type type =
+    DataChecksum.Type.valueOf(getInt(m, "checksumType", 1));
+    String keyProviderUri = (String) m.get("keyProviderUri");
+    return new FsServerDefaults(blockSize, bytesPerChecksum,
+                writePacketSize, replication, fileBufferSize,
+                encryptDataTransfer, trashInterval, type, keyProviderUri);
+  }
+
+  public static String toJsonString(FsServerDefaults serverDefaults) {
+    return toJsonString(FsServerDefaults.class, toJsonMap(serverDefaults));
+  }
+
+  private static Object toJsonMap(FsServerDefaults serverDefaults) {
+    final Map<String, Object> m = new HashMap<String, Object>();
+    m.put("blockSize", serverDefaults.getBlockSize());
+    m.put("bytesPerChecksum", serverDefaults.getBytesPerChecksum());
+    m.put("writePacketSize", serverDefaults.getWritePacketSize());
+    m.put("replication", serverDefaults.getReplication());
+    m.put("fileBufferSize", serverDefaults.getFileBufferSize());
+    m.put("encryptDataTransfer", serverDefaults.getEncryptDataTransfer());
+    m.put("trashInterval", serverDefaults.getTrashInterval());
+    m.put("checksumType", serverDefaults.getChecksumType().id);
+    m.put("keyProviderUri", serverDefaults.getKeyProviderUri());
+    return m;
   }
 }

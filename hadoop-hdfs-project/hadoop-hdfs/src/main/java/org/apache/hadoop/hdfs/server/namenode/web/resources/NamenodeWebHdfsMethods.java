@@ -54,6 +54,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.ContentSummary;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.FsServerDefaults;
 import org.apache.hadoop.fs.Options;
 import org.apache.hadoop.fs.XAttr;
 import org.apache.hadoop.fs.permission.AclStatus;
@@ -126,6 +127,7 @@ public class NamenodeWebHdfsMethods {
     return getRemoteAddress() != null;
   }
 
+  private static volatile String serverDefaultsResponse = null;
   private @Context ServletContext context;
   private @Context HttpServletRequest request;
   private @Context HttpServletResponse response;
@@ -951,9 +953,28 @@ public class NamenodeWebHdfsMethods {
       final String js = JsonUtil.toJsonString(listing);
       return Response.ok(js).type(MediaType.APPLICATION_JSON).build();
     }
+    case GETSERVERDEFAULTS: {
+      // Since none of the server defaults values are hot reloaded, we can
+      // cache the output of serverDefaults.
+      if (serverDefaultsResponse == null) {
+        FsServerDefaults serverDefaults = np.getServerDefaults();
+        serverDefaultsResponse = JsonUtil.toJsonString(serverDefaults);
+      }
+      return Response.ok(serverDefaultsResponse)
+              .type(MediaType.APPLICATION_JSON).build();
+    }
     default:
       throw new UnsupportedOperationException(op + " is not supported");
     }
+  }
+
+  /*
+   * This is used only and only for testing.
+   * Please don't use it otherwise.
+   */
+  @VisibleForTesting
+  public static void resetServerDefaultsResponse() {
+    serverDefaultsResponse = null;
   }
 
   private static String getTrashRoot(String fullPath,
