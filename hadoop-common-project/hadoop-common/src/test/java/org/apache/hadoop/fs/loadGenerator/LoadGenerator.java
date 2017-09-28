@@ -289,6 +289,7 @@ public class LoadGenerator extends Configured implements Tool {
     private void genFile(Path file, long fileSize) throws IOException {
       long startTimestamp = Time.monotonicNow();
       FSDataOutputStream out = null;
+      boolean isOutClosed = false;
       try {
         out = fc.create(file,
             EnumSet.of(CreateFlag.CREATE, CreateFlag.OVERWRITE),
@@ -304,11 +305,15 @@ public class LoadGenerator extends Configured implements Tool {
           i -= s;
         }
 
-        startTimestamp = Time.monotonicNow();
-        executionTime[WRITE_CLOSE] += (Time.monotonicNow() - startTimestamp);
+        startTime = Time.monotonicNow();
+        out.close();
+        executionTime[WRITE_CLOSE] += (Time.monotonicNow() - startTime);
         totalNumOfOps[WRITE_CLOSE]++;
+        isOutClosed = true;
       } finally {
-        IOUtils.cleanup(LOG, out);
+        if (!isOutClosed && out != null) {
+          out.close();
+        }
       }
     }
   }
