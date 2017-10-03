@@ -2581,13 +2581,7 @@ public class FSDirectory implements Closeable {
   }
   
   long totalInodes() {
-    readLock();
-    try {
-      return rootDir.getDirectoryWithQuotaFeature().getSpaceConsumed()
-          .get(Quota.NAMESPACE);
-    } finally {
-      readUnlock();
-    }
+    return getInodeMapSize();
   }
 
   /**
