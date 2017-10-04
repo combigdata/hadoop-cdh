@@ -443,6 +443,12 @@ http://maven.apache.org/xsd/maven-4.0.0.xsd">
                   <shadedPattern>com.cloudera.io.netty</shadedPattern>
                 </relocation>
               </relocations>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.DontIncludeResourceTransformer">
+                  <!-- CDH-59001: Eliminate unused native libraries in Netty to prevent conflicts with other versions -->
+                  <resource>.so</resource>
+                </transformer>
+              </transformers>
             </configuration>
           </execution>
         </executions>
