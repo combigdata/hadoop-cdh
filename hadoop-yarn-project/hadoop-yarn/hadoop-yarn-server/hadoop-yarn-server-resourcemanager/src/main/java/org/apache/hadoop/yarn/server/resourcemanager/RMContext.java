@@ -126,4 +126,6 @@ public interface RMContext {
   Configuration getYarnConfiguration();
 
   ResourceManager getResourceManager();
+
+  String getAppProxyUrl(Configuration conf, ApplicationId applicationId);
 }
