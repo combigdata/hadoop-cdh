@@ -1731,7 +1731,7 @@
   <property>
     <description>Max time to wait for a process to come up when trying to cleanup a container</description>
     <name>yarn.nodemanager.process-kill-wait.ms</name>
-    <value>2000</value>
+    <value>5000</value>
   </property>
 
   <property>
@@ -3024,6 +3024,15 @@
     </description>
     <name>yarn.resourcemanager.nm-container-queuing.max-queue-wait-time-ms</name>
     <value>100</value>
+  </property>
+
+  <property>
+    <description>
+    Use container pause as the preemption policy over kill in the container
+    queue at a NodeManager.
+    </description>
+    <name>yarn.nodemanager.opportunistic-containers-use-pause-for-preemption</name>
+    <value>false</value>
   </property>
 
   <property>

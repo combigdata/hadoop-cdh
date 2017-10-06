@@ -3057,15 +3057,6 @@
 </property>
 
 <property>
-  <name>dfs.datanode.ec.reconstruction.stripedread.threads</name>
-  <value>20</value>
-  <description>
-    Number of threads used by the Datanode to read striped block
-    during background reconstruction work.
-  </description>
-</property>
-
-<property>
   <name>dfs.datanode.ec.reconstruction.stripedread.buffer.size</name>
   <value>65536</value>
   <description>Datanode striped read buffer size.
@@ -4167,11 +4158,11 @@
 </property>
 
 <property>
-  <name>dfs.namenode.authorization.provider.bypass.users</name>
+  <name>dfs.namenode.inode.attributes.provider.bypass.users</name>
   <value></value>
   <description>
     A list of user principals (in secure cluster) or user names (in insecure
-    cluster) for whom the external attribute provider will be bypassed for all
+    cluster) for whom the external attributes provider will be bypassed for all
     operations. This means file attributes stored in HDFS instead of the
     external provider will be used for permission checking and be returned when
     requested.
@@ -4635,6 +4626,17 @@
     <value>true</value>
     <description>
       Enables DFSNetworkTopology to choose nodes for placing replicas.
+    </description>
+  </property>
+
+  <property>
+    <name>dfs.qjm.operations.timeout</name>
+    <value>60s</value>
+    <description>
+      Common key to set timeout for related operations in
+      QuorumJournalManager. This setting supports multiple time unit suffixes
+      as described in dfs.heartbeat.interval.
+      If no suffix is specified then milliseconds is assumed.
     </description>
   </property>
 

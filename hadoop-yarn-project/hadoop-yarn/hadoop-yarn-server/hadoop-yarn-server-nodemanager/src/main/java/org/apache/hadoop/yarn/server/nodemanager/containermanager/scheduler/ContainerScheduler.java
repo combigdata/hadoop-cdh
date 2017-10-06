@@ -19,6 +19,7 @@
 package org.apache.hadoop.yarn.server.nodemanager.containermanager.scheduler;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.service.AbstractService;
 import org.apache.hadoop.yarn.api.records.ContainerExitStatus;
 import org.apache.hadoop.yarn.api.records.ContainerId;
@@ -32,8 +33,10 @@ import org.apache.hadoop.yarn.server.api.records.OpportunisticContainersStatus;
 import org.apache.hadoop.yarn.server.nodemanager.Context;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.Container;
 
+import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.ContainerImpl;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.monitor
     .ChangeMonitoringContainerResourceEvent;
+import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.ContainerState;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.monitor.ContainersMonitor;
 
 
@@ -74,7 +77,7 @@ public class ContainerScheduler extends AbstractService implements
       queuedOpportunisticContainers = new LinkedHashMap<>();
 
   // Used to keep track of containers that have been marked to be killed
-  // to make room for a guaranteed container.
+  // or paused to make room for a guaranteed container.
   private final Map<ContainerId, Container> oppContainersToKill =
       new HashMap<>();
 
@@ -98,6 +101,8 @@ public class ContainerScheduler extends AbstractService implements
   private final AsyncDispatcher dispatcher;
   private final NodeManagerMetrics metrics;
 
+  private Boolean usePauseEventForPreemption = false;
+
   /**
    * Instantiate a Container Scheduler.
    * @param context NodeManager Context.
@@ -110,6 +115,17 @@ public class ContainerScheduler extends AbstractService implements
         YarnConfiguration.NM_OPPORTUNISTIC_CONTAINERS_MAX_QUEUE_LENGTH,
         YarnConfiguration.
             DEFAULT_NM_OPPORTUNISTIC_CONTAINERS_MAX_QUEUE_LENGTH));
+  }
+
+
+  @Override
+  public void serviceInit(Configuration conf) throws Exception {
+    super.serviceInit(conf);
+    this.usePauseEventForPreemption =
+        conf.getBoolean(
+            YarnConfiguration.NM_CONTAINER_QUEUING_USE_PAUSE_FOR_PREEMPTION,
+            YarnConfiguration.
+                DEFAULT_NM_CONTAINER_QUEUING_USE_PAUSE_FOR_PREEMPTION);
   }
 
   @VisibleForTesting
@@ -136,8 +152,11 @@ public class ContainerScheduler extends AbstractService implements
     case SCHEDULE_CONTAINER:
       scheduleContainer(event.getContainer());
       break;
+    // NOTE: Is sent only after container state has changed to PAUSED...
+    case CONTAINER_PAUSED:
+    // NOTE: Is sent only after container state has changed to DONE...
     case CONTAINER_COMPLETED:
-      onContainerCompleted(event.getContainer());
+      onResourcesReclaimed(event.getContainer());
       break;
     case UPDATE_CONTAINER:
       if (event instanceof UpdateContainerSchedulerEvent) {
@@ -164,58 +183,38 @@ public class ContainerScheduler extends AbstractService implements
     if (updateEvent.isResourceChange()) {
       if (runningContainers.containsKey(containerId)) {
         this.utilizationTracker.subtractContainerResource(
-            updateEvent.getContainer());
-        updateEvent.getContainer().setContainerTokenIdentifier(
-            updateEvent.getUpdatedToken());
+            new ContainerImpl(getConfig(), null, null, null, null,
+                updateEvent.getOriginalToken(), context));
         this.utilizationTracker.addContainerResources(
             updateEvent.getContainer());
         getContainersMonitor().handle(
             new ChangeMonitoringContainerResourceEvent(containerId,
                 updateEvent.getUpdatedToken().getResource()));
-      } else {
-        // Is Queued or localizing..
-        updateEvent.getContainer().setContainerTokenIdentifier(
-            updateEvent.getUpdatedToken());
-      }
-      try {
-        // Persist change in the state store.
-        this.context.getNMStateStore().storeContainerResourceChanged(
-            containerId,
-            updateEvent.getUpdatedToken().getVersion(),
-            updateEvent.getUpdatedToken().getResource());
-      } catch (IOException e) {
-        LOG.warn("Could not store container [" + containerId + "] resource " +
-            "change..", e);
       }
     }
 
     if (updateEvent.isExecTypeUpdate()) {
-      updateEvent.getContainer().setContainerTokenIdentifier(
-          updateEvent.getUpdatedToken());
-      // If this is a running container.. just change the execution type
-      // and be done with it.
-      if (!runningContainers.containsKey(containerId)) {
-        // Promotion or not (Increase signifies either a promotion
-        // or container size increase)
-        if (updateEvent.isIncrease()) {
-          // Promotion of queued container..
-          if (queuedOpportunisticContainers.remove(containerId) != null) {
-            queuedGuaranteedContainers.put(containerId,
-                updateEvent.getContainer());
-          }
-          //Kill opportunistic containers if any to make room for
+      // Promotion or not (Increase signifies either a promotion
+      // or container size increase)
+      if (updateEvent.isIncrease()) {
+        // Promotion of queued container..
+        if (queuedOpportunisticContainers.remove(containerId) != null) {
+          queuedGuaranteedContainers.put(containerId,
+              updateEvent.getContainer());
+          //Kill/pause opportunistic containers if any to make room for
           // promotion request
-          killOpportunisticContainers(updateEvent.getContainer());
-        } else {
-          // Demotion of queued container.. Should not happen too often
-          // since you should not find too many queued guaranteed
-          // containers
-          if (queuedGuaranteedContainers.remove(containerId) != null) {
-            queuedOpportunisticContainers.put(containerId,
-                updateEvent.getContainer());
-          }
+          reclaimOpportunisticContainerResources(updateEvent.getContainer());
+        }
+      } else {
+        // Demotion of queued container.. Should not happen too often
+        // since you should not find too many queued guaranteed
+        // containers
+        if (queuedGuaranteedContainers.remove(containerId) != null) {
+          queuedOpportunisticContainers.put(containerId,
+              updateEvent.getContainer());
         }
       }
+      startPendingContainers(maxOppQueueLength <= 0);
     }
   }
 
@@ -243,6 +242,12 @@ public class ContainerScheduler extends AbstractService implements
     return this.runningContainers.size();
   }
 
+  @VisibleForTesting
+  public void setUsePauseEventForPreemption(
+      boolean usePauseEventForPreemption) {
+    this.usePauseEventForPreemption = usePauseEventForPreemption;
+  }
+
   public OpportunisticContainersStatus getOpportunisticContainersStatus() {
     this.opportunisticContainersStatus.setQueuedOpportContainers(
         getNumQueuedOpportunisticContainers());
@@ -257,7 +262,7 @@ public class ContainerScheduler extends AbstractService implements
     return this.opportunisticContainersStatus;
   }
 
-  private void onContainerCompleted(Container container) {
+  private void onResourcesReclaimed(Container container) {
     oppContainersToKill.remove(container.getContainerId());
 
     // This could be killed externally for eg. by the ContainerManager,
@@ -268,6 +273,16 @@ public class ContainerScheduler extends AbstractService implements
       queuedGuaranteedContainers.remove(container.getContainerId());
     }
 
+    // Requeue PAUSED containers
+    if (container.getContainerState() == ContainerState.PAUSED) {
+      if (container.getContainerTokenIdentifier().getExecutionType() ==
+          ExecutionType.GUARANTEED) {
+        queuedGuaranteedContainers.put(container.getContainerId(), container);
+      } else {
+        queuedOpportunisticContainers.put(
+            container.getContainerId(), container);
+      }
+    }
     // decrement only if it was a running container
     Container completedContainer = runningContainers.remove(container
         .getContainerId());
@@ -279,7 +294,8 @@ public class ContainerScheduler extends AbstractService implements
           ExecutionType.OPPORTUNISTIC) {
         this.metrics.completeOpportunisticContainer(container.getResource());
       }
-      startPendingContainers(false);
+      boolean forceStartGuaranteedContainers = (maxOppQueueLength <= 0);
+      startPendingContainers(forceStartGuaranteedContainers);
     }
   }
 
@@ -289,9 +305,9 @@ public class ContainerScheduler extends AbstractService implements
    *        container without looking at available resource
    */
   private void startPendingContainers(boolean forceStartGuaranteedContaieners) {
-    // Start pending guaranteed containers, if resources available.
+    // Start guaranteed containers that are paused, if resources available.
     boolean resourcesAvailable = startContainers(
-        queuedGuaranteedContainers.values(), forceStartGuaranteedContaieners);
+          queuedGuaranteedContainers.values(), forceStartGuaranteedContaieners);
     // Start opportunistic containers, if resources available.
     if (resourcesAvailable) {
       startContainers(queuedOpportunisticContainers.values(), false);
@@ -395,7 +411,7 @@ public class ContainerScheduler extends AbstractService implements
       // if the guaranteed container is queued, we need to preempt opportunistic
       // containers for make room for it
       if (queuedGuaranteedContainers.containsKey(container.getContainerId())) {
-        killOpportunisticContainers(container);
+        reclaimOpportunisticContainerResources(container);
       }
     } else {
       // Given an opportunistic container, we first try to start as many queuing
@@ -413,19 +429,30 @@ public class ContainerScheduler extends AbstractService implements
     }
   }
 
-  private void killOpportunisticContainers(Container container) {
-    List<Container> extraOpportContainersToKill =
-        pickOpportunisticContainersToKill(container.getContainerId());
+  @SuppressWarnings("unchecked")
+  private void reclaimOpportunisticContainerResources(Container container) {
+    List<Container> extraOppContainersToReclaim =
+        pickOpportunisticContainersToReclaimResources(
+            container.getContainerId());
     // Kill the opportunistic containers that were chosen.
-    for (Container contToKill : extraOpportContainersToKill) {
-      contToKill.sendKillEvent(
-          ContainerExitStatus.KILLED_BY_CONTAINER_SCHEDULER,
-          "Container Killed to make room for Guaranteed Container.");
-      oppContainersToKill.put(contToKill.getContainerId(), contToKill);
+    for (Container contToReclaim : extraOppContainersToReclaim) {
+      String preemptionAction = usePauseEventForPreemption == true ? "paused" :
+          "resumed";
       LOG.info(
-          "Opportunistic container {} will be killed in order to start the "
+          "Container {} will be {} to start the "
               + "execution of guaranteed container {}.",
-          contToKill.getContainerId(), container.getContainerId());
+          contToReclaim.getContainerId(), preemptionAction,
+          container.getContainerId());
+
+      if (usePauseEventForPreemption) {
+        contToReclaim.sendPauseEvent(
+            "Container Paused to make room for Guaranteed Container");
+      } else {
+        contToReclaim.sendKillEvent(
+            ContainerExitStatus.KILLED_BY_CONTAINER_SCHEDULER,
+            "Container Killed to make room for Guaranteed Container.");
+      }
+      oppContainersToKill.put(contToReclaim.getContainerId(), contToReclaim);
     }
   }
 
@@ -440,7 +467,7 @@ public class ContainerScheduler extends AbstractService implements
     container.sendLaunchEvent();
   }
 
-  private List<Container> pickOpportunisticContainersToKill(
+  private List<Container> pickOpportunisticContainersToReclaimResources(
       ContainerId containerToStartId) {
     // The opportunistic containers that need to be killed for the
     // given container to start.
@@ -540,16 +567,19 @@ public class ContainerScheduler extends AbstractService implements
         queuedOpportunisticContainers.values().iterator();
     while (containerIter.hasNext()) {
       Container container = containerIter.next();
-      if (numAllowed <= 0) {
-        container.sendKillEvent(
-            ContainerExitStatus.KILLED_BY_CONTAINER_SCHEDULER,
-            "Container De-queued to meet NM queuing limits.");
-        containerIter.remove();
-        LOG.info(
-            "Opportunistic container {} will be killed to meet NM queuing" +
-                " limits.", container.getContainerId());
+      // Do not shed PAUSED containers
+      if (container.getContainerState() != ContainerState.PAUSED) {
+        if (numAllowed <= 0) {
+          container.sendKillEvent(
+              ContainerExitStatus.KILLED_BY_CONTAINER_SCHEDULER,
+              "Container De-queued to meet NM queuing limits.");
+          containerIter.remove();
+          LOG.info(
+              "Opportunistic container {} will be killed to meet NM queuing" +
+                  " limits.", container.getContainerId());
+        }
+        numAllowed--;
       }
-      numAllowed--;
     }
   }
 

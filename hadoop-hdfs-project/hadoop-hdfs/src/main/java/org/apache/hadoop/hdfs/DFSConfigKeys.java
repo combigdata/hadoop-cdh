@@ -569,8 +569,6 @@ public class DFSConfigKeys extends CommonConfigurationKeys {
       "dfs.namenode.ec.system.default.policy";
   public static final String  DFS_NAMENODE_EC_SYSTEM_DEFAULT_POLICY_DEFAULT =
       "RS-6-3-1024k";
-  public static final String  DFS_DN_EC_RECONSTRUCTION_STRIPED_READ_THREADS_KEY = "dfs.datanode.ec.reconstruction.stripedread.threads";
-  public static final int     DFS_DN_EC_RECONSTRUCTION_STRIPED_READ_THREADS_DEFAULT = 20;
   public static final String  DFS_DN_EC_RECONSTRUCTION_STRIPED_READ_BUFFER_SIZE_KEY = "dfs.datanode.ec.reconstruction.stripedread.buffer.size";
   public static final int     DFS_DN_EC_RECONSTRUCTION_STRIPED_READ_BUFFER_SIZE_DEFAULT = 64 * 1024;
   public static final String  DFS_DN_EC_RECONSTRUCTION_STRIPED_READ_TIMEOUT_MILLIS_KEY = "dfs.datanode.ec.reconstruction.stripedread.timeout.millis";
@@ -726,6 +724,10 @@ public class DFSConfigKeys extends CommonConfigurationKeys {
   public static final String DFS_EDIT_LOG_TRANSFER_RATE_KEY =
       "dfs.edit.log.transfer.bandwidthPerSec";
   public static final long DFS_EDIT_LOG_TRANSFER_RATE_DEFAULT = 0; //no throttling
+
+  public static final String DFS_QJM_OPERATIONS_TIMEOUT =
+      "dfs.qjm.operations.timeout";
+  public static final long DFS_QJM_OPERATIONS_TIMEOUT_DEFAULT = 60000;
 
   // Datanode File IO Stats
   public static final String DFS_DATANODE_ENABLE_FILEIO_FAULT_INJECTION_KEY =

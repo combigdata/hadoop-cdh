@@ -262,6 +262,12 @@ public class YarnConfiguration extends Configuration {
   public static final long DEFAULT_RM_RESERVATION_SYSTEM_PLAN_FOLLOWER_TIME_STEP =
       1000L;
 
+  /** The maximum periodicity for the Reservation System. */
+  public static final String RM_RESERVATION_SYSTEM_MAX_PERIODICITY =
+      RM_PREFIX + "reservation-system.max-periodicity";
+  public static final long DEFAULT_RM_RESERVATION_SYSTEM_MAX_PERIODICITY =
+      86400000L;
+
   /**
    * Enable periodic monitor threads.
    * @see #RM_SCHEDULER_MONITOR_POLICIES
@@ -1033,6 +1039,15 @@ public class YarnConfiguration extends Configuration {
   public static final String NM_CONTAINER_RETRY_MINIMUM_INTERVAL_MS =
       NM_PREFIX + "container-retry-minimum-interval-ms";
   public static final int DEFAULT_NM_CONTAINER_RETRY_MINIMUM_INTERVAL_MS = 1000;
+
+  /**
+   * Use container pause as the preemption policy over kill in the container
+   * queue at a NodeManager.
+   **/
+  public static final String NM_CONTAINER_QUEUING_USE_PAUSE_FOR_PREEMPTION =
+      NM_PREFIX + "opportunistic-containers-use-pause-for-preemption";
+  public static final boolean
+      DEFAULT_NM_CONTAINER_QUEUING_USE_PAUSE_FOR_PREEMPTION = false;
 
   /** Interval at which the delayed token removal thread runs */
   public static final String RM_DELAYED_DELEGATION_TOKEN_REMOVAL_INTERVAL_MS =
@@ -1840,7 +1855,7 @@ public class YarnConfiguration extends Configuration {
   public static final String NM_PROCESS_KILL_WAIT_MS =
       NM_PREFIX + "process-kill-wait.ms";
   public static final long DEFAULT_NM_PROCESS_KILL_WAIT_MS =
-      2000;
+      5000;
 
   /** Max time to wait to establish a connection to RM */
   public static final String RESOURCEMANAGER_CONNECT_MAX_WAIT_MS =
