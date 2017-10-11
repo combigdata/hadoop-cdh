@@ -765,7 +765,7 @@ public class DFSAdmin extends FsShell {
     } catch (SnapshotException e) {
       throw new RemoteException(e.getClass().getName(), e.getMessage());
     }
-    System.out.println("Allowing snaphot on " + argv[1] + " succeeded");
+    System.out.println("Allowing snapshot on " + argv[1] + " succeeded");
   }
   
   /**
@@ -782,7 +782,7 @@ public class DFSAdmin extends FsShell {
     } catch (SnapshotException e) {
       throw new RemoteException(e.getClass().getName(), e.getMessage());
     }
-    System.out.println("Disallowing snaphot on " + argv[1] + " succeeded");
+    System.out.println("Disallowing snapshot on " + argv[1] + " succeeded");
   }
   
   /**
