@@ -181,10 +181,8 @@ public class BlockRecoveryWorker {
           getActiveNamenodeForBP(block.getBlockPoolId());
 
       long recoveryId = rBlock.getNewGenerationStamp();
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("block=" + block + ", (length=" + block.getNumBytes()
-            + "), syncList=" + syncList);
-      }
+      LOG.info("BlockRecoveryWorker: block=" + block + " (length="
+          + block.getNumBytes() + "), syncList=" + syncList);
 
       // syncList.isEmpty() means that all data-nodes do not have the block
       // or their replicas have 0 length.
@@ -270,6 +268,11 @@ public class BlockRecoveryWorker {
         break; // we have 'case' all enum values
       }
 
+      LOG.info("BlockRecoveryWorker: block=" + block + " (length="
+          + block.getNumBytes() + "), bestState=" + bestState.name()
+              + ", newBlock=" + newBlock + " (length=" + newBlock.getNumBytes()
+              + "), participatingList=" + participatingList);
+
       List<DatanodeID> failedList = new ArrayList<>();
       final List<BlockRecord> successList = new ArrayList<>();
       for (BlockRecord r : participatingList) {
@@ -320,7 +323,7 @@ public class BlockRecoveryWorker {
     ExtendedBlock block = rb.getBlock();
     DatanodeInfo[] targets = rb.getLocations();
 
-    LOG.info(who + " calls recoverBlock(" + block
+    LOG.info("BlockRecoveryWorker: " + who + " calls recoverBlock(" + block
         + ", targets=[" + Joiner.on(", ").join(targets) + "]"
         + ", newGenerationStamp=" + rb.getNewGenerationStamp()
         + ")");
