@@ -48,7 +48,6 @@ org/apache/hadoop/yarn/server/nodemanager/containermanager/logaggregation/TestLo
 org/apache/hadoop/yarn/server/resourcemanager/TestContainerResourceUsage.java
 org/apache/hadoop/yarn/server/resourcemanager/metrics/TestSystemMetricsPublisher.java
 org/apache/hadoop/yarn/server/resourcemanager/scheduler/capacity/TestContainerAllocation.java
-org/apache/hadoop/yarn/server/resourcemanager/webapp/TestRMWebApp.java
 org/apache/hadoop/yarn/server/resourcemanager/TestOpportunisticContainerAllocatorAMService.java
 
 org/apache/hadoop/yarn/server/resourcemanager/scheduler/capacity/TestApplicationLimits.java
