@@ -3254,10 +3254,17 @@ public class FSDirectory implements Closeable {
    */
   void saveFileXAttrsForBatch(List<FileEdekInfo> batch) {
     assert getFSNamesystem().hasWriteLock();
+    assert !hasWriteLock();
     if (batch != null && !batch.isEmpty()) {
       for (FileEdekInfo entry : batch) {
         final INode inode = getInode(entry.getInodeId());
-        Preconditions.checkNotNull(inode);
+        // no dir lock, so inode could be removed. no-op if so.
+        if (inode == null) {
+          NameNode.LOG.info(
+              "Cannot find inode {}, skip saving xattr for" + " re-encryption",
+              entry.getInodeId());
+          continue;
+        }
         getFSNamesystem().getEditLog().logSetXAttrs(inode.getFullPathName(),
             inode.getXAttrFeature().getXAttrs(), false);
       }
