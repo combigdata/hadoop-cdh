@@ -27,6 +27,7 @@ import java.lang.management.GarbageCollectorMXBean;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.log.metrics.EventCounter;
 import org.apache.hadoop.metrics2.MetricsCollector;
@@ -57,6 +58,11 @@ public class JvmMetrics implements MetricsSource {
       }
       return impl;
     }
+
+    synchronized void shutdown() {
+      DefaultMetricsSystem.instance().unregisterSource(JvmMetrics.name());
+      impl = null;
+    }
   }
 
   static final float M = 1024*1024;
@@ -71,6 +77,7 @@ public class JvmMetrics implements MetricsSource {
   final ConcurrentHashMap<String, MetricsInfo[]> gcInfoCache =
       new ConcurrentHashMap<String, MetricsInfo[]>();
 
+  @VisibleForTesting
   JvmMetrics(String processName, String sessionId) {
     this.processName = processName;
     this.sessionId = sessionId;
@@ -88,6 +95,16 @@ public class JvmMetrics implements MetricsSource {
 
   public static JvmMetrics initSingleton(String processName, String sessionId) {
     return Singleton.INSTANCE.init(processName, sessionId);
+  }
+
+  /**
+   * Shutdown the JvmMetrics singleton. This is not necessary if the JVM itself
+   * is shutdown, but may be necessary for scenarios where JvmMetrics instance
+   * needs to be re-created while the JVM is still around. One such scenario
+   * is unit-testing.
+   */
+  public static void shutdownSingleton() {
+    Singleton.INSTANCE.shutdown();
   }
 
   @Override

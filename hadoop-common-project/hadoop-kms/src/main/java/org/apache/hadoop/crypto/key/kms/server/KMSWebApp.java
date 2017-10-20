@@ -28,8 +28,11 @@ import org.apache.hadoop.crypto.key.KeyProvider;
 import org.apache.hadoop.crypto.key.KeyProviderCryptoExtension;
 import org.apache.hadoop.crypto.key.KeyProviderFactory;
 import org.apache.hadoop.http.HttpServer2;
+import org.apache.hadoop.metrics2.lib.DefaultMetricsSystem;
+import org.apache.hadoop.metrics2.source.JvmMetrics;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.authorize.AccessControlList;
+import org.apache.hadoop.util.JvmPauseMonitor;
 import org.apache.hadoop.util.VersionInfo;
 import org.apache.log4j.PropertyConfigurator;
 import org.slf4j.Logger;
@@ -43,6 +46,10 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
+
+import static org.apache.hadoop.crypto.key.kms.server.KMSConfiguration.METRICS_PROCESS_NAME_DEFAULT;
+import static org.apache.hadoop.crypto.key.kms.server.KMSConfiguration.METRICS_PROCESS_NAME_KEY;
+import static org.apache.hadoop.crypto.key.kms.server.KMSConfiguration.METRICS_SESSION_ID_KEY;
 
 @InterfaceAudience.Private
 public class KMSWebApp implements ServletContextListener {
@@ -84,6 +91,9 @@ public class KMSWebApp implements ServletContextListener {
   private static Meter reencryptEEKBatchCallsMeter;
   private static Meter generateEEKCallsMeter;
   private static Meter invalidCallsMeter;
+  private static String processName;
+  private static String sessionId;
+  private static JvmPauseMonitor pauseMonitor;
   private static KMSAudit kmsAudit;
   private static KeyProviderCryptoExtension keyProviderCryptoExtension;
 
@@ -159,6 +169,16 @@ public class KMSWebApp implements ServletContextListener {
       unauthenticatedCallsMeter = metricRegistry.register(
           UNAUTHENTICATED_CALLS_METER, new Meter());
 
+      processName =
+          kmsConf.get(METRICS_PROCESS_NAME_KEY, METRICS_PROCESS_NAME_DEFAULT);
+      sessionId = kmsConf.get(METRICS_SESSION_ID_KEY);
+      pauseMonitor = new JvmPauseMonitor();
+      pauseMonitor.init(kmsConf);
+      DefaultMetricsSystem.initialize(processName);
+      final JvmMetrics jm = JvmMetrics.initSingleton(processName, sessionId);
+      jm.setPauseMonitor(pauseMonitor);
+      pauseMonitor.start();
+
       kmsAudit = new KMSAudit(kmsConf);
 
       // this is required for the the JMXJsonServlet to work properly.
@@ -232,6 +252,9 @@ public class KMSWebApp implements ServletContextListener {
     }
     kmsAudit.shutdown();
     kmsAcls.stopReloader();
+    pauseMonitor.stop();
+    JvmMetrics.shutdownSingleton();
+    DefaultMetricsSystem.shutdown();
     jmxReporter.stop();
     jmxReporter.close();
     metricRegistry = null;
