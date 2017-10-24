@@ -80,3 +80,10 @@ org/apache/hadoop/yarn/server/timeline/TestLevelDBCacheTimelineStore.java
 org/apache/hadoop/yarn/server/timeline/TestLogInfo.java
 org/apache/hadoop/yarn/server/timeline/TestOverrideTimelineStoreYarnClient.java
 org/apache/hadoop/yarn/server/resourcemanager/ahs/TestRMApplicationHistoryWriter.java
+
+# Disable unit tests of distributed/centralized scheduling of OPPORTUNISTIC containers because we don't support them since CDH 6.0
+org/apache/hadoop/yarn/server/scheduler/TestOpportunisticContainerAllocator.java
+org/apache/hadoop/yarn/server/resourcemanager/scheduler/distributed/TestNodeQueueLoadMonitor.java
+org/apache/hadoop/yarn/server/resourcemanager/TestOpportunisticContainerAllocatorAMService.java
+org/apache/hadoop/yarn/server/nodemanager/scheduler/TestDistributedScheduler.java
+org.apache.hadoop.yarn.client.api.impl/TestOpportunisticContainerAllocationE2E.java
