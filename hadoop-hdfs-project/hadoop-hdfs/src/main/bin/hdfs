@@ -67,6 +67,27 @@ function hadoop_usage
   hadoop_generate_usage "${HADOOP_SHELL_EXECNAME}" false
 }
 
+## @description  Finds SENTRY_HOME and adds to classpath
+## @audience     private
+## @stability    stable
+## @replaceable  no
+function add_sentry_classpath
+{
+  # Set SENTRY_HOME if possible and add Sentry plugin jars to classpath
+  if [[ -z "$SENTRY_HOME" ]]
+  then
+    # HADOOP_HDFS_HOME should have been set by hdfs-config.sh
+    if [[ -d ${HADOOP_HDFS_HOME}/../sentry ]]
+    then
+      export SENTRY_HOME=`readlink -m ${HADOOP_HDFS_HOME}/../sentry`
+    fi
+  fi
+  if [[ -n "$SENTRY_HOME" ]]
+  then
+    hadoop_add_classpath ${SENTRY_HOME}/lib/plugins/\*
+  fi
+}
+
 ## @description  Default command handler for hadoop command
 ## @audience     public
 ## @stability    stable
@@ -164,6 +185,7 @@ function hdfscmd_case
       HADOOP_SUBCMD_SUPPORTDAEMONIZATION="true"
       HADOOP_CLASSNAME='org.apache.hadoop.hdfs.server.namenode.NameNode'
       hadoop_add_param HADOOP_OPTS hdfs.audit.logger "-Dhdfs.audit.logger=${HDFS_AUDIT_LOGGER}"
+      add_sentry_classpath
     ;;
     nfs3)
       HADOOP_SUBCMD_SUPPORTDAEMONIZATION="true"
@@ -189,6 +211,7 @@ function hdfscmd_case
       HADOOP_SUBCMD_SUPPORTDAEMONIZATION="true"
       HADOOP_CLASSNAME='org.apache.hadoop.hdfs.server.namenode.SecondaryNameNode'
       hadoop_add_param HADOOP_OPTS hdfs.audit.logger "-Dhdfs.audit.logger=${HDFS_AUDIT_LOGGER}"
+      add_sentry_classpath
     ;;
     snapshotDiff)
       HADOOP_CLASSNAME=org.apache.hadoop.hdfs.tools.snapshot.SnapshotDiff

@@ -38,6 +38,7 @@ import org.apache.hadoop.hdfs.server.namenode.INodeAttributeProvider.AccessContr
 import org.apache.hadoop.hdfs.util.ReadOnlyList;
 import org.apache.hadoop.security.AccessControlException;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.util.StringInterner;
 
 /** 
  * Class that helps in checking file system permission.
@@ -276,7 +277,12 @@ class FSPermissionChecker implements AccessControlEnforcer {
     if (getAttributesProvider() != null) {
       String[] elements = new String[pathIdx + 1];
       for (int i = 0; i < elements.length; i++) {
-        elements[i] = DFSUtil.bytes2String(pathByNameArr[i]);
+        if (i == 0 && pathByNameArr[i] == null) {
+          // Assign an empty string for the root inode null path component
+          elements[i] = StringInterner.weakIntern("");
+        } else {
+          elements[i] = DFSUtil.bytes2String(pathByNameArr[i]);
+        }
       }
       inodeAttrs = getAttributesProvider().getAttributes(elements, inodeAttrs);
     }
