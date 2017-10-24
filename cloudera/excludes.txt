@@ -87,3 +87,15 @@ org/apache/hadoop/yarn/server/resourcemanager/scheduler/distributed/TestNodeQueu
 org/apache/hadoop/yarn/server/resourcemanager/TestOpportunisticContainerAllocatorAMService.java
 org/apache/hadoop/yarn/server/nodemanager/scheduler/TestDistributedScheduler.java
 org.apache.hadoop.yarn.client.api.impl/TestOpportunisticContainerAllocationE2E.java
+
+# Disable unit tests for node labels give node label is not supported by Fair Scheduler. Need to reenable this once the support is added
+org/apache/hadoop/yarn/applications/distributedshell/TestDistributedShellWithNodeLabels.java
+org/apache/hadoop/yarn/nodelabels/TestCommonNodeLabelsManager.java
+org/apache/hadoop/yarn/nodelabels/TestFileSystemNodeLabelsStore.java
+org/apache/hadoop/yarn/server/resourcemanager/nodelabels/TestRMDelegatedNodeLabelsUpdater.java
+org/apache/hadoop/yarn/server/resourcemanager/nodelabels/TestRMNodeLabelsManager.java
+org/apache/hadoop/yarn/server/nodemanager/TestNodeStatusUpdaterForLabels.java
+org/apache/hadoop/yarn/server/nodemanager/nodelabels/TestConfigurationNodeLabelsProvider.java
+org/apache/hadoop/yarn/server/nodemanager/nodelabels/TestScriptBasedNodeLabelsProvider.java
+org/apache/hadoop/yarn/server/resourcemanager/webapp/TestRMWebServicesNodeLabels.java
+org/apache/hadoop/yarn/server/resourcemanager/TestRMHAForNodeLabels.java
