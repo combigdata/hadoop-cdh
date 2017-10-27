@@ -243,9 +243,15 @@ Allocation file format
      to its minimum when it submits an application, because already-running jobs
      may be using those resources.
 
-   * maxResources: maximum resources a queue is allowed, in the form
-     "X mb, Y vcores".  A queue will never be assigned a container that would
-     put its aggregate usage over this limit.
+   * maxResources: maximum resources a queue is allocated, expressed either in
+     absolute values (X mb, Y vcores) or as a percentage of the cluster
+     resources (X% memory, Y% cpu). A queue will not be assigned a container
+     that would put its aggregate usage over this limit.
+
+   * maxChildResources: maximum resources an ad hoc child queue is allocated,
+     expressed either in absolute values (X mb, Y vcores) or as a percentage of
+     the cluster resources (X% memory, Y% cpu). An ad hoc child queue will not
+     be assigned a container that would put its aggregate usage over this limit.
 
    * maxRunningApps: limit the number of apps from the queue to run at once
 
@@ -352,7 +358,7 @@ Allocation file format
        "one_dot_two" queue, if such a queue exists.
 
      * nestedUserQueue : the app is placed into a queue with the name of the user
-       under the queue suggested by the nested rule. This is similar to ‘user’
+       under the queue suggested by the nested rule. This is similar to 'user'
        rule,the difference being in 'nestedUserQueue' rule,user queues can be created
        under any parent queue, while 'user' rule creates user queues only under root queue.
        Note that nestedUserQueue rule would be applied only if the nested rule returns a

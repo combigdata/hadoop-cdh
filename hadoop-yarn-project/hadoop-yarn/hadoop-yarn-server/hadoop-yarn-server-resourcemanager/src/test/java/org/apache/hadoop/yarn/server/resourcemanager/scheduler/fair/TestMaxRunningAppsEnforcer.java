@@ -32,6 +32,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.util.ControlledClock;
+import org.apache.hadoop.yarn.util.resource.DefaultResourceCalculator;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -56,7 +57,9 @@ public class TestMaxRunningAppsEnforcer {
     AllocationConfiguration allocConf = new AllocationConfiguration(
         conf);
     when(scheduler.getAllocationConfiguration()).thenReturn(allocConf);
-    
+    when(scheduler.getResourceCalculator()).thenReturn(
+        new DefaultResourceCalculator());
+
     queueManager = new QueueManager(scheduler);
     queueManager.initialize(conf);
     queueMaxApps = allocConf.queueMaxApps;

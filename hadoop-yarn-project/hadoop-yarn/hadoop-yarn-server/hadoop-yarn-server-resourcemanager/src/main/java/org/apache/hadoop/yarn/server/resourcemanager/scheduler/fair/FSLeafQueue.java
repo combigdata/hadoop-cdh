@@ -340,8 +340,6 @@ public class FSLeafQueue extends FSQueue {
   public void updateDemand() {
     // Compute demand by iterating through apps in the queue
     // Limit demand to maxResources
-    Resource maxRes = scheduler.getAllocationConfiguration()
-        .getMaxResources(getName());
     Resource tmpDemand = Resources.createResource(0);
     readLock.lock();
     try {
@@ -357,10 +355,10 @@ public class FSLeafQueue extends FSQueue {
       readLock.unlock();
     }
     // Cap demand to maxShare to limit allocation to maxShare
-    demand = Resources.componentwiseMin(tmpDemand, maxRes);
+    demand = Resources.componentwiseMin(tmpDemand, getMaxShare());
     if (LOG.isDebugEnabled()) {
       LOG.debug("The updated demand for " + getName() + " is " + demand
-          + "; the max is " + maxRes);
+          + "; the max is " + getMaxShare());
       LOG.debug("The updated fairshare for " + getName() + " is "
           + getFairShare());
     }
@@ -626,8 +624,6 @@ public class FSLeafQueue extends FSQueue {
   protected void dumpStateInternal(StringBuilder sb) {
     ResourceWeights weights =
         scheduler.getAllocationConfiguration().getQueueWeight(getName());
-    Resource maxShare =
-        scheduler.getAllocationConfiguration().getMaxResources(getName());
     Resource minShare =
         scheduler.getAllocationConfiguration().getMinResources(getName());
     float maxAMShare=
@@ -638,7 +634,7 @@ public class FSLeafQueue extends FSQueue {
         ", Policy: " + policy.getName() +
         ", FairShare: " + getFairShare() +
         ", SteadyFairShare: " + getSteadyFairShare() +
-        ", MaxShare: " + maxShare +
+        ", MaxShare: " + getMaxShare() +
         ", MinShare: " + minShare +
         ", ResourceUsage: " + getResourceUsage() +
         ", Demand: " + getDemand() +

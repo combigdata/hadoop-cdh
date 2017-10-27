@@ -152,8 +152,6 @@ public class FSParentQueue extends FSQueue {
   public void updateDemand() {
     // Compute demand by iterating through apps in the queue
     // Limit demand to maxResources
-    Resource maxRes = scheduler.getAllocationConfiguration()
-        .getMaxResources(getName());
     writeLock.lock();
     try {
       demand = Resources.createResource(0);
@@ -168,14 +166,14 @@ public class FSParentQueue extends FSQueue {
         }
       }
       // Cap demand to maxShare to limit allocation to maxShare
-      demand = Resources.componentwiseMin(demand, maxRes);
+      demand = Resources.componentwiseMin(demand, getMaxShare());
     } finally {
       writeLock.unlock();
     }
     if (LOG.isDebugEnabled()) {
       LOG.debug("The updated demand for " + getName() + " is " + demand +
-          "; the max is " + maxRes);
-    }    
+          "; the max is " + getMaxShare());
+    }
   }
   
   private QueueUserACLInfo getUserAclInfo(UserGroupInformation user) {
@@ -328,8 +326,6 @@ public class FSParentQueue extends FSQueue {
   protected void dumpStateInternal(StringBuilder sb) {
     ResourceWeights weights =
         scheduler.getAllocationConfiguration().getQueueWeight(getName());
-    Resource maxShare =
-        scheduler.getAllocationConfiguration().getMaxResources(getName());
     Resource minShare =
         scheduler.getAllocationConfiguration().getMinResources(getName());
     float maxAMShare=
@@ -340,7 +336,7 @@ public class FSParentQueue extends FSQueue {
         ", Policy: " + policy.getName() +
         ", FairShare: " + getFairShare() +
         ", SteadyFairShare: " + getSteadyFairShare() +
-        ", MaxShare: " + maxShare +
+        ", MaxShare: " + getMaxShare() +
         ", MinShare: " + minShare +
         ", ResourceUsage: " + getResourceUsage() +
         ", Demand: " + getDemand() +

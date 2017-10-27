@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.hadoop.yarn.util.SystemClock;
+import org.apache.hadoop.yarn.util.resource.DefaultResourceCalculator;
 import org.apache.hadoop.yarn.util.resource.Resources;
 import org.junit.Before;
 import org.junit.Test;
@@ -46,12 +47,14 @@ public class TestQueueManager {
     // Set up some queues to test default child max resource inheritance
     allocConf.configuredQueues.get(FSQueueType.PARENT).add("root.test");
     allocConf.setMaxChildResources("root.test",
-        Resources.createResource(8192, 256));
+        new ConfigurableResource(Resources.createResource(8192, 256)));
     allocConf.configuredQueues.get(FSQueueType.LEAF).add("root.test.childA");
     allocConf.configuredQueues.get(FSQueueType.PARENT).add("root.test.childB");
 
     when(scheduler.getAllocationConfiguration()).thenReturn(allocConf);
     when(scheduler.getConf()).thenReturn(conf);
+    when(scheduler.getResourceCalculator()).thenReturn(
+        new DefaultResourceCalculator());
 
     SystemClock clock = new SystemClock();
 
@@ -216,7 +219,7 @@ public class TestQueueManager {
         "root.test.childC", q1.getName());
     assertEquals("Max resources for root.queue1 were not inherited from "
         + "parent's max child resources", Resources.createResource(8192, 256),
-        allocConf.getMaxResources("root.test.childC"));
+        allocConf.getMaxResources("root.test.childC").getResource());
 
     FSQueue q2 = queueManager.createQueue("root.test.childD",
         FSQueueType.PARENT);
@@ -228,7 +231,7 @@ public class TestQueueManager {
     assertEquals("Max resources for root.test.childD were not inherited "
         + "from parent's max child resources",
         Resources.createResource(8192, 256),
-        allocConf.getMaxResources("root.test.childD"));
+        allocConf.getMaxResources("root.test.childD").getResource());
 
     // Check that the childA and childB queues weren't impacted
     // by the child defaults
@@ -236,12 +239,12 @@ public class TestQueueManager {
         queueManager.getLeafQueue("root.test.childA", false));
     assertEquals("Max resources for root.test.childA were inherited from "
         + "parent's max child resources", Resources.unbounded(),
-        allocConf.getMaxResources("root.test.childA"));
+        allocConf.getMaxResources("root.test.childA").getResource());
     assertNotNull("Leaf queue root.test.childB was not created during setup",
         queueManager.getParentQueue("root.test.childB", false));
     assertEquals("Max resources for root.test.childB were inherited from "
         + "parent's max child resources", Resources.unbounded(),
-        allocConf.getMaxResources("root.test.childB"));
+        allocConf.getMaxResources("root.test.childB").getResource());
   }
 
   /**
@@ -264,7 +267,7 @@ public class TestQueueManager {
 
     // Max default is unbounded
     assertEquals("Max resources were not set to default", Resources.unbounded(),
-        allocConf.getMaxResources("root.queue1"));
+        allocConf.getMaxResources("root.queue1").getResource());
   }
 
   /**

@@ -87,7 +87,8 @@ public class TestFSLeafQueue extends FairSchedulerTestBase {
     scheduler.allocConf = mock(AllocationConfiguration.class);
 
     String queueName = "root.queue1";
-    when(scheduler.allocConf.getMaxResources(queueName)).thenReturn(maxResource);
+    when(scheduler.allocConf.getMaxResources(queueName)).thenReturn(
+        new ConfigurableResource(maxResource));
     when(scheduler.allocConf.getMinResources(queueName)).thenReturn(Resources.none());
     when(scheduler.allocConf.getQueueMaxApps(queueName)).
         thenReturn(Integer.MAX_VALUE);

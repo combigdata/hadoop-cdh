@@ -1398,7 +1398,7 @@ public class FairScheduler extends
       if ((queue.getParent() != null) &&
           !configuredLeafQueues.contains(queue.getName()) &&
           !configuredParentQueues.contains(queue.getName())) {
-        Resource max =
+        ConfigurableResource max =
             allocConf.getMaxChildResources(queue.getParent().getName());
 
         if (max != null) {

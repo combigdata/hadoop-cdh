@@ -41,7 +41,7 @@ import com.google.common.base.CharMatcher;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.Iterator;
 import java.util.Set;
-import org.apache.hadoop.yarn.api.records.Resource;
+
 /**
  * Maintains a list of queues as well as scheduling parameters for each queue,
  * such as guaranteed share allocations, from the fair scheduler config file.
@@ -320,7 +320,8 @@ public class QueueManager {
         !configuredQueues.get(FSQueueType.PARENT).contains(child.getName())) {
       // For ad hoc queues, set their max reource allocations based on
       // their parents' default child settings.
-      Resource maxChild = queueConf.getMaxChildResources(parent.getName());
+      ConfigurableResource maxChild =
+          queueConf.getMaxChildResources(parent.getName());
 
       if (maxChild != null) {
         queueConf.setMaxResources(child.getName(), maxChild);

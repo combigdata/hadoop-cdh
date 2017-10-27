@@ -116,15 +116,27 @@ public abstract class FSQueue implements Queue, Schedulable {
     return scheduler.getAllocationConfiguration().getMinResources(getName());
   }
 
+  @Override
+  public Resource getMaxShare() {
+    ConfigurableResource maxShare =
+        scheduler.getAllocationConfiguration().getMaxResources(getName());
+    Resource maxResource = maxShare.getResource(scheduler.getClusterResource());
+
+    Resource minShare = getMinShare();
+    // Max resource should be greater than or equal to min resource
+    Resource result = Resources.componentwiseMax(maxResource, minShare);
+
+    if (!Resources.equals(maxResource, result)) {
+      LOG.warn(String.format("Queue %s has max resources %s less than "
+          + "min resources %s", getName(), maxResource, minShare));
+    }
+    return result;
+  }
+
   public Resource getReservedResource() {
     reservedResource.setMemory(metrics.getReservedMB());
     reservedResource.setVirtualCores(metrics.getReservedVirtualCores());
     return reservedResource;
-  }
-
-  @Override
-  public Resource getMaxShare() {
-    return scheduler.getAllocationConfiguration().getMaxResources(getName());
   }
 
   @VisibleForTesting
@@ -330,8 +342,7 @@ public abstract class FSQueue implements Queue, Schedulable {
             + " because it has reserved containers.");
       }
       return false;
-    } else if (!Resources.fitsIn(getResourceUsage(),
-        scheduler.getAllocationConfiguration().getMaxResources(getName()))) {
+    } else if (!Resources.fitsIn(getResourceUsage(), getMaxShare())) {
       if (LOG.isDebugEnabled()) {
         LOG.debug("Assigning container failed on node '" + node.getNodeName()
             + " because queue resource usage is larger than MaxShare: "

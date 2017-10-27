@@ -4895,7 +4895,7 @@ public class TestFairScheduler extends FairSchedulerTestBase {
     FSLeafQueue oldQueue = queueMgr.getLeafQueue("queue1", true);
     queueMgr.getLeafQueue("queue2", true);
     scheduler.getAllocationConfiguration().maxQueueResources.put("root.queue2",
-        Resource.newInstance(1024, 1));
+        new ConfigurableResource(Resource.newInstance(1024, 1)));
 
     ApplicationAttemptId appAttId =
         createSchedulingRequest(1024, 1, "queue1", "user1", 3);
@@ -5493,7 +5493,7 @@ public class TestFairScheduler extends FairSchedulerTestBase {
         scheduler.getQueueManager().getLeafQueue("parent.child1", false);
     Resource resource = Resource.newInstance(4 * GB, 4);
     scheduler.getAllocationConfiguration().
-        setMaxResources(child1.getName(), resource);
+        setMaxResources(child1.getName(), new ConfigurableResource(resource));
     FSAppAttempt app = mock(FSAppAttempt.class);
     Mockito.when(app.getDemand()).thenReturn(resource);
     Mockito.when(app.getResourceUsage()).thenReturn(resource);
@@ -5522,7 +5522,7 @@ public class TestFairScheduler extends FairSchedulerTestBase {
     FSParentQueue parent =
         scheduler.getQueueManager().getParentQueue("parent", false);
     scheduler.getAllocationConfiguration()
-        .setMaxResources(parent.getName(), resource);
+        .setMaxResources(parent.getName(), new ConfigurableResource(resource));
     parent.updateDemand();
 
     String parentQueueString = "{Name: root.parent,"
