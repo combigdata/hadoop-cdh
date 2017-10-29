@@ -20,7 +20,6 @@ package org.apache.hadoop.yarn.server.nodemanager;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
-import org.apache.hadoop.yarn.server.nodemanager.containermanager.linux.resources.ResourceHandlerChain;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -326,7 +325,7 @@ public class LinuxContainerExecutor extends ContainerExecutor {
       if (linuxContainerRuntime == null) {
         LinuxContainerRuntime runtime = new DelegatingLinuxContainerRuntime();
 
-        runtime.initialize(conf);
+        runtime.initialize(conf, nmContext);
         this.linuxContainerRuntime = runtime;
       }
     } catch (ContainerExecutionException e) {
