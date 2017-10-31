@@ -392,6 +392,10 @@ public final class HttpServer2 implements FilterContainer {
 
     Preconditions.checkNotNull(webAppContext);
 
+    if (conf.getBoolean("cloudera.disable-jsp-webui", false)) {
+      webAppContext.addFilter(DisableJspFilter.class, "*.jsp", 1);
+    }
+
     int maxThreads = conf.getInt(HTTP_MAX_THREADS, -1);
     // If HTTP_MAX_THREADS is not configured, QueueThreadPool() will use the
     // default value (currently 250).
