@@ -247,6 +247,24 @@ public class TestHttpServer extends HttpServerFunctionalTest {
   }
 
   @Test
+  public void testDisableJsp() throws Exception {
+    Configuration conf = new Configuration();
+    conf.setInt(HttpServer2.HTTP_MAX_THREADS, 10);
+    conf.setBoolean("cloudera.disable-jsp-webui", true);
+    HttpServer2 myServer = createTestServer(conf);
+    myServer.start();
+    URL myBaseUrl = getServerURL(myServer);
+    LOG.info("HTTP server started: "+ myBaseUrl);
+
+    URL servletUrl = new URL(myBaseUrl, "/testjsp.jsp");
+    HttpURLConnection conn = (HttpURLConnection)servletUrl.openConnection();
+    conn.connect();
+    assertEquals(403, conn.getResponseCode());
+
+    myServer.stop();
+  }
+
+  @Test
   public void testHttpResonseContainsXFrameOptions() throws IOException {
     URL url = new URL(baseUrl, "");
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
