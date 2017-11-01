@@ -165,7 +165,6 @@ add_executable(cetest
         main/native/container-executor/test/utils/test-path-utils.cc
         main/native/container-executor/test/modules/cgroups/test-cgroups-module.cc
         main/native/container-executor/test/modules/gpu/test-gpu-module.cc
-        main/native/container-executor/test/test_util.cc
-        main/native/container-executor/test/utils/test_docker_util.cc)
+        main/native/container-executor/test/test_util.cc)
 target_link_libraries(cetest gtest container)
 output_directory(cetest test)
