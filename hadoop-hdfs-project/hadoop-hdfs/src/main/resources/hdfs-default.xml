@@ -3073,6 +3073,19 @@
 </property>
 
 <property>
+  <name>dfs.datanode.ec.reconstruction.xmits.weight</name>
+  <value>0.5</value>
+  <description>
+    Datanode uses xmits weight to calculate the relative cost of EC recovery
+    tasks comparing to replicated block recovery, of which xmits is always 1.
+    Namenode then uses xmits reported from datanode to throttle recovery tasks
+    for EC and replicated blocks.
+    The xmits of an erasure coding recovery task is calculated as the maximum
+    value between the number of read streams and the number of write streams.
+  </description>
+</property>
+
+<property>
   <name>dfs.namenode.quota.init-threads</name>
   <value>4</value>
   <description>
@@ -4295,6 +4308,17 @@
     not be captured in next snapshot. However, if there is other modification
     made to the file/directory, the latest access time will be captured
     together with the modification in next snapshot.
+  </description>
+</property>
+
+<property>
+  <name>dfs.namenode.snapshotdiff.allow.snap-root-descendant</name>
+  <value>true</value>
+  <description>
+    If enabled, snapshotDiff command can be run for any descendant directory
+    under a snapshot root directory and the diff calculation will be scoped
+    to the given descendant directory. Otherwise, snapshot diff command can
+    only be run for a snapshot root directory.
   </description>
 </property>
 

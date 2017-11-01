@@ -15,36 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.hadoop.fs;
 
-import java.io.Serializable;
-import java.nio.ByteBuffer;
+package org.apache.hadoop.yarn.api.protocolrecords;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
+import org.apache.hadoop.yarn.util.Records;
 
 /**
- * Opaque, serializable reference to an entity in the FileSystem. May contain
- * metadata sufficient to resolve or verify subsequent accesses indepedent of
- * other modifications to the FileSystem.
+ * Request class for getting all the resource profiles from the RM.
  */
 @InterfaceAudience.Public
-@InterfaceStability.Evolving
-public interface PathHandle extends Serializable {
+@InterfaceStability.Unstable
+public abstract class GetAllResourceTypeInfoRequest {
 
-  /**
-   * @return Serialized from in bytes.
-   */
-  default byte[] toByteArray() {
-    ByteBuffer bb = bytes();
-    byte[] ret = new byte[bb.remaining()];
-    bb.get(ret);
-    return ret;
+  public static GetAllResourceTypeInfoRequest newInstance() {
+    return Records.newRecord(GetAllResourceTypeInfoRequest.class);
   }
-
-  ByteBuffer bytes();
-
-  @Override
-  boolean equals(Object other);
-
 }

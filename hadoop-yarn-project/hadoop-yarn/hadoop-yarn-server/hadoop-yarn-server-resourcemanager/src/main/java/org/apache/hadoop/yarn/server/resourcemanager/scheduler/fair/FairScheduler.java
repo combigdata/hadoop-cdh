@@ -54,7 +54,6 @@ import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 import org.apache.hadoop.yarn.server.resourcemanager.RMCriticalThreadUncaughtExceptionHandler;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore.RMState;
 import org.apache.hadoop.yarn.server.resourcemanager.reservation.ReservationConstants;
-import org.apache.hadoop.yarn.server.resourcemanager.resource.ResourceWeights;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMApp;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppEventType;
@@ -369,22 +368,21 @@ public class FairScheduler extends
     return rmContext.getContainerTokenSecretManager();
   }
 
-  public ResourceWeights getAppWeight(FSAppAttempt app) {
-    try {
+  public float getAppWeight(FSAppAttempt app) {
+    double weight = 1.0;
+
+    if (sizeBasedWeight) {
       readLock.lock();
-      double weight = 1.0;
-      if (sizeBasedWeight) {
+
+      try {
         // Set weight based on current memory demand
         weight = Math.log1p(app.getDemand().getMemorySize()) / Math.log(2);
+      } finally {
+        readLock.unlock();
       }
-      weight *= app.getPriority().getPriority();
-      ResourceWeights resourceWeights = app.getResourceWeights();
-      resourceWeights.setWeight((float) weight);
-      return resourceWeights;
-    } finally {
-      readLock.unlock();
     }
 
+    return (float)weight * app.getPriority().getPriority();
   }
 
   public Resource getIncrementResourceCapability() {
@@ -1258,8 +1256,8 @@ public class FairScheduler extends
       this.conf = new FairSchedulerConfiguration(conf);
       validateConf(this.conf);
       authorizer = YarnAuthorizationProvider.getInstance(conf);
-      minimumAllocation = this.conf.getMinimumAllocation();
-      initMaximumResourceCapability(this.conf.getMaximumAllocation());
+      minimumAllocation = super.getMinimumAllocation();
+      initMaximumResourceCapability(super.getMaximumAllocation());
       incrAllocation = this.conf.getIncrementAllocation();
       updateReservationThreshold();
       continuousSchedulingEnabled = this.conf.isContinuousSchedulingEnabled();

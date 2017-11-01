@@ -42,6 +42,8 @@ import org.apache.hadoop.yarn.api.protocolrecords.impl.pb.CancelDelegationTokenR
 import org.apache.hadoop.yarn.api.protocolrecords.impl.pb.CancelDelegationTokenResponsePBImpl;
 import org.apache.hadoop.yarn.api.protocolrecords.impl.pb.FinishApplicationMasterRequestPBImpl;
 import org.apache.hadoop.yarn.api.protocolrecords.impl.pb.FinishApplicationMasterResponsePBImpl;
+import org.apache.hadoop.yarn.api.protocolrecords.impl.pb.GetAllResourceTypeInfoRequestPBImpl;
+import org.apache.hadoop.yarn.api.protocolrecords.impl.pb.GetAllResourceTypeInfoResponsePBImpl;
 import org.apache.hadoop.yarn.api.protocolrecords.impl.pb.GetApplicationAttemptReportRequestPBImpl;
 import org.apache.hadoop.yarn.api.protocolrecords.impl.pb.GetApplicationAttemptReportResponsePBImpl;
 import org.apache.hadoop.yarn.api.protocolrecords.impl.pb.GetApplicationAttemptsRequestPBImpl;
@@ -139,9 +141,11 @@ import org.apache.hadoop.yarn.api.records.ReservationRequest;
 import org.apache.hadoop.yarn.api.records.ReservationRequests;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.ResourceAllocationRequest;
+import org.apache.hadoop.yarn.api.records.ResourceInformation;
 import org.apache.hadoop.yarn.api.records.ResourceBlacklistRequest;
 import org.apache.hadoop.yarn.api.records.ResourceOption;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
+import org.apache.hadoop.yarn.api.records.ResourceTypeInfo;
 import org.apache.hadoop.yarn.api.records.ResourceUtilization;
 import org.apache.hadoop.yarn.api.records.SerializedException;
 import org.apache.hadoop.yarn.api.records.StrictPreemptionContract;
@@ -180,12 +184,14 @@ import org.apache.hadoop.yarn.api.records.impl.pb.ResourceBlacklistRequestPBImpl
 import org.apache.hadoop.yarn.api.records.impl.pb.ResourceOptionPBImpl;
 import org.apache.hadoop.yarn.api.records.impl.pb.ResourcePBImpl;
 import org.apache.hadoop.yarn.api.records.impl.pb.ResourceRequestPBImpl;
+import org.apache.hadoop.yarn.api.records.impl.pb.ResourceTypeInfoPBImpl;
 import org.apache.hadoop.yarn.api.records.impl.pb.SerializedExceptionPBImpl;
 import org.apache.hadoop.yarn.api.records.impl.pb.StrictPreemptionContractPBImpl;
 import org.apache.hadoop.yarn.api.records.impl.pb.TokenPBImpl;
 import org.apache.hadoop.yarn.api.records.impl.pb.URLPBImpl;
 import org.apache.hadoop.yarn.api.records.impl.pb.UpdateContainerRequestPBImpl;
 import org.apache.hadoop.yarn.api.records.impl.pb.YarnClusterMetricsPBImpl;
+import org.apache.hadoop.yarn.proto.YarnProtos;
 import org.apache.hadoop.yarn.proto.YarnProtos.ApplicationAttemptIdProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.ApplicationAttemptReportProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.ApplicationIdProto;
@@ -332,6 +338,7 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.common.collect.ImmutableSet;
+import java.util.Arrays;
 
 /**
  * Test class for YARN API protocol records.
@@ -346,6 +353,8 @@ public class TestPBImplRecords extends BasePBImplRecordsTest {
     typeValueCache.put(SerializedException.class,
         SerializedException.newInstance(new IOException("exception for test")));
     generateByNewInstance(ExecutionTypeRequest.class);
+    typeValueCache.put(ResourceInformation.class, ResourceInformation
+        .newInstance("localhost.test/sample", 1l));
     generateByNewInstance(LogAggregationContext.class);
     generateByNewInstance(ApplicationId.class);
     generateByNewInstance(ApplicationAttemptId.class);
@@ -408,6 +417,7 @@ public class TestPBImplRecords extends BasePBImplRecordsTest {
     generateByNewInstance(ApplicationTimeout.class);
     generateByNewInstance(QueueConfigurations.class);
     generateByNewInstance(CollectorInfo.class);
+    generateByNewInstance(ResourceTypeInfo.class);
   }
 
   @Test
@@ -731,6 +741,8 @@ public class TestPBImplRecords extends BasePBImplRecordsTest {
 
   @Test
   public void testApplicationResourceUsageReportPBImpl() throws Exception {
+    excludedPropertiesMap.put(ApplicationResourceUsageReportPBImpl.class.getClass(),
+        Arrays.asList("PreemptedResourceSecondsMap", "ResourceSecondsMap"));
     validatePBImplRecord(ApplicationResourceUsageReportPBImpl.class,
         ApplicationResourceUsageReportProto.class);
   }
@@ -1152,5 +1164,23 @@ public class TestPBImplRecords extends BasePBImplRecordsTest {
   public void testExecutionTypeRequestPBImpl() throws Exception {
     validatePBImplRecord(ExecutionTypeRequestPBImpl.class,
         ExecutionTypeRequestProto.class);
+  }
+
+  @Test
+  public void testResourceTypesInfoPBImpl() throws Exception {
+    validatePBImplRecord(ResourceTypeInfoPBImpl.class,
+        YarnProtos.ResourceTypeInfoProto.class);
+  }
+
+  @Test
+  public void testGetAllResourceTypesInfoRequestPBImpl() throws Exception {
+    validatePBImplRecord(GetAllResourceTypeInfoRequestPBImpl.class,
+        YarnServiceProtos.GetAllResourceTypeInfoRequestProto.class);
+  }
+
+  @Test
+  public void testGetAllResourceTypesInfoResponsePBImpl() throws Exception {
+    validatePBImplRecord(GetAllResourceTypeInfoResponsePBImpl.class,
+        YarnServiceProtos.GetAllResourceTypeInfoResponseProto.class);
   }
 }
