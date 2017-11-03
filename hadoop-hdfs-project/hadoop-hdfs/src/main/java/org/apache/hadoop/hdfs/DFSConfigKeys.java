@@ -374,6 +374,13 @@ public class DFSConfigKeys extends CommonConfigurationKeys {
   public static final String DFS_NAMENODE_SNAPSHOT_SKIP_CAPTURE_ACCESSTIME_ONLY_CHANGE = "dfs.namenode.snapshot.skip.capture.accesstime-only-change";
   public static final boolean DFS_NAMENODE_SNAPSHOT_SKIP_CAPTURE_ACCESSTIME_ONLY_CHANGE_DEFAULT = false;
 
+  public static final String
+      DFS_NAMENODE_SNAPSHOT_DIFF_ALLOW_SNAP_ROOT_DESCENDANT =
+      "dfs.namenode.snapshotdiff.allow.snap-root-descendant";
+  public static final boolean
+      DFS_NAMENODE_SNAPSHOT_DIFF_ALLOW_SNAP_ROOT_DESCENDANT_DEFAULT =
+      true;
+
   // Whether to enable datanode's stale state detection and usage for reads
   public static final String DFS_NAMENODE_AVOID_STALE_DATANODE_FOR_READ_KEY = "dfs.namenode.avoid.read.stale.datanode";
   public static final boolean DFS_NAMENODE_AVOID_STALE_DATANODE_FOR_READ_DEFAULT = false;
@@ -589,6 +596,10 @@ public class DFSConfigKeys extends CommonConfigurationKeys {
   public static final int     DFS_DN_EC_RECONSTRUCTION_STRIPED_READ_TIMEOUT_MILLIS_DEFAULT = 5000; //5s
   public static final String  DFS_DN_EC_RECONSTRUCTION_THREADS_KEY = "dfs.datanode.ec.reconstruction.threads";
   public static final int     DFS_DN_EC_RECONSTRUCTION_THREADS_DEFAULT = 8;
+  public static final String  DFS_DN_EC_RECONSTRUCTION_XMITS_WEIGHT_KEY =
+      "dfs.datanode.ec.reconstruction.xmits.weight";
+  public static final float   DFS_DN_EC_RECONSTRUCTION_XMITS_WEIGHT_DEFAULT =
+      0.5f;
 
   public static final String
       DFS_DATANODE_DIRECTORYSCAN_THROTTLE_LIMIT_MS_PER_SEC_KEY =

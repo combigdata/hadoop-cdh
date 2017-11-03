@@ -61,8 +61,27 @@ public class YarnConfiguration extends Configuration {
   public static final String CORE_SITE_CONFIGURATION_FILE = "core-site.xml";
 
   @Private
+  public static final String RESOURCE_TYPES_CONFIGURATION_FILE =
+      "resource-types.xml";
+
+  @Private
+  public static final String NODE_RESOURCES_CONFIGURATION_FILE =
+      "node-resources.xml";
+
+  @Private
   public static final List<String> RM_CONFIGURATION_FILES =
       Collections.unmodifiableList(Arrays.asList(
+          RESOURCE_TYPES_CONFIGURATION_FILE,
+          DR_CONFIGURATION_FILE,
+          CS_CONFIGURATION_FILE,
+          HADOOP_POLICY_CONFIGURATION_FILE,
+          YARN_SITE_CONFIGURATION_FILE,
+          CORE_SITE_CONFIGURATION_FILE));
+
+  @Private
+  public static final List<String> NM_CONFIGURATION_FILES =
+      Collections.unmodifiableList(Arrays.asList(
+          NODE_RESOURCES_CONFIGURATION_FILE,
           DR_CONFIGURATION_FILE,
           CS_CONFIGURATION_FILE,
           HADOOP_POLICY_CONFIGURATION_FILE,
@@ -105,6 +124,16 @@ public class YarnConfiguration extends Configuration {
   //Configurations
 
   public static final String YARN_PREFIX = "yarn.";
+
+  /////////////////////////////
+  // Resource types configs
+  ////////////////////////////
+
+  public static final String RESOURCE_TYPES =
+      YarnConfiguration.YARN_PREFIX + "resource-types";
+
+  public static final String NM_RESOURCES_PREFIX =
+      YarnConfiguration.NM_PREFIX + "resource-type.";
 
   /** Delay before deleting resource to ease debugging of NM issues */
   public static final String DEBUG_NM_DELETE_DELAY_SEC =
@@ -609,6 +638,13 @@ public class YarnConfiguration extends Configuration {
   public static final  String ZK_APPID_NODE_SPLIT_INDEX =
       RM_ZK_PREFIX + "appid-node.split-index";
   public static final int DEFAULT_ZK_APPID_NODE_SPLIT_INDEX = 0;
+
+  /** Index at which the RM Delegation Token ids will be split so that the
+   * delegation token znodes stored in the zookeeper RM state store will be
+   * stored as two different znodes (parent-child). **/
+  public static final  String ZK_DELEGATION_TOKEN_NODE_SPLIT_INDEX =
+      RM_ZK_PREFIX + "delegation-token-node.split-index";
+  public static final int DEFAULT_ZK_DELEGATION_TOKEN_NODE_SPLIT_INDEX = 0;
 
   public static final String RM_ZK_ACL = RM_ZK_PREFIX + "acl";
   public static final String DEFAULT_RM_ZK_ACL = "world:anyone:rwcda";

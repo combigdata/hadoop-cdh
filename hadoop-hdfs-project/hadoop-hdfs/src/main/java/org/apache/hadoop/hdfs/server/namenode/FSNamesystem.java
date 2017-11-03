@@ -4570,9 +4570,6 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
     }
   }
 
-  /**
-   * Get the total number of objects in the system. 
-   */
   @Override // FSNamesystemMBean
   public long getMaxObjects() {
     return maxFsObjects;
@@ -4683,6 +4680,12 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
     return blockManager.getPendingDeletionReplicatedBlocks();
   }
 
+  @Override // ReplicatedBlocksMBean
+  @Metric({"TotalReplicatedBlocks", "Total number of replicated blocks"})
+  public long getTotalReplicatedBlocks() {
+    return blockManager.getTotalReplicatedBlocks();
+  }
+
   @Override // ECBlockGroupsMBean
   @Metric({"LowRedundancyECBlockGroups", "Number of erasure coded block " +
       "groups with low redundancy"})
@@ -4716,6 +4719,12 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
       "that are pending deletion"})
   public long getPendingDeletionECBlocks() {
     return blockManager.getPendingDeletionECBlocks();
+  }
+
+  @Override // ECBlockGroupsMBean
+  @Metric({"TotalECBlockGroups", "Total number of erasure coded block groups"})
+  public long getTotalECBlockGroups() {
+    return blockManager.getTotalECBlockGroups();
   }
 
   @Override

@@ -257,6 +257,11 @@ public class BlockManager implements BlockStatsMXBean {
   }
 
   /** Used by metrics. */
+  public long getTotalReplicatedBlocks() {
+    return blocksMap.getReplicatedBlocks();
+  }
+
+  /** Used by metrics. */
   public long getLowRedundancyECBlockGroups() {
     return neededReconstruction.getLowRedundancyECBlockGroups();
   }
@@ -274,6 +279,11 @@ public class BlockManager implements BlockStatsMXBean {
   /** Used by metrics. */
   public long getPendingDeletionECBlocks() {
     return invalidateBlocks.getECBlocks();
+  }
+
+  /** Used by metrics. */
+  public long getTotalECBlockGroups() {
+    return blocksMap.getECBlockGroups();
   }
 
   /**
@@ -3883,11 +3893,15 @@ public class BlockManager implements BlockStatsMXBean {
       throw new IOException(
           "Got incremental block report from unregistered or dead node");
     }
+
+    boolean successful = false;
     try {
       processIncrementalBlockReport(node, srdb);
-    } catch (Exception ex) {
-      node.setForceRegistration(true);
-      throw ex;
+      successful = true;
+    } finally {
+      if (!successful) {
+        node.setForceRegistration(true);
+      }
     }
   }
 

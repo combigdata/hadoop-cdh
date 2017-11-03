@@ -35,8 +35,6 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.AbstractMap.SimpleEntry;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.conf.Configuration;
@@ -80,12 +78,15 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import org.apache.hadoop.yarn.util.resource.Resources;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Private
 @Unstable
 public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
 
-  private static final Log LOG = LogFactory.getLog(AMRMClientImpl.class);
+  private static final Logger LOG =
+          LoggerFactory.getLogger(AMRMClientImpl.class);
   private static final List<String> ANY_LIST =
       Collections.singletonList(ResourceRequest.ANY);
   
@@ -149,12 +150,7 @@ public class AMRMClientImpl<T extends ContainerRequest> extends AMRMClient<T> {
   }
 
   static boolean canFit(Resource arg0, Resource arg1) {
-    long mem0 = arg0.getMemorySize();
-    long mem1 = arg1.getMemorySize();
-    long cpu0 = arg0.getVirtualCores();
-    long cpu1 = arg1.getVirtualCores();
-    
-    return (mem0 <= mem1 && cpu0 <= cpu1);
+    return Resources.fitsIn(arg0, arg1);
   }
 
   private final Map<Long, RemoteRequestsTable<T>> remoteRequests =

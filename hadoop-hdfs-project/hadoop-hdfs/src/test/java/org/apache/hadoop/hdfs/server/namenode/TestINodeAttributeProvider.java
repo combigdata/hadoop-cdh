@@ -347,6 +347,11 @@ public class TestINodeAttributeProvider {
     Assert.assertEquals(2, xAttrs.get("user.test").length);
   }
 
+  /**
+   * With the custom provider configured, verify file status attributes.
+   * A superuser can bypass permission check while resolving paths. So,
+   * verify file status for both superuser and non-superuser.
+   */
   @Test
   public void testCustomProvider() throws Exception {
     final UserGroupInformation[] users = new UserGroupInformation[]{

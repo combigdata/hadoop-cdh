@@ -28,8 +28,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.conf.Configuration;
@@ -43,6 +41,7 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.yarn.api.ApplicationClientProtocol;
 import org.apache.hadoop.yarn.api.protocolrecords.FailApplicationAttemptRequest;
+import org.apache.hadoop.yarn.api.protocolrecords.GetAllResourceTypeInfoRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.GetApplicationAttemptReportRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.GetApplicationAttemptReportResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.GetApplicationAttemptsRequest;
@@ -101,6 +100,8 @@ import org.apache.hadoop.yarn.api.records.NodeState;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.QueueInfo;
 import org.apache.hadoop.yarn.api.records.QueueUserACLInfo;
+import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.ResourceTypeInfo;
 import org.apache.hadoop.yarn.api.records.SignalContainerCommand;
 import org.apache.hadoop.yarn.api.records.Token;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
@@ -123,12 +124,15 @@ import org.apache.hadoop.yarn.util.Records;
 import org.apache.hadoop.yarn.util.timeline.TimelineUtils;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Private
 @Unstable
 public class YarnClientImpl extends YarnClient {
 
-  private static final Log LOG = LogFactory.getLog(YarnClientImpl.class);
+  private static final Logger LOG = LoggerFactory
+          .getLogger(YarnClientImpl.class);
 
   protected ApplicationClientProtocol rmClient;
   protected long submitPollIntervalMillis;
@@ -936,5 +940,13 @@ public class YarnClientImpl extends YarnClient {
       UpdateApplicationTimeoutsRequest request)
       throws YarnException, IOException {
     return rmClient.updateApplicationTimeouts(request);
+  }
+
+  @Override
+  public List<ResourceTypeInfo> getResourceTypeInfo()
+      throws YarnException, IOException {
+    GetAllResourceTypeInfoRequest request =
+        GetAllResourceTypeInfoRequest.newInstance();
+    return rmClient.getResourceTypeInfo(request).getResourceTypeInfo();
   }
 }
