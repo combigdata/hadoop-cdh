@@ -70,4 +70,14 @@ class BufferedMutatorDelegator<T> implements TypedBufferedMutator<T> {
     return bufferedMutator.getWriteBufferSize();
   }
 
+  @Override
+  public void setRpcTimeout(int i) {
+    bufferedMutator.setRpcTimeout(i);
+  }
+
+  @Override
+  public void setOperationTimeout(int i) {
+    bufferedMutator.setOperationTimeout(i);
+  }
+
 }

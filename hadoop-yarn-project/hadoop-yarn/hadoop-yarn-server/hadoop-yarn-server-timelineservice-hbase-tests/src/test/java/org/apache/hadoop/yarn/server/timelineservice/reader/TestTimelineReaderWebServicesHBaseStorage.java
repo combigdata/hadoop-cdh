@@ -54,6 +54,7 @@ import org.apache.hadoop.yarn.server.timelineservice.storage.common.HBaseTimelin
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.common.collect.ImmutableMap;
@@ -1251,6 +1252,7 @@ public class TestTimelineReaderWebServicesHBaseStorage
     }
   }
 
+  @Ignore
   @Test
   public void testGetEntitiesConfigFilters() throws Exception {
     Client client = createClient();
@@ -1481,6 +1483,7 @@ public class TestTimelineReaderWebServicesHBaseStorage
     }
   }
 
+  @Ignore
   @Test
   public void testGetEntitiesMetricFilters() throws Exception {
     Client client = createClient();

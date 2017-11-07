@@ -28,11 +28,13 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.ArrayBackedTag;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.Tag;
+import org.apache.hadoop.hbase.TagUtil;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
 import org.apache.hadoop.hbase.regionserver.InternalScanner;
@@ -120,7 +122,7 @@ class FlowScanner implements RegionScanner, Closeable {
    */
   @Override
   public HRegionInfo getRegionInfo() {
-    return region.getRegionInfo();
+    return new HRegionInfo(region.getRegionInfo());
   }
 
   @Override
@@ -247,7 +249,7 @@ class FlowScanner implements RegionScanner, Closeable {
   }
 
   private AggregationOperation getCurrentAggOp(Cell cell) {
-    List<Tag> tags = Tag.asList(cell.getTagsArray(), cell.getTagsOffset(),
+    List<Tag> tags = TagUtil.asList(cell.getTagsArray(), cell.getTagsOffset(),
         cell.getTagsLength());
     // We assume that all the operations for a particular column are the same
     return HBaseTimelineStorageUtils.getAggregationOperationFromTagsList(tags);
@@ -322,7 +324,7 @@ class FlowScanner implements RegionScanner, Closeable {
       }
 
       // only if this app has not been seen yet, add to current column cells
-      List<Tag> tags = Tag.asList(cell.getTagsArray(), cell.getTagsOffset(),
+      List<Tag> tags = TagUtil.asList(cell.getTagsArray(), cell.getTagsOffset(),
           cell.getTagsLength());
       String aggDim = HBaseTimelineStorageUtils
           .getAggregationCompactionDimension(tags);
@@ -460,7 +462,7 @@ class FlowScanner implements RegionScanner, Closeable {
     for (Cell cell : currentColumnCells) {
       AggregationOperation cellAggOp = getCurrentAggOp(cell);
       // if this is the existing flow sum cell
-      List<Tag> tags = Tag.asList(cell.getTagsArray(), cell.getTagsOffset(),
+      List<Tag> tags = TagUtil.asList(cell.getTagsArray(), cell.getTagsOffset(),
           cell.getTagsLength());
       String appId = HBaseTimelineStorageUtils
           .getAggregationCompactionDimension(tags);
@@ -497,13 +499,13 @@ class FlowScanner implements RegionScanner, Closeable {
     if (summationDone) {
       Cell anyCell = currentColumnCells.first();
       List<Tag> tags = new ArrayList<Tag>();
-      Tag t = new Tag(AggregationOperation.SUM_FINAL.getTagType(),
+      Tag t = new ArrayBackedTag(AggregationOperation.SUM_FINAL.getTagType(),
           Bytes.toBytes(FLOW_APP_ID));
       tags.add(t);
-      t = new Tag(AggregationCompactionDimension.APPLICATION_ID.getTagType(),
+      t = new ArrayBackedTag(AggregationCompactionDimension.APPLICATION_ID.getTagType(),
           Bytes.toBytes(FLOW_APP_ID));
       tags.add(t);
-      byte[] tagByteArray = Tag.fromList(tags);
+      byte[] tagByteArray = TagUtil.fromList(tags);
       Cell sumCell = HBaseTimelineStorageUtils.createNewCell(
           CellUtil.cloneRow(anyCell),
           CellUtil.cloneFamily(anyCell),

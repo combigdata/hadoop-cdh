@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.ArrayBackedTag;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.HBaseConfiguration;
@@ -32,6 +33,7 @@ import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.Tag;
 import org.apache.hadoop.hbase.client.Query;
+import org.apache.hadoop.hbase.TagUtil;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
@@ -141,7 +143,7 @@ public final class HBaseTimelineStorageUtils {
     AggregationOperation aggOp = AggregationOperation
         .getAggregationOperation(attribute.getKey());
     if (aggOp != null) {
-      Tag t = new Tag(aggOp.getTagType(), attribute.getValue());
+      Tag t = new ArrayBackedTag(aggOp.getTagType(), attribute.getValue());
       return t;
     }
 
@@ -149,7 +151,7 @@ public final class HBaseTimelineStorageUtils {
         AggregationCompactionDimension.getAggregationCompactionDimension(
             attribute.getKey());
     if (aggCompactDim != null) {
-      Tag t = new Tag(aggCompactDim.getTagType(), attribute.getValue());
+      Tag t = new ArrayBackedTag(aggCompactDim.getTagType(), attribute.getValue());
       return t;
     }
     return null;
@@ -199,7 +201,7 @@ public final class HBaseTimelineStorageUtils {
     for (Tag t : tags) {
       if (AggregationCompactionDimension.APPLICATION_ID.getTagType() == t
           .getType()) {
-        appId = Bytes.toString(t.getValue());
+        appId = Bytes.toString(TagUtil.cloneValue(t));
         return appId;
       }
     }

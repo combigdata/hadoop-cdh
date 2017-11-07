@@ -40,6 +40,7 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.regionserver.HRegion;
 import org.apache.hadoop.hbase.regionserver.HRegionServer;
 import org.apache.hadoop.hbase.regionserver.Region;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -129,8 +130,8 @@ public class TestHBaseStorageFlowRun {
   private void checkCoprocessorExists(TableName table, boolean exists)
       throws IOException, InterruptedException {
     HRegionServer server = util.getRSForFirstRegionInTable(table);
-    List<Region> regions = server.getOnlineRegions(table);
-    for (Region region : regions) {
+    List<HRegion> regions = server.getRegions(table);
+    for (HRegion region : regions) {
       boolean found = false;
       Set<String> coprocs = region.getCoprocessorHost().getCoprocessors();
       for (String coprocName : coprocs) {

@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Optional;
 import java.util.TreeMap;
 
 import org.apache.hadoop.hbase.Cell;
@@ -30,22 +31,25 @@ import org.apache.hadoop.hbase.CoprocessorEnvironment;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.Tag;
+import org.apache.hadoop.hbase.TagUtil;
 import org.apache.hadoop.hbase.client.Durability;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Scan;
-import org.apache.hadoop.hbase.coprocessor.BaseRegionObserver;
 import org.apache.hadoop.hbase.coprocessor.ObserverContext;
+import org.apache.hadoop.hbase.coprocessor.RegionCoprocessor;
 import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
+import org.apache.hadoop.hbase.coprocessor.RegionObserver;
+import org.apache.hadoop.hbase.regionserver.FlushLifeCycleTracker;
 import org.apache.hadoop.hbase.regionserver.Region;
 import org.apache.hadoop.hbase.regionserver.InternalScanner;
 import org.apache.hadoop.hbase.regionserver.RegionScanner;
 import org.apache.hadoop.hbase.regionserver.ScanType;
 import org.apache.hadoop.hbase.regionserver.Store;
-import org.apache.hadoop.hbase.regionserver.StoreFile;
+import org.apache.hadoop.hbase.regionserver.compactions.CompactionLifeCycleTracker;
 import org.apache.hadoop.hbase.regionserver.compactions.CompactionRequest;
-import org.apache.hadoop.hbase.regionserver.wal.WALEdit;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.hbase.wal.WALEdit;
 import org.apache.hadoop.yarn.server.timelineservice.storage.common.HBaseTimelineStorageUtils;
 import org.apache.hadoop.yarn.server.timelineservice.storage.common.TimestampGenerator;
 import org.slf4j.Logger;
@@ -54,7 +58,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Coprocessor for flow run table.
  */
-public class FlowRunCoprocessor extends BaseRegionObserver {
+public class FlowRunCoprocessor implements RegionObserver, RegionCoprocessor{
 
   private static final Logger LOG =
       LoggerFactory.getLogger(FlowRunCoprocessor.class);
@@ -72,6 +76,11 @@ public class FlowRunCoprocessor extends BaseRegionObserver {
       RegionCoprocessorEnvironment env = (RegionCoprocessorEnvironment) e;
       this.region = env.getRegion();
     }
+  }
+
+  @Override
+  public Optional<RegionObserver> getRegionObserver() {
+    return Optional.of(this);
   }
 
   /*
@@ -100,7 +109,7 @@ public class FlowRunCoprocessor extends BaseRegionObserver {
         Tag t = HBaseTimelineStorageUtils.getTagFromAttribute(attribute);
         tags.add(t);
       }
-      byte[] tagByteArray = Tag.fromList(tags);
+      byte[] tagByteArray = TagUtil.fromList(tags);
       NavigableMap<byte[], List<Cell>> newFamilyMap = new TreeMap<>(
           Bytes.BYTES_COMPARATOR);
       for (Map.Entry<byte[], List<Cell>> entry : put.getFamilyCellMap()
@@ -188,13 +197,12 @@ public class FlowRunCoprocessor extends BaseRegionObserver {
    * org.apache.hadoop.hbase.regionserver.RegionScanner)
    */
   @Override
-  public RegionScanner preScannerOpen(
-      ObserverContext<RegionCoprocessorEnvironment> e, Scan scan,
-      RegionScanner scanner) throws IOException {
+  public void preScannerOpen(
+      ObserverContext<RegionCoprocessorEnvironment> e, Scan scan)
+      throws IOException {
     // set max versions for scan to see all
     // versions to aggregate for metrics
     scan.setMaxVersions();
-    return scanner;
   }
 
   /*
@@ -220,7 +228,8 @@ public class FlowRunCoprocessor extends BaseRegionObserver {
   @Override
   public InternalScanner preFlush(
       ObserverContext<RegionCoprocessorEnvironment> c, Store store,
-      InternalScanner scanner) throws IOException {
+      InternalScanner scanner, FlushLifeCycleTracker tracker)
+      throws IOException {
     if (LOG.isDebugEnabled()) {
       if (store != null) {
         LOG.debug("preFlush store = " + store.getColumnFamilyName()
@@ -228,8 +237,7 @@ public class FlowRunCoprocessor extends BaseRegionObserver {
             + " flushedCellsCount=" + store.getFlushedCellsCount()
             + " compactedCellsCount=" + store.getCompactedCellsCount()
             + " majorCompactedCellsCount="
-            + store.getMajorCompactedCellsCount() + " memstoreFlushSize="
-            + store.getMemstoreFlushSize() + " memstoreSize="
+            + store.getMajorCompactedCellsCount() + " memstoreSize="
             + store.getMemStoreSize() + " size=" + store.getSize()
             + " storeFilesCount=" + store.getStorefilesCount());
       }
@@ -239,27 +247,10 @@ public class FlowRunCoprocessor extends BaseRegionObserver {
   }
 
   @Override
-  public void postFlush(ObserverContext<RegionCoprocessorEnvironment> c,
-      Store store, StoreFile resultFile) {
-    if (LOG.isDebugEnabled()) {
-      if (store != null) {
-        LOG.debug("postFlush store = " + store.getColumnFamilyName()
-            + " flushableSize=" + store.getFlushableSize()
-            + " flushedCellsCount=" + store.getFlushedCellsCount()
-            + " compactedCellsCount=" + store.getCompactedCellsCount()
-            + " majorCompactedCellsCount="
-            + store.getMajorCompactedCellsCount() + " memstoreFlushSize="
-            + store.getMemstoreFlushSize() + " memstoreSize="
-            + store.getMemStoreSize() + " size=" + store.getSize()
-            + " storeFilesCount=" + store.getStorefilesCount());
-      }
-    }
-  }
-
-  @Override
   public InternalScanner preCompact(
       ObserverContext<RegionCoprocessorEnvironment> e, Store store,
-      InternalScanner scanner, ScanType scanType, CompactionRequest request)
+      InternalScanner scanner, ScanType scanType,
+      CompactionLifeCycleTracker tracker, CompactionRequest request)
       throws IOException {
 
     FlowScannerOperation requestOp = FlowScannerOperation.MINOR_COMPACTION;
