@@ -99,3 +99,6 @@ org/apache/hadoop/yarn/server/nodemanager/nodelabels/TestConfigurationNodeLabels
 org/apache/hadoop/yarn/server/nodemanager/nodelabels/TestScriptBasedNodeLabelsProvider.java
 org/apache/hadoop/yarn/server/resourcemanager/webapp/TestRMWebServicesNodeLabels.java
 org/apache/hadoop/yarn/server/resourcemanager/TestRMHAForNodeLabels.java
+
+# Disable unit tests for continuous scheduling because it is not supported in C6.
+org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/TestContinuousScheduling.java
