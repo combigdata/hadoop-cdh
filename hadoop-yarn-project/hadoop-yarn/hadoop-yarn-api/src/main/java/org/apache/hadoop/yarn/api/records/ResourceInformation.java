@@ -55,6 +55,11 @@ public class ResourceInformation implements Comparable<ResourceInformation> {
   /**
    * Set the name for the resource.
    *
+   * A valid resource name must begin with a letter and contain only letters,
+   * numbers, and any of: '.', '_', or '-'. A valid resource name may also be
+   * optionally preceded by a name space followed by a slash. A valid name space
+   * consists of period-separated groups of letters, numbers, and dashes."
+   *
    * @param rName name for the resource
    */
   public void setName(String rName) {
@@ -202,6 +207,12 @@ public class ResourceInformation implements Comparable<ResourceInformation> {
     return ResourceInformation
         .newInstance(name, units, 0L, ResourceTypes.COUNTABLE, 0L,
             Long.MAX_VALUE);
+  }
+
+  public static ResourceInformation newInstance(String name, String units,
+      ResourceTypes resourceType) {
+    return ResourceInformation.newInstance(name, units, 0L, resourceType, 0L,
+        Long.MAX_VALUE);
   }
 
   public static ResourceInformation newInstance(String name, long value) {

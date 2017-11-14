@@ -20,10 +20,6 @@ package org.apache.hadoop.yarn.util.resource;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang.StringUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.classification.InterfaceAudience;
-import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.yarn.api.protocolrecords.ResourceTypes;
 import org.apache.hadoop.yarn.api.records.Resource;
@@ -34,6 +30,8 @@ import org.apache.hadoop.yarn.conf.ConfigurationProviderFactory;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -64,6 +62,10 @@ public class ResourceUtils {
   private static final Pattern RESOURCE_REQUEST_VALUE_PATTERN =
       Pattern.compile("^([0-9]+) ?([a-zA-Z]*)$");
 
+  private static final Pattern RESOURCE_NAME_PATTERN = Pattern.compile(
+      "^(((\\p{Alnum}([\\p{Alnum}-]*\\p{Alnum})?\\.)*"
+          + "\\p{Alnum}([\\p{Alnum}-]*\\p{Alnum})?)/)?\\p{Alpha}([\\w.-]*)$");
+
   private static volatile boolean initializedResources = false;
   private static final Map<String, Integer> RESOURCE_NAME_TO_INDEX =
       new ConcurrentHashMap<String, Integer>();
@@ -73,7 +75,7 @@ public class ResourceUtils {
   private static volatile Map<String, ResourceInformation> readOnlyNodeResources;
   private static volatile int numKnownResourceTypes = -1;
 
-  static final Log LOG = LogFactory.getLog(ResourceUtils.class);
+  static final Logger LOG = LoggerFactory.getLogger(ResourceUtils.class);
 
   private ResourceUtils() {
   }
@@ -122,19 +124,21 @@ public class ResourceUtils {
       Map<String, ResourceInformation> res) {
     ResourceInformation ri;
     if (!res.containsKey(MEMORY)) {
-      LOG.info("Adding resource type - name = " + MEMORY + ", units = "
-          + ResourceInformation.MEMORY_MB.getUnits() + ", type = "
-          + ResourceTypes.COUNTABLE);
-      ri = ResourceInformation
-          .newInstance(MEMORY,
-              ResourceInformation.MEMORY_MB.getUnits());
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Adding resource type - name = " + MEMORY + ", units = "
+            + ResourceInformation.MEMORY_MB.getUnits() + ", type = "
+            + ResourceTypes.COUNTABLE);
+      }
+      ri = ResourceInformation.newInstance(MEMORY,
+          ResourceInformation.MEMORY_MB.getUnits());
       res.put(MEMORY, ri);
     }
     if (!res.containsKey(VCORES)) {
-      LOG.info("Adding resource type - name = " + VCORES + ", units = , type = "
-          + ResourceTypes.COUNTABLE);
-      ri =
-          ResourceInformation.newInstance(VCORES);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Adding resource type - name = " + VCORES
+            + ", units = , type = " + ResourceTypes.COUNTABLE);
+      }
+      ri = ResourceInformation.newInstance(VCORES);
       res.put(VCORES, ri);
     }
   }
@@ -210,6 +214,23 @@ public class ResourceUtils {
   }
 
   @VisibleForTesting
+  static void validateNameOfResourceNameAndThrowException(String resourceName)
+      throws YarnRuntimeException {
+    Matcher matcher = RESOURCE_NAME_PATTERN.matcher(resourceName);
+    if (!matcher.matches()) {
+      String message = String.format(
+          "'%s' is not a valid resource name. A valid resource name must"
+              + " begin with a letter and contain only letters, numbers, "
+              + "and any of: '.', '_', or '-'. A valid resource name may also"
+              + " be optionally preceded by a name space followed by a slash."
+              + " A valid name space consists of period-separated groups of"
+              + " letters, numbers, and dashes.",
+          resourceName);
+      throw new YarnRuntimeException(message);
+    }
+  }
+
+  @VisibleForTesting
   static void initializeResourcesMap(Configuration conf) {
 
     Map<String, ResourceInformation> resourceInformationMap = new HashMap<>();
@@ -247,6 +268,11 @@ public class ResourceUtils {
       }
     }
 
+    // Validate names of resource information map.
+    for (String name : resourceInformationMap.keySet()) {
+      validateNameOfResourceNameAndThrowException(name);
+    }
+
     checkMandatoryResources(resourceInformationMap);
     addMandatoryResources(resourceInformationMap);
 
@@ -268,6 +294,7 @@ public class ResourceUtils {
     updateKnownResources();
     updateResourceTypeIndex();
     initializedResources = true;
+    numKnownResourceTypes = resourceTypes.size();
   }
 
   private static void updateKnownResources() {
@@ -342,17 +369,14 @@ public class ResourceUtils {
     if (!initializedResources) {
       synchronized (ResourceUtils.class) {
         if (!initializedResources) {
-          if (conf == null) {
-            conf = new YarnConfiguration();
-          }
-          try {
-            addResourcesFileToConf(resourceFile, conf);
-            LOG.debug("Found " + resourceFile + ", adding to configuration");
-          } catch (FileNotFoundException fe) {
-            LOG.debug("Unable to find '" + resourceFile + "'.");
+          Configuration resConf = conf;
+
+          if (resConf == null) {
+            resConf = new YarnConfiguration();
           }
 
-          initializeResourcesMap(conf);
+          addResourcesFileToConf(resourceFile, resConf);
+          initializeResourcesMap(resConf);
         }
       }
     }
@@ -389,21 +413,19 @@ public class ResourceUtils {
   }
 
   private static void addResourcesFileToConf(String resourceFile,
-      Configuration conf) throws FileNotFoundException {
+      Configuration conf) {
     try {
       InputStream ris = getConfInputStream(resourceFile, conf);
-      LOG.debug("Found " + resourceFile + ", adding to configuration");
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Found " + resourceFile + ", adding to configuration");
+      }
       conf.addResource(ris);
     } catch (FileNotFoundException fe) {
-      throw fe;
-    } catch (IOException ie) {
-      LOG.fatal("Exception trying to read resource types configuration '"
-          + resourceFile + "'.", ie);
-      throw new YarnRuntimeException(ie);
-    } catch (YarnException ye) {
-      LOG.fatal("YARN Exception trying to read resource types configuration '"
-          + resourceFile + "'.", ye);
-      throw new YarnRuntimeException(ye);
+      LOG.info("Unable to find '" + resourceFile + "'.");
+    } catch (IOException | YarnException ex) {
+      LOG.error("Exception trying to read resource types configuration '"
+          + resourceFile + "'.", ex);
+      throw new YarnRuntimeException(ex);
     }
   }
 
@@ -465,19 +487,19 @@ public class ResourceUtils {
   private static Map<String, ResourceInformation> initializeNodeResourceInformation(
       Configuration conf) {
     Map<String, ResourceInformation> nodeResources = new HashMap<>();
-    try {
-      addResourcesFileToConf(
-          YarnConfiguration.NODE_RESOURCES_CONFIGURATION_FILE, conf);
-      for (Map.Entry<String, String> entry : conf) {
-        String key = entry.getKey();
-        String value = entry.getValue();
-        if (key.startsWith(YarnConfiguration.NM_RESOURCES_PREFIX)) {
-          addResourceInformation(key, value, nodeResources);
-        }
+
+    addResourcesFileToConf(YarnConfiguration.NODE_RESOURCES_CONFIGURATION_FILE,
+        conf);
+
+    for (Map.Entry<String, String> entry : conf) {
+      String key = entry.getKey();
+      String value = entry.getValue();
+
+      if (key.startsWith(YarnConfiguration.NM_RESOURCES_PREFIX)) {
+        addResourceInformation(key, value, nodeResources);
       }
-    } catch (FileNotFoundException fe) {
-      LOG.info("Couldn't find node resources file");
     }
+
     return nodeResources;
   }
 
@@ -496,8 +518,10 @@ public class ResourceUtils {
           Long.valueOf(value.substring(0, value.length() - units.length()));
       nodeResources.get(resourceType).setValue(resourceValue);
       nodeResources.get(resourceType).setUnits(units);
-      LOG.debug("Setting value for resource type " + resourceType + " to "
-              + resourceValue + " with units " + units);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Setting value for resource type " + resourceType + " to "
+            + resourceValue + " with units " + units);
+      }
     }
   }
 
@@ -617,4 +641,25 @@ public class ResourceUtils {
     return result;
   }
 
+
+  /**
+   * Reinitialize all resource types from external source (in case of client,
+   * server will send the updated list and local resourceutils cache will be
+   * updated as per server's list of resources)
+   *
+   * @param resourceTypeInfo
+   *          List of resource types
+   */
+  public static void reinitializeResources(
+      List<ResourceTypeInfo> resourceTypeInfo) {
+    Map<String, ResourceInformation> resourceInformationMap = new HashMap<>();
+
+    for (ResourceTypeInfo resourceType : resourceTypeInfo) {
+      resourceInformationMap.put(resourceType.getName(),
+          ResourceInformation.newInstance(resourceType.getName(),
+              resourceType.getDefaultUnit(), resourceType.getResourceType()));
+    }
+    ResourceUtils
+        .initializeResourcesFromResourceInformationMap(resourceInformationMap);
+  }
 }
