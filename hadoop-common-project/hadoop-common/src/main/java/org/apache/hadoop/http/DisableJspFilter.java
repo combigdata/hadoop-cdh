@@ -31,7 +31,7 @@ public class DisableJspFilter implements Filter {
     final String msg = "JSP web UI has been disabled.";
     LOG.warn(msg + " Rejecting request " + servletRequest);
     ((HttpServletResponse)servletResponse).sendError(
-        HttpServletResponse.SC_FORBIDDEN, msg);
+        HttpServletResponse.SC_GONE, msg);
   }
 
   @Override
