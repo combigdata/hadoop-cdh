@@ -259,7 +259,7 @@ public class TestHttpServer extends HttpServerFunctionalTest {
     URL servletUrl = new URL(myBaseUrl, "/testjsp.jsp");
     HttpURLConnection conn = (HttpURLConnection)servletUrl.openConnection();
     conn.connect();
-    assertEquals(403, conn.getResponseCode());
+    assertEquals(410, conn.getResponseCode());
 
     myServer.stop();
   }
