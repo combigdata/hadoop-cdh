@@ -59,4 +59,6 @@ public class DFSClientFaultInjector {
   public void readFromDatanodeDelay() {}
 
   public void sleepBeforeHedgedGet() {}
+
+  public void delayWhenRenewLeaseTimeout() {}
 }
