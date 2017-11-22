@@ -30,6 +30,7 @@ import java.util.Map;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.HadoopIllegalArgumentException;
+import org.apache.hadoop.hdfs.DFSClientFaultInjector;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.Daemon;
@@ -71,7 +72,7 @@ import com.google.common.annotations.VisibleForTesting;
 class LeaseRenewer {
   static final Log LOG = LogFactory.getLog(LeaseRenewer.class);
 
-  static final long LEASE_RENEWER_GRACE_DEFAULT = 60*1000L;
+  private static long leaseRenewerGraceDefault = 60*1000L;
   static final long LEASE_RENEWER_SLEEP_DEFAULT = 1000L;
 
   /** Get a {@link LeaseRenewer} instance */
@@ -151,9 +152,7 @@ class LeaseRenewer {
       final LeaseRenewer stored = renewers.get(r.factorykey);
       //Since a renewer may expire, the stored renewer can be different.
       if (r == stored) {
-        if (!r.clientsRunning()) {
-          renewers.remove(r.factorykey);
-        }
+        renewers.remove(r.factorykey);
       }
     }
   }
@@ -196,7 +195,7 @@ class LeaseRenewer {
 
   private LeaseRenewer(Factory.Key factorykey) {
     this.factorykey = factorykey;
-    unsyncSetGraceSleepPeriod(LEASE_RENEWER_GRACE_DEFAULT);
+    unsyncSetGraceSleepPeriod(leaseRenewerGraceDefault);
     
     if (LOG.isTraceEnabled()) {
       instantiationTrace = StringUtils.stringifyException(
@@ -287,8 +286,7 @@ class LeaseRenewer {
         && Time.now() - emptyTime > gracePeriod;
   }
 
-  synchronized void put(final long inodeId, final DFSOutputStream out,
-      final DFSClient dfsc) {
+  public synchronized void put(final DFSClient dfsc) {
     if (dfsc.isClientRunning()) {
       if (!isRunning() || isRenewerExpired()) {
         //start a new deamon with a new id.
@@ -325,7 +323,6 @@ class LeaseRenewer {
         });
         daemon.start();
       }
-      dfsc.putFileBeingWritten(inodeId, out);
       emptyTime = Long.MAX_VALUE;
     }
   }
@@ -333,28 +330,6 @@ class LeaseRenewer {
   @VisibleForTesting
   synchronized void setEmptyTime(long time) {
     emptyTime = time;
-  }
-
-  /** Close a file. */
-  void closeFile(final long inodeId, final DFSClient dfsc) {
-    dfsc.removeFileBeingWritten(inodeId);
-
-    synchronized(this) {
-      if (dfsc.isFilesBeingWrittenEmpty()) {
-        dfsclients.remove(dfsc);
-      }
-      //update emptyTime if necessary
-      if (emptyTime == Long.MAX_VALUE) {
-        for(DFSClient c : dfsclients) {
-          if (!c.isFilesBeingWrittenEmpty()) {
-            //found a non-empty file-being-written map
-            return;
-          }
-        }
-        //discover the first time that all file-being-written maps are empty.
-        emptyTime = Time.now();
-      }
-    }
   }
 
   /** Close the given client. */
@@ -454,14 +429,17 @@ class LeaseRenewer {
         } catch (SocketTimeoutException ie) {
           LOG.warn("Failed to renew lease for " + clientsString() + " for "
               + (elapsed/1000) + " seconds.  Aborting ...", ie);
+          List<DFSClient> dfsclientsCopy;
           synchronized (this) {
-            while (!dfsclients.isEmpty()) {
-              DFSClient dfsClient = dfsclients.get(0);
-              dfsClient.closeAllFilesBeingWritten(true);
-              closeClient(dfsClient);
-            }
+            DFSClientFaultInjector.get().delayWhenRenewLeaseTimeout();
+            dfsclientsCopy = new ArrayList<>(dfsclients);
+            dfsclients.clear();
             //Expire the current LeaseRenewer thread.
             emptyTime = 0;
+            Factory.INSTANCE.remove(LeaseRenewer.this);
+          }
+          for (DFSClient dfsClient : dfsclientsCopy) {
+            dfsClient.closeAllFilesBeingWritten(true);
           }
           break;
         } catch (IOException ie) {
@@ -517,5 +495,11 @@ class LeaseRenewer {
       }
       return b.append("]").toString();
     }
+  }
+
+  @VisibleForTesting
+  public static void setLeaseRenewerGraceDefault(
+      long leaseRenewerGraceDefault) {
+    LeaseRenewer.leaseRenewerGraceDefault = leaseRenewerGraceDefault;
   }
 }
