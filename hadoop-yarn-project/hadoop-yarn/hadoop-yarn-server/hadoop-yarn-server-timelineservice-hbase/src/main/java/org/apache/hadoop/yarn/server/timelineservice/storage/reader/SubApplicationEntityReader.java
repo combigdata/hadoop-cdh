@@ -246,7 +246,8 @@ class SubApplicationEntityReader extends GenericEntityReader {
    * @throws IOException if any problem occurs while updating filter list.
    */
   private void updateFilterForConfsAndMetricsToRetrieve(
-      FilterList listBasedOnFields) throws IOException {
+      FilterList listBasedOnFields, Set<String> cfsInFields)
+      throws IOException {
     TimelineDataToRetrieve dataToRetrieve = getDataToRetrieve();
     // Please note that if confsToRetrieve is specified, we would have added
     // CONFS to fields to retrieve in augmentParams() even if not specified.
@@ -257,6 +258,8 @@ class SubApplicationEntityReader extends GenericEntityReader {
               dataToRetrieve.getConfsToRetrieve(),
               SubApplicationColumnFamily.CONFIGS,
               SubApplicationColumnPrefix.CONFIG));
+      cfsInFields.add(
+          new String(SubApplicationColumnFamily.CONFIGS.getBytes()));
     }
 
     // Please note that if metricsToRetrieve is specified, we would have added
@@ -268,11 +271,14 @@ class SubApplicationEntityReader extends GenericEntityReader {
               dataToRetrieve.getMetricsToRetrieve(),
               SubApplicationColumnFamily.METRICS,
               SubApplicationColumnPrefix.METRIC));
+      cfsInFields.add(
+          new String(SubApplicationColumnFamily.METRICS.getBytes()));
     }
   }
 
   @Override
-  protected FilterList constructFilterListBasedOnFields() throws IOException {
+  protected FilterList constructFilterListBasedOnFields(Set<String> cfsInFields)
+      throws IOException {
     if (!needCreateFilterListBasedOnFields()) {
       // Fetch all the columns. No need of a filter.
       return null;
@@ -292,7 +298,8 @@ class SubApplicationEntityReader extends GenericEntityReader {
       excludeFieldsFromInfoColFamily(infoColFamilyList);
     }
     listBasedOnFields.addFilter(infoColFamilyList);
-    updateFilterForConfsAndMetricsToRetrieve(listBasedOnFields);
+    cfsInFields.add(new String(SubApplicationColumnFamily.INFO.getBytes()));
+    updateFilterForConfsAndMetricsToRetrieve(listBasedOnFields, cfsInFields);
     return listBasedOnFields;
   }
 

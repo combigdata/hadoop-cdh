@@ -347,7 +347,8 @@ class GenericEntityReader extends TimelineEntityReader {
    * @throws IOException if any problem occurs while updating filter list.
    */
   private void updateFilterForConfsAndMetricsToRetrieve(
-      FilterList listBasedOnFields) throws IOException {
+      FilterList listBasedOnFields, Set<String> cfsInFields)
+      throws IOException {
     TimelineDataToRetrieve dataToRetrieve = getDataToRetrieve();
     // Please note that if confsToRetrieve is specified, we would have added
     // CONFS to fields to retrieve in augmentParams() even if not specified.
@@ -357,6 +358,7 @@ class GenericEntityReader extends TimelineEntityReader {
           .createFilterForConfsOrMetricsToRetrieve(
               dataToRetrieve.getConfsToRetrieve(), EntityColumnFamily.CONFIGS,
               EntityColumnPrefix.CONFIG));
+      cfsInFields.add(new String(EntityColumnFamily.CONFIGS.getBytes()));
     }
 
     // Please note that if metricsToRetrieve is specified, we would have added
@@ -367,11 +369,13 @@ class GenericEntityReader extends TimelineEntityReader {
           .createFilterForConfsOrMetricsToRetrieve(
               dataToRetrieve.getMetricsToRetrieve(),
               EntityColumnFamily.METRICS, EntityColumnPrefix.METRIC));
+      cfsInFields.add(new String(EntityColumnFamily.METRICS.getBytes()));
     }
   }
 
   @Override
-  protected FilterList constructFilterListBasedOnFields() throws IOException {
+  protected FilterList constructFilterListBasedOnFields(Set<String> cfsInFields)
+      throws IOException {
     if (!needCreateFilterListBasedOnFields()) {
       // Fetch all the columns. No need of a filter.
       return null;
@@ -392,7 +396,8 @@ class GenericEntityReader extends TimelineEntityReader {
       excludeFieldsFromInfoColFamily(infoColFamilyList);
     }
     listBasedOnFields.addFilter(infoColFamilyList);
-    updateFilterForConfsAndMetricsToRetrieve(listBasedOnFields);
+    cfsInFields.add(new String(EntityColumnFamily.INFO.getBytes()));
+    updateFilterForConfsAndMetricsToRetrieve(listBasedOnFields, cfsInFields);
     return listBasedOnFields;
   }
 

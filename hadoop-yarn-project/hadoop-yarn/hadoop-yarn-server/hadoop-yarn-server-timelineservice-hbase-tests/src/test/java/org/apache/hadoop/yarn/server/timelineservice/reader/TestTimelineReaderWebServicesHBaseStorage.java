@@ -1252,7 +1252,6 @@ public class TestTimelineReaderWebServicesHBaseStorage
     }
   }
 
-  @Ignore
   @Test
   public void testGetEntitiesConfigFilters() throws Exception {
     Client client = createClient();
@@ -1483,7 +1482,6 @@ public class TestTimelineReaderWebServicesHBaseStorage
     }
   }
 
-  @Ignore
   @Test
   public void testGetEntitiesMetricFilters() throws Exception {
     Client client = createClient();
