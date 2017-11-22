@@ -126,7 +126,7 @@ public class TestDistributedFileSystem {
        conf = new HdfsConfiguration(false);
        String namenodeDir = new File(MiniDFSCluster.getBaseDirectory(), "name").getAbsolutePath();
        conf.set(DFSConfigKeys.DFS_NAMENODE_NAME_DIR_KEY, namenodeDir);
-       conf.set(DFSConfigKeys.DFS_NAMENODE_EDITS_DIR_KEY, namenodeDir);     
+       conf.set(DFSConfigKeys.DFS_NAMENODE_EDITS_DIR_KEY, namenodeDir);
     } else {
        conf = new HdfsConfiguration();
     }
@@ -276,6 +276,7 @@ public class TestDistributedFileSystem {
     Configuration conf = getTestConfiguration();
     final long grace = 1000L;
     MiniDFSCluster cluster = null;
+    LeaseRenewer.setLeaseRenewerGraceDefault(grace);
 
     try {
       cluster = new MiniDFSCluster.Builder(conf).numDataNodes(2).build();
