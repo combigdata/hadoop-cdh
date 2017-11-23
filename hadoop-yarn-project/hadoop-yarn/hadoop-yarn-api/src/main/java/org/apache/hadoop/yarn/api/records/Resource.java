@@ -262,7 +262,7 @@ public abstract class Resource implements Comparable<Resource> {
     }
     return list;
   }
-  
+
   /**
    * Get ResourceInformation for a specified resource.
    *
