@@ -319,6 +319,10 @@
                       <pattern>okio/</pattern>
                       <shadedPattern>${shaded.dependency.prefix}.okio.</shadedPattern>
                     </relocation>
+                    <relocation>
+                      <pattern>avro/shaded/</pattern>
+                      <shadedPattern>${shaded.dependency.prefix}.avro.shaded</shadedPattern>
+                    </relocation>
                     <!-- probably not. -->
     <!--
                     <relocation>
