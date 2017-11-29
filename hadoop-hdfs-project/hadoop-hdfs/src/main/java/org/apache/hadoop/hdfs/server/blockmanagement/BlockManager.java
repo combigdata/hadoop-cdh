@@ -50,7 +50,14 @@ import org.apache.hadoop.hdfs.util.LightWeightLinkedSet;
 import org.apache.hadoop.metrics2.util.MBeans;
 import org.apache.hadoop.net.Node;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.util.*;
+import org.apache.hadoop.util.Daemon;
+import org.apache.hadoop.util.ExitUtil;
+import org.apache.hadoop.util.LightWeightGSet;
+import org.apache.hadoop.util.Time;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+import org.apache.hadoop.util.VersionInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1559,8 +1566,6 @@ public class BlockManager implements BlockStatsMXBean {
       }
 
       // choose replication targets: NOT HOLDING THE GLOBAL LOCK
-      // It is costly to extract the filename for which chooseTargets is called,
-      // so for now we pass in the block collection itself.
       rw.chooseTargets(blockplacement, storagePolicySuite, excludedNodes);
     }
 
@@ -4046,17 +4051,15 @@ public class BlockManager implements BlockStatsMXBean {
   };
 
   private static class ReplicationWork {
-
     private final BlockInfo block;
-    private final BlockCollection bc;
-
+    private final String srcPath;
+    private final byte storagePolicyID;
     private final DatanodeDescriptor srcNode;
+    private final int additionalReplRequired;
+    private final int priority;
     private final List<DatanodeDescriptor> containingNodes;
     private final List<DatanodeStorageInfo> liveReplicaStorages;
-    private final int additionalReplRequired;
-
     private DatanodeStorageInfo targets[];
-    private final int priority;
 
     public ReplicationWork(BlockInfo block,
         BlockCollection bc,
@@ -4066,7 +4069,8 @@ public class BlockManager implements BlockStatsMXBean {
         int additionalReplRequired,
         int priority) {
       this.block = block;
-      this.bc = bc;
+      this.srcPath = bc.getName();
+      this.storagePolicyID = bc.getStoragePolicyID();
       this.srcNode = srcNode;
       this.srcNode.incrementPendingReplicationWithoutTargets();
       this.containingNodes = containingNodes;
@@ -4080,13 +4084,21 @@ public class BlockManager implements BlockStatsMXBean {
         BlockStoragePolicySuite storagePolicySuite,
         Set<Node> excludedNodes) {
       try {
-        targets = blockplacement.chooseTarget(bc.getName(),
+        targets = blockplacement.chooseTarget(getSrcPath(),
             additionalReplRequired, srcNode, liveReplicaStorages, false,
             excludedNodes, block.getNumBytes(),
-            storagePolicySuite.getPolicy(bc.getStoragePolicyID()), null);
+            storagePolicySuite.getPolicy(getStoragePolicyID()), null);
       } finally {
         srcNode.decrementPendingReplicationWithoutTargets();
       }
+    }
+
+    private String getSrcPath() {
+      return srcPath;
+    }
+
+    private byte getStoragePolicyID() {
+      return storagePolicyID;
     }
   }
 
