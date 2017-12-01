@@ -369,6 +369,20 @@
         </configuration>
       </plugin>
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <systemPropertyVariables>
+            <!-- HBase 2.0 shades its netty library which could not find
+             the relocated .so file that is packaged with the library
+             without this system property. See HBASE-19271 for details -->
+            <org.apache.hadoop.hbase.shaded.io.netty.packagePrefix>
+              org.apache.hadoop.hbase.shaded.
+            </org.apache.hadoop.hbase.shaded.io.netty.packagePrefix>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+      <plugin>
         <artifactId>maven-jar-plugin</artifactId>
         <executions>
           <execution>
