@@ -84,7 +84,6 @@
                 <include>webapps/**</include>
                 <include>META-INF/LICENSE.txt</include>
                 <include>META-INF/NOTICE.txt</include>
-                <include>hdfs-site.xml</include>
               </includes>
             </configuration>
           </execution>
