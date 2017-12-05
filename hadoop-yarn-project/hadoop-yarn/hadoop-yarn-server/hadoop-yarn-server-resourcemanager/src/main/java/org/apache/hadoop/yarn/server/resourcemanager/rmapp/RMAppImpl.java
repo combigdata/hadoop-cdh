@@ -20,9 +20,11 @@ package org.apache.hadoop.yarn.server.resourcemanager.rmapp;
 
 import java.net.InetAddress;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -58,7 +60,6 @@ import org.apache.hadoop.yarn.api.records.LogAggregationStatus;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.NodeLabel;
 import org.apache.hadoop.yarn.api.records.NodeState;
-import org.apache.hadoop.yarn.api.records.NodeUpdateType;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.ReservationId;
 import org.apache.hadoop.yarn.api.records.Resource;
@@ -145,7 +146,7 @@ public class RMAppImpl implements RMApp, Recoverable {
   private final Map<ApplicationAttemptId, RMAppAttempt> attempts
       = new LinkedHashMap<ApplicationAttemptId, RMAppAttempt>();
   private final long submitTime;
-  private final Map<RMNode, NodeUpdateType> updatedNodes = new HashMap<>();
+  private final Set<RMNode> updatedNodes = new HashSet<RMNode>();
   private final String applicationType;
   private final Set<String> applicationTags;
 
@@ -671,11 +672,11 @@ public class RMAppImpl implements RMApp, Recoverable {
   }
 
   @Override
-  public int pullRMNodeUpdates(Map<RMNode, NodeUpdateType> upNodes) {
+  public int pullRMNodeUpdates(Collection<RMNode> updatedNodes) {
     this.writeLock.lock();
     try {
       int updatedNodeCount = this.updatedNodes.size();
-      upNodes.putAll(this.updatedNodes);
+      updatedNodes.addAll(this.updatedNodes);
       this.updatedNodes.clear();
       return updatedNodeCount;
     } finally {
@@ -981,7 +982,7 @@ public class RMAppImpl implements RMApp, Recoverable {
 
   private void processNodeUpdate(RMAppNodeUpdateType type, RMNode node) {
     NodeState nodeState = node.getState();
-    updatedNodes.put(node, RMAppNodeUpdateType.convertToNodeUpdateType(type));
+    updatedNodes.add(node);
     LOG.debug("Received node update event:" + type + " for node:" + node
         + " with state:" + nodeState);
   }

@@ -53,8 +53,7 @@ public abstract class NodeReport {
       String httpAddress, String rackName, Resource used, Resource capability,
       int numContainers, String healthReport, long lastHealthReportTime) {
     return newInstance(nodeId, nodeState, httpAddress, rackName, used,
-        capability, numContainers, healthReport, lastHealthReportTime,
-        null, null, null);
+        capability, numContainers, healthReport, lastHealthReportTime, null);
   }
 
   @Private
@@ -62,8 +61,7 @@ public abstract class NodeReport {
   public static NodeReport newInstance(NodeId nodeId, NodeState nodeState,
       String httpAddress, String rackName, Resource used, Resource capability,
       int numContainers, String healthReport, long lastHealthReportTime,
-      Set<String> nodeLabels, Integer decommissioningTimeout,
-      NodeUpdateType nodeUpdateType) {
+      Set<String> nodeLabels) {
     NodeReport nodeReport = Records.newRecord(NodeReport.class);
     nodeReport.setNodeId(nodeId);
     nodeReport.setNodeState(nodeState);
@@ -75,8 +73,6 @@ public abstract class NodeReport {
     nodeReport.setHealthReport(healthReport);
     nodeReport.setLastHealthReportTime(lastHealthReportTime);
     nodeReport.setNodeLabels(nodeLabels);
-    nodeReport.setDecommissioningTimeout(decommissioningTimeout);
-    nodeReport.setNodeUpdateType(nodeUpdateType);
     return nodeReport;
   }
 
@@ -190,8 +186,8 @@ public abstract class NodeReport {
   public abstract void setLastHealthReportTime(long lastHealthReport);
   
   /**
-   * Get labels of this node.
-   * @return labels of this node.
+   * Get labels of this node
+   * @return labels of this node
    */
   @Public
   @Stable
@@ -202,8 +198,8 @@ public abstract class NodeReport {
   public abstract void setNodeLabels(Set<String> nodeLabels);
 
   /**
-   * Get containers aggregated resource utilization in a node.
-   * @return containers resource utilization.
+   * Get containers aggregated resource utilization in a node
+   * @return containers resource utilization
    */
   @Public
   @Stable
@@ -221,8 +217,8 @@ public abstract class NodeReport {
   }
 
   /**
-   * Get node resource utilization.
-   * @return node resource utilization.
+   * Get node resource utilization
+   * @return node resource utilization
    */
   @Public
   @Stable
@@ -231,31 +227,4 @@ public abstract class NodeReport {
   @Private
   @Unstable
   public abstract void setNodeUtilization(ResourceUtilization nodeUtilization);
-
-  /**
-   * Optional decommissioning timeout in seconds (null indicates absent
-   * timeout).
-   * @return the decommissioning timeout in second.
-   */
-  public Integer getDecommissioningTimeout() {
-    return null;
-  }
-
-  /**
-   * Set the decommissioning timeout in seconds (null indicates absent timeout).
-   * */
-  public void setDecommissioningTimeout(Integer decommissioningTimeout) {}
-
-  /**
-   * Optional node update type (null indicates absent update type).
-   * @return the node update.
-   */
-  public NodeUpdateType getNodeUpdateType() {
-    return NodeUpdateType.NODE_UNUSABLE;
-  }
-
-  /**
-   * Set the node update type (null indicates absent node update type).
-   * */
-  public void setNodeUpdateType(NodeUpdateType nodeUpdateType) {}
 }

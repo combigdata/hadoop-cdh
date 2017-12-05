@@ -39,7 +39,6 @@ import org.apache.hadoop.yarn.api.records.ContainerUpdateType;
 import org.apache.hadoop.yarn.api.records.NMToken;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.NodeReport;
-import org.apache.hadoop.yarn.api.records.NodeUpdateType;
 import org.apache.hadoop.yarn.api.records.PreemptionContainer;
 import org.apache.hadoop.yarn.api.records.PreemptionContract;
 import org.apache.hadoop.yarn.api.records.PreemptionMessage;
@@ -83,8 +82,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -320,12 +317,10 @@ final class DefaultAMSProcessor implements ApplicationMasterServiceProcessor {
   }
 
   private void handleNodeUpdates(RMApp app, AllocateResponse allocateResponse) {
-    Map<RMNode, NodeUpdateType> updatedNodes = new HashMap<>();
+    List<RMNode> updatedNodes = new ArrayList<>();
     if(app.pullRMNodeUpdates(updatedNodes) > 0) {
       List<NodeReport> updatedNodeReports = new ArrayList<>();
-      for(Map.Entry<RMNode, NodeUpdateType> rmNodeEntry :
-          updatedNodes.entrySet()) {
-        RMNode rmNode = rmNodeEntry.getKey();
+      for(RMNode rmNode: updatedNodes) {
         SchedulerNodeReport schedulerNodeReport =
             getScheduler().getNodeReport(rmNode.getNodeID());
         Resource used = BuilderUtils.newResource(0, 0);
@@ -340,8 +335,7 @@ final class DefaultAMSProcessor implements ApplicationMasterServiceProcessor {
                 rmNode.getHttpAddress(), rmNode.getRackName(), used,
                 rmNode.getTotalCapability(), numContainers,
                 rmNode.getHealthReport(), rmNode.getLastHealthReportTime(),
-                rmNode.getNodeLabels(), rmNode.getDecommissioningTimeout(),
-                rmNodeEntry.getValue());
+                rmNode.getNodeLabels());
 
         updatedNodeReports.add(report);
       }

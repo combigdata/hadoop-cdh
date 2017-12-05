@@ -46,7 +46,6 @@ import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.api.records.LogAggregationStatus;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.NodeState;
-import org.apache.hadoop.yarn.api.records.NodeUpdateType;
 import org.apache.hadoop.yarn.api.records.QueueACL;
 import org.apache.hadoop.yarn.api.records.QueueState;
 import org.apache.hadoop.yarn.api.records.ReservationRequestInterpreter;
@@ -81,7 +80,6 @@ import org.apache.hadoop.yarn.proto.YarnProtos.ContainerTypeProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.ExecutionTypeProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.ExecutionTypeRequestProto;
 import org.apache.hadoop.yarn.proto.YarnProtos.ResourceTypesProto;
-import org.apache.hadoop.yarn.proto.YarnProtos.NodeUpdateTypeProto;
 import org.apache.hadoop.yarn.proto.YarnServiceProtos;
 import org.apache.hadoop.yarn.proto.YarnServiceProtos.ContainerUpdateTypeProto;
 import org.apache.hadoop.yarn.server.api.ContainerType;
@@ -343,16 +341,6 @@ public class ProtoUtils {
   }
   public static ContainerType convertFromProtoFormat(ContainerTypeProto e) {
     return ContainerType.valueOf(e.name());
-  }
-
-  /*
-  * NodeUpdateType
-  */
-  public static NodeUpdateTypeProto convertToProtoFormat(NodeUpdateType e) {
-    return NodeUpdateTypeProto.valueOf(e.name());
-  }
-  public static NodeUpdateType convertFromProtoFormat(NodeUpdateTypeProto e) {
-    return NodeUpdateType.valueOf(e.name());
   }
 
   /*

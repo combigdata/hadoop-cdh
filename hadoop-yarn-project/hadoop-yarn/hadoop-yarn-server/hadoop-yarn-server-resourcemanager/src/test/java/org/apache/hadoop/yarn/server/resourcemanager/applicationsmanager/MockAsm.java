@@ -17,6 +17,7 @@
  */
 package org.apache.hadoop.yarn.server.resourcemanager.applicationsmanager;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +38,6 @@ import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.api.records.LogAggregationStatus;
 import org.apache.hadoop.yarn.api.records.NodeId;
-import org.apache.hadoop.yarn.api.records.NodeUpdateType;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.ReservationId;
 import org.apache.hadoop.yarn.api.records.Resource;
@@ -154,7 +154,7 @@ public abstract class MockAsm extends MockApps {
       throw new UnsupportedOperationException("Not supported yet.");
     }
     @Override
-    public int pullRMNodeUpdates(Map<RMNode, NodeUpdateType> updatedNodes) {
+    public int pullRMNodeUpdates(Collection<RMNode> updatedNodes) {
       throw new UnsupportedOperationException("Not supported yet.");
     }
 

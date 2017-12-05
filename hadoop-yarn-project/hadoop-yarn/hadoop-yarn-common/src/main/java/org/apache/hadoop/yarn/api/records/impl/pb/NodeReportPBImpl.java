@@ -26,7 +26,6 @@ import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.NodeReport;
 import org.apache.hadoop.yarn.api.records.NodeState;
-import org.apache.hadoop.yarn.api.records.NodeUpdateType;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.ResourceUtilization;
 import org.apache.hadoop.yarn.proto.YarnProtos.NodeIdProto;
@@ -151,9 +150,8 @@ public class NodeReportPBImpl extends NodeReport {
   @Override
   public void setNodeId(NodeId nodeId) {
     maybeInitBuilder();
-    if (nodeId == null) {
+    if (nodeId == null)
       builder.clearNodeId();
-    }
     this.nodeId = nodeId;
   }
   
@@ -179,9 +177,8 @@ public class NodeReportPBImpl extends NodeReport {
   @Override
   public void setCapability(Resource capability) {
     maybeInitBuilder();
-    if (capability == null) {
+    if (capability == null)
       builder.clearCapability();
-    }
     this.capability = capability;
   }
 
@@ -218,9 +215,8 @@ public class NodeReportPBImpl extends NodeReport {
   @Override
   public void setUsed(Resource used) {
     maybeInitBuilder();
-    if (used == null) {
+    if (used == null)
       builder.clearUsed();
-    }
     this.used = used;
   }
 
@@ -238,9 +234,8 @@ public class NodeReportPBImpl extends NodeReport {
 
   @Override
   public boolean equals(Object other) {
-    if (other == null) {
+    if (other == null)
       return false;
-    }
     if (other.getClass().isAssignableFrom(this.getClass())) {
       return this.getProto().equals(this.getClass().cast(other).getProto());
     }
@@ -283,9 +278,8 @@ public class NodeReportPBImpl extends NodeReport {
   }
 
   private void mergeLocalToProto() {
-    if (viaProto) {
+    if (viaProto)
       maybeInitBuilder();
-    }
     mergeLocalToBuilder();
     proto = builder.build();
     viaProto = true;
@@ -392,39 +386,5 @@ public class NodeReportPBImpl extends NodeReport {
       builder.clearNodeUtilization();
     }
     this.nodeUtilization = nodeResourceUtilization;
-  }
-
-  @Override
-  public Integer getDecommissioningTimeout() {
-    NodeReportProtoOrBuilder p = viaProto ? proto : builder;
-    return (p.hasDecommissioningTimeout())
-        ? p.getDecommissioningTimeout() : null;
-  }
-
-  @Override
-  public void setDecommissioningTimeout(Integer decommissioningTimeout) {
-    maybeInitBuilder();
-    if (decommissioningTimeout == null || decommissioningTimeout < 0) {
-      builder.clearDecommissioningTimeout();
-      return;
-    }
-    builder.setDecommissioningTimeout(decommissioningTimeout);
-  }
-
-  @Override
-  public NodeUpdateType getNodeUpdateType() {
-    NodeReportProtoOrBuilder p = viaProto ? proto : builder;
-    return (p.hasNodeUpdateType()) ?
-        ProtoUtils.convertFromProtoFormat(p.getNodeUpdateType()) : null;
-  }
-
-  @Override
-  public void setNodeUpdateType(NodeUpdateType nodeUpdateType) {
-    maybeInitBuilder();
-    if (nodeUpdateType == null) {
-      builder.clearNodeUpdateType();
-      return;
-    }
-    builder.setNodeUpdateType(ProtoUtils.convertToProtoFormat(nodeUpdateType));
   }
 }

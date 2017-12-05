@@ -27,9 +27,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 
@@ -100,16 +98,13 @@ public class TestRMNodeTransitions {
   }
 
   private NodesListManagerEvent nodesListManagerEvent = null;
-  private List<NodeState> nodesListManagerEventsNodeStateSequence =
-      new LinkedList<>();
-
+  
   private class TestNodeListManagerEventDispatcher implements
       EventHandler<NodesListManagerEvent> {
     
     @Override
     public void handle(NodesListManagerEvent event) {
       nodesListManagerEvent = event;
-      nodesListManagerEventsNodeStateSequence.add(event.getNode().getState());
     }
 
   }
@@ -155,7 +150,7 @@ public class TestRMNodeTransitions {
     NodeId nodeId = BuilderUtils.newNodeId("localhost", 0);
     node = new RMNodeImpl(nodeId, rmContext, null, 0, 0, null, null, null);
     nodesListManagerEvent =  null;
-    nodesListManagerEventsNodeStateSequence.clear();
+
   }
   
   @After
@@ -726,8 +721,6 @@ public class TestRMNodeTransitions {
     node.handle(new RMNodeEvent(node.getNodeID(),
         RMNodeEventType.GRACEFUL_DECOMMISSION));
     Assert.assertEquals(NodeState.DECOMMISSIONING, node.getState());
-    Assert.assertEquals(Arrays.asList(NodeState.NEW, NodeState.RUNNING),
-        nodesListManagerEventsNodeStateSequence);
     Assert
         .assertEquals("Active Nodes", initialActive - 1, cm.getNumActiveNMs());
     Assert.assertEquals("Decommissioning Nodes", initialDecommissioning + 1,
@@ -1015,7 +1008,7 @@ public class TestRMNodeTransitions {
 
     Assert.assertEquals(NodeState.DECOMMISSIONING, node.getState());
     Assert.assertNotNull(nodesListManagerEvent);
-    Assert.assertEquals(NodesListManagerEventType.NODE_DECOMMISSIONING,
+    Assert.assertEquals(NodesListManagerEventType.NODE_USABLE,
         nodesListManagerEvent.getType());
   }
 
