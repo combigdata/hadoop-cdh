@@ -33,7 +33,6 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.ConfigurationException;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.Container;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.ContainerDiagnosticsUpdateEvent;
-import org.apache.hadoop.yarn.server.nodemanager.containermanager.launcher.ContainerLaunch;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.linux.privileged.PrivilegedOperation;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.linux.privileged.PrivilegedOperationException;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.linux.privileged.PrivilegedOperationExecutor;
@@ -383,10 +382,6 @@ public class LinuxContainerExecutor extends ContainerExecutor {
     List<String> localizerArgs = new ArrayList<>();
 
     buildMainArgs(localizerArgs, user, appId, locId, nmAddr, localDirs);
-
-    Path containerLogDir = getContainerLogDir(dirsHandler, appId, locId);
-    localizerArgs = replaceWithContainerLogDir(localizerArgs, containerLogDir);
-
     initializeContainerOp.appendArgs(localizerArgs);
 
     try {
@@ -407,27 +402,6 @@ public class LinuxContainerExecutor extends ContainerExecutor {
     }
   }
 
-  private List<String> replaceWithContainerLogDir(List<String> commands,
-      Path containerLogDir) {
-    List<String> newCmds = new ArrayList<>(commands.size());
-
-    for (String item : commands) {
-      newCmds.add(item.replace(ApplicationConstants.LOG_DIR_EXPANSION_VAR,
-          containerLogDir.toString()));
-    }
-
-    return newCmds;
-  }
-
-  private Path getContainerLogDir(LocalDirsHandlerService dirsHandler,
-      String appId, String containerId) throws IOException {
-    String relativeContainerLogDir = ContainerLaunch
-        .getRelativeContainerLogDir(appId, containerId);
-
-    return dirsHandler.getLogPathForWrite(relativeContainerLogDir,
-        false);
-  }
-
   /**
    * Set up the {@link ContainerLocalizer}.
    *
@@ -443,7 +417,7 @@ public class LinuxContainerExecutor extends ContainerExecutor {
   public void buildMainArgs(List<String> command, String user, String appId,
       String locId, InetSocketAddress nmAddr, List<String> localDirs) {
     ContainerLocalizer.buildMainArgs(command, user, appId, locId, nmAddr,
-        localDirs, super.getConf());
+      localDirs);
   }
 
   @Override
