@@ -53,8 +53,6 @@ import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.util.DiskChecker;
 import org.apache.hadoop.yarn.YarnUncaughtExceptionHandler;
-import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
-import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.SerializedException;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
@@ -338,12 +336,8 @@ public class ContainerLocalizer {
    */
   public static void buildMainArgs(List<String> command,
       String user, String appId, String locId,
-      InetSocketAddress nmAddr, List<String> localDirs, Configuration conf) {
-
-    String logLevel = conf.get(YarnConfiguration.
-            NM_CONTAINER_LOCALIZER_LOG_LEVEL,
-        YarnConfiguration.NM_CONTAINER_LOCALIZER_LOG_LEVEL_DEFAULT);
-    addLog4jSystemProperties(logLevel, command);
+      InetSocketAddress nmAddr, List<String> localDirs) {
+    
     command.add(ContainerLocalizer.class.getName());
     command.add(user);
     command.add(appId);
@@ -355,16 +349,6 @@ public class ContainerLocalizer {
     }
   }
 
-  private static void addLog4jSystemProperties(
-      String logLevel, List<String> command) {
-    command.add("-Dlog4j.configuration=container-log4j.properties");
-    command.add("-D" + YarnConfiguration.YARN_APP_CONTAINER_LOG_DIR + "=" +
-        ApplicationConstants.LOG_DIR_EXPANSION_VAR);
-    command.add("-D" + YarnConfiguration.YARN_APP_CONTAINER_LOG_SIZE + "=0");
-    command.add("-Dhadoop.root.logger=" + logLevel + ",CLA");
-    command.add("-Dhadoop.root.logfile=container-localizer-syslog");
-  }
-
   public static void main(String[] argv) throws Throwable {
     Thread.setDefaultUncaughtExceptionHandler(new YarnUncaughtExceptionHandler());
     // usage: $0 user appId locId host port app_log_dir user_dir [user_dir]*
@@ -374,7 +358,6 @@ public class ContainerLocalizer {
     // MKDIR $x/$user/appcache/$appid/filecache
     // LOAD $x/$user/appcache/$appid/appTokens
     try {
-      createLogDir();
       String user = argv[0];
       String appId = argv[1];
       String locId = argv[2];
@@ -407,31 +390,6 @@ public class ContainerLocalizer {
       e.printStackTrace(System.out);
       LOG.error("Exception in main:", e);
       throw e;
-    }
-  }
-
-  /**
-   * Create the log directory, if the directory exists, make sure its permission
-   * is 750.
-   */
-  private static void createLogDir() {
-    FileContext localFs;
-    try {
-      localFs = FileContext.getLocalFSFileContext(new Configuration());
-
-      String logDir = System.getProperty(
-          YarnConfiguration.YARN_APP_CONTAINER_LOG_DIR);
-
-      if (logDir != null && !logDir.trim().isEmpty()) {
-        Path containerLogPath = new Path(logDir);
-        FsPermission containerLogDirPerm= new FsPermission((short)0750);
-        localFs.mkdir(containerLogPath, containerLogDirPerm, true);
-        // set permission again to make sure the permission is correct
-        // in case the directory is already there.
-        localFs.setPermission(containerLogPath, containerLogDirPerm);
-      }
-    } catch (IOException e) {
-      throw new YarnRuntimeException("Unable to create the log dir", e);
     }
   }
 
