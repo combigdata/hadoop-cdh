@@ -422,6 +422,21 @@ http://maven.apache.org/xsd/maven-4.0.0.xsd">
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>prepare-test-jar</id>
+            <configuration>
+              <includes combine.children="append">
+                <include>hdfs-site.xml</include>
+                <include>hdfs-site.malformed.xml</include>
+              </includes>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
         <executions>
           <execution>

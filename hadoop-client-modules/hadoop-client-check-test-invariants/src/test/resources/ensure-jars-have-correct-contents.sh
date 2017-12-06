@@ -35,6 +35,10 @@ allowed_expr+="|^webapps/"
 #   * Hadoop's default configuration files, which have the form
 #     "_module_-default.xml"
 allowed_expr+="|^[^-]*-default.xml$"
+#   * Hadoop's test configuration files, which have the form
+#     "_module_-site.xml" and "_module_-site.malformed.xml"
+allowed_expr+="|^[^-]*-site.xml$"
+allowed_expr+="|^[^-]*-site.malformed.xml$"
 #   * Hadoop's versioning properties files, which have the form
 #     "_module_-version-info.properties"
 allowed_expr+="|^[^-]*-version-info.properties$"
