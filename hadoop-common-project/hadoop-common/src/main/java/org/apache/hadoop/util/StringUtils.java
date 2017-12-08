@@ -1028,4 +1028,26 @@ public class StringUtils {
     }
     return null;
   }
+
+  /**
+   * Converts all of the characters in this String to lower case with
+   * Locale.ENGLISH.
+   *
+   * @param str  string to be converted
+   * @return     the str, converted to lowercase.
+   */
+  public static String toLowerCase(String str) {
+    return str.toLowerCase(Locale.ENGLISH);
+  }
+
+  /**
+   * Converts all of the characters in this String to upper case with
+   * Locale.ENGLISH.
+   *
+   * @param str  string to be converted
+   * @return     the str, converted to uppercase.
+   */
+  public static String toUpperCase(String str) {
+    return str.toUpperCase(Locale.ENGLISH);
+  }
 }
