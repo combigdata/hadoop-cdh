@@ -4107,7 +4107,8 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       for (Rename option : options) {
         cmd.append(option.value()).append(" ");
       }
-      logAuditEvent(true, cmd.toString(), srcArg, dstArg, resultingStat);
+      // CLOUDERA-BUILD: trim the trailing space, which breaks NAV-5212.
+      logAuditEvent(true, cmd.toString().trim(), srcArg, dstArg, resultingStat);
     }
   }
 
