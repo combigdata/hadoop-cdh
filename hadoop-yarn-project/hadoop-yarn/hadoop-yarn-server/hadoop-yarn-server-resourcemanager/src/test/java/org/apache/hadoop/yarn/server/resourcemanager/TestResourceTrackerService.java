@@ -98,6 +98,7 @@ import org.apache.hadoop.yarn.util.Records;
 import org.apache.hadoop.yarn.util.YarnVersionInfo;
 import org.junit.After;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class TestResourceTrackerService extends NodeLabelTestBase {
