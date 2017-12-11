@@ -422,21 +422,6 @@ http://maven.apache.org/xsd/maven-4.0.0.xsd">
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>prepare-test-jar</id>
-            <configuration>
-              <includes combine.children="append">
-                <include>hdfs-site.xml</include>
-                <include>hdfs-site.malformed.xml</include>
-              </includes>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
         <executions>
           <execution>
@@ -465,6 +450,39 @@ http://maven.apache.org/xsd/maven-4.0.0.xsd">
   </build>
 
   <profiles>
+    <!-- profile to build test package for grind -->
+    <profile>
+      <id>grind</id>
+      <activation>
+        <property>
+          <name>grind</name>
+        </property>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-jar-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>prepare-test-jar</id>
+                <configuration>
+                  <includes combine.children="append">
+                    <include>hdfs-site.xml</include>
+                    <include>hdfs-site.malformed.xml</include>
+                  </includes>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-shade-plugin</artifactId>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
     <!-- profile that starts ApacheDS KDC server -->
     <profile>
       <id>startKdc</id>
@@ -641,6 +659,5 @@ http://maven.apache.org/xsd/maven-4.0.0.xsd">
         </plugins>
       </build>
     </profile>
-
   </profiles>
 </project>
