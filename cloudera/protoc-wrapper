@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# SHELLDOC-IGNORE
+
+# -------------------------------------------------------
+
+set -e
+
+# this script wraps a command but ensures that protoc is available and on the PATH before invoking it.
+
+# NOTE: different protobuf releases are not consistent, sadly, so the
+# extract_and_build function will need editing if you change these probably.
+# For example, this version is not available as a binary, so we have to extract
+# and build it.  Later releases are avaialble as binaries, so we only have to
+# extract it.  The relative path under the archive also changes, so that is all
+# easy to get at in the function below.
+
+# this URL comes from: https://github.com/google/protobuf/releases/tag/v2.5.0
+PROTOC_LINUX_64_BIN_URL="https://github.com/google/protobuf/releases/download/v2.5.0/protobuf-2.5.0.tar.bz2"
+PROTOC_VERSION="2.5.0"
+
+REPO_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
+PROTOC_PATH="$REPO_ROOT/cloudera/protoc"
+PROTOC_VERSION_FILE="$PROTOC_PATH/version.txt"
+PROTOC_ARCHIVE="$PROTOC_PATH/protobuf.tar.bz2"
+PROTOC_BIN="$PROTOC_PATH/protobuf-$PROTOC_VERSION/src/protoc"
+
+function extract_and_build {
+    tar -xjf "$PROTOC_ARCHIVE"
+    pushd "protobuf-$PROTOC_VERSION"
+    ./configure
+    make -j
+    # we use this as a "stamp" to know that things completed successfully
+    echo "$PROTOC_VERSION" > "$PROTOC_VERSION_FILE"
+    popd
+}
+
+
+PROTOC_EXTRACT_CMD=("$(which tar)" "-xjf")
+if [[ "$(uname -m)" != "x86_64" ]]; then
+    echo "This wrapper script only supports 64-bit linux" 1>&2
+    exit 1
+fi
+
+# we are very careful to ensure that if the wrong version is present, we detect
+# that and blow it away and fetch the correct version
+if [[ ! -f "$PROTOC_VERSION_FILE" || "$PROTOC_VERSION" != "$(cat "$PROTOC_VERSION_FILE")" ]]; then
+    echo "Installing protoc to $PROTOC_PATH..."
+    rm -rf "$PROTOC_PATH"
+    mkdir -p "$PROTOC_PATH"
+    pushd "$PROTOC_PATH"
+    curl -L "$PROTOC_LINUX_64_BIN_URL" > "$PROTOC_ARCHIVE"
+    extract_and_build
+    popd
+fi
+if [[ ! -x "$PROTOC_BIN" ]]; then
+    echo "Unable to get an executable at $PROTOC_BIN" 1>&2
+    exit 2
+fi
+
+export PATH="$PATH:$(dirname $PROTOC_BIN)"
+
+"$@"
