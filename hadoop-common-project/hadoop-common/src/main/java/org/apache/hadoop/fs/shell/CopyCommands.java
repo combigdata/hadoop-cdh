@@ -20,7 +20,6 @@ package org.apache.hadoop.fs.shell;
 
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Iterator;
@@ -337,10 +336,8 @@ class CopyCommands {
         dst.fs.create(dst.path, false).close();
       }
 
-      InputStream is = null;
-      FSDataOutputStream fos = dst.fs.append(dst.path);
-
-      try {
+      FileInputStream is = null;
+      try (FSDataOutputStream fos = dst.fs.append(dst.path)) {
         if (readStdin) {
           if (args.size() == 0) {
             IOUtils.copyBytes(System.in, fos, DEFAULT_IO_LENGTH);
@@ -360,10 +357,6 @@ class CopyCommands {
       } finally {
         if (is != null) {
           IOUtils.closeStream(is);
-        }
-
-        if (fos != null) {
-          IOUtils.closeStream(fos);
         }
       }
     }

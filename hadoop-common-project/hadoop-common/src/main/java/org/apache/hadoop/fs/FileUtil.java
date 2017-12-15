@@ -1308,15 +1308,10 @@ public class FileUtil {
 
     // Write the manifest to output JAR file
     File classPathJar = File.createTempFile("classpath-", ".jar", workingDir);
-    FileOutputStream fos = null;
-    BufferedOutputStream bos = null;
-    JarOutputStream jos = null;
-    try {
-      fos = new FileOutputStream(classPathJar);
-      bos = new BufferedOutputStream(fos);
-      jos = new JarOutputStream(bos, jarManifest);
-    } finally {
-      IOUtils.cleanup(LOG, jos, bos, fos);
+    try (FileOutputStream fos = new FileOutputStream(classPathJar);
+         BufferedOutputStream bos = new BufferedOutputStream(fos)) {
+      JarOutputStream jos = new JarOutputStream(bos, jarManifest);
+      jos.close();
     }
     String[] jarCp = {classPathJar.getCanonicalPath(),
                         unexpandedWildcardClasspath.toString()};
