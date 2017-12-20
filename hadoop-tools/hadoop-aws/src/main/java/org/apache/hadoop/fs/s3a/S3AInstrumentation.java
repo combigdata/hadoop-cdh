@@ -634,6 +634,8 @@ public class S3AInstrumentation implements Closeable, MetricsSource {
     public long readsIncomplete;
     public long bytesReadInClose;
     public long bytesDiscardedInAbort;
+    public long policySetCount;
+    public long inputPolicy;
 
     private InputStreamStatistics() {
     }
@@ -750,6 +752,15 @@ public class S3AInstrumentation implements Closeable, MetricsSource {
     }
 
     /**
+     * The input policy has been switched.
+     * @param updatedPolicy enum value of new policy.
+     */
+    public void inputPolicySet(int updatedPolicy) {
+      policySetCount++;
+      inputPolicy = updatedPolicy;
+    }
+
+    /**
      * String operator describes all the current statistics.
      * <b>Important: there are no guarantees as to the stability
      * of this value.</b>
@@ -780,6 +791,8 @@ public class S3AInstrumentation implements Closeable, MetricsSource {
       sb.append(", ReadsIncomplete=").append(readsIncomplete);
       sb.append(", BytesReadInClose=").append(bytesReadInClose);
       sb.append(", BytesDiscardedInAbort=").append(bytesDiscardedInAbort);
+      sb.append(", InputPolicy=").append(inputPolicy);
+      sb.append(", InputPolicySetCount=").append(policySetCount);
       sb.append('}');
       return sb.toString();
     }
