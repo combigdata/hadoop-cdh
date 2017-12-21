@@ -84,7 +84,6 @@ import org.apache.hadoop.fs.CommonConfigurationKeys;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableUtils;
 import org.apache.hadoop.net.NetUtils;
-import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.alias.CredentialProvider;
 import org.apache.hadoop.security.alias.CredentialProvider.CredentialEntry;
 import org.apache.hadoop.security.alias.CredentialProviderFactory;
@@ -189,34 +188,19 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
   private static final String DEFAULT_STRING_CHECK =
     "testingforemptydefaultvalue";
 
-  private static final String XINCLUDE_NS_URI =
-      "http://www.w3.org/2001/XInclude";
-
-  private static boolean restrictSystemPropsDefault = false;
-  private boolean restrictSystemProps = restrictSystemPropsDefault;
   private boolean allowNullValueProperties = false;
-
+  
   private static class Resource {
     private final Object resource;
     private final String name;
-    private final boolean restrictParser;
     
     public Resource(Object resource) {
       this(resource, resource.toString());
     }
-
-    public Resource(Object resource, boolean useRestrictedParser) {
-      this(resource, resource.toString(), useRestrictedParser);
-    }
-
+    
     public Resource(Object resource, String name) {
-      this(resource, name, getRestrictParserDefault(resource));
-    }
-
-    public Resource(Object resource, String name, boolean restrictParser) {
       this.resource = resource;
       this.name = name;
-      this.restrictParser = restrictParser;
     }
     
     public String getName(){
@@ -226,27 +210,10 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
     public Object getResource() {
       return resource;
     }
-
-    public boolean isParserRestricted() {
-      return restrictParser;
-    }
-
+    
     @Override
     public String toString() {
       return name;
-    }
-
-    private static boolean getRestrictParserDefault(Object resource) {
-      if (resource instanceof String) {
-        return false;
-      }
-      UserGroupInformation user;
-      try {
-        user = UserGroupInformation.getCurrentUser();
-      } catch (IOException e) {
-        throw new RuntimeException("Unable to determine current user", e);
-      }
-      return user.getRealUser() != null;
     }
   }
   
@@ -269,7 +236,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
       new ConcurrentHashMap<String, Boolean>());
   
   private boolean loadDefaults = true;
-
+  
   /**
    * Configuration objects
    */
@@ -761,7 +728,6 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
        this.overlay = (Properties)other.overlay.clone();
      }
 
-     this.restrictSystemProps = other.restrictSystemProps;
      this.updatingResource = new ConcurrentHashMap<String, String[]>(
          other.updatingResource);
      this.finalParameters = Collections.newSetFromMap(
@@ -806,14 +772,6 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
     }
   }
 
-  public static void setRestrictSystemPropertiesDefault(boolean val) {
-    restrictSystemPropsDefault = val;
-  }
-
-  public void setRestrictSystemProperties(boolean val) {
-    this.restrictSystemProps = val;
-  }
-
   /**
    * Add a configuration resource. 
    * 
@@ -825,10 +783,6 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    */
   public void addResource(String name) {
     addResourceObject(new Resource(name));
-  }
-
-  public void addResource(String name, boolean restrictedParser) {
-    addResourceObject(new Resource(name, restrictedParser));
   }
 
   /**
@@ -845,10 +799,6 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
     addResourceObject(new Resource(url));
   }
 
-  public void addResource(URL url, boolean restrictedParser) {
-    addResourceObject(new Resource(url, restrictedParser));
-  }
-
   /**
    * Add a configuration resource. 
    * 
@@ -861,10 +811,6 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    */
   public void addResource(Path file) {
     addResourceObject(new Resource(file));
-  }
-
-  public void addResource(Path file, boolean restrictedParser) {
-    addResourceObject(new Resource(file, restrictedParser));
   }
 
   /**
@@ -884,10 +830,6 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
     addResourceObject(new Resource(in));
   }
 
-  public void addResource(InputStream in, boolean restrictedParser) {
-    addResourceObject(new Resource(in, restrictedParser));
-  }
-
   /**
    * Add a configuration resource. 
    * 
@@ -901,12 +843,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
   public void addResource(InputStream in, String name) {
     addResourceObject(new Resource(in, name));
   }
-
-  public void addResource(InputStream in, String name,
-      boolean restrictedParser) {
-    addResourceObject(new Resource(in, name, restrictedParser));
-  }
-
+  
   /**
    * Add a configuration resource.
    *
@@ -936,7 +873,6 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
   
   private synchronized void addResourceObject(Resource resource) {
     resources.add(resource);                      // add to resources
-    restrictSystemProps |= resource.isParserRestricted();
     reloadConfiguration();
   }
 
@@ -1035,12 +971,10 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
       final String var = eval.substring(varBounds[SUB_START_IDX],
           varBounds[SUB_END_IDX]);
       String val = null;
-      if (!restrictSystemProps) {
-        try {
-          val = System.getProperty(var);
-        } catch (SecurityException se) {
-          LOG.warn("Unexpected SecurityException in Configuration", se);
-        }
+      try {
+        val = System.getProperty(var);
+      } catch(SecurityException se) {
+        LOG.warn("Unexpected SecurityException in Configuration", se);
       }
       if (val == null) {
         val = getRaw(var);
@@ -1089,10 +1023,6 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
   @VisibleForTesting
   public void setAllowNullValueProperties( boolean val ) {
     this.allowNullValueProperties = val;
-  }
-
-  public void setRestrictSystemProps(boolean val) {
-    this.restrictSystemProps = val;
   }
 
   /**
@@ -2650,12 +2580,12 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
                              boolean quiet) {
     if(loadDefaults) {
       for (String resource : defaultResources) {
-        loadResource(properties, new Resource(resource, false), quiet);
+        loadResource(properties, new Resource(resource), quiet);
       }
     
       //support the hadoop-site.xml as a deprecated case
       if(getResource("hadoop-site.xml")!=null) {
-        loadResource(properties, new Resource("hadoop-site.xml", false), quiet);
+        loadResource(properties, new Resource("hadoop-site.xml"), quiet);
       }
     }
     
@@ -2680,16 +2610,13 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
 
       //allow includes in the xml file
       docBuilderFactory.setNamespaceAware(true);
-      boolean useXInclude = !wrapper.isParserRestricted();
       try {
-        docBuilderFactory.setXIncludeAware(useXInclude);
+          docBuilderFactory.setXIncludeAware(true);
       } catch (UnsupportedOperationException e) {
-        LOG.error("Failed to set setXIncludeAware(" + useXInclude
-                + ") for parser " + docBuilderFactory, e);
-      }
-      if (wrapper.isParserRestricted()) {
-        docBuilderFactory.setFeature(
-            "http://apache.org/xml/features/disallow-doctype-decl", true);
+        LOG.error("Failed to set setXIncludeAware(true) for parser "
+                + docBuilderFactory
+                + ":" + e,
+                e);
       }
       DocumentBuilder builder = docBuilderFactory.newDocumentBuilder();
       Document doc = null;
@@ -2745,19 +2672,11 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
           continue;
         Element prop = (Element)propNode;
         if ("configuration".equals(prop.getTagName())) {
-          loadResource(toAddTo,
-              new Resource(prop, name, wrapper.isParserRestricted()), quiet);
+          loadResource(toAddTo, new Resource(prop, name), quiet);
           continue;
         }
-        if (!"property".equals(prop.getTagName())) {
-          if (wrapper.isParserRestricted()
-              && XINCLUDE_NS_URI.equals(prop.getNamespaceURI())) {
-            throw new RuntimeException("Error parsing resource " + wrapper
-                + ": XInclude is not supported for restricted resources");
-          }
-          LOG.warn("Unexpected tag in conf file " + wrapper
-              + ": expected <property> but found <" + prop.getTagName() + ">");
-        }
+        if (!"property".equals(prop.getTagName()))
+          LOG.warn("bad conf file: element not <property>");
         NodeList fields = prop.getChildNodes();
         String attr = null;
         String value = null;
@@ -2803,7 +2722,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
       
       if (returnCachedProperties) {
         overlay(properties, toAddTo);
-        return new Resource(toAddTo, name, wrapper.isParserRestricted());
+        return new Resource(toAddTo, name);
       }
       return null;
     } catch (IOException e) {
