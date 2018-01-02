@@ -1884,7 +1884,7 @@ public class BlockManager implements BlockStatsMXBean {
    * If there were any replication requests that timed out, reap them
    * and put them back into the neededReplication queue
    */
-  private void processPendingReplications() {
+  void processPendingReplications() {
     BlockInfo[] timedOutItems = pendingReplications.getTimedOutBlocks();
     if (timedOutItems != null) {
       namesystem.writeLock();

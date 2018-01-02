@@ -70,6 +70,7 @@ import org.apache.hadoop.hdfs.protocol.LastBlockWithStatus;
 import org.apache.hadoop.hdfs.protocol.LocatedBlock;
 import org.apache.hadoop.hdfs.protocol.LocatedBlocks;
 import org.apache.hadoop.hdfs.protocol.NSQuotaExceededException;
+import org.apache.hadoop.hdfs.protocol.OpenFilesIterator.OpenFilesType;
 import org.apache.hadoop.hdfs.protocol.OpenFileEntry;
 import org.apache.hadoop.hdfs.protocol.RollingUpgradeInfo;
 import org.apache.hadoop.hdfs.protocol.SnapshotDiffReport;
@@ -1557,13 +1558,24 @@ public class ClientNamenodeProtocolTranslatorPB implements
     }
   }
 
+  @Deprecated
   @Override
   public BatchedEntries<OpenFileEntry> listOpenFiles(long prevId)
       throws IOException {
-    ListOpenFilesRequestProto req =
-        ListOpenFilesRequestProto.newBuilder().setId(prevId).build();
+    return listOpenFiles(prevId, EnumSet.of(OpenFilesType.ALL_OPEN_FILES));
+  }
+
+  @Override
+  public BatchedEntries<OpenFileEntry> listOpenFiles(long prevId,
+      EnumSet<OpenFilesType> openFilesTypes) throws IOException {
+    ListOpenFilesRequestProto.Builder req =
+        ListOpenFilesRequestProto.newBuilder().setId(prevId);
+    if (openFilesTypes != null) {
+      req.addAllTypes(PBHelper.convertOpenFileTypes(openFilesTypes));
+    }
     try {
-      ListOpenFilesResponseProto response = rpcProxy.listOpenFiles(null, req);
+      ListOpenFilesResponseProto response =
+          rpcProxy.listOpenFiles(null, req.build());
       List<OpenFileEntry> openFileEntries =
           Lists.newArrayListWithCapacity(response.getEntriesCount());
       for (OpenFilesBatchResponseProto p : response.getEntriesList()) {

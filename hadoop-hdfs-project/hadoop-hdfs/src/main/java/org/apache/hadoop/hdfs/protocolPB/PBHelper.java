@@ -83,6 +83,7 @@ import org.apache.hadoop.hdfs.protocol.HdfsLocatedFileStatus;
 import org.apache.hadoop.hdfs.protocol.LocatedBlock;
 import org.apache.hadoop.hdfs.protocol.LocatedBlocks;
 import org.apache.hadoop.hdfs.protocol.OpenFileEntry;
+import org.apache.hadoop.hdfs.protocol.OpenFilesIterator.OpenFilesType;
 import org.apache.hadoop.hdfs.protocol.RollingUpgradeInfo;
 import org.apache.hadoop.hdfs.protocol.RollingUpgradeStatus;
 import org.apache.hadoop.hdfs.protocol.SnapshotDiffReport;
@@ -112,6 +113,7 @@ import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.Datano
 import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.GetEditsFromTxidResponseProto;
 import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.GetFsStatsResponseProto;
 import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.OpenFilesBatchResponseProto;
+import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.OpenFilesTypeProto;
 import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.RollingUpgradeActionProto;
 import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.RollingUpgradeInfoProto;
 import org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos.SafeModeActionProto;
@@ -2547,6 +2549,29 @@ public class PBHelper {
         proto.getClientName(), proto.getClientMachine());
   }
 
+  public static EnumSet<OpenFilesType> convertOpenFileTypes(
+      List<OpenFilesTypeProto> openFilesTypeProtos) {
+    EnumSet<OpenFilesType> types = EnumSet.noneOf(OpenFilesType.class);
+    for (OpenFilesTypeProto af : openFilesTypeProtos) {
+      OpenFilesType type = OpenFilesType.valueOf((short)af.getNumber());
+      if (type != null) {
+        types.add(type);
+      }
+    }
+    return types;
+  }
+
+  public static List<OpenFilesTypeProto> convertOpenFileTypes(
+      EnumSet<OpenFilesType> types) {
+    List<OpenFilesTypeProto> typeProtos = new ArrayList<>();
+    for (OpenFilesType type : types) {
+      OpenFilesTypeProto typeProto = OpenFilesTypeProto.valueOf(type.getMode());
+      if (typeProto != null) {
+        typeProtos.add(typeProto);
+      }
+    }
+    return typeProtos;
+  }
 
   public static ShortCircuitShmSlotProto convert(SlotId slotId) {
     return ShortCircuitShmSlotProto.newBuilder().

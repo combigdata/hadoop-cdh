@@ -151,7 +151,17 @@ public class BlockManagerTestUtil {
   public static int computeInvalidationWork(BlockManager bm) {
     return bm.computeInvalidateWork(Integer.MAX_VALUE);
   }
-  
+
+  /**
+   * Check the redundancy of blocks and trigger replication if needed.
+   * @param blockManager
+   */
+  public static void checkRedundancy(final BlockManager blockManager) {
+    blockManager.computeDatanodeWork();
+    blockManager.processPendingReplications();
+    blockManager.rescanPostponedMisreplicatedBlocks();
+  }
+
   /**
    * Compute all the replication and invalidation work for the
    * given BlockManager.

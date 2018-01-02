@@ -31,6 +31,8 @@ public interface Namesystem extends RwLock, SafeMode {
   /** Is this name system running? */
   boolean isRunning();
 
+  FSDirectory getFSDirectory();
+
   /** Check if the user has superuser privilege. */
   void checkSuperuserPrivilege() throws AccessControlException;
 
