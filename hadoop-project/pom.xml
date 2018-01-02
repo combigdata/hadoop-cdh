@@ -48,7 +48,7 @@
     <!-- Version number for xerces used by JDiff -->
     <xerces.jdiff.version>2.11.0</xerces.jdiff.version>
 
-    <kafka.version>0.8.2.1</kafka.version>
+    <kafka.version>${cdh.kafka.version}</kafka.version>
     <hbase.version>${cdh.hbase.version}</hbase.version>
     <hbase-compatible-hadoop.version>${cdh.hadoop.version}</hbase-compatible-hadoop.version>
     <hbase-compatible-guava.version>11.0.2</hbase-compatible-guava.version>
