@@ -95,7 +95,7 @@ public class NodeManagerMetrics {
   }
 
   static NodeManagerMetrics create(MetricsSystem ms) {
-    JvmMetrics jm = JvmMetrics.initSingleton("NodeManager", null);
+    JvmMetrics jm = JvmMetrics.create("NodeManager", null, ms);
     return ms.register(new NodeManagerMetrics(jm));
   }
 
