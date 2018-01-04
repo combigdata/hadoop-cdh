@@ -505,7 +505,7 @@ class FlowScanner implements RegionScanner, Closeable {
       t = new ArrayBackedTag(AggregationCompactionDimension.APPLICATION_ID.getTagType(),
           Bytes.toBytes(FLOW_APP_ID));
       tags.add(t);
-      byte[] tagByteArray = TagUtil.fromList(tags);
+      byte[] tagByteArray = Tag.fromList(tags);
       Cell sumCell = HBaseTimelineStorageUtils.createNewCell(
           CellUtil.cloneRow(anyCell),
           CellUtil.cloneFamily(anyCell),

@@ -31,7 +31,6 @@ import org.apache.hadoop.hbase.CoprocessorEnvironment;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.Tag;
-import org.apache.hadoop.hbase.TagUtil;
 import org.apache.hadoop.hbase.client.Durability;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
@@ -109,7 +108,7 @@ public class FlowRunCoprocessor implements RegionObserver, RegionCoprocessor{
         Tag t = HBaseTimelineStorageUtils.getTagFromAttribute(attribute);
         tags.add(t);
       }
-      byte[] tagByteArray = TagUtil.fromList(tags);
+      byte[] tagByteArray = Tag.fromList(tags);
       NavigableMap<byte[], List<Cell>> newFamilyMap = new TreeMap<>(
           Bytes.BYTES_COMPARATOR);
       for (Map.Entry<byte[], List<Cell>> entry : put.getFamilyCellMap()

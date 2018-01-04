@@ -33,7 +33,6 @@ import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.Tag;
 import org.apache.hadoop.hbase.client.Query;
-import org.apache.hadoop.hbase.TagUtil;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
@@ -201,7 +200,7 @@ public final class HBaseTimelineStorageUtils {
     for (Tag t : tags) {
       if (AggregationCompactionDimension.APPLICATION_ID.getTagType() == t
           .getType()) {
-        appId = Bytes.toString(TagUtil.cloneValue(t));
+        appId = Bytes.toString(Tag.cloneValue(t));
         return appId;
       }
     }
