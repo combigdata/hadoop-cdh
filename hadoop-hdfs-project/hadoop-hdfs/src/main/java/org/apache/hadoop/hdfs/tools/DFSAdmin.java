@@ -402,7 +402,7 @@ public class DFSAdmin extends FsShell {
     "\t[-getDatanodeInfo <datanode_host:ipc_port>]\n" +
     "\t[-metasave filename]\n" +
     "\t[-triggerBlockReport [-incremental] <datanode_host:ipc_port>]\n" +
-    "\t[-listOpenFiles [-blockingDecommission]]\n" +
+    "\t[-listOpenFiles [-blockingDecommission] [-path <path>]]\n" +
     "\t[-help [cmd]]\n";
 
   /**
@@ -793,16 +793,29 @@ public class DFSAdmin extends FsShell {
    * @param argv
    */
   public int listOpenFiles(String[] argv) throws IOException {
+    String path = null;
     List<OpenFilesType> types = new ArrayList<>();
     if (argv != null) {
       List<String> args = new ArrayList<>(Arrays.asList(argv));
       if (StringUtils.popOption("-blockingDecommission", args)) {
         types.add(OpenFilesType.BLOCKING_DECOMMISSION);
       }
+
+      path = StringUtils.popOptionWithArgument("-path", args);
     }
     if (types.isEmpty()) {
       types.add(OpenFilesType.ALL_OPEN_FILES);
     }
+
+    if (path != null) {
+      path = path.trim();
+      if (path.length() == 0) {
+        path = OpenFilesIterator.FILTER_PATH_DEFAULT;
+      }
+    } else {
+      path = OpenFilesIterator.FILTER_PATH_DEFAULT;
+    }
+
     EnumSet<OpenFilesType> openFilesTypes = EnumSet.copyOf(types);
 
     DistributedFileSystem dfs = getDFS();
@@ -816,9 +829,9 @@ public class DFSAdmin extends FsShell {
           dfsConf, HAUtil.getAddressOfActive(getDFS()), ClientProtocol.class,
           UserGroupInformation.getCurrentUser(), false);
       openFilesRemoteIterator = new OpenFilesIterator(proxy.getProxy(),
-          FsTracer.get(dfsConf), openFilesTypes);
+          FsTracer.get(dfsConf), openFilesTypes, path);
     } else {
-      openFilesRemoteIterator = dfs.listOpenFiles(openFilesTypes);
+      openFilesRemoteIterator = dfs.listOpenFiles(openFilesTypes, path);
     }
     printOpenFiles(openFilesRemoteIterator);
     return 0;
@@ -1702,7 +1715,7 @@ public class DFSAdmin extends FsShell {
           + " [-triggerBlockReport [-incremental] <datanode_host:ipc_port>]");
     } else if ("-listOpenFiles".equals(cmd)) {
       System.err.println("Usage: hdfs dfsadmin"
-          + " [-listOpenFiles [-blockingDecommission]]");
+          + " [-listOpenFiles [-blockingDecommission] [-path <path>]]");
     } else {
       System.err.println("Usage: hdfs dfsadmin");
       System.err.println("Note: Administrative commands can only be run as the HDFS superuser.");
@@ -1847,7 +1860,7 @@ public class DFSAdmin extends FsShell {
         return exitCode;
       }
     } else if ("-listOpenFiles".equals(cmd)) {
-      if ((argv.length != 1) && (argv.length != 2)) {
+      if ((argv.length > 4)) {
         printUsage(cmd);
         return exitCode;
       }

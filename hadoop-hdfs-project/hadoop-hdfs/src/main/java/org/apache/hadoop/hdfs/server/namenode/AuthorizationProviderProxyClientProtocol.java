@@ -1044,15 +1044,16 @@ public class AuthorizationProviderProxyClientProtocol implements ClientProtocol 
   @Override
   public BatchedEntries<OpenFileEntry> listOpenFiles(long prevId)
       throws IOException {
-    return listOpenFiles(prevId, EnumSet.of(OpenFilesType.ALL_OPEN_FILES));
+    return listOpenFiles(prevId, EnumSet.of(OpenFilesType.ALL_OPEN_FILES),
+        OpenFilesIterator.FILTER_PATH_DEFAULT);
   }
 
   @Override
   public BatchedEntries<OpenFileEntry> listOpenFiles(long prevId,
-      EnumSet<OpenFilesType> openFilesTypes) throws IOException {
+      EnumSet<OpenFilesType> openFilesTypes, String path) throws IOException {
     try {
       AuthorizationProvider.beginClientOp();
-      return server.listOpenFiles(prevId, openFilesTypes);
+      return server.listOpenFiles(prevId, openFilesTypes, path);
     } finally {
       AuthorizationProvider.endClientOp();
     }

@@ -1555,7 +1555,7 @@ public class ClientNamenodeProtocolServerSideTranslatorPB implements
       EnumSet<OpenFilesType> openFilesTypes =
           PBHelper.convertOpenFileTypes(req.getTypesList());
       BatchedEntries<OpenFileEntry> entries = server.listOpenFiles(req.getId(),
-          openFilesTypes);
+          openFilesTypes, req.getPath());
       ListOpenFilesResponseProto.Builder builder =
           ListOpenFilesResponseProto.newBuilder();
       builder.setHasMore(entries.hasMore());
