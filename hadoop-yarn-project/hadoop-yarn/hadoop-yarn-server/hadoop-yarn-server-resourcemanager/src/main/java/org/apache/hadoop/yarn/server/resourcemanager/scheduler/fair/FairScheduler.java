@@ -23,8 +23,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.EnumSet;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -683,26 +681,35 @@ public class FairScheduler extends
     ApplicationId appId =
         container.getId().getApplicationAttemptId().getApplicationId();
     if (application == null) {
-      LOG.info("Container " + container + " of" +
-          " finished application " + appId +
+      LOG.info("Container " + container + " of finished application " + appId +
           " completed with event " + event);
       return;
     }
 
     // Get the node on which the container was allocated
-    FSSchedulerNode node = getFSSchedulerNode(container.getNodeId());
-
+    NodeId nodeID = container.getNodeId();
+    FSSchedulerNode node = getFSSchedulerNode(nodeID);
+    // node could be null if the thread was waiting for the lock and the node
+    // was removed in another thread
     if (rmContainer.getState() == RMContainerState.RESERVED) {
-      application.unreserve(rmContainer.getReservedPriority(), node);
+      if (node != null) {
+        application.unreserve(rmContainer.getReservedPriority(), node);
+      } else if (LOG.isDebugEnabled()) {
+        LOG.debug("Skipping unreserve on removed node: " + nodeID);
+      }
     } else {
       application.containerCompleted(rmContainer, containerStatus, event);
-      node.releaseContainer(container);
+      if (node != null) {
+        node.releaseContainer(container);
+      } else if (LOG.isDebugEnabled()) {
+        LOG.debug("Skipping container release on removed node: " + nodeID);
+      }
       updateRootQueueMetrics();
     }
 
     LOG.info("Application attempt " + application.getApplicationAttemptId()
-        + " released container " + container.getId() + " on node: " + node
-        + " with event: " + event);
+        + " released container " + container.getId() + " on node: " + (node
+       == null ? nodeID : node) + " with event: " + event);
   }
 
   private synchronized void addNode(List<NMContainerStatus> containerReports,
