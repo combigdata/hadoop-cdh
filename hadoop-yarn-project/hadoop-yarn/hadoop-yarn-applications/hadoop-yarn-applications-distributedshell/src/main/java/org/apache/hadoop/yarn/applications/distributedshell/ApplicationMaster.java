@@ -107,6 +107,7 @@ import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.apache.hadoop.yarn.util.SystemClock;
 import org.apache.hadoop.yarn.util.TimelineServiceHelper;
+import org.apache.hadoop.yarn.util.resource.ResourceUtils;
 import org.apache.hadoop.yarn.util.timeline.TimelineUtils;
 import org.apache.log4j.LogManager;
 
@@ -237,7 +238,11 @@ public class ApplicationMaster {
   // Memory to request for the container on which the shell command will run
   private long containerMemory = 10;
   // VirtualCores to request for the container on which the shell command will run
-  private int containerVirtualCores = 1;
+  private static final int DEFAULT_CONTAINER_VCORES = 1;
+  private int containerVirtualCores = DEFAULT_CONTAINER_VCORES;
+  // All other resources to request for the container
+  // on which the shell command will run
+  private Map<String, Long> containerResources = new HashMap<>();
   // Priority of the request
   private int requestPriority;
   // Execution type of the containers.
@@ -416,6 +421,10 @@ public class ApplicationMaster {
         "Amount of memory in MB to be requested to run the shell command");
     opts.addOption("container_vcores", true,
         "Amount of virtual cores to be requested to run the shell command");
+    opts.addOption("container_resources", true,
+        "Amount of resources to be requested to run the shell command. " +
+        "Specified as resource type=value pairs separated by commas. " +
+        "E.g. -container_resources memory-mb=512,vcores=1");
     opts.addOption("num_containers", true,
         "No. of containers on which the shell command needs to be executed");
     opts.addOption("priority", true, "Application Priority. Default 0");
@@ -570,6 +579,14 @@ public class ApplicationMaster {
         "container_memory", "10"));
     containerVirtualCores = Integer.parseInt(cliParser.getOptionValue(
         "container_vcores", "1"));
+    containerResources = new HashMap<>();
+    if (cliParser.hasOption("container_resources")) {
+      Map<String, Long> resources = Client.parseResourcesString(
+          cliParser.getOptionValue("container_resources"));
+      for (Map.Entry<String, Long> entry : resources.entrySet()) {
+        containerResources.put(entry.getKey(), entry.getValue());
+      }
+    }
     numTotalContainers = Integer.parseInt(cliParser.getOptionValue(
         "num_containers", "1"));
     if (numTotalContainers == 0) {
@@ -688,6 +705,7 @@ public class ApplicationMaster {
     RegisterApplicationMasterResponse response = amRMClient
         .registerApplicationMaster(appMasterHostname, appMasterRpcPort,
             appMasterTrackingUrl);
+    ResourceUtils.reinitializeResources(response.getResourceTypes());
     // Dump out information about cluster capability as seen by the
     // resource manager
     long maxMem = response.getMaximumResourceCapability().getMemorySize();
