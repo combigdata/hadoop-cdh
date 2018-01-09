@@ -588,7 +588,7 @@ public class S3AFileSystem extends FileSystem {
    */
   public FSDataInputStream open(Path f, int bufferSize)
       throws IOException {
-    checkNotClosed();
+    entryPoint(INVOCATION_OPEN);
     LOG.debug("Opening '{}' for reading; input policy = {}", f, inputPolicy);
     final FileStatus fileStatus = getFileStatus(f);
     if (fileStatus.isDirectory()) {
@@ -629,7 +629,7 @@ public class S3AFileSystem extends FileSystem {
   public FSDataOutputStream create(Path f, FsPermission permission,
       boolean overwrite, int bufferSize, short replication, long blockSize,
       Progressable progress) throws IOException {
-    checkNotClosed();
+    entryPoint(INVOCATION_CREATE);
     final Path path = qualify(f);
     String key = pathToKey(path);
     FileStatus status = null;
@@ -694,6 +694,7 @@ public class S3AFileSystem extends FileSystem {
       short replication,
       long blockSize,
       Progressable progress) throws IOException {
+    entryPoint(INVOCATION_CREATE_NON_RECURSIVE);
     Path parent = path.getParent();
     if (parent != null) {
       // expect this to raise an exception if there is no parent
@@ -1407,7 +1408,7 @@ public class S3AFileSystem extends FileSystem {
    */
   public boolean delete(Path f, boolean recursive) throws IOException {
     try {
-      checkNotClosed();
+      entryPoint(INVOCATION_DELETE);
       return innerDelete(innerGetFileStatus(f, true), recursive);
     } catch (FileNotFoundException e) {
       LOG.debug("Couldn't delete {} - does not exist", f);
