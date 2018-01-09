@@ -482,14 +482,22 @@ public class INodeFile extends INodeWithAdditionalFields
     this.blocks = blocks;
   }
 
+  private void updateRemovedUnderConstructionFiles( List<Long> removedUCFiles) {
+    if (isUnderConstruction() && removedUCFiles != null) {
+      removedUCFiles.add(getId());
+    }
+  }
+
   @Override
   public Quota.Counts cleanSubtree(final int snapshot, int priorSnapshotId,
       final BlocksMapUpdateInfo collectedBlocks,
       final List<INode> removedINodes, List<Long> removedUCFiles) {
     FileWithSnapshotFeature sf = getFileWithSnapshotFeature();
     if (sf != null) {
-      return sf.cleanFile(this, snapshot, priorSnapshotId, collectedBlocks,
-          removedINodes, removedUCFiles);
+      Quota.Counts counts = sf.cleanFile(this, snapshot, priorSnapshotId,
+          collectedBlocks, removedINodes, removedUCFiles);
+      updateRemovedUnderConstructionFiles(removedUCFiles);
+      return counts;
     }
     Quota.Counts counts = Quota.Counts.newInstance();
     if (snapshot == CURRENT_STATE_ID) {
@@ -504,9 +512,7 @@ public class INodeFile extends INodeWithAdditionalFields
         // clean the 0-sized block if the file is UC
         if (uc != null) {
           uc.cleanZeroSizeBlock(this, collectedBlocks);
-          if (removedUCFiles != null) {
-            removedUCFiles.add(getId());
-          }
+          updateRemovedUnderConstructionFiles(removedUCFiles);
         }
       }
     }
@@ -530,9 +536,7 @@ public class INodeFile extends INodeWithAdditionalFields
     if (sf != null) {
       sf.clearDiffs();
     }
-    if (isUnderConstruction() && removedUCFiles != null) {
-      removedUCFiles.add(getId());
-    }
+    updateRemovedUnderConstructionFiles(removedUCFiles);
   }
 
   @Override
