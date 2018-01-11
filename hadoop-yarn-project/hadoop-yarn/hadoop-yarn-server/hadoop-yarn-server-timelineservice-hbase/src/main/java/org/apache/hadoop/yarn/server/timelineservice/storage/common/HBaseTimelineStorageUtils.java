@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -31,6 +32,9 @@ import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.RawCell;
+import org.apache.hadoop.hbase.RawCellBuilder;
+import org.apache.hadoop.hbase.RawCellBuilderFactory;
 import org.apache.hadoop.hbase.Tag;
 import org.apache.hadoop.hbase.client.Query;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -111,17 +115,18 @@ public final class HBaseTimelineStorageUtils {
   }
 
   /**
-   * Returns the first seen aggregation operation as seen in the list of input
-   * tags or null otherwise.
+   * Returns the first seen aggregation operation as seen in the list of
+   * tags in the cell or null otherwise.
    *
-   * @param tags list of HBase tags.
+   * @param cell cell containing list of HBase tags.
    * @return AggregationOperation
    */
-  public static AggregationOperation getAggregationOperationFromTagsList(
-      List<Tag> tags) {
+  public static AggregationOperation getAggregationOperationFromCellTags(
+      Cell cell) {
     for (AggregationOperation aggOp : AggregationOperation.values()) {
-      for (Tag tag : tags) {
-        if (tag.getType() == aggOp.getTagType()) {
+      Iterator<Tag> it = ((RawCell) cell).getTags();
+      while (it.hasNext()) {
+        if (it.next().getType() == aggOp.getTagType()) {
           return aggOp;
         }
       }
@@ -184,23 +189,32 @@ public final class HBaseTimelineStorageUtils {
    * @throws IOException while creating the cell.
    */
   public static Cell createNewCell(byte[] row, byte[] family, byte[] qualifier,
-      long ts, byte[] newValue, byte[] tags) throws IOException {
-    return CellUtil.createCell(row, family, qualifier, ts, KeyValue.Type.Put,
-        newValue, tags);
+      long ts, byte[] newValue, List<Tag> tags) throws IOException {
+    RawCellBuilder rawCellBuilder = RawCellBuilderFactory.create();
+    return rawCellBuilder.setRow(row)
+        .setFamily(family)
+        .setQualifier(qualifier)
+        .setTimestamp(ts)
+        .setType(Cell.Type.Put)
+        .setValue(newValue)
+        .setTags(tags)
+        .build();
   }
 
   /**
-   * returns app id from the list of tags.
+   * Returns app id from the list of tags in the given cell.
    *
-   * @param tags cell tags to be looked into
+   * @param cell cell containing tags to be looked into
    * @return App Id as the AggregationCompactionDimension
    */
-  public static String getAggregationCompactionDimension(List<Tag> tags) {
+  public static String getAggregationCompactionDimension(Cell cell) {
     String appId = null;
-    for (Tag t : tags) {
-      if (AggregationCompactionDimension.APPLICATION_ID.getTagType() == t
-          .getType()) {
-        appId = Bytes.toString(Tag.cloneValue(t));
+    Iterator<Tag> tagsIterator = ((RawCell) cell).getTags();
+    while (tagsIterator.hasNext()) {
+      Tag tag = tagsIterator.next();
+      if (AggregationCompactionDimension.APPLICATION_ID.getTagType()
+          == tag.getType()) {
+        appId = Bytes.toString(Tag.cloneValue(tag));
         return appId;
       }
     }

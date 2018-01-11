@@ -34,7 +34,6 @@ import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.Tag;
-import org.apache.hadoop.hbase.TagUtil;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
 import org.apache.hadoop.hbase.regionserver.InternalScanner;
@@ -225,7 +224,9 @@ class FlowScanner implements RegionScanner, Closeable {
             converter, currentTimestamp);
         resetState(currentColumnCells, alreadySeenAggDim);
         previousColumnQualifier = currentColumnQualifier;
-        currentAggOp = getCurrentAggOp(cell);
+
+        currentAggOp = HBaseTimelineStorageUtils.
+            getAggregationOperationFromCellTags(cell);
         converter = getValueConverter(currentColumnQualifier);
       }
       collectCells(currentColumnCells, currentAggOp, cell, alreadySeenAggDim,
@@ -246,13 +247,6 @@ class FlowScanner implements RegionScanner, Closeable {
       }
     }
     return hasMore();
-  }
-
-  private AggregationOperation getCurrentAggOp(Cell cell) {
-    List<Tag> tags = TagUtil.asList(cell.getTagsArray(), cell.getTagsOffset(),
-        cell.getTagsLength());
-    // We assume that all the operations for a particular column are the same
-    return HBaseTimelineStorageUtils.getAggregationOperationFromTagsList(tags);
   }
 
   /**
@@ -324,10 +318,8 @@ class FlowScanner implements RegionScanner, Closeable {
       }
 
       // only if this app has not been seen yet, add to current column cells
-      List<Tag> tags = TagUtil.asList(cell.getTagsArray(), cell.getTagsOffset(),
-          cell.getTagsLength());
       String aggDim = HBaseTimelineStorageUtils
-          .getAggregationCompactionDimension(tags);
+          .getAggregationCompactionDimension(cell);
       if (!alreadySeenAggDim.contains(aggDim)) {
         // if this agg dimension has already been seen,
         // since they show up in sorted order
@@ -460,12 +452,11 @@ class FlowScanner implements RegionScanner, Closeable {
     }
 
     for (Cell cell : currentColumnCells) {
-      AggregationOperation cellAggOp = getCurrentAggOp(cell);
+      AggregationOperation cellAggOp = HBaseTimelineStorageUtils
+          .getAggregationOperationFromCellTags(cell);
       // if this is the existing flow sum cell
-      List<Tag> tags = TagUtil.asList(cell.getTagsArray(), cell.getTagsOffset(),
-          cell.getTagsLength());
       String appId = HBaseTimelineStorageUtils
-          .getAggregationCompactionDimension(tags);
+          .getAggregationCompactionDimension(cell);
       if (appId == FLOW_APP_ID) {
         sum = converter.add(sum, currentValue);
         summationDone = true;
@@ -505,14 +496,13 @@ class FlowScanner implements RegionScanner, Closeable {
       t = new ArrayBackedTag(AggregationCompactionDimension.APPLICATION_ID.getTagType(),
           Bytes.toBytes(FLOW_APP_ID));
       tags.add(t);
-      byte[] tagByteArray = Tag.fromList(tags);
       Cell sumCell = HBaseTimelineStorageUtils.createNewCell(
           CellUtil.cloneRow(anyCell),
           CellUtil.cloneFamily(anyCell),
           CellUtil.cloneQualifier(anyCell),
           TimestampGenerator.getSupplementedTimestamp(
               System.currentTimeMillis(), FLOW_APP_ID),
-              converter.encodeValue(sum), tagByteArray);
+              converter.encodeValue(sum), tags);
       finalCells.add(sumCell);
       if (LOG.isTraceEnabled()) {
         LOG.trace("MAJOR COMPACTION final sum= " + sum + " for "

@@ -29,7 +29,6 @@ import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.CoprocessorEnvironment;
 import org.apache.hadoop.hbase.HConstants;
-import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.Tag;
 import org.apache.hadoop.hbase.client.Durability;
 import org.apache.hadoop.hbase.client.Get;
@@ -108,7 +107,6 @@ public class FlowRunCoprocessor implements RegionObserver, RegionCoprocessor{
         Tag t = HBaseTimelineStorageUtils.getTagFromAttribute(attribute);
         tags.add(t);
       }
-      byte[] tagByteArray = Tag.fromList(tags);
       NavigableMap<byte[], List<Cell>> newFamilyMap = new TreeMap<>(
           Bytes.BYTES_COMPARATOR);
       for (Map.Entry<byte[], List<Cell>> entry : put.getFamilyCellMap()
@@ -121,10 +119,9 @@ public class FlowRunCoprocessor implements RegionObserver, RegionCoprocessor{
           // also, get a unique cell timestamp for non-metric cells
           // this way we don't inadvertently overwrite cell versions
           long cellTimestamp = getCellTimestamp(cell.getTimestamp(), tags);
-          newCells.add(CellUtil.createCell(CellUtil.cloneRow(cell),
+          newCells.add(HBaseTimelineStorageUtils.createNewCell(CellUtil.cloneRow(cell),
               CellUtil.cloneFamily(cell), CellUtil.cloneQualifier(cell),
-              cellTimestamp, KeyValue.Type.Put, CellUtil.cloneValue(cell),
-              tagByteArray));
+              cellTimestamp, CellUtil.cloneValue(cell), tags));
         }
         newFamilyMap.put(entry.getKey(), newCells);
       } // for each entry

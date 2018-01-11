@@ -25,6 +25,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
@@ -411,44 +412,36 @@ public class TestHBaseStorageFlowRunCompaction {
 
     SortedSet<Cell> currentColumnCells = new TreeSet<Cell>(KeyValue.COMPARATOR);
 
-    List<Tag> tags = new ArrayList<>();
     Tag t = new ArrayBackedTag(AggregationOperation.SUM_FINAL.getTagType(),
         "application_1234588888_91188");
-    tags.add(t);
-    byte[] tagByteArray = Tag.fromList(tags);
     // create a cell with a VERY old timestamp and attribute SUM_FINAL
     Cell c1 = HBaseTimelineStorageUtils.createNewCell(aRowKey, aFamily,
-        aQualifier, cell1Ts, Bytes.toBytes(cellValue1), tagByteArray);
+        aQualifier, cell1Ts, Bytes.toBytes(cellValue1),
+        Collections.singletonList(t));
     currentColumnCells.add(c1);
 
-    tags = new ArrayList<>();
     t = new ArrayBackedTag(AggregationOperation.SUM_FINAL.getTagType(),
         "application_12700000001_29102");
-    tags.add(t);
-    tagByteArray = Tag.fromList(tags);
     // create a cell with a recent timestamp and attribute SUM_FINAL
     Cell c2 = HBaseTimelineStorageUtils.createNewCell(aRowKey, aFamily,
-        aQualifier, cell2Ts, Bytes.toBytes(cellValue2), tagByteArray);
+        aQualifier, cell2Ts, Bytes.toBytes(cellValue2),
+        Collections.singletonList(t));
     currentColumnCells.add(c2);
 
-    tags = new ArrayList<>();
     t = new ArrayBackedTag(AggregationOperation.SUM.getTagType(),
         "application_191780000000001_8195");
-    tags.add(t);
-    tagByteArray = Tag.fromList(tags);
     // create a cell with a VERY old timestamp but has attribute SUM
     Cell c3 = HBaseTimelineStorageUtils.createNewCell(aRowKey, aFamily,
-        aQualifier, cell3Ts, Bytes.toBytes(cellValue3), tagByteArray);
+        aQualifier, cell3Ts, Bytes.toBytes(cellValue3),
+        Collections.singletonList(t));
     currentColumnCells.add(c3);
 
-    tags = new ArrayList<>();
     t = new ArrayBackedTag(AggregationOperation.SUM.getTagType(),
         "application_191780000000001_98104");
-    tags.add(t);
-    tagByteArray = Tag.fromList(tags);
     // create a cell with a VERY old timestamp but has attribute SUM
     Cell c4 = HBaseTimelineStorageUtils.createNewCell(aRowKey, aFamily,
-        aQualifier, cell4Ts, Bytes.toBytes(cellValue4), tagByteArray);
+        aQualifier, cell4Ts, Bytes.toBytes(cellValue4),
+        Collections.singletonList(t));
     currentColumnCells.add(c4);
 
     List<Cell> cells =
@@ -511,28 +504,24 @@ public class TestHBaseStorageFlowRunCompaction {
 
     // insert SUM_FINAL cells
     for (int i = 0; i < count; i++) {
-      tags = new ArrayList<>();
       t = new ArrayBackedTag(AggregationOperation.SUM_FINAL.getTagType(),
           "application_123450000" + i + "01_19" + i);
-      tags.add(t);
-      byte[] tagByteArray = Tag.fromList(tags);
       // create a cell with a VERY old timestamp and attribute SUM_FINAL
       c1 = HBaseTimelineStorageUtils.createNewCell(aRowKey, aFamily, aQualifier,
-          cellTsFinal, Bytes.toBytes(cellValueFinal), tagByteArray);
+          cellTsFinal, Bytes.toBytes(cellValueFinal),
+          Collections.singletonList(t));
       currentColumnCells.add(c1);
       cellTsFinal++;
     }
 
     // add SUM cells
     for (int i = 0; i < count; i++) {
-      tags = new ArrayList<>();
       t = new ArrayBackedTag(AggregationOperation.SUM.getTagType(),
           "application_1987650000" + i + "83_911" + i);
-      tags.add(t);
-      byte[] tagByteArray = Tag.fromList(tags);
       // create a cell with attribute SUM
       c1 = HBaseTimelineStorageUtils.createNewCell(aRowKey, aFamily, aQualifier,
-          cellTsNotFinal, Bytes.toBytes(cellValueNotFinal), tagByteArray);
+          cellTsNotFinal, Bytes.toBytes(cellValueNotFinal),
+          Collections.singletonList(t));
       currentColumnCells.add(c1);
       cellTsNotFinal++;
     }
@@ -602,42 +591,36 @@ public class TestHBaseStorageFlowRunCompaction {
 
     // insert SUM_FINAL cells which will expire
     for (int i = 0; i < countFinal; i++) {
-      tags = new ArrayList<>();
       t = new ArrayBackedTag(AggregationOperation.SUM_FINAL.getTagType(),
           "application_123450000" + i + "01_19" + i);
-      tags.add(t);
-      byte[] tagByteArray = Tag.fromList(tags);
       // create a cell with a VERY old timestamp and attribute SUM_FINAL
       c1 = HBaseTimelineStorageUtils.createNewCell(aRowKey, aFamily, aQualifier,
-          cellTsFinal, Bytes.toBytes(cellValueFinal), tagByteArray);
+          cellTsFinal, Bytes.toBytes(cellValueFinal),
+          Collections.singletonList(t));
       currentColumnCells.add(c1);
       cellTsFinal++;
     }
 
     // insert SUM_FINAL cells which will NOT expire
     for (int i = 0; i < countFinalNotExpire; i++) {
-      tags = new ArrayList<>();
       t = new ArrayBackedTag(AggregationOperation.SUM_FINAL.getTagType(),
           "application_123450000" + i + "01_19" + i);
-      tags.add(t);
-      byte[] tagByteArray = Tag.fromList(tags);
       // create a cell with a VERY old timestamp and attribute SUM_FINAL
       c1 = HBaseTimelineStorageUtils.createNewCell(aRowKey, aFamily, aQualifier,
-          cellTsFinalNotExpire, Bytes.toBytes(cellValueFinal), tagByteArray);
+          cellTsFinalNotExpire, Bytes.toBytes(cellValueFinal),
+          Collections.singletonList(t));
       currentColumnCells.add(c1);
       cellTsFinalNotExpire++;
     }
 
     // add SUM cells
     for (int i = 0; i < countNotFinal; i++) {
-      tags = new ArrayList<>();
       t = new ArrayBackedTag(AggregationOperation.SUM.getTagType(),
           "application_1987650000" + i + "83_911" + i);
-      tags.add(t);
-      byte[] tagByteArray = Tag.fromList(tags);
       // create a cell with attribute SUM
       c1 = HBaseTimelineStorageUtils.createNewCell(aRowKey, aFamily, aQualifier,
-          cellTsNotFinal, Bytes.toBytes(cellValueNotFinal), tagByteArray);
+          cellTsNotFinal, Bytes.toBytes(cellValueNotFinal),
+          Collections.singletonList(t));
       currentColumnCells.add(c1);
       cellTsNotFinal++;
     }
@@ -685,27 +668,23 @@ public class TestHBaseStorageFlowRunCompaction {
     long cellValue1 = 1236L;
     long cellValue2 = 28L;
 
-    List<Tag> tags = new ArrayList<>();
     Tag t = new ArrayBackedTag(AggregationOperation.SUM_FINAL.getTagType(),
         "application_1234588888_999888");
-    tags.add(t);
-    byte[] tagByteArray = Tag.fromList(tags);
     SortedSet<Cell> currentColumnCells = new TreeSet<Cell>(KeyValue.COMPARATOR);
 
     // create a cell with a VERY old timestamp and attribute SUM_FINAL
     Cell c1 = HBaseTimelineStorageUtils.createNewCell(aRowKey, aFamily,
-        aQualifier, 120L, Bytes.toBytes(cellValue1), tagByteArray);
+        aQualifier, 120L, Bytes.toBytes(cellValue1),
+        Collections.singletonList(t));
     currentColumnCells.add(c1);
 
-    tags = new ArrayList<>();
     t = new ArrayBackedTag(AggregationOperation.SUM.getTagType(),
         "application_100000000001_119101");
-    tags.add(t);
-    tagByteArray = Tag.fromList(tags);
 
     // create a cell with a VERY old timestamp but has attribute SUM
     Cell c2 = HBaseTimelineStorageUtils.createNewCell(aRowKey, aFamily,
-        aQualifier, 130L, Bytes.toBytes(cellValue2), tagByteArray);
+        aQualifier, 130L, Bytes.toBytes(cellValue2),
+        Collections.singletonList(t));
     currentColumnCells.add(c2);
     List<Cell> cells = fs.processSummationMajorCompaction(currentColumnCells,
         new LongConverter(), currentTimestamp);
@@ -743,16 +722,14 @@ public class TestHBaseStorageFlowRunCompaction {
 
     // note down the current timestamp
     long currentTimestamp = System.currentTimeMillis();
-    List<Tag> tags = new ArrayList<>();
     Tag t = new ArrayBackedTag(AggregationOperation.SUM_FINAL.getTagType(),
         "application_123458888888_999888");
-    tags.add(t);
-    byte[] tagByteArray = Tag.fromList(tags);
     SortedSet<Cell> currentColumnCells = new TreeSet<Cell>(KeyValue.COMPARATOR);
 
     // create a cell with a VERY old timestamp
     Cell c1 = HBaseTimelineStorageUtils.createNewCell(aRowKey, aFamily,
-        aQualifier, 120L, Bytes.toBytes(1110L), tagByteArray);
+        aQualifier, 120L, Bytes.toBytes(1110L),
+        Collections.singletonList(t));
     currentColumnCells.add(c1);
 
     List<Cell> cells = fs.processSummationMajorCompaction(currentColumnCells,
@@ -781,16 +758,14 @@ public class TestHBaseStorageFlowRunCompaction {
     long currentTimestamp = System.currentTimeMillis();
 
     // try for 1 cell with tag SUM
-    List<Tag> tags = new ArrayList<>();
     Tag t = new ArrayBackedTag(AggregationOperation.SUM.getTagType(),
         "application_123458888888_999888");
-    tags.add(t);
-    byte[] tagByteArray = Tag.fromList(tags);
 
     SortedSet<Cell> currentColumnCells = new TreeSet<Cell>(KeyValue.COMPARATOR);
 
     Cell c1 = HBaseTimelineStorageUtils.createNewCell(aRowKey, aFamily,
-        aQualifier, currentTimestamp, Bytes.toBytes(1110L), tagByteArray);
+        aQualifier, currentTimestamp, Bytes.toBytes(1110L),
+        Collections.singletonList(t));
     currentColumnCells.add(c1);
     List<Cell> cells = fs.processSummationMajorCompaction(currentColumnCells,
         new LongConverter(), currentTimestamp);
