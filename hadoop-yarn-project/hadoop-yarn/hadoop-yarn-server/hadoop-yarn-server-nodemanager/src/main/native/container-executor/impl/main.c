@@ -216,6 +216,10 @@ static struct {
   const char *docker_command_file;
 } cmd_input;
 
+static int all_numbers(char* input);
+
+static int validate_container_id(const char* input);
+
 static int validate_run_as_user_commands(int argc, char **argv, int *operation);
 
 /* Validates that arguments used in the invocation are valid. In case of validation
@@ -318,6 +322,84 @@ static int validate_arguments(int argc, char **argv , int *operation) {
   return validate_run_as_user_commands(argc, argv, operation);
 }
 
+/*
+ * if all chars in the input str are numbers
+ * return true/false
+ */
+static int all_numbers(char* input) {
+  for (; input[0] != 0; input++) {
+    if (input[0] < '0' || input[0] > '9') {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int validate_container_id(const char* input) {
+  int is_container_id = 1;
+
+  /*
+   * Two different forms of container_id
+   * container_e17_1410901177871_0001_01_000005
+   * container_1410901177871_0001_01_000005
+   */
+  if (!input) {
+    return 0;
+  }
+
+  char* input_cpy = strdup(input);
+  if (!input_cpy) {
+    return 0;
+  }
+
+  char* p = strtok(input_cpy, "_");
+  int idx = 0;
+  while (p != NULL) {
+    if (0 == idx) {
+      if (0 != strcmp("container", p)) {
+        is_container_id = 0;
+        goto cleanup;
+      }
+    } else if (1 == idx) {
+      // this could be e[n][n], or [n][n]...
+      if (!all_numbers(p)) {
+        if (p[0] == 0) {
+          is_container_id = 0;
+          goto cleanup;
+        }
+        if (p[0] != 'e') {
+          is_container_id = 0;
+          goto cleanup;
+        }
+        if (!all_numbers(p + 1)) {
+          is_container_id = 0;
+          goto cleanup;
+        }
+      }
+    } else {
+      // otherwise, should be all numbers
+      if (!all_numbers(p)) {
+        is_container_id = 0;
+        goto cleanup;
+      }
+    }
+
+    p = strtok(NULL, "_");
+    idx++;
+  }
+
+cleanup:
+  if (input_cpy) {
+    free(input_cpy);
+  }
+
+  // We should have [5,6] elements split by '_'
+  if (idx > 6 || idx < 5) {
+    is_container_id = 0;
+  }
+  return is_container_id;
+}
+
 /* Parse/validate 'run as user' commands */
 static int validate_run_as_user_commands(int argc, char **argv, int *operation) {
   /* We need at least the following arguments in order to proceed further :
@@ -349,6 +431,10 @@ static int validate_run_as_user_commands(int argc, char **argv, int *operation) 
     }
     cmd_input.app_id = argv[optind++];
     cmd_input.container_id = argv[optind++];
+    if (!validate_container_id(cmd_input.container_id)) {
+      fprintf(ERRORFILE, "Invalid container id %s\n", cmd_input.container_id);
+      return INVALID_CONTAINER_ID;
+    }
     cmd_input.cred_file = argv[optind++];
     cmd_input.local_dirs = argv[optind++];// good local dirs as a comma separated list
     cmd_input.log_dirs = argv[optind++];// good log dirs as a comma separated list
