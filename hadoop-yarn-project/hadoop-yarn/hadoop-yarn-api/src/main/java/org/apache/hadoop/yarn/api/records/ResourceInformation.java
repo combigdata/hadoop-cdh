@@ -225,6 +225,12 @@ public class ResourceInformation implements Comparable<ResourceInformation> {
     return ResourceInformation.newInstance(name, "");
   }
 
+  public static ResourceInformation newInstance(String name, String units,
+          long minRes, long maxRes) {
+    return ResourceInformation.newInstance(name, units, 0L,
+            ResourceTypes.COUNTABLE, minRes, maxRes);
+  }
+
   /**
    * Copies the content of the source ResourceInformation object to the
    * destination object, overwriting all properties of the destination object.
