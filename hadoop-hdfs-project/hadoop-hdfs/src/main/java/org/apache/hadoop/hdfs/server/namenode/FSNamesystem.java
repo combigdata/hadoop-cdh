@@ -5226,19 +5226,12 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
   DirectoryListing getListing(String src, byte[] startAfter,
       boolean needLocation) 
       throws AccessControlException, UnresolvedLinkException, IOException {
-    DirectoryListing dl = null;
     try {
-      dl = getListingInt(src, startAfter, needLocation);
+      return getListingInt(src, startAfter, needLocation);
     } catch (AccessControlException e) {
       logAuditEvent(false, "listStatus", src);
       throw e;
     }
-    if (topConf.isEnabled && isAuditEnabled() && isExternalInvocation()
-        && dl != null && Server.getRemoteUser() != null) {
-      topMetrics.reportFilesInGetListing(Server.getRemoteUser().toString(),
-          dl.getPartialListing().length);
-    }
-    return dl;
   }
 
   private DirectoryListing getListingInt(final String srcArg, byte[] startAfter,
