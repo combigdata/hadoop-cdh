@@ -93,6 +93,7 @@ import org.apache.hadoop.hdfs.protocol.ErasureCodingPolicyInfo;
 import org.apache.hadoop.hdfs.protocol.ReplicatedBlockStats;
 import org.apache.hadoop.hdfs.protocol.ECBlockGroupStats;
 import org.apache.hadoop.hdfs.protocol.OpenFileEntry;
+import org.apache.hadoop.hdfs.protocol.SystemErasureCodingPolicies;
 import org.apache.hadoop.hdfs.protocol.ZoneReencryptionStatus;
 import org.apache.hadoop.hdfs.server.namenode.metrics.ReplicatedBlocksMBean;
 import org.apache.hadoop.hdfs.server.protocol.SlowDiskReports;
@@ -2316,11 +2317,15 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
     }
 
     // CLOUDERA-BUILD. CDH-64271.
-    if (!clouderaErasureCodingEnabled && !shouldReplicate &&
-        (!org.apache.commons.lang.StringUtils.isEmpty(ecPolicyName))) {
-      throw new HadoopIllegalArgumentException(String.format(
-          "creating erasure coded file is not allowed because %s=false",
-          CLOUDERA_ERASURE_CODING_ENABLED_KEY));
+    if (!clouderaErasureCodingEnabled) {
+      shouldReplicate = true;
+      if (!org.apache.commons.lang.StringUtils.isEmpty(ecPolicyName) &&
+          !ecPolicyName.equals(
+              SystemErasureCodingPolicies.getReplicationPolicy().getName())) {
+        LOG.warn(String.format(
+            "creating erasure coded file %s is not allowed because %s=false",
+            src, CLOUDERA_ERASURE_CODING_ENABLED_KEY));
+      }
     }
 
     FSPermissionChecker pc = getPermissionChecker();
