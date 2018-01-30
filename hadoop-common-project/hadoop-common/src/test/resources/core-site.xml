@@ -60,4 +60,10 @@
   <name>nfs3.mountd.port</name>
   <value>4272</value>
 </property>
+
+<!-- CLOUDERA-BUILD: CDH-64271. -->
+<property>
+  <name>cloudera.erasure_coding.enabled</name>
+  <value>true</value>
+</property>
 </configuration>
