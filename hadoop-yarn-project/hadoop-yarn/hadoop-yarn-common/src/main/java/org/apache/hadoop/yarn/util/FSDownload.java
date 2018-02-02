@@ -401,7 +401,7 @@ public class FSDownload implements Callable<Path> {
     }
 
     final Path destinationTmp = new Path(destDirPath + "_tmp");
-    createDir(destinationTmp, PRIVATE_DIR_PERMS);
+    createDir(destinationTmp, cachePerms);
     Path dFinal =
         files.makeQualified(new Path(destinationTmp, sCopy.getName()));
     try {
