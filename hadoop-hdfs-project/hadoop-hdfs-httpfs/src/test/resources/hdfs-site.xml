@@ -26,4 +26,9 @@
     <value>0</value>
   </property>
 
+  <!-- CLOUDERA-BUILD: CDH-64271. -->
+  <property>
+    <name>cloudera.erasure_coding.enabled</name>
+    <value>true</value>
+  </property>
 </configuration>
