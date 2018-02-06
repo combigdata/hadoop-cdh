@@ -91,10 +91,9 @@ public class DomainSocketFactory {
   /**
    * Information about domain socket paths.
    */
-  final Cache<String, PathState> pathMap =
-      CacheBuilder.newBuilder()
-      .expireAfterWrite(10, TimeUnit.MINUTES)
-      .build();
+  private final long pathExpireSeconds;
+  private final Cache<String, PathState> pathMap;
+
 
   public DomainSocketFactory(Conf conf) {
     final String feature;
@@ -120,6 +119,10 @@ public class DomainSocketFactory {
         LOG.debug(feature + " is enabled.");
       }
     }
+
+    pathExpireSeconds = conf.getDomainSocketDisableIntervalSeconds();
+    pathMap = CacheBuilder.newBuilder()
+        .expireAfterWrite(pathExpireSeconds, TimeUnit.SECONDS).build();
   }
 
   /**
@@ -190,5 +193,9 @@ public class DomainSocketFactory {
   @VisibleForTesting
   public void clearPathMap() {
     pathMap.invalidateAll();
+  }
+
+  public long getPathExpireSeconds() {
+    return pathExpireSeconds;
   }
 }
