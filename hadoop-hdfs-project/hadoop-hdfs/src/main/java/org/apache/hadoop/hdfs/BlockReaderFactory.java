@@ -17,6 +17,7 @@
  */
 package org.apache.hadoop.hdfs;
 
+import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_DOMAIN_SOCKET_DISABLE_INTERVAL_SECOND_KEY;
 import static org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.ShortCircuitFdResponse.USE_RECEIPT_VERIFICATION;
 
 import java.io.BufferedOutputStream;
@@ -651,9 +652,17 @@ public class BlockReaderFactory implements ShortCircuitReplicaCreator {
       }
       return new ShortCircuitReplicaInfo(new InvalidToken(msg));
     default:
+      final long expiration =
+          clientContext.getDomainSocketFactory().getPathExpireSeconds();
+      String disableMsg = "disabled temporarily for " + expiration + " seconds";
+      if (expiration == 0) {
+        disableMsg = "not disabled";
+      }
       LOG.warn(this + ": unknown response code " + resp.getStatus() +
           " while attempting to set up short-circuit access. " +
-          resp.getMessage());
+          resp.getMessage() + ". Short-circuit read for DataNode " + datanode
+          + " is " + disableMsg + " based on "
+          + DFS_DOMAIN_SOCKET_DISABLE_INTERVAL_SECOND_KEY);
       clientContext.getDomainSocketFactory()
           .disableShortCircuitForPath(pathInfo.getPath());
       return null;

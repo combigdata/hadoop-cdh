@@ -146,7 +146,9 @@ public class ClientContext {
       append(", shortCircuitSharedMemoryWatcherInterruptCheckMs = ").
       append(conf.shortCircuitSharedMemoryWatcherInterruptCheckMs).
       append(", keyProviderCacheExpiryMs = ").
-      append(conf.keyProviderCacheExpiryMs);
+      append(conf.keyProviderCacheExpiryMs).
+      append(", domainSocketDisableIntervalSeconds = ").
+      append(conf.domainSocketDisableIntervalSeconds);
 
     return builder.toString();
   }

@@ -349,6 +349,7 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
     final long shortCircuitMmapCacheExpiryMs;
     final long shortCircuitMmapCacheRetryTimeout;
     final long shortCircuitCacheStaleThresholdMs;
+    final long domainSocketDisableIntervalSeconds;
 
     final long keyProviderCacheExpiryMs;
     public BlockReaderFactory.FailureInjector brfFailureInjector =
@@ -519,6 +520,11 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
       shortCircuitSharedMemoryWatcherInterruptCheckMs = conf.getInt(
           DFSConfigKeys.DFS_SHORT_CIRCUIT_SHARED_MEMORY_WATCHER_INTERRUPT_CHECK_MS,
           DFSConfigKeys.DFS_SHORT_CIRCUIT_SHARED_MEMORY_WATCHER_INTERRUPT_CHECK_MS_DEFAULT);
+      domainSocketDisableIntervalSeconds = conf.getLong(
+          DFSConfigKeys.DFS_DOMAIN_SOCKET_DISABLE_INTERVAL_SECOND_KEY,
+          DFSConfigKeys.DFS_DOMAIN_SOCKET_DISABLE_INTERVAL_SECOND_DEFAULT);
+      Preconditions.checkArgument(domainSocketDisableIntervalSeconds >= 0,
+          DFSConfigKeys.DFS_DOMAIN_SOCKET_DISABLE_INTERVAL_SECOND_KEY + "can't be negative.");
 
       datanodeRestartTimeout = conf.getLong(
           DFS_CLIENT_DATANODE_RESTART_TIMEOUT_KEY,
@@ -629,6 +635,13 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
      */
     public boolean getDataTransferTcpNoDelay() {
       return dataTransferTcpNoDelay;
+    }
+
+    /**
+     * @return the domainSocketDisableIntervalSeconds
+     */
+    public long getDomainSocketDisableIntervalSeconds() {
+      return domainSocketDisableIntervalSeconds;
     }
   }
  
