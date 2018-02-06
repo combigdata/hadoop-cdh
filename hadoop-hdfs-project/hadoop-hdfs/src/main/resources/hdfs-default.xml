@@ -2596,7 +2596,7 @@
 
 <property>
   <name>dfs.domain.socket.disable.interval.seconds</name>
-  <value>600</value>
+  <value>1</value>
   <description>
     The interval that a DataNode is disabled for future Short-Circuit Reads,
     after an error happens during a Short-Circuit Read. Setting this to 0 will

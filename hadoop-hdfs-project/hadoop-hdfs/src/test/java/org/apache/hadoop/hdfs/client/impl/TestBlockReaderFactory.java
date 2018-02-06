@@ -319,8 +319,9 @@ public class TestBlockReaderFactory {
    */
   @Test
   public void testShortCircuitCacheUnbufferDefault() throws Exception {
-    testShortCircuitCacheUnbufferWithDisableInterval(
-        DFS_DOMAIN_SOCKET_DISABLE_INTERVAL_SECOND_DEFAULT, true);
+        // test with upstream default interval, to make sure the disable works.
+    final long disableInterval = 600;
+    testShortCircuitCacheUnbufferWithDisableInterval(disableInterval, true);
   }
   /**
    * Test the case where if we disable the cache in
