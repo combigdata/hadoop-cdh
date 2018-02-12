@@ -5,6 +5,9 @@ exit 0
 
 set -xe
 
+# activate mvn-gbn wrapper
+mv "$(which mvn-gbn-wrapper)" "$(dirname "$(which mvn-gbn-wrapper)")/mvn"
+
 DIR="$( cd $( dirname ${BASH_SOURCE[0]} )  && pwd )"
 cd $DIR
 
