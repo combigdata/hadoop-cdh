@@ -229,10 +229,23 @@ class BlockPoolManager {
           Joiner.on(",").useForNull("<default>").join(toRefresh));
       
       for (String nsToRefresh : toRefresh) {
-        BPOfferService bpos = bpByNameserviceId.get(nsToRefresh);
-        ArrayList<InetSocketAddress> addrs =
+        final BPOfferService bpos = bpByNameserviceId.get(nsToRefresh);
+        final ArrayList<InetSocketAddress> addrs =
           Lists.newArrayList(addrMap.get(nsToRefresh).values());
-        bpos.refreshNNList(addrs);
+        try {
+          UserGroupInformation.getLoginUser()
+              .doAs(new PrivilegedExceptionAction<Object>() {
+                @Override
+                public Object run() throws Exception {
+                  bpos.refreshNNList(addrs);
+                  return null;
+                }
+              });
+        } catch (InterruptedException ex) {
+          IOException ioe = new IOException();
+          ioe.initCause(ex.getCause());
+          throw ioe;
+        }
       }
     }
   }
