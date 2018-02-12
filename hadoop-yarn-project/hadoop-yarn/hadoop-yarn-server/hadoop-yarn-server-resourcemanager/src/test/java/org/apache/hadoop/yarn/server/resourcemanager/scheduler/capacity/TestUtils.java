@@ -38,6 +38,7 @@ import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.ResourceInformation;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.event.Dispatcher;
 import org.apache.hadoop.yarn.event.Event;
@@ -456,5 +457,24 @@ public class TestUtils {
 
     cs.submitResourceCommitRequest(clusterResource,
         csAssignment);
+  }
+
+  /**
+   * An easy way to create resources other than memory and vcores for tests.
+   * @param memory memory
+   * @param vcores vcores
+   * @param nameToValues resource types other than memory and vcores.
+   * @return created resource
+   */
+  public static Resource createResource(long memory, int vcores,
+      Map<String, Integer> nameToValues) {
+    Resource res = Resource.newInstance(memory, vcores);
+    if (nameToValues != null) {
+      for (Map.Entry<String, Integer> entry : nameToValues.entrySet()) {
+        res.setResourceInformation(entry.getKey(), ResourceInformation
+            .newInstance(entry.getKey(), "", entry.getValue()));
+      }
+    }
+    return res;
   }
 }
