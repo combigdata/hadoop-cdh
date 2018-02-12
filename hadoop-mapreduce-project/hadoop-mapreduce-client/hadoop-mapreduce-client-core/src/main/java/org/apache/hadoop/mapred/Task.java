@@ -65,6 +65,7 @@ import org.apache.hadoop.mapreduce.task.ReduceContextImpl;
 import org.apache.hadoop.mapreduce.util.MRJobConfUtil;
 import org.apache.hadoop.yarn.util.ResourceCalculatorProcessTree;
 import org.apache.hadoop.net.NetUtils;
+import org.apache.hadoop.util.ExitUtil;
 import org.apache.hadoop.util.Progress;
 import org.apache.hadoop.util.Progressable;
 import org.apache.hadoop.util.ReflectionUtils;
@@ -194,6 +195,7 @@ abstract public class Task implements Writable, Configurable {
   protected SecretKey tokenSecret;
   protected SecretKey shuffleSecret;
   protected GcTimeUpdater gcUpdater;
+  private boolean uberized = false;
 
   ////////////////////////////////////////////
   // Constructors
@@ -760,9 +762,6 @@ abstract public class Task implements Writable, Configurable {
       long taskProgressInterval = MRJobConfUtil.
           getTaskProgressReportInterval(conf);
 
-      boolean uberized = conf.getBoolean("mapreduce.task.uberized",
-          false);
-
       while (!taskDone.get()) {
         synchronized (lock) {
           done = false;
@@ -1127,11 +1126,17 @@ abstract public class Task implements Writable, Configurable {
   public void statusUpdate(TaskUmbilicalProtocol umbilical) 
   throws IOException {
     int retries = MAX_RETRIES;
+
     while (true) {
       try {
         if (!umbilical.statusUpdate(getTaskID(), taskStatus)) {
-          LOG.warn("Parent died.  Exiting "+taskId);
-          System.exit(66);
+          if (uberized) {
+            LOG.warn("Task no longer available: " + taskId);
+            break;
+          } else {
+            LOG.warn("Parent died.  Exiting " + taskId);
+            ExitUtil.terminate(66);
+          }
         }
         taskStatus.clearStatus();
         return;
@@ -1344,6 +1349,8 @@ abstract public class Task implements Writable, Configurable {
         NetUtils.addStaticResolution(name, resolvedName);
       }
     }
+
+    uberized = conf.getBoolean("mapreduce.task.uberized", false);
   }
 
   public Configuration getConf() {
