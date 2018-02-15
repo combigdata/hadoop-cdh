@@ -112,6 +112,13 @@ class FSNamesystemLock {
     }
   }
 
+  public void readLockInterruptibly() throws InterruptedException {
+    coarseLock.readLock().lockInterruptibly();
+    if (coarseLock.getReadHoldCount() == 1) {
+      readLockHeldTimeStamp.set(timer.monotonicNow());
+    }
+  }
+
   public void readUnlock() {
     final boolean needReport = coarseLock.getReadHoldCount() == 1;
     final long readLockInterval =
