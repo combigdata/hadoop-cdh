@@ -841,28 +841,37 @@ public class FSXAttrBaseTest {
     }
 
     /*
-     * Check that execute/scan access to the parent dir is sufficient to get
-     * xattr names.
+     * Check that execute/scan access to the parent dir is not
+     * sufficient to get xattr names.
      */
     fs.setPermission(path, new FsPermission((short) 0701));
     user.doAs(new PrivilegedExceptionAction<Object>() {
         @Override
         public Object run() throws Exception {
+        try {
           final FileSystem userFs = dfsCluster.getFileSystem();
           userFs.listXAttrs(childDir);
-          return null;
+          fail("expected AccessControlException");
+        } catch (AccessControlException ace) {
+          GenericTestUtils.assertExceptionContains("Permission denied", ace);
         }
+        return null;
+      }
       });
 
     /*
      * Test that xattrs in the "trusted" namespace are filtered correctly.
      */
+    // Allow the user to read child path.
+    fs.setPermission(childDir, new FsPermission((short) 0704));
     fs.setXAttr(childDir, "trusted.myxattr", "1234".getBytes());
     user.doAs(new PrivilegedExceptionAction<Object>() {
         @Override
         public Object run() throws Exception {
           final FileSystem userFs = dfsCluster.getFileSystem();
-          assertTrue(userFs.listXAttrs(childDir).size() == 1);
+          List<String> xattrs = userFs.listXAttrs(childDir);
+          assertTrue(xattrs.size() == 1);
+          assertEquals(name1, xattrs.get(0));
           return null;
         }
       });
@@ -1106,20 +1115,24 @@ public class FSXAttrBaseTest {
             }
 
             /*
-             * Test that only root can see raw.* xattrs returned from listXAttr
-             * and non-root can't do listXAttrs on /.reserved/raw.
-             */
-            // non-raw path
-            final List<String> xattrNames = userFs.listXAttrs(path);
-            assertTrue(xattrNames.size() == 0);
+            * Test that user who have parent directory execute access
+            *  can also not see raw.* xattrs returned from listXAttr
+            */
+            try {
+              // non-raw path
+              userFs.listXAttrs(path);
+              fail("listXAttr should have thrown AccessControlException");
+            } catch (AccessControlException ace) {
+              // expected
+            }
+
             try {
               // raw path
               userFs.listXAttrs(rawPath);
-              fail("listXAttrs on raw path should have thrown");
-            } catch (AccessControlException e) {
-              // ignore
+              fail("listXAttr should have thrown AccessControlException");
+            } catch (AccessControlException ace) {
+              // expected
             }
-
             return null;
           }
         });
