@@ -9717,8 +9717,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       src = dir.resolvePath(pc, src, pathComponents);
       checkOperation(OperationCategory.READ);
       if (isPermissionEnabled) {
-        /* To access xattr names, you need EXECUTE in the owning directory. */
-        checkParentAccess(pc, src, FsAction.EXECUTE);
+        checkPathAccess(pc, src, FsAction.READ);
       }
       final List<XAttr> all = dir.getXAttrs(src);
       final List<XAttr> filteredAll = XAttrPermissionFilter.
