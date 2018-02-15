@@ -841,28 +841,37 @@ public class FSXAttrBaseTest {
     }
 
     /*
-     * Check that execute/scan access to the parent dir is sufficient to get
-     * xattr names.
+     * Check that execute/scan access to the parent dir is not
+     * sufficient to get xattr names.
      */
     fs.setPermission(path, new FsPermission((short) 0701));
     user.doAs(new PrivilegedExceptionAction<Object>() {
         @Override
         public Object run() throws Exception {
+        try {
           final FileSystem userFs = dfsCluster.getFileSystem();
           userFs.listXAttrs(childDir);
-          return null;
+          fail("expected AccessControlException");
+        } catch (AccessControlException ace) {
+          GenericTestUtils.assertExceptionContains("Permission denied", ace);
         }
+        return null;
+      }
       });
 
     /*
      * Test that xattrs in the "trusted" namespace are filtered correctly.
      */
+    // Allow the user to read child path.
+    fs.setPermission(childDir, new FsPermission((short) 0704));
     fs.setXAttr(childDir, "trusted.myxattr", "1234".getBytes());
     user.doAs(new PrivilegedExceptionAction<Object>() {
         @Override
         public Object run() throws Exception {
           final FileSystem userFs = dfsCluster.getFileSystem();
-          assertTrue(userFs.listXAttrs(childDir).size() == 1);
+          List<String> xattrs = userFs.listXAttrs(childDir);
+          assertTrue(xattrs.size() == 1);
+          assertEquals(name1, xattrs.get(0));
           return null;
         }
       });
@@ -1106,24 +1115,103 @@ public class FSXAttrBaseTest {
             }
 
             /*
-             * Test that only root can see raw.* xattrs returned from listXAttr
-             * and non-root can't do listXAttrs on /.reserved/raw.
-             */
-            // non-raw path
-            final List<String> xattrNames = userFs.listXAttrs(path);
-            assertTrue(xattrNames.size() == 0);
+            * Test that user who have parent directory execute access
+            *  can also not see raw.* xattrs returned from listXAttr
+            */
+            try {
+              // non-raw path
+              userFs.listXAttrs(path);
+              fail("listXAttr should have thrown AccessControlException");
+            } catch (AccessControlException ace) {
+              // expected
+            }
+
             try {
               // raw path
               userFs.listXAttrs(rawPath);
-              fail("listXAttrs on raw path should have thrown");
-            } catch (AccessControlException e) {
-              // ignore
+              fail("listXAttr should have thrown AccessControlException");
+            } catch (AccessControlException ace) {
+              // expected
             }
-
             return null;
           }
         });
+      /*
+        Test user who have read access can list xattrs in "raw.*" namespace
+       */
+      fs.setPermission(path, new FsPermission((short) 0751));
+      final Path childDir = new Path(path, "child" + pathCount);
+      FileSystem.mkdirs(fs, childDir, FsPermission.createImmutable((short)
+          0704));
+      final Path rawChildDir =
+          new Path("/.reserved/raw" + childDir.toString());
+      fs.setXAttr(rawChildDir, raw1, value1);
+      user.doAs(new PrivilegedExceptionAction<Object>() {
+        @Override
+        public Object run() throws Exception {
+          final FileSystem userFs = dfsCluster.getFileSystem();
+          // raw path
+          List<String> xattrs = userFs.listXAttrs(rawChildDir);
+          assertEquals(1, xattrs.size());
+          assertEquals(raw1, xattrs.get(0));
+          return null;
+        }
+      });
       fs.removeXAttr(rawPath, raw1);
+    }
+
+    {
+      /*
+       * Tests that user who have read access are able to do getattr.
+       */
+      Path parentPath = new Path("/foo");
+      fs.mkdirs(parentPath);
+      fs.setOwner(parentPath, "user", "mygroup");
+      // Set only execute permission for others on parent directory so that
+      // any user can traverse down the directory.
+      fs.setPermission(parentPath, new FsPermission("701"));
+      Path childPath = new Path("/foo/bar");
+      user.doAs(new PrivilegedExceptionAction<Object>() {
+        @Override
+        public Object run() throws Exception {
+          final DistributedFileSystem dfs = dfsCluster.getFileSystem();
+          DFSTestUtil.createFile(dfs, childPath, 1024, (short) 1, 0xFEED);
+          dfs.setPermission(childPath, new FsPermission("740"));
+          return null;
+        }
+      });
+      Path rawChildPath =
+          new Path("/.reserved/raw" + childPath.toString());
+      fs.setXAttr(new Path("/.reserved/raw/foo/bar"), raw1, value1);
+      user.doAs(new PrivilegedExceptionAction<Object>() {
+        @Override
+        public Object run() throws Exception {
+          final DistributedFileSystem dfs = dfsCluster.getFileSystem();
+          // Make sure user have access to raw xattr.
+          byte[] xattr = dfs.getXAttr(rawChildPath, raw1);
+          assertEquals(Arrays.toString(value1), Arrays.toString(xattr));
+          return null;
+        }
+      });
+
+      final UserGroupInformation fakeUser = UserGroupInformation
+          .createUserForTesting("fakeUser", new String[] {"fakeGroup"});
+      fakeUser.doAs(new PrivilegedExceptionAction<Object>() {
+        @Override
+        public Object run() throws Exception {
+          final DistributedFileSystem dfs = dfsCluster.getFileSystem();
+          try {
+            // Make sure user who don't have read access to file can't access
+            // raw xattr.
+            dfs.getXAttr(path, raw1);
+            fail("should have thrown AccessControlException");
+          } catch (AccessControlException ace) {
+            // expected
+          }
+          return null;
+        }
+      });
+      // fs.removeXAttr(rawPath, raw1);
     }
   }
 
