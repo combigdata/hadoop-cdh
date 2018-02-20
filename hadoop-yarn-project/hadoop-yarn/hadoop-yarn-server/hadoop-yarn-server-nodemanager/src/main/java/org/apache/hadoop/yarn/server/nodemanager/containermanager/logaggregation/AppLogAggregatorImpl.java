@@ -242,12 +242,10 @@ public class AppLogAggregatorImpl implements AppLogAggregator {
       }
     }
 
-    LogWriter writer = null;
-    try {
+    try (LogWriter writer = createLogWriter()) {
       try {
-        writer =
-            new LogWriter(this.conf, this.remoteNodeTmpLogFileForApp,
-              this.userUgi);
+        writer.initialize(this.conf, this.remoteNodeTmpLogFileForApp,
+            this.userUgi);
         // Write ACLs once when the writer is created.
         writer.writeApplicationACLs(appAcls);
         writer.writeApplicationOwner(this.userUgi.getShortUserName());
@@ -287,11 +285,6 @@ public class AppLogAggregatorImpl implements AppLogAggregator {
       // is smaller than the configured NM log aggregation retention size.
       if (uploadedLogsInThisCycle) {
         cleanOldLogs();
-      }
-
-      if (writer != null) {
-        writer.close();
-        writer = null;
       }
 
       long currentTime = System.currentTimeMillis();
@@ -357,11 +350,12 @@ public class AppLogAggregatorImpl implements AppLogAggregator {
             ? LogAggregationStatus.FAILED : LogAggregationStatus.SUCCEEDED);
         this.context.getLogAggregationStatusForApps().add(finalReport);
       }
-    } finally {
-      if (writer != null) {
-        writer.close();
-      }
     }
+  }
+
+  @VisibleForTesting
+  protected LogWriter createLogWriter() {
+    return new LogWriter();
   }
 
   private void cleanOldLogs() {
