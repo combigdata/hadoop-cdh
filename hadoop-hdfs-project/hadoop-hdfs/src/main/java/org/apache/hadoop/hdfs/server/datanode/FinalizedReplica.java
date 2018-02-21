@@ -18,7 +18,6 @@
 package org.apache.hadoop.hdfs.server.datanode;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 
 import org.apache.hadoop.hdfs.protocol.Block;
@@ -29,6 +28,7 @@ import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
  * This class describes a replica that has been finalized.
  */
 public class FinalizedReplica extends ReplicaInfo {
+  private byte[] lastPartialChunkChecksum;
 
   /**
    * Constructor
@@ -40,7 +40,22 @@ public class FinalizedReplica extends ReplicaInfo {
    */
   public FinalizedReplica(long blockId, long len, long genStamp,
       FsVolumeSpi vol, File dir) {
+    this(blockId, len, genStamp, vol, dir, null);
+  }
+
+  /**
+   * Constructor.
+   * @param blockId block id
+   * @param len replica length
+   * @param genStamp replica generation stamp
+   * @param vol volume where replica is located
+   * @param dir directory path where block and meta files are located
+   * @param checksum the last partial chunk checksum
+   */
+  public FinalizedReplica(long blockId, long len, long genStamp,
+      FsVolumeSpi vol, File dir, byte[] checksum) {
     super(blockId, len, genStamp, vol, dir);
+    this.setLastPartialChunkChecksum(checksum);
   }
   
   /**
@@ -50,7 +65,20 @@ public class FinalizedReplica extends ReplicaInfo {
    * @param dir directory path where block and meta files are located
    */
   public FinalizedReplica(Block block, FsVolumeSpi vol, File dir) {
+    this(block, vol, dir, null);
+  }
+
+  /**
+   * Constructor.
+   * @param block a block
+   * @param vol volume where replica is located
+   * @param dir directory path where block and meta files are located
+   * @param checksum the last partial chunk checksum
+   */
+  public FinalizedReplica(Block block, FsVolumeSpi vol, File dir,
+      byte[] checksum) {
     super(block, vol, dir);
+    this.setLastPartialChunkChecksum(checksum);
   }
 
   /**
@@ -59,6 +87,7 @@ public class FinalizedReplica extends ReplicaInfo {
    */
   public FinalizedReplica(FinalizedReplica from) {
     super(from);
+    this.setLastPartialChunkChecksum(from.getLastPartialChunkChecksum());
   }
 
   @Override  // ReplicaInfo
@@ -91,30 +120,18 @@ public class FinalizedReplica extends ReplicaInfo {
     return super.toString();
   }
 
-  /**
-   * gets the last chunk checksum and the length of the block corresponding
-   * to that checksum.
-   * Note, need to be called with the FsDataset lock acquired. May improve to
-   * lock only the FsVolume in the future.
-   * @throws IOException
-   */
-  public ChunkChecksum getLastChecksumAndDataLen() throws IOException {
-    ChunkChecksum chunkChecksum = null;
-    try {
-      byte[] lastChecksum = getVolume().loadLastPartialChunkChecksum(
-          getBlockFile(), getMetaFile());
-      if (lastChecksum != null) {
-        chunkChecksum =
-            new ChunkChecksum(getVisibleLength(), lastChecksum);
-      }
-    } catch (FileNotFoundException e) {
-      // meta file is lost. Try to continue anyway.
-      DataNode.LOG.warn("meta file " + getMetaFile() +
-          " is missing!");
-    } catch (IOException ioe) {
-      DataNode.LOG.warn("Unable to read checksum from meta file " +
-          getMetaFile(), ioe);
-    }
-    return chunkChecksum;
+  public byte[] getLastPartialChunkChecksum() {
+    return lastPartialChunkChecksum;
+  }
+
+  public void setLastPartialChunkChecksum(byte[] checksum) {
+    lastPartialChunkChecksum = checksum;
+  }
+
+  public void loadLastPartialChunkChecksum()
+      throws IOException {
+    byte[] lastChecksum = getVolume().loadLastPartialChunkChecksum(
+        getBlockFile(), getMetaFile());
+    setLastPartialChunkChecksum(lastChecksum);
   }
 }
