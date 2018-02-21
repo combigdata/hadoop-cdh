@@ -35,7 +35,10 @@ import org.apache.hadoop.service.Service;
 import org.apache.hadoop.test.GenericTestUtils;
 import org.apache.hadoop.yarn.api.records.*;
 import org.apache.hadoop.yarn.api.records.impl.pb.ApplicationSubmissionContextPBImpl;
+import org.apache.hadoop.yarn.api.records.impl.pb.ContainerLaunchContextPBImpl;
 import org.apache.hadoop.yarn.api.records.impl.pb.ContainerPBImpl;
+import org.apache.hadoop.yarn.api.records.impl.pb.LogAggregationContextPBImpl;
+import org.apache.hadoop.yarn.api.records.impl.pb.ResourcePBImpl;
 import org.apache.hadoop.yarn.conf.HAUtil;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.event.Event;
@@ -49,6 +52,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.RMStateStore.RMState;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.records.ApplicationAttemptStateData;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.records.ApplicationStateData;
+import org.apache.hadoop.yarn.server.resourcemanager.recovery.records.impl.pb.ApplicationStateDataPBImpl;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMApp;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.RMAppEventType;
@@ -66,6 +70,7 @@ import org.apache.zookeeper.data.ACL;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Supplier;
@@ -83,6 +88,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -845,6 +851,7 @@ public class TestZKRMStateStore extends RMStateStoreTestBase {
       ApplicationSubmissionContext context =
           new ApplicationSubmissionContextPBImpl();
       context.setApplicationId(appId);
+      context.setAMContainerSpec(new ContainerLaunchContextPBImpl());
       appStateNew = createAppState(context, submitTime, startTime, finishTime,
           true);
     } else {
@@ -1486,6 +1493,67 @@ public class TestZKRMStateStore extends RMStateStoreTestBase {
     sequenceNumber++;
     storeUpdateAndVerifyDelegationToken(zkTester, tokensWithRenewal,
         tokensWithIndex, sequenceNumber, 3);
+    store.close();
+  }
+
+  @Test
+  public void testAppSubmissionContextIsPrunedInFinalApplicationState()
+      throws Exception {
+    TestZKRMStateStoreTester zkTester = new TestZKRMStateStoreTester();
+    ApplicationId appId = ApplicationId.fromString("application_1234_0010");
+
+    Configuration conf = createConfForDelegationTokenNodeSplit(1);
+    RMStateStore store = zkTester.getRMStateStore(conf);
+    ApplicationSubmissionContext ctx =
+        new ApplicationSubmissionContextPBImpl();
+    ctx.setApplicationId(appId);
+    ctx.setQueue("a_queue");
+    ContainerLaunchContextPBImpl containerLaunchCtx =
+        new ContainerLaunchContextPBImpl();
+    containerLaunchCtx.setCommands(Collections.singletonList("a_command"));
+    ctx.setAMContainerSpec(containerLaunchCtx);
+    Resource resource = new ResourcePBImpl();
+    resource.setMemorySize(17L);
+    ctx.setResource(resource);
+    LogAggregationContext logAggregationContext =
+        new LogAggregationContextPBImpl();
+    ctx.setLogAggregationContext(logAggregationContext);
+    ApplicationStateDataPBImpl appState = new ApplicationStateDataPBImpl();
+    appState.setState(RMAppState.RUNNING);
+    appState.setApplicationSubmissionContext(ctx);
+    store.storeApplicationStateInternal(appId, appState);
+
+    RMState rmState = store.loadState();
+    assertEquals(1, rmState.getApplicationState().size());
+    ctx = rmState.getApplicationState().get(appId)
+        .getApplicationSubmissionContext();
+
+    appState.setState(RMAppState.RUNNING);
+    store.handleStoreEvent(new RMStateUpdateAppEvent(appState, false, null));
+
+    rmState = store.loadState();
+    ctx = rmState.getApplicationState().get(appId)
+        .getApplicationSubmissionContext();
+
+    assertEquals("LogAggregationContext should not have been "
+        + "pruned from the application submission context before the "
+        + "FINISHED state",
+        logAggregationContext, ctx.getLogAggregationContext());
+
+    appState.setState(RMAppState.FINISHED);
+    store.handleStoreEvent(new RMStateUpdateAppEvent(appState, false, null));
+
+    rmState = store.loadState();
+    ctx = rmState.getApplicationState().get(appId)
+        .getApplicationSubmissionContext();
+
+    assertEquals(appId, ctx.getApplicationId());
+    assertEquals("a_queue", ctx.getQueue());
+    assertNotNull(ctx.getAMContainerSpec());
+    assertEquals(17L, ctx.getResource().getMemorySize());
+    assertEquals("LogAggregationContext should have been pruned"
+        + " from the application submission context when in FINISHED STATE",
+        null, ctx.getLogAggregationContext());
     store.close();
   }
 }
