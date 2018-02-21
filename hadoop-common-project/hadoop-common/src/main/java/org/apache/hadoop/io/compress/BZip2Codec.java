@@ -174,7 +174,8 @@ public class BZip2Codec implements Configurable, SplittableCompressionCodec {
     return Bzip2Factory.isNativeBzip2Loaded(conf) ? 
       new DecompressorStream(in, decompressor,
                              conf.getInt("io.file.buffer.size", 4*1024)) :
-      new BZip2CompressionInputStream(in);
+      new BZip2CompressionInputStream(
+              in, 0L, Long.MAX_VALUE, READ_MODE.BYBLOCK);
   }
 
   /**
