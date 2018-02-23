@@ -70,7 +70,7 @@ import com.google.common.annotations.VisibleForTesting;
  * </p>
  */
 class LeaseRenewer {
-  static final Log LOG = LogFactory.getLog(LeaseRenewer.class);
+  public static final Log LOG = LogFactory.getLog(LeaseRenewer.class);
 
   private static long leaseRenewerGraceDefault = 60*1000L;
   static final long LEASE_RENEWER_SLEEP_DEFAULT = 1000L;

@@ -2541,7 +2541,7 @@ public class DFSOutputStream extends FSOutputSummer
     } catch (IOException e) {
       DFSClient.LOG.warn("Error while syncing", e);
       synchronized (this) {
-        if (!closed) {
+        if (!isClosed()) {
           lastException.set(new IOException("IOException flush: " + e));
           closeThreads(true);
         }
@@ -2703,7 +2703,6 @@ public class DFSOutputStream extends FSOutputSummer
     } catch (InterruptedException e) {
       throw new IOException("Failed to shutdown streamer");
     } finally {
-      streamer = null;
       s = null;
       setClosed();
     }
@@ -2735,11 +2734,27 @@ public class DFSOutputStream extends FSOutputSummer
 
   private synchronized void closeImpl() throws IOException {
     if (isClosed()) {
-      IOException e = lastException.getAndSet(null);
-      if (e == null)
-        return;
-      else
-        throw e;
+      DFSClient.LOG.debug(
+          "Closing an already closed stream. [Stream:" + closed + ", streamer:"
+              + (getStreamer() == null ?
+              null :
+              getStreamer().streamerClosed) + "]");
+      try {
+        IOException e = lastException.getAndSet(null);
+        if (e == null)
+          return;
+        else
+          throw e;
+      } catch (IOException ioe) {
+        cleanupAndRethrowIOException(ioe);
+      } finally {
+        if (!closed) {
+          // If stream is not closed but streamer closed, clean up the stream.
+          // Most importantly, end the file lease.
+          closeThreads(true);
+        }
+      }
+
     }
 
     try {
@@ -2756,15 +2771,12 @@ public class DFSOutputStream extends FSOutputSummer
         currentPacket.syncBlock = shouldSyncBlock;
       }
 
-      flushInternal();             // flush all data to Datanodes
-      // get last block before destroying the streamer
-      ExtendedBlock lastBlock = streamer.getBlock();
-      TraceScope scope = dfsClient.getTracer().newScope("completeFile");
       try {
-        completeFile(lastBlock);
-      } finally {
-        scope.close();
+        flushInternal();             // flush all data to Datanodes
+      } catch (IOException ioe) {
+        cleanupAndRethrowIOException(ioe);
       }
+      completeFile();
     } catch (ClosedChannelException e) {
     } finally {
       // Failures may happen when flushing data.
@@ -2775,8 +2787,44 @@ public class DFSOutputStream extends FSOutputSummer
       closeThreads(true);
     }
   }
+  private void completeFile() throws IOException {
+    // get last block before destroying the streamer
+    if (getStreamer() != null) {
+      ExtendedBlock lastBlock = getStreamer().getBlock();
+      try (TraceScope ignored = dfsClient.getTracer().newScope("completeFile")) {
+        completeFile(lastBlock);
+      }
+    }
+  }
 
-  // should be called holding (this) lock since setTestFilename() may 
+  /**
+   * Determines whether an IOException thrown needs extra cleanup on the stream.
+   * Space quota exceptions will be thrown when getting new blocks, so the
+   * open HDFS file need to be closed.
+   *
+   * @param ioe the IOException
+   * @return whether the stream needs cleanup for the given IOException
+   */
+  private boolean exceptionNeedsCleanup(IOException ioe) {
+    return ioe instanceof DSQuotaExceededException;
+  }
+
+  private void cleanupAndRethrowIOException(IOException ioe)
+      throws IOException {
+    if (exceptionNeedsCleanup(ioe)) {
+      try {
+        completeFile();
+      } catch (IOException e) {
+        final List<IOException> ioes = new LinkedList<>();
+        ioes.add(ioe);
+        ioes.add(e);
+        throw MultipleIOException.createIOException(ioes);
+      }
+    }
+    throw ioe;
+  }
+
+  // should be called holding (this) lock since setTestFilename() may
   // be called during unit tests
   private void completeFile(ExtendedBlock last) throws IOException {
     long localstart = Time.now();
