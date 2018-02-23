@@ -1,7 +1,9 @@
-org.apache.hadoop.yarn.client.api.impl.TestTimelineClientV2Impl#testSyncCall
-org.apache.hadoop.yarn.client.api.impl.TestAMRMClient#testAMRMClientWithContainerResourceChange[0]
-org.apache.hadoop.yarn.client.api.impl.TestAMRMClient#testAMRMClientWithContainerResourceChange[1]
-org.apache.hadoop.yarn.server.resourcemanager.TestWorkPreservingRMRestart#testReleasedContainerNotRecovered
-org.apache.hadoop.yarn.server.router.webapp.TestRouterWebServicesREST#testGetContainersXML
-org.apache.hadoop.yarn.server.router.webapp.TestRouterWebServicesREST#testAppXML
-org.apache.hadoop.yarn.server.router.webapp.TestRouterWebServicesREST#testGetAppsMultiThread
+org/apache/hadoop/yarn/client/api/impl/TestTimelineClientV2Impl
+org/apache/hadoop/yarn/client/api/impl/TestAMRMClient
+org/apache/hadoop/yarn/server/resourcemanager/TestWorkPreservingRMRestart
+org/apache/hadoop/yarn/server/router/webapp/TestRouterWebServicesREST
+
+org/apache/hadoop/mapred/TestFixedLengthInputFormat
+org/apache/hadoop/mapred/TestMRTimelineEventHandling
+org/apache/hadoop/mapreduce/v2/TestMRJobs
+org/apache/hadoop/mapreduce/v2/TestUberAM
