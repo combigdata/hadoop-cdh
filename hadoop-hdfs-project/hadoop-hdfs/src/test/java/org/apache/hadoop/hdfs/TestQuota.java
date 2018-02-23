@@ -20,16 +20,19 @@ package org.apache.hadoop.hdfs;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.security.PrivilegedExceptionAction;
 
+import com.google.common.base.Supplier;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.ContentSummary;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hdfs.LeaseRenewer;
 import org.apache.hadoop.hdfs.protocol.DSQuotaExceededException;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants;
 import org.apache.hadoop.hdfs.protocol.NSQuotaExceededException;
@@ -38,17 +41,31 @@ import org.apache.hadoop.hdfs.tools.DFSAdmin;
 import org.apache.hadoop.hdfs.web.WebHdfsFileSystem;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.test.GenericTestUtils;
+import org.apache.hadoop.test.PathUtils;
+import org.apache.hadoop.util.ToolRunner;
+import org.apache.log4j.Level;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+
+import org.junit.rules.Timeout;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** A class for testing quota-related commands */
 public class TestQuota {
-  
+
+  private static final Logger LOG = LoggerFactory.getLogger(TestQuota.class);
+
   private void runCommand(DFSAdmin admin, boolean expectError, String... args) 
                          throws Exception {
     runCommand(admin, args, expectError);
   }
-  
+
+  @Rule
+  public final Timeout testTestout = new Timeout(120000);
+
   private void runCommand(DFSAdmin admin, String args[], boolean expectEror)
   throws Exception {
     int val = admin.run(args);
@@ -952,5 +969,150 @@ public class TestQuota {
       }
     }
   }
+  @Test
+  public void testSpaceQuotaExceptionOnClose() throws Exception {
+    final Configuration conf = new HdfsConfiguration();
+    // set a smaller block size so that we can test with smaller
+    // Space quotas
+    final int DEFAULT_BLOCK_SIZE = 512;
+    conf.setLong(DFSConfigKeys.DFS_BLOCK_SIZE_KEY, DEFAULT_BLOCK_SIZE);
+    // Make it relinquish locks. When run serially, the result should
+    // be identical.
+    conf.setInt(DFSConfigKeys.DFS_CONTENT_SUMMARY_LIMIT_KEY, 2);
+    final MiniDFSCluster cluster =
+        new MiniDFSCluster.Builder(conf).numDataNodes(2).build();
+    final FileSystem fs = cluster.getFileSystem();
+    assertTrue("Not a HDFS: " + fs.getUri(),
+        fs instanceof DistributedFileSystem);
+    final DistributedFileSystem dfs = (DistributedFileSystem) fs;
+    try {
+      GenericTestUtils.setLogLevel(DFSClient.LOG, Level.TRACE);
+      final DFSAdmin dfsAdmin = new DFSAdmin(conf);
+      final Path dir = new Path(PathUtils.getTestPath(getClass()),
+          GenericTestUtils.getMethodName());
+      assertTrue(dfs.mkdirs(dir));
+      final String[] args =
+          new String[] {"-setSpaceQuota", "1", dir.toString()};
+      assertEquals(0, ToolRunner.run(dfsAdmin, args));
 
+      final Path testFile = new Path(dir, "file");
+      final FSDataOutputStream stream = dfs.create(testFile);
+      stream.write("whatever".getBytes());
+      try {
+        stream.close();
+        fail("close should fail");
+      } catch (DSQuotaExceededException expected) {
+      }
+
+      assertEquals(0, cluster.getNamesystem().getNumFilesUnderConstruction());
+    } finally {
+      cluster.shutdown();
+    }
+  }
+
+  @Test
+  public void testSpaceQuotaExceptionOnFlush() throws Exception {
+    final Configuration conf = new HdfsConfiguration();
+    // set a smaller block size so that we can test with smaller
+    // Space quotas
+    final int DEFAULT_BLOCK_SIZE = 512;
+    conf.setLong(DFSConfigKeys.DFS_BLOCK_SIZE_KEY, DEFAULT_BLOCK_SIZE);
+    // Make it relinquish locks. When run serially, the result should
+    // be identical.
+    conf.setInt(DFSConfigKeys.DFS_CONTENT_SUMMARY_LIMIT_KEY, 2);
+    final MiniDFSCluster cluster =
+        new MiniDFSCluster.Builder(conf).numDataNodes(2).build();
+    final FileSystem fs = cluster.getFileSystem();
+    assertTrue("Not a HDFS: " + fs.getUri(),
+        fs instanceof DistributedFileSystem);
+    final DistributedFileSystem dfs = (DistributedFileSystem) fs;
+    try {
+      GenericTestUtils.setLogLevel(DFSClient.LOG, Level.TRACE);
+      final DFSAdmin dfsAdmin = new DFSAdmin(conf);
+      final Path dir = new Path(PathUtils.getTestPath(getClass()),
+          GenericTestUtils.getMethodName());
+      assertTrue(dfs.mkdirs(dir));
+      final String[] args =
+          new String[] {"-setSpaceQuota", "1", dir.toString()};
+      assertEquals(0, ToolRunner.run(dfsAdmin, args));
+
+      Path testFile = new Path(dir, "file");
+      FSDataOutputStream stream = dfs.create(testFile);
+      // get the lease renewer now so we can verify it later without calling
+      // getLeaseRenewer, which will automatically add the client into it.
+      final LeaseRenewer leaseRenewer = dfs.getClient().getLeaseRenewer();
+      stream.write("whatever".getBytes());
+      try {
+        stream.hflush();
+        fail("flush should fail");
+      } catch (DSQuotaExceededException expected) {
+      }
+      // even if we close the stream in finially, it won't help.
+      try {
+        stream.close();
+        fail("close should fail too");
+      } catch (DSQuotaExceededException expected) {
+      }
+
+      GenericTestUtils.setLogLevel(LeaseRenewer.LOG, Level.TRACE);
+      GenericTestUtils.waitFor(new Supplier<Boolean>() {
+        @Override
+        public Boolean get() {
+          LOG.info("LeaseRenewer: {}", leaseRenewer);
+          return leaseRenewer.isEmpty();
+        }
+      }, 100, 10000);
+      assertEquals(0, cluster.getNamesystem().getNumFilesUnderConstruction());
+    } finally {
+      cluster.shutdown();
+    }
+  }
+
+  @Test
+  public void testSpaceQuotaExceptionOnAppend() throws Exception {
+    final Configuration conf = new HdfsConfiguration();
+    // set a smaller block size so that we can test with smaller
+    // Space quotas
+    final int DEFAULT_BLOCK_SIZE = 512;
+    conf.setLong(DFSConfigKeys.DFS_BLOCK_SIZE_KEY, DEFAULT_BLOCK_SIZE);
+    // Make it relinquish locks. When run serially, the result should
+    // be identical.
+    conf.setInt(DFSConfigKeys.DFS_CONTENT_SUMMARY_LIMIT_KEY, 2);
+    final MiniDFSCluster cluster =
+        new MiniDFSCluster.Builder(conf).numDataNodes(2).build();
+    final FileSystem fs = cluster.getFileSystem();
+    assertTrue("Not a HDFS: " + fs.getUri(),
+        fs instanceof DistributedFileSystem);
+    final DistributedFileSystem dfs = (DistributedFileSystem) fs;
+    try {
+      GenericTestUtils.setLogLevel(DFSClient.LOG, Level.TRACE);
+      final DFSAdmin dfsAdmin = new DFSAdmin(conf);
+      final Path dir = new Path(PathUtils.getTestPath(getClass()),
+          GenericTestUtils.getMethodName());
+      dfs.delete(dir, true);
+      assertTrue(dfs.mkdirs(dir));
+      final String[] args =
+          new String[] {"-setSpaceQuota", "4000", dir.toString()};
+      ToolRunner.run(dfsAdmin, args);
+
+      final Path testFile = new Path(dir, "file");
+      OutputStream stream = dfs.create(testFile);
+      stream.write("whatever".getBytes());
+      stream.close();
+
+      assertEquals(0, cluster.getNamesystem().getNumFilesUnderConstruction());
+
+      stream = dfs.append(testFile);
+      byte[] buf = AppendTestUtil.initBuffer(4096);
+      stream.write(buf);
+      try {
+        stream.close();
+        fail("close after append should fail");
+      } catch (DSQuotaExceededException expected) {
+      }
+      assertEquals(0, cluster.getNamesystem().getNumFilesUnderConstruction());
+    } finally {
+      cluster.shutdown();
+    }
+  }
 }
