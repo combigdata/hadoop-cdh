@@ -98,13 +98,16 @@ function runStableTests() {
   local _POM=$1
   local _MAVEN_FLAGS=$2
   local _EXCLUDES=$3
+  local _MERGED_EXCLUDES=${CLOUDERA_DIR}/merged-excludes.txt
 
+  # merge the specified excludes with flakies.txt file
+  cat ${_EXCLUDES} ${CLOUDERA_DIR}/flakies.txt 2> /dev/null | sed '/^$/d' | sort -u > ${_MERGED_EXCLUDES}
   echo
   echo ----
   echo Running stable tests in ${_POM} with ${_MAVEN_FLAGS}
   echo ----
   echo
-  mvn -Pcloudera-unittest -f ${_POM} -e findbugs:findbugs checkstyle:checkstyle test ${_MAVEN_FLAGS} -Dtest.excludes.file=${_EXCLUDES}
+  mvn -Pcloudera-unittest -f ${_POM} -e findbugs:findbugs checkstyle:checkstyle test ${_MAVEN_FLAGS} -Dtest.excludes.file=${_MERGED_EXCLUDES}
 }
 
 # Run the tests in the supplied test policy. Takes the following arguments:
