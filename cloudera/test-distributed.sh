@@ -15,7 +15,7 @@ if [[ -d $SCRIPTS ]]; then
     rm -rf $SCRIPTS
 fi
 
-git clone --depth 1 https://github.com/cloudera/$SCRIPTS.git $SCRIPTS || true
+git clone --depth 1 git://github.com/cloudera/$SCRIPTS.git $SCRIPTS || true
 
 # Fetch the right branch
 cd "$DIR/$SCRIPTS"
