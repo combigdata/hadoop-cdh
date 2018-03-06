@@ -30,6 +30,7 @@ import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.DFSTestUtil;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
+import org.apache.hadoop.hdfs.server.namenode.FSNamesystem;
 import org.junit.Test;
 import org.junit.runners.model.FrameworkMethod;
 import org.junit.runners.model.Statement;
@@ -182,4 +183,10 @@ public class TestHdfsHelper extends TestDirHelper {
     return MINI_DFS;
   }
 
+  public FSNamesystem getFSNamesystem() {
+    if (MINI_DFS == null) {
+      return null;
+    }
+    return MINI_DFS.getNamesystem();
+  }
 }
