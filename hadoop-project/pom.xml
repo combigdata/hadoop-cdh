@@ -51,7 +51,7 @@
     <kafka.version>${cdh.kafka.version}</kafka.version>
     <hbase.version>${cdh.hbase.version}</hbase.version>
     <hbase-compatible-hadoop.version>${cdh.hadoop.version}</hbase-compatible-hadoop.version>
-    <hbase-compatible-guava.version>11.0.2</hbase-compatible-guava.version>
+    <hbase-compatible-guava.version>${cdh.guava.version}</hbase-compatible-guava.version>
 
     <hadoop.assemblies.version>${project.version}</hadoop.assemblies.version>
     <commons-daemon.version>${cdh.commons-daemon.version}</commons-daemon.version>
@@ -91,9 +91,9 @@
     <findbugs.version>3.0.0</findbugs.version>
     <spotbugs.version>3.1.0-RC1</spotbugs.version>
 
-    <guava.version>11.0.2</guava.version>
+    <guava.version>${cdh.guava.version}</guava.version>
     <guice.version>4.0</guice.version>
-    <joda-time.version>2.9.9</joda-time.version>
+    <joda-time.version>${cdh.joda-time.version}</joda-time.version>
 
     <!-- Required for testing LDAP integration -->
     <apacheds.version>2.0.0-M21</apacheds.version>
@@ -758,7 +758,7 @@
       <dependency>
         <groupId>commons-io</groupId>
         <artifactId>commons-io</artifactId>
-        <version>2.4</version>
+        <version>${cdh.commons-io.version}</version>
       </dependency>
 
       <dependency>
@@ -881,7 +881,7 @@
       <dependency>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-lang3</artifactId>
-        <version>3.4</version>
+        <version>${cdh.commons-lang3.version}</version>
       </dependency>
       <dependency>
         <groupId>org.slf4j</groupId>
