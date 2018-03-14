@@ -267,6 +267,11 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
     openInfo();
   }
 
+  @VisibleForTesting
+  public long getlastBlockBeingWrittenLengthForTesting() {
+    return lastBlockBeingWrittenLength;
+  }
+
   /**
    * Grab the open-file info from namenode
    */
@@ -290,7 +295,8 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
         }
         retriesForLastBlockLength--;
       }
-      if (retriesForLastBlockLength == 0) {
+      if (lastBlockBeingWrittenLength == -1
+          && retriesForLastBlockLength == 0) {
         throw new IOException("Could not obtain the last block locations.");
       }
     }
