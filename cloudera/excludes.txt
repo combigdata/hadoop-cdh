@@ -28,3 +28,5 @@ org/apache/hadoop/yarn/server/timeline/webapp/TestTimelineWebServices.java
 org/apache/hadoop/yarn/server/applicationhistoryservice/TestFileSystemApplicationHistoryStore.java
 org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/TestContinuousScheduling.java
 org/apache/hadoop/yarn/applications/distributedshell/TestDistributedShell.java
+
+org/apache/hadoop/yarn/server/timeline/security/TestTimelineAuthenticationFilter.java
