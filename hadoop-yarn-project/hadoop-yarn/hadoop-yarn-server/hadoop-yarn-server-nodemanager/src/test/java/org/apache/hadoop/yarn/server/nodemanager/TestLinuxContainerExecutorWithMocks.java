@@ -84,7 +84,7 @@ public class TestLinuxContainerExecutorWithMocks {
     reader.close();
     return ret;
   }
-  
+
   @Before
   public void setup() {
     assumeTrue(!Path.WINDOWS);
@@ -95,6 +95,7 @@ public class TestLinuxContainerExecutorWithMocks {
     String executorPath = f.getAbsolutePath();
     Configuration conf = new Configuration();
     conf.set(YarnConfiguration.NM_LINUX_CONTAINER_EXECUTOR_PATH, executorPath);
+    conf.set(YarnConfiguration.NM_LOG_DIRS, "src/test/resources");
     mockExec = new LinuxContainerExecutor();
     dirsHandler = new LocalDirsHandlerService();
     dirsHandler.init(conf);
@@ -105,7 +106,7 @@ public class TestLinuxContainerExecutorWithMocks {
   public void tearDown() {
     deleteMockParamFile();
   }
-  
+
   @Test
   public void testContainerLaunch() throws IOException {
     String appSubmitter = "nobody";
@@ -117,7 +118,7 @@ public class TestLinuxContainerExecutorWithMocks {
     ContainerId cId = mock(ContainerId.class);
     ContainerLaunchContext context = mock(ContainerLaunchContext.class);
     HashMap<String, String> env = new HashMap<String,String>();
-    
+
     when(container.getContainerId()).thenReturn(cId);
     when(container.getLaunchContext()).thenReturn(context);
     
@@ -199,7 +200,8 @@ public class TestLinuxContainerExecutorWithMocks {
       Assert.assertEquals(result.get(13),
           "-Dlog4j.configuration=container-log4j.properties" );
       Assert.assertEquals(result.get(14),
-          "-Dyarn.app.container.log.dir=${yarn.log.dir}/userlogs/application_0/12345");
+          String.format("-Dyarn.app.container.log.dir=%s/application_0/12345",
+          mockExec.getConf().get(YarnConfiguration.NM_LOG_DIRS)));
       Assert.assertEquals(result.get(15),
           "-Dyarn.app.container.log.filesize=0");
       Assert.assertEquals(result.get(16), "-Dhadoop.root.logger=INFO,CLA");
@@ -278,7 +280,7 @@ public class TestLinuxContainerExecutorWithMocks {
           }
         }
     ).when(container).handle(any(ContainerDiagnosticsUpdateEvent.class));
-    
+
     when(cId.toString()).thenReturn(containerId);
 
     when(context.getEnvironment()).thenReturn(env);
@@ -312,7 +314,7 @@ public class TestLinuxContainerExecutorWithMocks {
     
   }
 
-  
+
   @Test
   public void testContainerKill() throws IOException {
     String appSubmitter = "nobody";
@@ -320,7 +322,7 @@ public class TestLinuxContainerExecutorWithMocks {
         LinuxContainerExecutor.Commands.SIGNAL_CONTAINER.getValue());
     ContainerExecutor.Signal signal = ContainerExecutor.Signal.QUIT;
     String sigVal = String.valueOf(signal.getValue());
-    
+
     mockExec.signalContainer(appSubmitter, "1000", signal);
     assertEquals(Arrays.asList(YarnConfiguration.DEFAULT_NM_NONSECURE_MODE_LOCAL_USER,
         appSubmitter, cmd, "1000", sigVal),
