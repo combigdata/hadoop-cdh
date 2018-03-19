@@ -102,3 +102,7 @@ org/apache/hadoop/yarn/server/resourcemanager/TestRMHAForNodeLabels.java
 
 # Disable unit tests for continuous scheduling because it is not supported in C6.
 org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/TestContinuousScheduling.java
+
+# Disable this unit test because the quanta infra cannot complete that within the 5 second tgt expiration time set by this test. Pre-commit/post-commit still runs it to provide coverage
+org/apache/hadoop/hdfs/TestDFSInotifyEventInputStreamKerberized.java
+
