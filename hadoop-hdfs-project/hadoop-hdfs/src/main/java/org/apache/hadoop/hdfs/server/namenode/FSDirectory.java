@@ -3709,6 +3709,16 @@ public class FSDirectory implements Closeable {
     }
   }
 
+  /**
+   * Resolve a /.reserved/... path to a non-reserved path.
+   * See {@link #resolvePath(String, byte[][], FSDirectory) resolvePath}
+   * method.
+   */
+  public String resolvePath(final String path) throws FileNotFoundException {
+    byte[][] pathComponents = getPathComponentsForReservedPath(path);
+    return resolvePath(path, pathComponents, this);
+  }
+
   private static String resolveDotInodesPath(String src,
       byte[][] pathComponents, FSDirectory fsd)
       throws FileNotFoundException {
