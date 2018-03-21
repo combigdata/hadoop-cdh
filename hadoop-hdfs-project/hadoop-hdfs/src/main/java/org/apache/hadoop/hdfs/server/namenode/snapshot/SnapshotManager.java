@@ -172,8 +172,9 @@ public class SnapshotManager implements SnapshotStatsMXBean {
    * Set the given directory as a snapshottable directory.
    * If the path is already a snapshottable directory, update the quota.
    */
-  public void setSnapshottable(final String path, boolean checkNestedSnapshottable)
+  public void setSnapshottable(String path, boolean checkNestedSnapshottable)
       throws IOException {
+    path = fsdir.resolvePath(path);
     final INodesInPath iip = fsdir.getINodesInPath4Write(path);
     final INodeDirectory d = INodeDirectory.valueOf(iip.getLastINode(), path);
     if (checkNestedSnapshottable) {
@@ -216,7 +217,8 @@ public class SnapshotManager implements SnapshotStatsMXBean {
    * 
    * @throws SnapshotException if there are snapshots in the directory.
    */
-  public void resetSnapshottable(final String path) throws IOException {
+  public void resetSnapshottable(String path) throws IOException {
+    path = fsdir.resolvePath(path);
     final INodesInPath iip = fsdir.getINodesInPath4Write(path);
     final INodeDirectory d = INodeDirectory.valueOf(iip.getLastINode(), path);
     DirectorySnapshottableFeature sf = d.getDirectorySnapshottableFeature();
@@ -247,8 +249,9 @@ public class SnapshotManager implements SnapshotStatsMXBean {
   *           Throw IOException when the given path does not lead to an
   *           existing snapshottable directory.
   */
-  public INodeDirectory getSnapshottableRoot(final String path)
+  public INodeDirectory getSnapshottableRoot(String path)
       throws IOException {
+    path = fsdir.resolvePath(path);
     final INodeDirectory dir = INodeDirectory.valueOf(fsdir
         .getINodesInPath4Write(path).getLastINode(), path);
     if (!dir.isSnapshottable()) {
@@ -462,11 +465,12 @@ public class SnapshotManager implements SnapshotStatsMXBean {
    * Compute the difference between two snapshots of a directory, or between a
    * snapshot of the directory and its current tree.
    */
-  public SnapshotDiffReport diff(final String path, final String from,
+  public SnapshotDiffReport diff(String path, final String from,
       final String to) throws IOException {
     // Find the source root directory path where the snapshots were taken.
     // All the check for path has been included in the valueOf method.
     INodeDirectory snapshotRootDir;
+    path = fsdir.resolvePath(path);
     INodesInPath iip = fsdir.getINodesInPath4Write(path);
     if (this.snapshotDiffAllowSnapRootDescendant) {
       snapshotRootDir = getSnapshottableAncestorDir(iip);
@@ -475,7 +479,7 @@ public class SnapshotManager implements SnapshotStatsMXBean {
     }
     Preconditions.checkNotNull(snapshotRootDir);
     INodeDirectory snapshotDescendantDir = INodeDirectory.valueOf(
-        fsdir.getINodesInPath4Write(path).getLastINode(), path);
+        iip.getLastINode(), path);
 
     if ((from == null || from.isEmpty())
         && (to == null || to.isEmpty())) {
