@@ -8,11 +8,14 @@ org/apache/hadoop/mapred/TestMRTimelineEventHandling
 org/apache/hadoop/mapreduce/v2/TestMRJobs
 org/apache/hadoop/mapreduce/v2/TestUberAM
 
+org/apache/hadoop/fs/http/client/TestHttpFSFWithSWebhdfsFileSystem
 org/apache/hadoop/hdfs/TestAclsEndToEnd
+org/apache/hadoop/hdfs/TestDFSInotifyEventInputStreamKerberized
 org/apache/hadoop/hdfs/TestLeaseRecovery2
 org/apache/hadoop/hdfs/qjournal/server/TestJournalNodeSync
 org/apache/hadoop/hdfs/server/blockmanagement/TestBlockStatsMXBean
 org/apache/hadoop/hdfs/server/blockmanagement/TestUnderReplicatedBlocks
+org/apache/hadoop/hdfs/server/datanode/TestDataNodeVolumeFailureToleration
 org/apache/hadoop/hdfs/server/namenode/TestNameNodeMetadataConsistency
 org/apache/hadoop/hdfs/server/namenode/ha/TestDFSUpgradeWithHA
 org/apache/hadoop/security/TestRaceWhenRelogin
