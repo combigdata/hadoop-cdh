@@ -14,6 +14,7 @@ org/apache/hadoop/hdfs/TestDFSInotifyEventInputStreamKerberized
 org/apache/hadoop/hdfs/TestLeaseRecovery2
 org/apache/hadoop/hdfs/qjournal/server/TestJournalNodeSync
 org/apache/hadoop/hdfs/server/blockmanagement/TestBlockStatsMXBean
+org.apache/hadoop/hdfs/server/blockmanagement/TestReconstructStripedBlocksWithRackAwareness
 org/apache/hadoop/hdfs/server/blockmanagement/TestUnderReplicatedBlocks
 org/apache/hadoop/hdfs/server/datanode/TestDataNodeVolumeFailureToleration
 org/apache/hadoop/hdfs/server/namenode/TestNameNodeMetadataConsistency
