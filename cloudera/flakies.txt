@@ -18,6 +18,7 @@ org/apache/hadoop/hdfs/server/blockmanagement/TestBlockStatsMXBean
 org.apache/hadoop/hdfs/server/blockmanagement/TestReconstructStripedBlocksWithRackAwareness
 org/apache/hadoop/hdfs/server/blockmanagement/TestUnderReplicatedBlocks
 org/apache/hadoop/hdfs/server/datanode/TestDataNodeVolumeFailureToleration
+org/apache/hadoop/hdfs/server/federation/router/TestRouterRpc
 org/apache/hadoop/hdfs/server/namenode/TestNameNodeMetadataConsistency
 org/apache/hadoop/hdfs/server/namenode/ha/TestDFSUpgradeWithHA
 org/apache/hadoop/hdfs/server/namenode/metrics/TestNameNodeMetrics
