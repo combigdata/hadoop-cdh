@@ -74,17 +74,20 @@ import org.apache.hadoop.yarn.api.records.NodeState;
 import org.apache.hadoop.yarn.api.records.PreemptionMessage;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.ResourceInformation;
 import org.apache.hadoop.yarn.api.records.Token;
 import org.apache.hadoop.yarn.client.ClientRMProxy;
 import org.apache.hadoop.yarn.client.api.NMTokenCache;
 import org.apache.hadoop.yarn.exceptions.ApplicationAttemptNotFoundException;
 import org.apache.hadoop.yarn.exceptions.ApplicationMasterNotRegisteredException;
 import org.apache.hadoop.yarn.exceptions.InvalidLabelResourceRequestException;
+import org.apache.hadoop.yarn.exceptions.ResourceNotFoundException;
 import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.apache.hadoop.yarn.util.Clock;
 import org.apache.hadoop.yarn.util.RackResolver;
+import org.apache.hadoop.yarn.util.UnitsConversionUtil;
 import org.apache.hadoop.yarn.util.resource.Resources;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -437,10 +440,12 @@ public class RMContainerAllocator extends RMContainerRequestor
 
     boolean reduceContainerRequestAccepted = true;
     if (reduceResourceRequest.getMemorySize() >
-        supportedMaxContainerCapability.getMemorySize()
-        ||
-        reduceResourceRequest.getVirtualCores() >
-        supportedMaxContainerCapability.getVirtualCores()) {
+            supportedMaxContainerCapability.getMemorySize()
+            ||
+            reduceResourceRequest.getVirtualCores() >
+                    supportedMaxContainerCapability.getVirtualCores() ||
+            !isCustomResourcesOfRequestAccepted(reduceResourceRequest,
+                    supportedMaxContainerCapability)) {
       reduceContainerRequestAccepted = false;
     }
 
@@ -461,7 +466,7 @@ public class RMContainerAllocator extends RMContainerRequestor
             PRIORITY_REDUCE, reduceNodeLabelExpression));
       }
     } else {
-      String diagMsg = "REDUCE capability required is more than the " +
+      String diagMsg = "The required REDUCE capability is more than the " +
           "supported max container capability in the cluster. Killing" +
           " the Job. reduceResourceRequest: " + reduceResourceRequest +
           " maxContainerCapability:" + supportedMaxContainerCapability;
@@ -477,6 +482,8 @@ public class RMContainerAllocator extends RMContainerRequestor
         TaskType.MAP));
 
     Resource supportedMaxContainerCapability = getMaxContainerCapability();
+    LOG.debug("Supported max container capability: " +
+            supportedMaxContainerCapability);
     JobId jobId = getJob().getID();
 
     if (mapResourceRequest.equals(Resources.none())) {
@@ -490,14 +497,15 @@ public class RMContainerAllocator extends RMContainerRequestor
 
     boolean mapContainerRequestAccepted = true;
     if (mapResourceRequest.getMemorySize() >
-        supportedMaxContainerCapability.getMemorySize()
-        ||
-        mapResourceRequest.getVirtualCores() >
-        supportedMaxContainerCapability.getVirtualCores()) {
+            supportedMaxContainerCapability.getMemorySize() ||
+            mapResourceRequest.getVirtualCores() >
+                    supportedMaxContainerCapability.getVirtualCores() ||
+            !isCustomResourcesOfRequestAccepted(mapResourceRequest,
+                    supportedMaxContainerCapability)) {
       mapContainerRequestAccepted = false;
     }
 
-    if(mapContainerRequestAccepted) {
+    if (mapContainerRequestAccepted) {
       // set the resources
       reqEvent.getCapability().setMemorySize(
           mapResourceRequest.getMemorySize());
@@ -513,6 +521,56 @@ public class RMContainerAllocator extends RMContainerRequestor
       eventHandler.handle(new JobDiagnosticsUpdateEvent(jobId, diagMsg));
       eventHandler.handle(new JobEvent(jobId, JobEventType.JOB_KILL));
     }
+  }
+
+  @Private
+  @VisibleForTesting
+  static boolean isCustomResourcesOfRequestAccepted(Resource requestedResource,
+          Resource availableResource) {
+    final ResourceInformation[] resources = requestedResource.getResources();
+
+    //skip memory and vCores, iteration therefore starts from 2
+    for (int i = 2; i < resources.length; ++i) {
+      final ResourceInformation requestedResourceInformation = resources[i];
+      final String resourceName = requestedResourceInformation.getName();
+
+      final ResourceInformation availableResourceInformation;
+      try {
+        availableResourceInformation =
+                availableResource.getResourceInformation(resourceName);
+      } catch (ResourceNotFoundException e) {
+        LOG.warn("Requested resource " + resourceName + " was not found!", e);
+        return false;
+      }
+
+      long requestedResourceValue = requestedResourceInformation.getValue();
+      long availableResourceValue = availableResourceInformation.getValue();
+      int unitsRelation = UnitsConversionUtil.compareUnits
+              (requestedResourceInformation
+                      .getUnits(), availableResourceInformation.getUnits());
+
+      //requested resource unit is less than available resource unit
+      //e.g. requestedUnit: "m", availableUnit: "K")
+      if (unitsRelation < 0) {
+        availableResourceValue = UnitsConversionUtil.convert
+                (availableResourceInformation.getUnits(),
+                        requestedResourceInformation.getUnits(),
+                        availableResourceInformation.getValue());
+
+        //requested resource unit is greater than available resource unit
+        //e.g. requestedUnit: "G", availableUnit: "M")
+      } else if (unitsRelation > 0) {
+        requestedResourceValue = UnitsConversionUtil.convert
+                (requestedResourceInformation.getUnits(),
+                        availableResourceInformation.getUnits(),
+                        requestedResourceInformation.getValue());
+      }
+
+      if (requestedResourceValue > availableResourceValue) {
+        return false;
+      }
+    }
+    return true;
   }
 
   private static String getHost(String contMgrAddress) {
