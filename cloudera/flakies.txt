@@ -1,5 +1,6 @@
 org/apache/hadoop/yarn/client/api/impl/TestTimelineClientV2Impl
 org/apache/hadoop/yarn/client/api/impl/TestAMRMClient
+org/apache/hadoop/yarn/client/TestRMFailover
 org/apache/hadoop/yarn/server/resourcemanager/TestWorkPreservingRMRestart
 org/apache/hadoop/yarn/server/resourcemanager/TestRMEmbeddedElector
 org/apache/hadoop/yarn/server/router/webapp/TestRouterWebServicesREST
