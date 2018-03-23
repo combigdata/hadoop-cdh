@@ -12,10 +12,11 @@ org/apache/hadoop/mapreduce/v2/TestUberAM
 org/apache/hadoop/fs/http/client/TestHttpFSFWithSWebhdfsFileSystem
 org/apache/hadoop/hdfs/TestAclsEndToEnd
 org/apache/hadoop/hdfs/TestDFSInotifyEventInputStreamKerberized
+org/apache/hadoop/hdfs/TestDFSUpgradeFromImage
 org/apache/hadoop/hdfs/TestLeaseRecovery2
 org/apache/hadoop/hdfs/qjournal/server/TestJournalNodeSync
 org/apache/hadoop/hdfs/server/blockmanagement/TestBlockStatsMXBean
-org.apache/hadoop/hdfs/server/blockmanagement/TestReconstructStripedBlocksWithRackAwareness
+org/apache/hadoop/hdfs/server/blockmanagement/TestReconstructStripedBlocksWithRackAwareness
 org/apache/hadoop/hdfs/server/blockmanagement/TestUnderReplicatedBlocks
 org/apache/hadoop/hdfs/server/datanode/TestDataNodeVolumeFailureToleration
 org/apache/hadoop/hdfs/server/federation/router/TestRouterRpc
@@ -24,3 +25,4 @@ org/apache/hadoop/hdfs/server/namenode/TestNameNodeMetadataConsistency
 org/apache/hadoop/hdfs/server/namenode/ha/TestDFSUpgradeWithHA
 org/apache/hadoop/hdfs/server/namenode/metrics/TestNameNodeMetrics
 org/apache/hadoop/security/TestRaceWhenRelogin
+
