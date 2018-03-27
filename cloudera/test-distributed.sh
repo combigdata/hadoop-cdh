@@ -44,6 +44,7 @@ file_patterns = ["*.so"]
 artifact_archive_globs = ["**/surefire-reports/TEST-*.xml"]
 EOF
 
+export DIST_TEST_URL_TIMEOUT=180
 # Invoke grind to run tests
 grind -c ${DIR}/$SCRIPTS/env/grind.cfg config
 grind -c ${DIR}/$SCRIPTS/env/grind.cfg pconfig
