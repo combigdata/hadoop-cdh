@@ -20,7 +20,9 @@ org/apache/hadoop/hdfs/server/blockmanagement/TestBlockStatsMXBean
 org/apache/hadoop/hdfs/server/blockmanagement/TestReconstructStripedBlocksWithRackAwareness
 org/apache/hadoop/hdfs/server/blockmanagement/TestUnderReplicatedBlocks
 org/apache/hadoop/hdfs/server/datanode/TestDataNodeVolumeFailureToleration
+org/apache/hadoop/hdfs/server/datanode/fsdataset/impl/TestLazyPersistReplicaRecovery
 org/apache/hadoop/hdfs/server/federation/router/TestRouterRpc
+org/apache/hadoop/hdfs/server/federation/router/TestRouterRpcMultiDestination
 org/apache/hadoop/hdfs/server/namenode/TestCheckpoint
 org/apache/hadoop/hdfs/server/namenode/TestNameNodeMetadataConsistency
 org/apache/hadoop/hdfs/server/namenode/ha/TestDFSUpgradeWithHA
