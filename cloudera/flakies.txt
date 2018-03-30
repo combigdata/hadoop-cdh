@@ -1,9 +1,12 @@
 org/apache/hadoop/yarn/client/api/impl/TestTimelineClientV2Impl
 org/apache/hadoop/yarn/client/api/impl/TestAMRMClient
 org/apache/hadoop/yarn/client/TestRMFailover
+org/apache/hadoop/yarn/server/resourcemanager/reservation/TestCapacityOverTimePolicy
 org/apache/hadoop/yarn/server/resourcemanager/TestWorkPreservingRMRestart
 org/apache/hadoop/yarn/server/resourcemanager/TestRMEmbeddedElector
 org/apache/hadoop/yarn/server/router/webapp/TestRouterWebServicesREST
+org/apache/hadoop/yarn/server/TestContainerManagerSecurity
+org/apache/hadoop/yarn/server/timelineservice/security/TestTimelineAuthFilterForV2
 
 org/apache/hadoop/mapred/TestFixedLengthInputFormat
 org/apache/hadoop/mapred/TestMRTimelineEventHandling
