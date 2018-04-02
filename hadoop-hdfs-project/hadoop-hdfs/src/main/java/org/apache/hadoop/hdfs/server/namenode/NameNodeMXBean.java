@@ -286,4 +286,9 @@ public interface NameNodeMXBean {
    */
   public Map<String, Integer> getDistinctVersions();
   
+  /**
+   * Get namenode directory size.
+   */
+  String getNameDirSize();
+
 }

@@ -8371,6 +8371,11 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     return VersionInfo.getVersion();
   }
 
+  @Override // NameNodeStatusMXBean
+  public String getNameDirSize() {
+    return getFSImage().getStorage().getNNDirectorySize();
+  }
+
   /**
    * Verifies that the given identifier and password are valid and match.
    * @param identifier Token identifier.
