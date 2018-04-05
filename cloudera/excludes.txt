@@ -30,3 +30,6 @@ org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/TestContinuousSched
 org/apache/hadoop/yarn/applications/distributedshell/TestDistributedShell.java
 
 org/apache/hadoop/yarn/server/timeline/security/TestTimelineAuthenticationFilter.java
+
+# Disable some applicationhistoryservice and timeline (1.5) unit tests because we don't support them since C5
+org/apache/hadoop/yarn/server/resourcemanager/ahs/TestRMApplicationHistoryWriter.java
