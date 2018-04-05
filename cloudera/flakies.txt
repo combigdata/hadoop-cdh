@@ -17,3 +17,5 @@ org/apache/hadoop/mapred/TestFixedLengthInputFormat
 org/apache/hadoop/mapred/TestMRTimelineEventHandling
 org/apache/hadoop/mapreduce/v2/TestMRJobs
 org/apache/hadoop/mapreduce/v2/TestUberAM
+
+org/apache/hadoop/hdfs/server/blockmanagement/TestRBWBlockInvalidation
