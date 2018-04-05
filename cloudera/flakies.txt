@@ -27,6 +27,7 @@ org/apache/hadoop/hdfs/server/federation/router/TestRouterRpc
 org/apache/hadoop/hdfs/server/federation/router/TestRouterRpcMultiDestination
 org/apache/hadoop/hdfs/server/namenode/TestBackupNode
 org/apache/hadoop/hdfs/server/namenode/TestCheckpoint
+org/apache/hadoop/hdfs/server/namenode/TestDecommissioningStatus
 org/apache/hadoop/hdfs/server/namenode/TestNameNodeMXBean
 org/apache/hadoop/hdfs/server/namenode/TestNameNodeMetadataConsistency
 org/apache/hadoop/hdfs/server/namenode/ha/TestDFSUpgradeWithHA
