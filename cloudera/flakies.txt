@@ -22,6 +22,7 @@ org/apache/hadoop/hdfs/qjournal/server/TestJournalNodeSync
 org/apache/hadoop/hdfs/server/balancer/TestBalancer
 org/apache/hadoop/hdfs/server/balancer/TestBalancerWithMultipleNameNodes
 org/apache/hadoop/hdfs/server/blockmanagement/TestBlockStatsMXBean
+org/apache/hadoop/hdfs/server/blockmanagement/TestRBWBlockInvalidation
 org/apache/hadoop/hdfs/server/blockmanagement/TestReconstructStripedBlocksWithRackAwareness
 org/apache/hadoop/hdfs/server/blockmanagement/TestUnderReplicatedBlocks
 org/apache/hadoop/hdfs/server/datanode/TestDataNodeVolumeFailureToleration
