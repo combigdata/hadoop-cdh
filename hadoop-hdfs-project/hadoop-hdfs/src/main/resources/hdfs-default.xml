@@ -4305,7 +4305,7 @@
 
 <property>
   <name>dfs.namenode.snapshot.capture.openfiles</name>
-  <value>false</value>
+  <value>true</value>
   <description>
     If true, snapshots taken will have an immutable shared copy of
     the open files that have valid leases. Even after the open files
