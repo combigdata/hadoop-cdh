@@ -180,7 +180,7 @@ public interface HdfsClientConfigKeys {
 
   String DFS_NAMENODE_SNAPSHOT_CAPTURE_OPENFILES =
       "dfs.namenode.snapshot.capture.openfiles";
-  boolean DFS_NAMENODE_SNAPSHOT_CAPTURE_OPENFILES_DEFAULT = false;
+  boolean DFS_NAMENODE_SNAPSHOT_CAPTURE_OPENFILES_DEFAULT = true;
 
   /**
    * These are deprecated config keys to client code.
