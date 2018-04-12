@@ -25,7 +25,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.resourcemanager.monitor.invariants.InvariantsChecker;
 import org.apache.hadoop.yarn.server.resourcemanager.monitor.invariants.ReservationInvariantsChecker;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacityScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FairScheduler;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -46,8 +45,6 @@ public class TestReservationSystemInvariants extends BaseSLSRunnerTest {
   public static Collection<Object[]> data() {
     // Test with both schedulers, and all three trace types
     return Arrays.asList(new Object[][] {
-        {CapacityScheduler.class.getCanonicalName(), "SYNTH",
-            "src/test/resources/syn.json", null},
         {FairScheduler.class.getCanonicalName(), "SYNTH",
             "src/test/resources/syn.json", null}
     });

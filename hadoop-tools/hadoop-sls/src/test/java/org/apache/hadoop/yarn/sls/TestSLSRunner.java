@@ -20,7 +20,6 @@ package org.apache.hadoop.yarn.sls;
 
 import net.jcip.annotations.NotThreadSafe;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacityScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FairScheduler;
 import org.junit.Before;
 import org.junit.Test;
@@ -41,7 +40,6 @@ public class TestSLSRunner extends BaseSLSRunnerTest {
   @Parameters(name = "Testing with: {1}, {0}, (nodeFile {3})")
   public static Collection<Object[]> data() {
 
-    String capScheduler = CapacityScheduler.class.getCanonicalName();
     String fairScheduler = FairScheduler.class.getCanonicalName();
     String slsTraceFile = "src/test/resources/inputsls.json";
     String rumenTraceFile = "src/main/data/2jobs2min-rumen-jh.json";
@@ -50,21 +48,6 @@ public class TestSLSRunner extends BaseSLSRunnerTest {
 
     // Test with both schedulers, and all three load producers.
     return Arrays.asList(new Object[][] {
-
-        // covering old commandline in tests
-        {capScheduler, "OLD_RUMEN", rumenTraceFile, nodeFile },
-        {capScheduler, "OLD_SLS", slsTraceFile, nodeFile },
-
-        // covering the no nodeFile case
-        {capScheduler, "SYNTH", synthTraceFile, null },
-        {capScheduler, "RUMEN", rumenTraceFile, null },
-        {capScheduler, "SLS", slsTraceFile, null },
-
-        // covering new commandline and CapacityScheduler
-        {capScheduler, "SYNTH", synthTraceFile, nodeFile },
-        {capScheduler, "RUMEN", rumenTraceFile, nodeFile },
-        {capScheduler, "SLS", slsTraceFile, nodeFile },
-
         // covering FairScheduler
         {fairScheduler, "SYNTH", synthTraceFile, nodeFile },
         {fairScheduler, "RUMEN", rumenTraceFile, nodeFile },
