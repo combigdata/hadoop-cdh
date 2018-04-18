@@ -212,10 +212,15 @@ public class TestOfflineImageViewer {
       dirCount++;
       writtenFiles.put(emptydir.toString(), hdfs.getFileStatus(emptydir));
 
-      //Create a directory whose name should be escaped in XML
+      //Create directories whose name should be escaped in XML
       Path invalidXMLDir = new Path("/dirContainingInvalidXMLChar\u0000here");
       hdfs.mkdirs(invalidXMLDir);
       dirCount++;
+      Path entityRefXMLDir = new Path("/dirContainingEntityRef&here");
+      hdfs.mkdirs(entityRefXMLDir);
+      dirCount++;
+      writtenFiles.put(entityRefXMLDir.toString(),
+          hdfs.getFileStatus(entityRefXMLDir));
 
       //Create directories with new line characters
       Path newLFDir = new Path("/dirContainingNewLineChar"
