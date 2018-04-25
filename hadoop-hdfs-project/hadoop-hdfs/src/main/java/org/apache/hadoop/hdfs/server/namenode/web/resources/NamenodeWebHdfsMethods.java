@@ -25,6 +25,7 @@ import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLDecoder;
 import java.security.PrivilegedExceptionAction;
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -799,8 +800,10 @@ public class NamenodeWebHdfsMethods {
       @Override
       public Response run() throws IOException, URISyntaxException {
         try {
-          return get(ugi, delegation, username, doAsUser,
-              path.getAbsolutePath(), op, offset, length, renewer, bufferSize,
+          String absolutePath = path.getAbsolutePath() == null ? null :
+          URLDecoder.decode(path.getAbsolutePath(), "UTF-8");
+          return get(ugi, delegation, username, doAsUser, absolutePath,
+              op, offset, length, renewer, bufferSize,
               xattrNames, xattrEncoding, excludeDatanodes, fsAction, tokenKind,
               tokenService, startAfter);
         } finally {
