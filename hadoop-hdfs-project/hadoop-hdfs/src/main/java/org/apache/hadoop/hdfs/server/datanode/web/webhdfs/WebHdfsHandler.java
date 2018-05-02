@@ -59,7 +59,6 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URLDecoder;
 import java.security.PrivilegedExceptionAction;
 import java.util.EnumSet;
 
@@ -119,7 +118,7 @@ public class WebHdfsHandler extends SimpleChannelInboundHandler<HttpRequest> {
     params = new ParameterParser(queryString, conf);
     DataNodeUGIProvider ugiProvider = new DataNodeUGIProvider(params);
     ugi = ugiProvider.ugi();
-    path = URLDecoder.decode(params.path(), "UTF-8");
+    path = params.path();
 
     injectToken();
     ugi.doAs(new PrivilegedExceptionAction<Void>() {
