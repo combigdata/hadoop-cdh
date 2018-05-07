@@ -4912,7 +4912,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       // or the previous recovery for this block timed out.
       if (blockManager.addBlockRecoveryAttempt(lastBlock)) {
         long blockRecoveryId = nextGenerationStamp(isLegacyBlock(lastBlock));
-        uc.initializeBlockRecovery(blockRecoveryId);
+        uc.initializeBlockRecovery(blockRecoveryId, true);
 
         // Cannot close file right now, since the last block requires recovery.
         // This may potentially cause infinite loop in lease recovery
