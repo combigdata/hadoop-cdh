@@ -52,7 +52,7 @@ public class TestBlockInfoUnderConstruction {
     dd1.setLastUpdate(currentTime - 3 * 1000);
     dd2.setLastUpdate(currentTime - 1 * 1000);
     dd3.setLastUpdate(currentTime - 2 * 1000);
-    blockInfo.initializeBlockRecovery(1);
+    blockInfo.initializeBlockRecovery(1, true);
     BlockInfoUnderConstruction[] blockInfoRecovery = dd2.getLeaseRecoveryCommand(1);
     assertEquals(blockInfoRecovery[0], blockInfo);
 
@@ -61,7 +61,7 @@ public class TestBlockInfoUnderConstruction {
     dd1.setLastUpdate(currentTime - 2 * 1000);
     dd2.setLastUpdate(currentTime - 1 * 1000);
     dd3.setLastUpdate(currentTime - 3 * 1000);
-    blockInfo.initializeBlockRecovery(2);
+    blockInfo.initializeBlockRecovery(2, true);
     blockInfoRecovery = dd1.getLeaseRecoveryCommand(1);
     assertEquals(blockInfoRecovery[0], blockInfo);
 
@@ -71,7 +71,7 @@ public class TestBlockInfoUnderConstruction {
     dd2.setLastUpdate(currentTime - 1 * 1000);
     dd3.setLastUpdate(currentTime - 3 * 1000);
     currentTime = System.currentTimeMillis();
-    blockInfo.initializeBlockRecovery(3);
+    blockInfo.initializeBlockRecovery(3, true);
     blockInfoRecovery = dd3.getLeaseRecoveryCommand(1);
     assertEquals(blockInfoRecovery[0], blockInfo);
 
@@ -82,7 +82,7 @@ public class TestBlockInfoUnderConstruction {
     dd2.setLastUpdate(currentTime - 1 * 1000);
     dd3.setLastUpdate(currentTime);
     currentTime = System.currentTimeMillis();
-    blockInfo.initializeBlockRecovery(3);
+    blockInfo.initializeBlockRecovery(3, true);
     blockInfoRecovery = dd3.getLeaseRecoveryCommand(1);
     assertEquals(blockInfoRecovery[0], blockInfo);
   }
