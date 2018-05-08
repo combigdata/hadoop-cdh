@@ -29,7 +29,19 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 
-#define TEST_ROOT "/tmp/test-container-executor"
+#ifdef __APPLE__
+#include <CoreFoundation/CFString.h>
+#include <CoreFoundation/CFPreferences.h>
+
+#define TMPDIR "/private/tmp"
+#define RELTMPDIR "../.."
+#else
+#define RELTMPDIR ".."
+#define TMPDIR "/tmp"
+#endif
+
+#define TEST_ROOT TMPDIR "/test-container-executor"
+
 #define DONT_TOUCH_FILE "dont-touch-me"
 #define NM_LOCAL_DIRS       TEST_ROOT "/local-1%" TEST_ROOT "/local-2%" \
                TEST_ROOT "/local-3%" TEST_ROOT "/local-4%" TEST_ROOT "/local-5"
@@ -263,8 +275,9 @@ void test_resolve_config_path() {
     printf("FAIL: failed to resolve config_name on an absolute path name: /bin/ls\n");
     exit(1);
   }
-  if (strcmp(resolve_config_path("../bin/ls", "/bin/ls"), "/bin/ls") != 0) {
-    printf("FAIL: failed to resolve config_name on a relative path name: ../bin/ls (relative to /bin/ls)");
+  if (strcmp(resolve_config_path(RELTMPDIR TEST_ROOT, TEST_ROOT), TEST_ROOT) != 0) {
+    printf("FAIL: failed to resolve config_name on a relative path name: "
+           RELTMPDIR TEST_ROOT " (relative to " TEST_ROOT ")");
     exit(1);
   }
 }
@@ -662,7 +675,7 @@ void test_run_container() {
     printf("FAIL: failed to seteuid back to user - %s\n", strerror(errno));
     exit(1);
   }
-  if (fprintf(script, "#!/bin/bash\n"
+  if (fprintf(script, "#!/usr/bin/env bash\n"
                      "touch foobar\n"
                      "exit 0") < 0) {
     printf("FAIL: fprintf failed - %s\n", strerror(errno));
@@ -817,6 +830,7 @@ void test_trim_function() {
 // 4. super user with a given user and a given yarn user
 //    # test-container-executor user yarn_user
 int main(int argc, char **argv) {
+  int ret;
   LOGFILE = stdout;
   ERRORFILE = stderr;
 
@@ -891,9 +905,35 @@ int main(int argc, char **argv) {
 
   test_check_user(0);
 
+#ifdef __APPLE__
+   printf("OS X: disabling CrashReporter\n");
+  /*
+   * disable the "unexpectedly quit" dialog box
+   * because we know we're going to make our container
+   * do exactly that.
+   */
+  CFStringRef crashType      = CFSTR("DialogType");
+  CFStringRef crashModeNone  = CFSTR("None");
+  CFStringRef crashAppID     = CFSTR("com.apple.CrashReporter");
+  CFStringRef crashOldMode   = CFPreferencesCopyAppValue(CFSTR("DialogType"), CFSTR("com.apple.CrashReporter"));
+
+  CFPreferencesSetAppValue(crashType, crashModeNone, crashAppID);
+  CFPreferencesAppSynchronize(crashAppID);
+#endif
+
   // the tests that change user need to be run in a subshell, so that
   // when they change user they don't give up our privs
   run_test_in_child("test_signal_container_group", test_signal_container_group);
+
+#ifdef __APPLE__
+  /*
+   * put the "unexpectedly quit" dialog back
+   */
+
+  CFPreferencesSetAppValue(crashType, crashOldMode, crashAppID);
+  CFPreferencesAppSynchronize(crashAppID);
+  printf("OS X: CrashReporter re-enabled\n");
+#endif
 
   // init app and run container can't be run if you aren't testing as root
   if (getuid() == 0) {
@@ -903,7 +943,13 @@ int main(int argc, char **argv) {
     test_run_container();
   }
 
-  seteuid(0);
+  /*
+   * try to seteuid(0).  if it doesn't work, carry on anyway.
+   * we're going to capture the return value to get rid of a 
+   * compiler warning.
+   */
+  ret=seteuid(0);
+  ret++;
   // test_delete_user must run as root since that's how we use the delete_as_user
   test_delete_user();
   free_executor_configurations();
@@ -914,11 +960,19 @@ int main(int argc, char **argv) {
   }
 
   read_executor_config(TEST_ROOT "/test.cfg");
+#ifdef __APPLE__
+  username = "_uucp";
+  test_check_user(1);
+
+  username = "_networkd";
+  test_check_user(1);
+#else
   username = "bin";
   test_check_user(1);
 
   username = "sys";
   test_check_user(1);
+#endif
 
   run("rm -fr " TEST_ROOT);
 
