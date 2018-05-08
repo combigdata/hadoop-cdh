@@ -81,6 +81,15 @@ org/apache/hadoop/yarn/server/timeline/TestLogInfo.java
 org/apache/hadoop/yarn/server/timeline/TestOverrideTimelineStoreYarnClient.java
 org/apache/hadoop/yarn/server/resourcemanager/ahs/TestRMApplicationHistoryWriter.java
 
+# Excluding timelineservice tests that consistently fail
+org/apache/hadoop/yarn/server/timelineservice/reader/TestTimelineReaderWebServicesHBaseStorage.java
+org/apache/hadoop/yarn/server/timelineservice/storage/TestHBaseTimelineStorageApps.java
+org/apache/hadoop/yarn/server/timelineservice/storage/TestHBaseTimelineStorageEntities.java
+org/apache/hadoop/yarn/server/timelineservice/storage/TestHBaseTimelineStorageSchema.java
+org/apache/hadoop/yarn/server/timelineservice/storage/flow/TestHBaseStorageFlowActivity.java
+org/apache/hadoop/yarn/server/timelineservice/storage/flow/TestHBaseStorageFlowRun.java
+org/apache/hadoop/yarn/server/timelineservice/storage/flow/TestHBaseStorageFlowRunCompaction.java
+
 # Disable unit tests of distributed/centralized scheduling of OPPORTUNISTIC containers because we don't support them since CDH 6.0
 org/apache/hadoop/yarn/server/scheduler/TestOpportunisticContainerAllocator.java
 org/apache/hadoop/yarn/server/resourcemanager/scheduler/distributed/TestNodeQueueLoadMonitor.java

@@ -1,5 +1,4 @@
 org/apache/hadoop/yarn/applications/distributedshell/TestDistributedShell
-org/apache/hadoop/yarn/applications/distributedshell/TestDistributedShellWithNodeLabels
 org/apache/hadoop/yarn/client/TestApplicationClientProtocolOnHA
 org/apache/hadoop/yarn/client/TestApplicationMasterServiceProtocolForTimelineV2
 org/apache/hadoop/yarn/client/TestApplicationMasterServiceProtocolOnHA
@@ -39,15 +38,11 @@ org/apache/hadoop/yarn/server/resourcemanager/TestRMHAForAsyncScheduler
 org/apache/hadoop/yarn/server/resourcemanager/TestRMRestart
 org/apache/hadoop/yarn/server/resourcemanager/TestResourceTrackerService
 org/apache/hadoop/yarn/server/resourcemanager/TestWorkPreservingRMRestart
-org/apache/hadoop/yarn/server/resourcemanager/ahs/TestRMApplicationHistoryWriter
 org/apache/hadoop/yarn/server/resourcemanager/metrics/TestSystemMetricsPublisher
 org/apache/hadoop/yarn/server/resourcemanager/recovery/TestLeveldbRMStateStore
 org/apache/hadoop/yarn/server/resourcemanager/recovery/TestZKRMStateStore
 org/apache/hadoop/yarn/server/resourcemanager/reservation/TestCapacityOverTimePolicy
 org/apache/hadoop/yarn/server/resourcemanager/scheduler/TestSchedulingWithAllocationRequestId
-org/apache/hadoop/yarn/server/resourcemanager/scheduler/capacity/TestCapacityScheduler
-org/apache/hadoop/yarn/server/resourcemanager/scheduler/capacity/TestCapacitySchedulerNodeLabelUpdate
-org/apache/hadoop/yarn/server/resourcemanager/scheduler/capacity/TestIncreaseAllocationExpirer
 org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/TestContinuousScheduling
 org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/TestFSAppStarvation
 org/apache/hadoop/yarn/server/resourcemanager/scheduler/fair/TestFairScheduler
