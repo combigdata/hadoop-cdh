@@ -247,9 +247,6 @@ public class S3AInstrumentation implements Closeable, MetricsSource {
       number = ++metricsSourceNameCounter;
     }
     String msName = METRICS_SOURCE_BASENAME + number;
-    if (number > 1) {
-      msName = msName + number;
-    }
     metricsSourceName = msName + "-" + name.getHost();
     metricsSystem.register(metricsSourceName, "", this);
   }
