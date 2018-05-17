@@ -119,7 +119,8 @@ grind -c ${DIR}/$SCRIPTS/env/grind.cfg test --java-version 8 --artifacts -r 2 \
     -e TestRMWebServicesReservation \
     -e TestNNHandlesBlockReportPerStorage \
     -e TestOpportunisticContainerAllocatorAMService \
-    -e TestBlockStatsMXBean
+    -e TestBlockStatsMXBean \
+    -e TestIncreaseAllocationExpirer
 
 
 # Cleanup the grind folder
