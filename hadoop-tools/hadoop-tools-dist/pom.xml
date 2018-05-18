@@ -134,6 +134,12 @@
       <scope>compile</scope>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>test</scope>
+      <version>${junit.version}</version>
+    </dependency>
   </dependencies>
 
   <build>

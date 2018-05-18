@@ -123,5 +123,11 @@
       <artifactId>hadoop-openstack</artifactId>
       <scope>compile</scope>
     </dependency>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>test</scope>
+      <version>${junit.version}</version>
+    </dependency>
   </dependencies>
 </project>

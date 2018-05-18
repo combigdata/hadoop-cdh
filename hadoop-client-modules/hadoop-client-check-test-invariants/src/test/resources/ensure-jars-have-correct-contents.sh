@@ -43,7 +43,10 @@ allowed_expr+="|^org.apache.hadoop.application-classloader.properties$"
 #   * Used by JavaSandboxLinuxContainerRuntime as a default, loaded
 #     from root, so can't relocate. :(
 allowed_expr+="|^java.policy$"
-
+#   * whatever in the "junit" directory
+allowed_expr+="|^junit/"
+#   * LICENSE.txt
+allowed_expr+="|^LICENSE.txt"
 
 allowed_expr+=")"
 declare -i bad_artifacts=0
