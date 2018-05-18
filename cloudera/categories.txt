@@ -1,2 +1,0 @@
-flakies.txt
-integrations.txt

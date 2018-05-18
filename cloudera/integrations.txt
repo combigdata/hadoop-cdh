@@ -1,2 +1,0 @@
-org/apache/hadoop/hdfs/server/namenode/snapshot/TestSnapshot.java
-org/apache/hadoop/hdfs/server/namenode/snapshot/TestRandomOpsWithSnapshots.java
