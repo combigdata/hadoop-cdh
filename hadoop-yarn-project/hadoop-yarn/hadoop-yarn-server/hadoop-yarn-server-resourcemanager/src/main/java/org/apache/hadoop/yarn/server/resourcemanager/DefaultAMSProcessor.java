@@ -52,6 +52,7 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.InvalidContainerReleaseException;
 import org.apache.hadoop.yarn.exceptions.InvalidResourceBlacklistRequestException;
 import org.apache.hadoop.yarn.exceptions.InvalidResourceRequestException;
+import org.apache.hadoop.yarn.exceptions.SchedulerInvalidResourceRequestException;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.factories.RecordFactory;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
@@ -261,10 +262,15 @@ final class DefaultAMSProcessor implements ApplicationMasterServiceProcessor {
           " state, ignore container allocate request.");
       allocation = EMPTY_ALLOCATION;
     } else {
+      try {
       allocation =
           getScheduler().allocate(appAttemptId, ask, release,
               blacklistAdditions, blacklistRemovals,
               containerUpdateRequests);
+      } catch (SchedulerInvalidResourceRequestException e) {
+        LOG.warn("Exceptions caught when scheduler handling requests");
+        throw new YarnException(e);
+      }
     }
 
     if (!blacklistAdditions.isEmpty() || !blacklistRemovals.isEmpty()) {

@@ -67,6 +67,8 @@ import org.apache.hadoop.yarn.event.EventHandler;
 import org.apache.hadoop.yarn.exceptions.InvalidLabelResourceRequestException;
 import org.apache.hadoop.yarn.exceptions.InvalidResourceBlacklistRequestException;
 import org.apache.hadoop.yarn.exceptions.InvalidResourceRequestException;
+import org.apache.hadoop.yarn.exceptions
+        .SchedulerInvalidResourceRequestException;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.ipc.YarnRPC;
 import org.apache.hadoop.yarn.nodelabels.CommonNodeLabelsManager;
@@ -864,7 +866,8 @@ public class TestSchedulerUtils {
   }
 
   @Test
-  public void testCustomResourceRequestedUnitIsSmallerThanAvailableUnit2() {
+  public void testCustomResourceRequestedUnitIsSmallerThanAvailableUnit2()
+          throws InvalidResourceRequestException {
     Resource requestedResource =
             ResourceTypesTestHelper.newResource(1, 1,
                     ImmutableMap.of("custom-resource-1", "11"));
@@ -876,7 +879,7 @@ public class TestSchedulerUtils {
     try {
       SchedulerUtils.checkResourceRequestAgainstAvailableResource(
               requestedResource, availableResource);
-    } catch (InvalidResourceRequestException e) {
+    } catch (SchedulerInvalidResourceRequestException e) {
       fail(String.format(
               "Resource request should be accepted. Requested: %s, available:" +
                       " %s",
