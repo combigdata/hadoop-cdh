@@ -23,6 +23,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.io.IOException;
@@ -31,7 +33,10 @@ import java.io.StringReader;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.MediaType;
 import javax.xml.parsers.DocumentBuilder;
@@ -343,7 +348,7 @@ public class TestNMWebServices extends JerseyTestBase {
   }
 
   @Test (timeout = 5000)
-  public void testContainerLogsWithNewAPI() throws IOException, JSONException{
+  public void testContainerLogsWithNewAPI() throws Exception {
     final ContainerId containerId = BuilderUtils.newContainerId(0, 0, 0, 0);
     WebResource r = resource();
     r = r.path("ws").path("v1").path("node").path("containers")
@@ -352,7 +357,7 @@ public class TestNMWebServices extends JerseyTestBase {
   }
 
   @Test (timeout = 5000)
-  public void testContainerLogsWithOldAPI() throws IOException, JSONException{
+  public void testContainerLogsWithOldAPI() throws Exception {
     final ContainerId containerId = BuilderUtils.newContainerId(1, 1, 0, 1);
     WebResource r = resource();
     r = r.path("ws").path("v1").path("node").path("containerlogs")
@@ -419,7 +424,7 @@ public class TestNMWebServices extends JerseyTestBase {
   }
 
   private void testContainerLogs(WebResource r, ContainerId containerId)
-      throws IOException {
+      throws Exception {
     final String containerIdStr = containerId.toString();
     final ApplicationAttemptId appAttemptId = containerId
         .getApplicationAttemptId();
