@@ -26,6 +26,7 @@ import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.yarn.api.records.QueueACL;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.resourcemanager.reservation.ReservationSchedulerConfiguration;
+import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.AllocationFileLoaderService.Listener;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.QueuePlacementRule.NestedUserQueue;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.allocationfile.AllocationFileWriter;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies.DominantResourceFairnessPolicy;
@@ -33,6 +34,8 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.policies.Fai
 import org.apache.hadoop.yarn.util.ControlledClock;
 import org.apache.hadoop.yarn.util.resource.Resources;
 import org.junit.Test;
+import org.mockito.Mockito;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
@@ -77,7 +80,8 @@ public class TestAllocationFileLoaderService {
     fs.copyFromLocalFile(new Path(fschedURL.toURI()), new Path(fsAllocPath));
     conf.set(FairSchedulerConfiguration.ALLOCATION_FILE, fsAllocPath);
 
-    AllocationFileLoaderService allocLoader = new AllocationFileLoaderService();
+    AllocationFileLoaderService allocLoader =
+        new AllocationFileLoaderService(Mockito.mock(Listener.class));
     Path allocationFile = allocLoader.getAllocationFile(conf);
     assertEquals(fsAllocPath, allocationFile.toString());
     assertTrue(fs.exists(allocationFile));
@@ -90,7 +94,8 @@ public class TestAllocationFileLoaderService {
       throws UnsupportedFileSystemException {
     Configuration conf = new YarnConfiguration();
     conf.set(FairSchedulerConfiguration.ALLOCATION_FILE, "badfs:///badfile");
-    AllocationFileLoaderService allocLoader = new AllocationFileLoaderService();
+    AllocationFileLoaderService allocLoader =
+        new AllocationFileLoaderService(Mockito.mock(Listener.class));
 
     allocLoader.getAllocationFile(conf);
   }
@@ -103,7 +108,7 @@ public class TestAllocationFileLoaderService {
       conf.set(FairSchedulerConfiguration.ALLOCATION_FILE,
           TEST_FAIRSCHED_XML);
       AllocationFileLoaderService allocLoader =
-          new AllocationFileLoaderService();
+          new AllocationFileLoaderService(Mockito.mock(Listener.class));
       Path allocationFile = allocLoader.getAllocationFile(conf);
       assertEquals(TEST_FAIRSCHED_XML, allocationFile.getName());
       assertTrue(fs.exists(allocationFile));
@@ -132,12 +137,11 @@ public class TestAllocationFileLoaderService {
     Configuration conf = new Configuration();
     conf.set(FairSchedulerConfiguration.ALLOCATION_FILE, ALLOC_FILE);
 
-    AllocationFileLoaderService allocLoader = new AllocationFileLoaderService(
-        clock);
+    ReloadListener confHolder = new ReloadListener();
+    AllocationFileLoaderService allocLoader =
+        new AllocationFileLoaderService(confHolder, clock);
     allocLoader.reloadIntervalMs = 5;
     allocLoader.init(conf);
-    ReloadListener confHolder = new ReloadListener();
-    allocLoader.setReloadListener(confHolder);
     allocLoader.reloadAllocations();
     AllocationConfiguration allocConf = confHolder.allocConf;
 
@@ -203,7 +207,9 @@ public class TestAllocationFileLoaderService {
   public void testAllocationFileParsing() throws Exception {
     Configuration conf = new Configuration();
     conf.set(FairSchedulerConfiguration.ALLOCATION_FILE, ALLOC_FILE);
-    AllocationFileLoaderService allocLoader = new AllocationFileLoaderService();
+    ReloadListener confHolder = new ReloadListener();
+    AllocationFileLoaderService allocLoader =
+        new AllocationFileLoaderService(confHolder);
 
     AllocationFileWriter
             .create()
@@ -276,8 +282,6 @@ public class TestAllocationFileLoaderService {
             .writeToFile(ALLOC_FILE);
 
     allocLoader.init(conf);
-    ReloadListener confHolder = new ReloadListener();
-    allocLoader.setReloadListener(confHolder);
     allocLoader.reloadAllocations();
     AllocationConfiguration queueConf = confHolder.allocConf;
 
@@ -445,7 +449,9 @@ public class TestAllocationFileLoaderService {
   public void testBackwardsCompatibleAllocationFileParsing() throws Exception {
     Configuration conf = new Configuration();
     conf.set(FairSchedulerConfiguration.ALLOCATION_FILE, ALLOC_FILE);
-    AllocationFileLoaderService allocLoader = new AllocationFileLoaderService();
+    ReloadListener confHolder = new ReloadListener();
+    AllocationFileLoaderService allocLoader =
+        new AllocationFileLoaderService(confHolder);
 
     PrintWriter out = new PrintWriter(new FileWriter(ALLOC_FILE));
     out.println("<?xml version=\"1.0\"?>");
@@ -491,8 +497,6 @@ public class TestAllocationFileLoaderService {
     out.close();
 
     allocLoader.init(conf);
-    ReloadListener confHolder = new ReloadListener();
-    allocLoader.setReloadListener(confHolder);
     allocLoader.reloadAllocations();
     AllocationConfiguration queueConf = confHolder.allocConf;
 
@@ -582,10 +586,10 @@ public class TestAllocationFileLoaderService {
     out.println("</allocations>");
     out.close();
 
-    AllocationFileLoaderService allocLoader = new AllocationFileLoaderService();
-    allocLoader.init(conf);
     ReloadListener confHolder = new ReloadListener();
-    allocLoader.setReloadListener(confHolder);
+    AllocationFileLoaderService allocLoader =
+        new AllocationFileLoaderService(confHolder);
+    allocLoader.init(conf);
     allocLoader.reloadAllocations();
     AllocationConfiguration allocConf = confHolder.allocConf;
 
@@ -616,10 +620,10 @@ public class TestAllocationFileLoaderService {
     out.println("</allocations>");
     out.close();
 
-    AllocationFileLoaderService allocLoader = new AllocationFileLoaderService();
-    allocLoader.init(conf);
     ReloadListener confHolder = new ReloadListener();
-    allocLoader.setReloadListener(confHolder);
+    AllocationFileLoaderService allocLoader =
+        new AllocationFileLoaderService(confHolder);
+    allocLoader.init(conf);
     allocLoader.reloadAllocations();
   }
 
@@ -640,10 +644,10 @@ public class TestAllocationFileLoaderService {
     out.println("</allocations>");
     out.close();
 
-    AllocationFileLoaderService allocLoader = new AllocationFileLoaderService();
-    allocLoader.init(conf);
     ReloadListener confHolder = new ReloadListener();
-    allocLoader.setReloadListener(confHolder);
+    AllocationFileLoaderService allocLoader =
+        new AllocationFileLoaderService(confHolder);
+    allocLoader.init(conf);
     allocLoader.reloadAllocations();
   }
 
@@ -664,10 +668,10 @@ public class TestAllocationFileLoaderService {
     out.println("</allocations>");
     out.close();
 
-    AllocationFileLoaderService allocLoader = new AllocationFileLoaderService();
-    allocLoader.init(conf);
     ReloadListener confHolder = new ReloadListener();
-    allocLoader.setReloadListener(confHolder);
+    AllocationFileLoaderService allocLoader =
+        new AllocationFileLoaderService(confHolder);
+    allocLoader.init(conf);
     allocLoader.reloadAllocations();
   }
 
@@ -686,10 +690,10 @@ public class TestAllocationFileLoaderService {
     out.println("</allocations>");
     out.close();
 
-    AllocationFileLoaderService allocLoader = new AllocationFileLoaderService();
-    allocLoader.init(conf);
     ReloadListener confHolder = new ReloadListener();
-    allocLoader.setReloadListener(confHolder);
+    AllocationFileLoaderService allocLoader =
+        new AllocationFileLoaderService(confHolder);
+    allocLoader.init(conf);
     try {
       allocLoader.reloadAllocations();
     } catch (AllocationConfigurationException ex) {
@@ -717,10 +721,10 @@ public class TestAllocationFileLoaderService {
     out.println("</allocations>");
     out.close();
 
-    AllocationFileLoaderService allocLoader = new AllocationFileLoaderService();
-    allocLoader.init(conf);
     ReloadListener confHolder = new ReloadListener();
-    allocLoader.setReloadListener(confHolder);
+    AllocationFileLoaderService allocLoader =
+        new AllocationFileLoaderService(confHolder);
+    allocLoader.init(conf);
     try {
       allocLoader.reloadAllocations();
     } catch (AllocationConfigurationException ex) {
@@ -746,10 +750,10 @@ public class TestAllocationFileLoaderService {
     out.println("</allocations>");
     out.close();
 
-    AllocationFileLoaderService allocLoader = new AllocationFileLoaderService();
-    allocLoader.init(conf);
     ReloadListener confHolder = new ReloadListener();
-    allocLoader.setReloadListener(confHolder);
+    AllocationFileLoaderService allocLoader =
+        new AllocationFileLoaderService(confHolder);
+    allocLoader.init(conf);
     allocLoader.reloadAllocations();
     AllocationConfiguration queueConf = confHolder.allocConf;
     // Check whether queue 'parent' and 'child' are loaded successfully
@@ -777,10 +781,10 @@ public class TestAllocationFileLoaderService {
     out.println("</allocations>");
     out.close();
 
-    AllocationFileLoaderService allocLoader = new AllocationFileLoaderService();
-    allocLoader.init(conf);
     ReloadListener confHolder = new ReloadListener();
-    allocLoader.setReloadListener(confHolder);
+    AllocationFileLoaderService allocLoader =
+        new AllocationFileLoaderService(confHolder);
+    allocLoader.init(conf);
     allocLoader.reloadAllocations();
   }
 
@@ -799,10 +803,10 @@ public class TestAllocationFileLoaderService {
     out.println("</allocations>");
     out.close();
 
-    AllocationFileLoaderService allocLoader = new AllocationFileLoaderService();
-    allocLoader.init(conf);
     ReloadListener confHolder = new ReloadListener();
-    allocLoader.setReloadListener(confHolder);
+    AllocationFileLoaderService allocLoader =
+        new AllocationFileLoaderService(confHolder);
+    allocLoader.init(conf);
     allocLoader.reloadAllocations();
   }
 
@@ -825,10 +829,10 @@ public class TestAllocationFileLoaderService {
     out.println("</allocations>");
     out.close();
 
-    AllocationFileLoaderService allocLoader = new AllocationFileLoaderService();
-    allocLoader.init(conf);
     ReloadListener confHolder = new ReloadListener();
-    allocLoader.setReloadListener(confHolder);
+    AllocationFileLoaderService allocLoader =
+        new AllocationFileLoaderService(confHolder);
+    allocLoader.init(conf);
     allocLoader.reloadAllocations();
 
     AllocationConfiguration allocConf = confHolder.allocConf;
@@ -878,10 +882,10 @@ public class TestAllocationFileLoaderService {
     out.println("</allocations>");
     out.close();
 
-    AllocationFileLoaderService allocLoader = new AllocationFileLoaderService();
-    allocLoader.init(conf);
     ReloadListener confHolder = new ReloadListener();
-    allocLoader.setReloadListener(confHolder);
+    AllocationFileLoaderService allocLoader =
+        new AllocationFileLoaderService(confHolder);
+    allocLoader.init(conf);
     allocLoader.reloadAllocations();
   }
 
@@ -891,6 +895,10 @@ public class TestAllocationFileLoaderService {
     @Override
     public void onReload(AllocationConfiguration info) {
       allocConf = info;
+    }
+
+    @Override
+    public void onCheck() {
     }
   }
 }
