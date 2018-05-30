@@ -110,6 +110,22 @@ function runStableTests() {
   mvn -Pcloudera-unittest -f ${_POM} -e findbugs:findbugs checkstyle:checkstyle test ${_MAVEN_FLAGS} -Dtest.excludes.file=${_MERGED_EXCLUDES}
 }
 
+# Run all the integration tests. Takes the following arguments:
+#
+# - POM -- the POM to test
+# - MAVEN_FLAGS -- and Maven flags, properties or options to the test
+function runIntegrationTests() {
+  local _POM=$1
+  local _MAVEN_FLAGS=$2
+
+  echo
+  echo ----
+  echo Running integration tests in ${_POM} with ${_MAVEN_FLAGS}
+  echo ----
+  echo
+  mvn -Pcloudera-unittest -f ${_POM} -e findbugs:findbugs checkstyle:checkstyle test ${_MAVEN_FLAGS}
+}
+
 # Run the tests in the supplied test policy. Takes the following arguments:
 #
 # - POM -- the POM to test
@@ -581,6 +597,11 @@ function main() {
     test-stable.sh)
       build pom.xml "${MAVEN_FLAGS}" false ${NO_BUILD}
       runStableTests ${POM} "${MAVEN_FLAGS}" "${CLOUDERA_DIR}/excludes.txt"
+      ;;
+
+    test-integration.sh)
+      build pom.xml "${MAVEN_FLAGS}" false ${NO_BUILD}
+      runIntegrationTests ${POM} "${MAVEN_FLAGS}"
       ;;
 
     test-set.sh)
