@@ -992,19 +992,20 @@ public class CapacityScheduler extends
     // schedule.
     // TODO: Fix possible race-condition when request comes in before
     // update is propagated
-    if (nm.getState() == NodeState.DECOMMISSIONING) {
+    if (nm.getState() == NodeState.DECOMMISSIONING && node != null) {
       this.rmContext
           .getDispatcher()
           .getEventHandler()
           .handle(
               new RMNodeResourceUpdateEvent(nm.getNodeID(), ResourceOption
-                  .newInstance(getSchedulerNode(nm.getNodeID())
-                      .getUsedResource(), 0)));
+                  .newInstance(node.getUsedResource(), 0)));
     }
     // Now node data structures are upto date and ready for scheduling.
     if(LOG.isDebugEnabled()) {
-      LOG.debug("Node being looked for scheduling " + nm
-        + " availableResource: " + node.getAvailableResource());
+      LOG.debug(
+          "Node being looked for scheduling " + nm + " availableResource: " +
+              (node == null ? "unknown (decomissioned)" :
+                  node.getAvailableResource()));
     }
   }
   
@@ -1106,7 +1107,10 @@ public class CapacityScheduler extends
       RMNode node = nodeUpdatedEvent.getRMNode();
       nodeUpdate(node);
       if (!scheduleAsynchronously) {
-        allocateContainersToNode(getNode(node.getNodeID()));
+        FiCaSchedulerNode schedulerNode = getNode(node.getNodeID());
+        if (schedulerNode != null) {
+          allocateContainersToNode(schedulerNode);
+        }
       }
     }
     break;

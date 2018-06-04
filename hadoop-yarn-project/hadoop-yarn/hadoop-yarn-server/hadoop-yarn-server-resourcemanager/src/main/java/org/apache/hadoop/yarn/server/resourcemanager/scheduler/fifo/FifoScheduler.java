@@ -735,14 +735,13 @@ public class FifoScheduler extends
     // If the node is decommissioning, send an update to have the total
     // resource equal to the used resource, so no available resource to
     // schedule.
-    if (rmNode.getState() == NodeState.DECOMMISSIONING) {
+    if (rmNode.getState() == NodeState.DECOMMISSIONING && node != null) {
       this.rmContext
           .getDispatcher()
           .getEventHandler()
           .handle(
               new RMNodeResourceUpdateEvent(rmNode.getNodeID(), ResourceOption
-                  .newInstance(getSchedulerNode(rmNode.getNodeID())
-                      .getUsedResource(), 0)));
+                  .newInstance(node.getUsedResource(), 0)));
     }
 
     if (rmContext.isWorkPreservingRecoveryEnabled()
@@ -750,7 +749,9 @@ public class FifoScheduler extends
       return;
     }
 
-    if (Resources.greaterThanOrEqual(resourceCalculator, getClusterResource(),
+    // A decommissioned node might be removed before we get here
+    if (node != null  &&
+        Resources.greaterThanOrEqual(resourceCalculator, getClusterResource(),
             node.getAvailableResource(), minimumAllocation)) {
       LOG.debug("Node heartbeat " + rmNode.getNodeID() +
           " available resource = " + node.getAvailableResource());

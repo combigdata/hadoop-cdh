@@ -58,6 +58,7 @@ import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.server.resourcemanager.Application;
 import org.apache.hadoop.yarn.server.resourcemanager.MockNodes;
 import org.apache.hadoop.yarn.server.resourcemanager.MockRM;
+import org.apache.hadoop.yarn.server.resourcemanager.NodeManager;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContextImpl;
 import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
@@ -116,14 +117,11 @@ public class TestFifoScheduler {
     resourceManager.stop();
   }
   
-  private org.apache.hadoop.yarn.server.resourcemanager.NodeManager
-      registerNode(String hostName, int containerManagerPort, int nmHttpPort,
-          String rackName, Resource capability) throws IOException,
-          YarnException {
-    org.apache.hadoop.yarn.server.resourcemanager.NodeManager nm =
-        new org.apache.hadoop.yarn.server.resourcemanager.NodeManager(hostName,
-            containerManagerPort, nmHttpPort, rackName, capability,
-            resourceManager);
+  private NodeManager registerNode(String hostName, int containerManagerPort,
+     int nmHttpPort, String rackName, Resource capability)
+      throws IOException, YarnException {
+    NodeManager nm = new NodeManager(hostName, containerManagerPort, nmHttpPort,
+        rackName, capability, resourceManager);
     NodeAddedSchedulerEvent nodeAddEvent1 =
         new NodeAddedSchedulerEvent(resourceManager.getRMContext().getRMNodes()
             .get(nm.getNodeId()));
@@ -373,16 +371,14 @@ public class TestFifoScheduler {
     
     // Register node1
     String host_0 = "host_0";
-    org.apache.hadoop.yarn.server.resourcemanager.NodeManager nm_0 = 
-      registerNode(host_0, 1234, 2345, NetworkTopology.DEFAULT_RACK, 
-          Resources.createResource(4 * GB, 1));
+    NodeManager nm_0 = registerNode(host_0, 1234, 2345,
+        NetworkTopology.DEFAULT_RACK, Resources.createResource(4 * GB, 1));
     nm_0.heartbeat();
     
     // Register node2
     String host_1 = "host_1";
-    org.apache.hadoop.yarn.server.resourcemanager.NodeManager nm_1 = 
-      registerNode(host_1, 1234, 2345, NetworkTopology.DEFAULT_RACK, 
-          Resources.createResource(2 * GB, 1));
+    NodeManager nm_1 = registerNode(host_1, 1234, 2345,
+        NetworkTopology.DEFAULT_RACK, Resources.createResource(2 * GB, 1));
     nm_1.heartbeat();
 
     // ResourceRequest priorities
@@ -644,6 +640,30 @@ public class TestFifoScheduler {
   }
 
   @Test
+  public void testRemovedNodeDecomissioningNode() throws Exception {
+    // Register nodemanager
+    NodeManager nm = registerNode("host_decom", 1234, 2345,
+        NetworkTopology.DEFAULT_RACK, Resources.createResource(8 * GB, 4));
+
+    RMNode node =
+        resourceManager.getRMContext().getRMNodes().get(nm.getNodeId());
+    // Send a heartbeat to kick the tires on the Scheduler
+    NodeUpdateSchedulerEvent nodeUpdate = new NodeUpdateSchedulerEvent(node);
+    resourceManager.getResourceScheduler().handle(nodeUpdate);
+
+    // Force remove the node to simulate race condition
+    ((FifoScheduler) resourceManager.getResourceScheduler())
+        .getNodeTracker().removeNode(nm.getNodeId());
+    // Kick off another heartbeat with the node state mocked to decommissioning
+    RMNode spyNode =
+        Mockito.spy(resourceManager.getRMContext().getRMNodes()
+            .get(nm.getNodeId()));
+    when(spyNode.getState()).thenReturn(NodeState.DECOMMISSIONING);
+    resourceManager.getResourceScheduler().handle(
+        new NodeUpdateSchedulerEvent(spyNode));
+  }
+
+  @Test
   public void testResourceUpdateDecommissioningNode() throws Exception {
     // Mock the RMNodeResourceUpdate event handler to update SchedulerNode
     // to have 0 available resource
@@ -668,10 +688,8 @@ public class TestFifoScheduler {
     ((AsyncDispatcher) mockDispatcher).start();
     // Register node
     String host_0 = "host_0";
-    org.apache.hadoop.yarn.server.resourcemanager.NodeManager nm_0 =
-        registerNode(host_0, 1234, 2345, NetworkTopology.DEFAULT_RACK,
-            Resources.createResource(8 * GB, 4));
-    nm_0.heartbeat();
+    NodeManager nm_0 = registerNode(host_0, 1234, 2345,
+        NetworkTopology.DEFAULT_RACK, Resources.createResource(8 * GB, 4));
     // ResourceRequest priorities
     Priority priority_0 =
         org.apache.hadoop.yarn.server.resourcemanager.resource.Priority
@@ -739,7 +757,7 @@ public class TestFifoScheduler {
   }
   
   private void checkNodeResourceUsage(int expected,
-      org.apache.hadoop.yarn.server.resourcemanager.NodeManager node) {
+      NodeManager node) {
     Assert.assertEquals(expected, node.getUsed().getMemory());
     node.checkResourceUsage();
   }
