@@ -861,6 +861,8 @@ public class FairScheduler extends
           " cluster capacity: " + getClusterResource());
     }
     eventLog.log("HEARTBEAT", nm.getHostName());
+    // NOTICE: it is possible to not find the NodeID as a node can be
+    // decommissioned at the same time. Skip updates if node is null.
     FSSchedulerNode node = getFSSchedulerNode(nm.getNodeID());
 
     List<UpdatedContainerInfo> containerInfoList = nm.pullContainerUpdates();
@@ -886,14 +888,13 @@ public class FairScheduler extends
     // If the node is decommissioning, send an update to have the total
     // resource equal to the used resource, so no available resource to
     // schedule.
-    if (nm.getState() == NodeState.DECOMMISSIONING) {
+    if (nm.getState() == NodeState.DECOMMISSIONING && node != null) {
       this.rmContext
           .getDispatcher()
           .getEventHandler()
           .handle(
               new RMNodeResourceUpdateEvent(nm.getNodeID(), ResourceOption
-                  .newInstance(getSchedulerNode(nm.getNodeID())
-                      .getUsedResource(), 0)));
+                  .newInstance(node.getUsedResource(), 0)));
     }
 
     if (continuousSchedulingEnabled) {
@@ -976,7 +977,7 @@ public class FairScheduler extends
       return;
     }
 
-    final NodeId nodeID = node.getNodeID();
+    final NodeId nodeID = (node != null ? node.getNodeID() : null);
     if (!nodeTracker.exists(nodeID)) {
       // The node might have just been removed while this thread was waiting
       // on the synchronized lock before it entered this synchronized method
