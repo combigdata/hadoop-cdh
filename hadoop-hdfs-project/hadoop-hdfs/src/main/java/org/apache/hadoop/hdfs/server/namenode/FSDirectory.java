@@ -2691,10 +2691,12 @@ public class FSDirectory implements Closeable {
      long size = 0;     // length is zero for directories
      short replication = 0;
      long blocksize = 0;
-     final boolean isEncrypted;
+     final boolean isEncrypted = isInAnEZ(INodesInPath.fromINode(node));
 
-     final FileEncryptionInfo feInfo = isRawPath ? null :
-         getFileEncryptionInfo(node, snapshot, iip);
+     FileEncryptionInfo feInfo = null;
+     if (isEncrypted) {
+       feInfo = getFileEncryptionInfo(node, snapshot, iip);
+     }
 
      boolean isLazyPersist = false;
      if (node.isFile()) {
@@ -2702,10 +2704,6 @@ public class FSDirectory implements Closeable {
        size = fileNode.computeFileSize(snapshot);
        replication = fileNode.getFileReplication(snapshot);
        blocksize = fileNode.getPreferredBlockSize();
-       isEncrypted = (feInfo != null) ||
-           (isRawPath && isInAnEZ(INodesInPath.fromINode(node)));
-     } else {
-       isEncrypted = isInAnEZ(INodesInPath.fromINode(node));
      }
 
      int childrenNum = node.isDirectory() ? 

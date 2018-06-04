@@ -2846,7 +2846,8 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
     String ezKeyName = null;
     EncryptedKeyVersion edek = null;
 
-    if (provider != null) {
+    boolean isReservedRaw = FSDirectory.isReservedRawName(srcArg);
+    if (!isReservedRaw && provider != null) {
       readLock();
       try {
         src = dir.resolvePath(pc, src, pathComponents);
@@ -2888,7 +2889,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       src = dir.resolvePath(pc, src, pathComponents);
       toRemoveBlocks = startFileInternal(pc, src, permissions, holder, 
           clientMachine, create, overwrite, createParent, replication, 
-          blockSize, isLazyPersist, suite, protocolVersion, edek, logRetryCache);
+          blockSize, isLazyPersist, suite, protocolVersion, edek, logRetryCache, isReservedRaw);
       stat = dir.getFileInfo(src, false,
           FSDirectory.isReservedRawName(srcArg), true);
     } catch (StandbyException se) {
@@ -2925,7 +2926,7 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
       String clientMachine, boolean create, boolean overwrite, 
       boolean createParent, short replication, long blockSize, 
       boolean isLazyPersist, CipherSuite suite, CryptoProtocolVersion version,
-      EncryptedKeyVersion edek, boolean logRetryEntry)
+      EncryptedKeyVersion edek, boolean logRetryEntry, boolean isReservedRaw)
       throws FileAlreadyExistsException, AccessControlException,
       UnresolvedLinkException, FileNotFoundException,
       ParentNotDirectoryException, RetryStartFileException, IOException {
@@ -2940,23 +2941,25 @@ public class FSNamesystem implements Namesystem, FSClusterStats,
 
     FileEncryptionInfo feInfo = null;
 
-    final EncryptionZone zone = dir.getEZForPath(iip);
-    if (zone != null) {
-      // The path is now within an EZ, but we're missing encryption parameters
-      if (suite == null || edek == null) {
-        throw new RetryStartFileException();
+    if (!isReservedRaw) {
+      final EncryptionZone zone = dir.getEZForPath(iip);
+      if (zone != null) {
+        // The path is now within an EZ, but we're missing encryption parameters
+        if (suite == null || edek == null) {
+          throw new RetryStartFileException();
+        }
+        // Path is within an EZ and we have provided encryption parameters.
+        // Make sure that the generated EDEK matches the settings of the EZ.
+        final String ezKeyName = zone.getKeyName();
+        if (!ezKeyName.equals(edek.getEncryptionKeyName())) {
+          throw new RetryStartFileException();
+        }
+        feInfo = new FileEncryptionInfo(suite, version,
+                edek.getEncryptedKeyVersion().getMaterial(),
+                edek.getEncryptedKeyIv(),
+                ezKeyName, edek.getEncryptionKeyVersionName());
+        Preconditions.checkNotNull(feInfo);
       }
-      // Path is within an EZ and we have provided encryption parameters.
-      // Make sure that the generated EDEK matches the settings of the EZ.
-      final String ezKeyName = zone.getKeyName();
-      if (!ezKeyName.equals(edek.getEncryptionKeyName())) {
-        throw new RetryStartFileException();
-      }
-      feInfo = new FileEncryptionInfo(suite, version,
-          edek.getEncryptedKeyVersion().getMaterial(),
-          edek.getEncryptedKeyIv(),
-          ezKeyName, edek.getEncryptionKeyVersionName());
-      Preconditions.checkNotNull(feInfo);
     }
 
     final INodeFile myFile = INodeFile.valueOf(inode, src, true);
