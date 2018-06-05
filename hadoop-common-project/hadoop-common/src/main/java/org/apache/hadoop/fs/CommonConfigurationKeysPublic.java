@@ -817,6 +817,9 @@ public class CommonConfigurationKeysPublic {
   /** Defalt value for HADOOP_HTTP_LOGS_ENABLED */
   public static final boolean HADOOP_HTTP_LOGS_ENABLED_DEFAULT = true;
 
+  /** CLOUDERA-BUILD. CDH-69159. default value of max_retreis. */
+  public static final int KMS_CLIENT_FAILOVER_MAX_RETRIES_DEFAULT = 15;
+
   /**
    * @see
    * <a href="{@docRoot}/../hadoop-project-dist/hadoop-common/core-default.xml">
