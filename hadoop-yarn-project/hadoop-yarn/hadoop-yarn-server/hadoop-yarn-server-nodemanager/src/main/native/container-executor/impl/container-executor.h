@@ -90,6 +90,7 @@ enum operations {
 #define DOCKER_BINARY_KEY "docker.binary"
 #define DOCKER_SUPPORT_ENABLED_KEY "feature.docker.enabled"
 #define TC_SUPPORT_ENABLED_KEY "feature.tc.enabled"
+#define MOUNT_CGROUP_SUPPORT_ENABLED_KEY "feature.mount-cgroup.enabled"
 #define TMP_DIR "tmp"
 
 extern struct passwd *user_detail;
@@ -266,6 +267,8 @@ int is_tc_support_enabled();
 
 /** Check if docker support is enabled in configuration. */
 int is_docker_support_enabled();
+/** Check if cgroup mount support is enabled in configuration. */
+int is_mount_cgroups_support_enabled();
 
 /**
  * Run a batch of tc commands that modify interface configuration
