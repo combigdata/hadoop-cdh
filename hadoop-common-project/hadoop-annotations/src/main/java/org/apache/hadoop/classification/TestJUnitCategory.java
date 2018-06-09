@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.hadoop.test;
+package org.apache.hadoop.classification;
 
 public class TestJUnitCategory {
 

@@ -42,7 +42,7 @@ public class QuarantineTest {
       "import org.junit.experimental.categories.Category;";
 
   static final String IMPORT_TEST_CATEGORY =
-      "import org.apache.hadoop.test.TestJUnitCategory;";
+      "import org.apache.hadoop.classification.TestJUnitCategory;";
 
   static final Logger LOG = Logger.getLogger(QuarantineTest.class.getName());
   static final String LINE_SEPARATOR = System.getProperty ("line.separator");

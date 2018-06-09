@@ -132,7 +132,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
     <dependency-check-maven.version>1.4.3</dependency-check-maven.version>
 
     <shell-executable>bash</shell-executable>
-    <test.groups>org.apache.hadoop.test.TestJUnitCategory</test.groups>
+    <test.groups>org.apache.hadoop.classification.TestJUnitCategory$AllTests</test.groups>
     <junit.version>4.11</junit.version>
   </properties>
 
@@ -366,8 +366,15 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
           <artifactId>maven-surefire-plugin</artifactId>
           <version>2.21.0</version>
           <configuration>
-            <groups>${testcase.groups}</groups>
+            <groups>${test.groups}</groups>
           </configuration>
+          <dependencies>
+            <dependency>
+              <groupId>org.apache.maven.surefire</groupId>
+              <artifactId>surefire-junit47</artifactId>
+              <version>2.21.0</version>
+            </dependency>
+          </dependencies>
         </plugin>
       </plugins>
     </pluginManagement>
@@ -689,25 +696,25 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
     <profile>
       <id>flakies</id>
       <properties>
-        <testcase.groups>org.apache.hadoop.test.TestJUnitCategory.FlakiesTest</testcase.groups>
+        <test.groups>org.apache.hadoop.classification.TestJUnitCategory$FlakiesTest</test.groups>
       </properties>
     </profile>
     <profile>
       <id>stables</id>
       <properties>
-        <testcase.groups>org.apache.hadoop.test.TestJUnitCategory.StablesTest</testcase.groups>
+        <test.groups>org.apache.hadoop.classification.TestJUnitCategory$StablesTest</test.groups>
       </properties>
     </profile>
     <profile>
       <id>integrations</id>
       <properties>
-        <testcase.groups>org.apache.hadoop.test.TestJUnitCategory.IntegrationsTest</testcase.groups>
+        <test.groups>org.apache.hadoop.classification.TestJUnitCategory$IntegrationsTest</test.groups>
       </properties>
     </profile>
     <profile>
       <id>none</id>
       <properties>
-        <testcase.groups>!org.apache.hadoop.test.TestJUnitCategory.AllTest</testcase.groups>
+        <test.groups>!org.apache.hadoop.classification.TestJUnitCategory$AllTest</test.groups>
       </properties>
     </profile>
   </profiles>
