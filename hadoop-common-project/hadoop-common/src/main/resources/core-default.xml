@@ -167,7 +167,7 @@
 
 <property>
   <name>hadoop.security.groups.cache.background.reload</name>
-  <value>false</value>
+  <value>true</value>
   <description>
     Whether to reload expired user->group mappings using a background thread
     pool. If set to true, a pool of
