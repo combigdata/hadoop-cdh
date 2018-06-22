@@ -371,7 +371,11 @@ function setupMavenFlags() {
   local _PROTOBUF_HOME=$1
   local _TOOLCHAIN_HOME=$2
 
-  MAVEN_FLAGS="${MAVEN_FLAGS} -Pdist -Pnative -Drequire.fuse -Drequire.snappy -DjavaVersion=$JAVA_VERSION -DtargetJavaVersion=$TARGET_JAVA_VERSION -Dmaven.test.failure.ignore=true -Dtest.fork.count=${TEST_FORK_COUNT} -Dtest.fork.reuse=${TEST_REUSE_FORKS}"
+  if [[ "${SCRIPT}" = "test-integration.sh" ]]; then
+    MAVEN_FLAGS="${MAVEN_FLAGS} -Pdist -Pnative -Drequire.fuse -Drequire.snappy -DjavaVersion=$JAVA_VERSION -DtargetJavaVersion=$TARGET_JAVA_VERSION -Dmaven.test.failure.ignore=true -Dtest.fork.count=${TEST_FORK_COUNT} -Dtest.fork.reuse=${TEST_REUSE_FORKS}"
+  else
+    MAVEN_FLAGS="-Pdist -Pnative -Drequire.fuse -Drequire.snappy -DjavaVersion=$JAVA_VERSION -DtargetJavaVersion=$TARGET_JAVA_VERSION -Dmaven.test.failure.ignore=true -Dtest.fork.count=${TEST_FORK_COUNT} -Dtest.fork.reuse=${TEST_REUSE_FORKS}"
+  fi
 
   # setup of protobuf path, since Hadoop pom is using HADOOP_PROTOC_PATH it will be set here too, unless already
   # defined

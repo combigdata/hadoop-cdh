@@ -181,17 +181,17 @@ public class QuarantineTest {
 
     // fill in classAndMethodToAnnotations
     if (method == null || method.isEmpty()) {
-      classAndMethodToAnnotations.put(fileName, annotations);
+      classAndMethodToAnnotations.put(line, annotations);
     } else {
-      classAndMethodToAnnotations.put(fileName + "#" + method, annotations);
+      classAndMethodToAnnotations.put(line + "#" + method, annotations);
     }
 
     // fill in classToMethods map
-    if (!classToMethods.containsKey(fileName)) {
-      classToMethods.put(fileName, method);
+    if (!classToMethods.containsKey(line)) {
+      classToMethods.put(line, method);
     } else {
-      String existingMethods = classToMethods.get(fileName) + ";";
-      classToMethods.put(fileName, existingMethods + method);
+      String existingMethods = classToMethods.get(line) + ";";
+      classToMethods.put(line, existingMethods + method);
     }
 
     // fill in classToFile map
@@ -214,7 +214,7 @@ public class QuarantineTest {
     }
 
     if (fileFullPath != null) {
-      classToFile.put(fileName, fileFullPath);
+      classToFile.put(line, fileFullPath);
     }
     fileFullPath = null;
   }
@@ -267,7 +267,8 @@ public class QuarantineTest {
               }
 
               String annotations = "";
-              String key = className;
+              String key = testFile.getAbsolutePath().substring(testFile.getAbsolutePath().lastIndexOf("org/apache/hadoop/"));
+              key = key.substring(0, key.indexOf(".java"));
               if (!methodName.isEmpty()) {
                 key += "#" + methodName;
               }
