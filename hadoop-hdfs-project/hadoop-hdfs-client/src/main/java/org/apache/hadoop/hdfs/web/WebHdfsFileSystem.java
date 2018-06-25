@@ -51,8 +51,6 @@ import java.util.concurrent.TimeUnit;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectReader;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.input.BoundedInputStream;
 import org.apache.hadoop.conf.Configuration;
@@ -111,6 +109,7 @@ import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.security.token.TokenSelector;
 import org.apache.hadoop.security.token.delegation.AbstractDelegationTokenSelector;
+import org.apache.hadoop.util.JsonSerialization;
 import org.apache.hadoop.util.KMSUtil;
 import org.apache.hadoop.util.Progressable;
 import org.apache.hadoop.util.StringUtils;
@@ -158,8 +157,6 @@ public class WebHdfsFileSystem extends FileSystem
   private boolean disallowFallbackToInsecureCluster;
   private String restCsrfCustomHeader;
   private Set<String> restCsrfMethodsToIgnore;
-  private static final ObjectReader READER =
-      new ObjectMapper().readerFor(Map.class);
 
   private DFSOpsCountStatistics storageStatistics;
 
@@ -462,7 +459,7 @@ public class WebHdfsFileSystem extends FileSystem
               + "\" (parsed=\"" + parsed + "\")");
         }
       }
-      return READER.readValue(in);
+      return JsonSerialization.mapReader().readValue(in);
     } finally {
       in.close();
     }
