@@ -371,6 +371,11 @@ function setupMavenFlags() {
   local _PROTOBUF_HOME=$1
   local _TOOLCHAIN_HOME=$2
 
+# Quarantine unit test execution into different categories: integration, flaky and stable
+# Currently works for integration category. The MAVEN_FLAGS has a pre-set value from these
+# scripts (for example test-integration.sh). The conditional check here is to keep
+# the execution compatible as old fashion. After we finish this quarantine work, the
+# conditional check should not be needed.
   if [[ "${SCRIPT}" = "test-integration.sh" ]]; then
     MAVEN_FLAGS="${MAVEN_FLAGS} -Pdist -Pnative -Drequire.fuse -Drequire.snappy -DjavaVersion=$JAVA_VERSION -DtargetJavaVersion=$TARGET_JAVA_VERSION -Dmaven.test.failure.ignore=true -Dtest.fork.count=${TEST_FORK_COUNT} -Dtest.fork.reuse=${TEST_REUSE_FORKS}"
   else
