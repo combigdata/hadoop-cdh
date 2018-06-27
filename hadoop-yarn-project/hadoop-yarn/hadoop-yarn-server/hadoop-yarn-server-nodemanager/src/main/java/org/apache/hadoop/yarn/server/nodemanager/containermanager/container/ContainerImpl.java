@@ -2176,4 +2176,15 @@ public class ContainerImpl implements Container {
   public ResourceMappings getResourceMappings() {
     return resourceMappings;
   }
+
+  @Override
+  public boolean isContainerInFinalStates() {
+    ContainerState state = getContainerState();
+    return state == ContainerState.KILLING || state == ContainerState.DONE
+        || state == ContainerState.LOCALIZATION_FAILED
+        || state == ContainerState.CONTAINER_RESOURCES_CLEANINGUP
+        || state == ContainerState.CONTAINER_CLEANEDUP_AFTER_KILL
+        || state == ContainerState.EXITED_WITH_FAILURE
+        || state == ContainerState.EXITED_WITH_SUCCESS;
+  }
 }
