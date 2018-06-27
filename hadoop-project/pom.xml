@@ -72,6 +72,7 @@
 
     <!-- jackson versions -->
     <jackson.version>${cdh.jackson.version}</jackson.version>
+    <jackson-mapper-asl.version>${cdh.jackson-mapper-asl.version}</jackson-mapper-asl.version>
     <jackson2.version>${cdh.jackson2.version}</jackson2.version>
 
     <!-- SLF4J version -->
@@ -917,7 +918,7 @@
       <dependency>
         <groupId>org.codehaus.jackson</groupId>
         <artifactId>jackson-mapper-asl</artifactId>
-        <version>${jackson.version}</version>
+        <version>${jackson-mapper-asl.version}</version>
       </dependency>
       <dependency>
         <groupId>org.codehaus.jackson</groupId>
