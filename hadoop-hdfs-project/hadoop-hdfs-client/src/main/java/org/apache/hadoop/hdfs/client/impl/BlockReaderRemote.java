@@ -49,11 +49,9 @@ import org.apache.hadoop.hdfs.server.datanode.CachingStrategy;
 import org.apache.hadoop.hdfs.shortcircuit.ClientMmap;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.DataChecksum;
-import org.apache.htrace.core.TraceScope;
 
 import com.google.common.annotations.VisibleForTesting;
 
-import org.apache.htrace.core.Tracer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -121,8 +119,6 @@ public class BlockReaderRemote implements BlockReader {
 
   private boolean sentStatusCode = false;
 
-  private final Tracer tracer;
-
   private final int networkDistance;
 
   @VisibleForTesting
@@ -143,10 +139,7 @@ public class BlockReaderRemote implements BlockReader {
 
     if (curDataSlice == null ||
         curDataSlice.remaining() == 0 && bytesNeededToFinish > 0) {
-      try (TraceScope ignored = tracer.newScope(
-          "BlockReaderRemote2#readNextPacket(" + blockId + ")")) {
-        readNextPacket();
-      }
+      readNextPacket();
     }
 
     if (logTraceEnabled) {
@@ -169,10 +162,7 @@ public class BlockReaderRemote implements BlockReader {
   public synchronized int read(ByteBuffer buf) throws IOException {
     if (curDataSlice == null ||
         (curDataSlice.remaining() == 0 && bytesNeededToFinish > 0)) {
-      try (TraceScope ignored = tracer.newScope(
-          "BlockReaderRemote2#readNextPacket(" + blockId + ")")) {
-        readNextPacket();
-      }
+      readNextPacket();
     }
     if (curDataSlice.remaining() == 0) {
       // we're at EOF now
@@ -286,7 +276,6 @@ public class BlockReaderRemote implements BlockReader {
                               long startOffset, long firstChunkOffset,
                               long bytesToRead, Peer peer,
                               DatanodeID datanodeID, PeerCache peerCache,
-                              Tracer tracer,
                               int networkDistance) {
     // Path is used only for printing block and file information in debug
     this.peer = peer;
@@ -306,7 +295,6 @@ public class BlockReaderRemote implements BlockReader {
     this.bytesNeededToFinish = bytesToRead + (startOffset - firstChunkOffset);
     bytesPerChecksum = this.checksum.getBytesPerChecksum();
     checksumSize = this.checksum.getChecksumSize();
-    this.tracer = tracer;
     this.networkDistance = networkDistance;
   }
 
@@ -403,7 +391,6 @@ public class BlockReaderRemote implements BlockReader {
       Peer peer, DatanodeID datanodeID,
       PeerCache peerCache,
       CachingStrategy cachingStrategy,
-      Tracer tracer,
       int networkDistance) throws IOException {
     // in and out will be closed when sock is closed (by the caller)
     final DataOutputStream out = new DataOutputStream(new BufferedOutputStream(
@@ -437,7 +424,7 @@ public class BlockReaderRemote implements BlockReader {
 
     return new BlockReaderRemote(file, block.getBlockId(), checksum,
         verifyChecksum, startOffset, firstChunkOffset, len, peer, datanodeID,
-        peerCache, tracer, networkDistance);
+        peerCache, networkDistance);
   }
 
   static void checkSuccess(
