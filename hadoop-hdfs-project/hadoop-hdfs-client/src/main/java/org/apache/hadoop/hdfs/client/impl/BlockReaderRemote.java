@@ -133,9 +133,13 @@ public class BlockReaderRemote implements BlockReader {
   @Override
   public synchronized int read(byte[] buf, int off, int len)
       throws IOException {
-    UUID randomId = (LOG.isTraceEnabled() ? UUID.randomUUID() : null);
-    LOG.trace("Starting read #{} file {} from datanode {}",
-        randomId, filename, datanodeID.getHostName());
+    boolean logTraceEnabled = LOG.isTraceEnabled();
+    UUID randomId = null;
+    if (logTraceEnabled) {
+      randomId = UUID.randomUUID();
+      LOG.trace("Starting read #{} file {} from datanode {}",
+          randomId, filename, datanodeID.getHostName());
+    }
 
     if (curDataSlice == null ||
         curDataSlice.remaining() == 0 && bytesNeededToFinish > 0) {
@@ -145,7 +149,9 @@ public class BlockReaderRemote implements BlockReader {
       }
     }
 
-    LOG.trace("Finishing read #{}", randomId);
+    if (logTraceEnabled) {
+      LOG.trace("Finishing read #{}", randomId);
+    }
 
     if (curDataSlice.remaining() == 0) {
       // we're at EOF now
