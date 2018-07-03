@@ -45,6 +45,7 @@ artifact_archive_globs = ["**/surefire-reports/TEST-*.xml"]
 EOF
 
 export DIST_TEST_URL_TIMEOUT=180
+export GRIND_MAVEN_FLAGS="${GRIND_MAVEN_FLAGS} -Dhttps.protocols=TLSv1.2"
 # Invoke grind to run tests
 grind -c ${DIR}/$SCRIPTS/env/grind.cfg config
 grind -c ${DIR}/$SCRIPTS/env/grind.cfg pconfig
