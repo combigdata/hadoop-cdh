@@ -816,6 +816,23 @@ void test_trim_function() {
   free(trimmed);
 }
 
+void test_is_empty() {
+  printf("\nTesting is_empty function\n");
+  if (is_empty("/")) {
+    printf("FAIL: / should not be empty\n");
+    exit(1);
+  }
+  if (is_empty("/tmp/2938rf2983hcqnw8ud/noexist")) {
+    printf("FAIL: /tmp/2938rf2983hcqnw8ud/noexist should not exist\n");
+    exit(1);
+  }
+  mkdir("/tmp/2938rf2983hcqnw8ud/emptydir", S_IRWXU);
+  if (!is_empty("/tmp/2938rf2983hcqnw8ud/emptydir")) {
+    printf("FAIL: /tmp/2938rf2983hcqnw8ud/emptydir be empty\n");
+    exit(1);
+  }
+}
+
 // This test is expected to be executed either by a regular
 // user or by root. If executed by a regular user it doesn't
 // test all the functions that would depend on changing the
@@ -873,6 +890,9 @@ int main(int argc, char **argv) {
   }
 
   printf("\nStarting tests\n");
+
+  printf("\ntest_is_empty()\n");
+  test_is_empty();
 
   printf("\nTesting resolve_config_path()\n");
   test_resolve_config_path();
