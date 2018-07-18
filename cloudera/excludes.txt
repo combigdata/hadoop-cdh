@@ -79,6 +79,7 @@ org/apache/hadoop/yarn/server/timeline/TestEntityGroupFSTimelineStore.java
 org/apache/hadoop/yarn/server/timeline/TestLevelDBCacheTimelineStore.java
 org/apache/hadoop/yarn/server/timeline/TestLogInfo.java
 org/apache/hadoop/yarn/server/timeline/TestOverrideTimelineStoreYarnClient.java
+org/apache/hadoop/yarn/server/timelineservice/reader/TestTimelineReaderWebServicesHBaseStorage.java
 org/apache/hadoop/yarn/server/resourcemanager/ahs/TestRMApplicationHistoryWriter.java
 
 # Disable unit tests of distributed/centralized scheduling of OPPORTUNISTIC containers because we don't support them since CDH 6.0
@@ -86,7 +87,7 @@ org/apache/hadoop/yarn/server/scheduler/TestOpportunisticContainerAllocator.java
 org/apache/hadoop/yarn/server/resourcemanager/scheduler/distributed/TestNodeQueueLoadMonitor.java
 org/apache/hadoop/yarn/server/resourcemanager/TestOpportunisticContainerAllocatorAMService.java
 org/apache/hadoop/yarn/server/nodemanager/scheduler/TestDistributedScheduler.java
-org.apache.hadoop.yarn.client.api.impl/TestOpportunisticContainerAllocationE2E.java
+org/apache/hadoop/yarn/client/api/impl/TestOpportunisticContainerAllocationE2E.java
 
 # Disable unit tests for node labels give node label is not supported by Fair Scheduler. Need to reenable this once the support is added
 org/apache/hadoop/yarn/applications/distributedshell/TestDistributedShellWithNodeLabels.java
