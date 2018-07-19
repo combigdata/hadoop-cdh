@@ -194,8 +194,7 @@ public class ResourcePBImpl extends Resource {
   }
 
   @Override
-  public void setResourceValue(String resource, long value)
-      throws ResourceNotFoundException {
+  public void setResourceValue(String resource, long value) {
     maybeInitBuilder();
     if (resource == null) {
       throw new IllegalArgumentException("resource type object cannot be null");
@@ -204,14 +203,13 @@ public class ResourcePBImpl extends Resource {
   }
 
   @Override
-  public ResourceInformation getResourceInformation(String resource)
-      throws ResourceNotFoundException {
+  public ResourceInformation getResourceInformation(String resource) {
+    initResources();
     return super.getResourceInformation(resource);
   }
 
   @Override
-  public long getResourceValue(String resource)
-      throws ResourceNotFoundException {
+  public long getResourceValue(String resource) {
     return super.getResourceValue(resource);
   }
 
