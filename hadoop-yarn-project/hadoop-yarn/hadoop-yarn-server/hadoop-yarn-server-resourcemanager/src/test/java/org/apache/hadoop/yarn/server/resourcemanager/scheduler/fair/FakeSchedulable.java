@@ -137,4 +137,8 @@ public class FakeSchedulable implements Schedulable {
 
   @Override
   public void updateDemand() {}
+
+  public void setResourceUsage(Resource usage) {
+    this.usage = usage;
+  }
 }
