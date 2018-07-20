@@ -277,7 +277,7 @@ public class AllocationConfiguration extends ReservationSchedulerConfiguration {
   }
 
   /**
-   * Get the maximum resource allocation for the given queue. If the max in not
+   * Get the maximum resource allocation for the given queue. If the max is not
    * set, return the default max.
    *
    * @param queue the target queue's name
