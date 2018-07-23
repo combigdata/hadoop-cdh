@@ -107,8 +107,8 @@ public class TestNodeManagerMetrics {
     checkMetrics(10, 1, 1, 1, 1, 1, 4, 7, 4, 13, 3);
   }
 
-  private void checkMetrics(int launched, int completed, int failed, int killed,
-      int initing, int running, int allocatedGB,
+  public static void checkMetrics(int launched, int completed, int failed,
+      int killed, int initing, int running, int allocatedGB,
       int allocatedContainers, int availableGB, int allocatedVCores,
       int availableVCores) {
     MetricsRecordBuilder rb = getMetrics("NodeManagerMetrics");
