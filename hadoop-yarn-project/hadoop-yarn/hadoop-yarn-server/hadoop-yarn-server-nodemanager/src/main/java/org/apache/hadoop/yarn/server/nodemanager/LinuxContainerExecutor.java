@@ -600,15 +600,7 @@ public class LinuxContainerExecutor extends ContainerExecutor {
       return exitCode;
     } finally {
       resourcesHandler.postExecute(containerId);
-
-      try {
-        if (resourceHandlerChain != null) {
-          resourceHandlerChain.postComplete(containerId);
-        }
-      } catch (ResourceHandlerException e) {
-        LOG.warn("ResourceHandlerChain.postComplete failed for " +
-            "containerId: " + containerId + ". Exception: " + e);
-      }
+      postComplete(containerId);
     }
 
     return 0;
@@ -688,14 +680,7 @@ public class LinuxContainerExecutor extends ContainerExecutor {
       return super.reacquireContainer(ctx);
     } finally {
       resourcesHandler.postExecute(containerId);
-      if (resourceHandlerChain != null) {
-        try {
-          resourceHandlerChain.postComplete(containerId);
-        } catch (ResourceHandlerException e) {
-          LOG.warn("ResourceHandlerChain.postComplete failed for " +
-              "containerId: " + containerId + " Exception: " + e);
-        }
-      }
+      postComplete(containerId);
     }
   }
 
@@ -879,5 +864,18 @@ public class LinuxContainerExecutor extends ContainerExecutor {
   @VisibleForTesting
   public ResourceHandler getResourceHandler() {
     return resourceHandlerChain;
+  }
+
+  @VisibleForTesting
+  void postComplete(final ContainerId containerId) {
+    try {
+      if (resourceHandlerChain != null) {
+        LOG.debug("{} post complete", containerId);
+        resourceHandlerChain.postComplete(containerId);
+      }
+    } catch (ResourceHandlerException e) {
+      LOG.warn("ResourceHandlerChain.postComplete failed for " +
+          "containerId: {}. Exception: ", containerId, e);
+    }
   }
 }
