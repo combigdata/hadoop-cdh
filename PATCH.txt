@@ -1,0 +1,2 @@
+PATCH-3141
+HDFS-13322 fuse dfs persists uid when switching between ticket caches
