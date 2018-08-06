@@ -18,22 +18,14 @@
 
 package org.apache.hadoop.yarn.server.nodemanager.containermanager;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-
-import java.nio.ByteBuffer;
-import java.security.PrivilegedExceptionAction;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
+import org.apache.commons.logging.LogFactory;
+import org.apache.commons.logging.impl.Log4JLogger;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.UnsupportedFileSystemException;
 import org.apache.hadoop.io.DataOutputBuffer;
+import org.apache.hadoop.metrics2.lib.DefaultMetricsSystem;
+import org.apache.hadoop.net.ServerSocketUtil;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.protocolrecords.StartContainerRequest;
@@ -46,7 +38,10 @@ import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LogAggregationContext;
+import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.hadoop.yarn.event.AsyncDispatcher;
+import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.security.NMTokenIdentifier;
 import org.apache.hadoop.yarn.server.api.records.MasterKey;
 import org.apache.hadoop.yarn.server.api.records.impl.pb.MasterKeyPBImpl;
@@ -54,29 +49,86 @@ import org.apache.hadoop.yarn.server.nodemanager.CMgrCompletedAppsEvent;
 import org.apache.hadoop.yarn.server.nodemanager.ContainerExecutor;
 import org.apache.hadoop.yarn.server.nodemanager.Context;
 import org.apache.hadoop.yarn.server.nodemanager.DeletionService;
+import org.apache.hadoop.yarn.server.nodemanager.LocalDirsHandlerService;
+import org.apache.hadoop.yarn.server.nodemanager.NodeHealthCheckerService;
+import org.apache.hadoop.yarn.server.nodemanager.NodeManager;
 import org.apache.hadoop.yarn.server.nodemanager.NodeManager.NMContext;
 import org.apache.hadoop.yarn.server.nodemanager.NodeStatusUpdater;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.application.Application;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.application.ApplicationEvent;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.application.ApplicationEventType;
-import org.apache.hadoop.yarn.server.nodemanager.containermanager.application.ApplicationImpl;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.application.ApplicationState;
+import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.Container;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.launcher.ContainersLauncher;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.launcher.ContainersLauncherEvent;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.localizer.ResourceLocalizationService;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.localizer.event.LocalizationEvent;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.loghandler.LogHandler;
 import org.apache.hadoop.yarn.server.nodemanager.metrics.NodeManagerMetrics;
+import org.apache.hadoop.yarn.server.nodemanager.metrics.TestNodeManagerMetrics;
 import org.apache.hadoop.yarn.server.nodemanager.recovery.NMMemoryStateStoreService;
 import org.apache.hadoop.yarn.server.nodemanager.recovery.NMStateStoreService;
 import org.apache.hadoop.yarn.server.nodemanager.security.NMContainerTokenSecretManager;
 import org.apache.hadoop.yarn.server.nodemanager.security.NMTokenSecretManagerInNM;
 import org.apache.hadoop.yarn.server.security.ApplicationACLsManager;
+import org.apache.log4j.Level;
+import org.junit.Before;
 import org.junit.Test;
 
-public class TestContainerManagerRecovery {
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.security.PrivilegedExceptionAction;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+
+public class TestContainerManagerRecovery extends BaseContainerManagerTest {
+
+  public TestContainerManagerRecovery() throws UnsupportedFileSystemException {
+    super();
+  }
 
   private NodeManagerMetrics metrics = NodeManagerMetrics.create();
+
+  @Override
+  @Before
+  public void setup() throws IOException {
+    localFS.delete(new Path(localDir.getAbsolutePath()), true);
+    localFS.delete(new Path(tmpDir.getAbsolutePath()), true);
+    localFS.delete(new Path(localLogDir.getAbsolutePath()), true);
+    localFS.delete(new Path(remoteLogDir.getAbsolutePath()), true);
+    localDir.mkdir();
+    tmpDir.mkdir();
+    localLogDir.mkdir();
+    remoteLogDir.mkdir();
+    LOG.info("Created localDir in " + localDir.getAbsolutePath());
+    LOG.info("Created tmpDir in " + tmpDir.getAbsolutePath());
+
+    String bindAddress = "0.0.0.0:" + ServerSocketUtil.getPort(49160, 10);
+    conf.set(YarnConfiguration.NM_ADDRESS, bindAddress);
+    conf.set(YarnConfiguration.NM_LOCAL_DIRS, localDir.getAbsolutePath());
+    conf.set(YarnConfiguration.NM_LOG_DIRS, localLogDir.getAbsolutePath());
+    conf.set(YarnConfiguration.NM_REMOTE_APP_LOG_DIR, remoteLogDir
+        .getAbsolutePath());
+    conf.setLong(YarnConfiguration.NM_LOG_RETAIN_SECONDS, 1);
+
+    delSrvc = createDeletionService();
+    delSrvc.init(conf);
+    exec = createContainerExecutor();
+    dirsHandler = new LocalDirsHandlerService();
+    nodeHealthChecker = new NodeHealthCheckerService(
+        NodeManager.getNodeHealthScriptRunner(conf), dirsHandler);
+    nodeHealthChecker.init(conf);
+  }
 
   @Test
   public void testApplicationRecovery() throws Exception {
@@ -339,6 +391,84 @@ public class TestContainerManagerRecovery {
     cm.stop();
   }
 
+  @Test
+  public void testNodeManagerMetricsRecovery() throws Exception {
+    ((Log4JLogger) LogFactory.getLog(AsyncDispatcher.class))
+        .getLogger().setLevel(Level.DEBUG);
+
+    conf.setBoolean(YarnConfiguration.NM_RECOVERY_ENABLED, true);
+
+    NMStateStoreService stateStore = new NMMemoryStateStoreService();
+    stateStore.init(conf);
+    stateStore.start();
+    Context context = createContext(conf, stateStore);
+    ContainerManagerImpl cm = createContainerManager(context, delSrvc);
+    cm.init(conf);
+    cm.start();
+    cm.setBlockNewContainerRequests(false);
+    metrics.addResource(Resource.newInstance(10240, 8));
+
+    // add an application by starting a container
+    ApplicationId appId = ApplicationId.newInstance(0, 1);
+    ApplicationAttemptId attemptId = ApplicationAttemptId.newInstance(appId, 1);
+    ContainerId cid = ContainerId.newContainerId(attemptId, 1);
+    Map<String, String> containerEnv = Collections.emptyMap();
+    Map<String, ByteBuffer> serviceData = Collections.emptyMap();
+    Map<String, LocalResource> localResources = Collections.emptyMap();
+    List<String> commands = Arrays.asList("sleep 60s".split(" "));
+    ContainerLaunchContext clc = ContainerLaunchContext.newInstance(
+        localResources, containerEnv, commands, serviceData,
+        null, null);
+    StartContainersResponse startResponse = startContainer(context, cm, cid,
+        clc, null);
+    assertTrue(startResponse.getFailedRequests().isEmpty());
+    assertEquals(1, context.getApplications().size());
+    Application app = context.getApplications().get(appId);
+    assertNotNull(app);
+
+    // make sure the container reaches RUNNING state
+    waitForNMContainerState(cm, cid,
+        org.apache.hadoop.yarn.server.nodemanager
+            .containermanager.container.ContainerState.RUNNING);
+    TestNodeManagerMetrics.checkMetrics(1, 0, 0, 0, 0, 1, 1, 1, 9, 1, 7);
+
+    // restart and verify metrics could be recovered
+    cm.stop();
+    DefaultMetricsSystem.shutdown();
+    metrics = NodeManagerMetrics.create();
+    metrics.addResource(Resource.newInstance(10240, 8));
+    TestNodeManagerMetrics.checkMetrics(0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 8);
+    context = createContext(conf, stateStore);
+    cm = createContainerManager(context, delSrvc);
+    cm.init(conf);
+    System.out.println("###calling cm start");
+    cm.start();
+    assertEquals(1, context.getApplications().size());
+    app = context.getApplications().get(appId);
+    assertNotNull(app);
+    TestNodeManagerMetrics.checkMetrics(1, 0, 0, 0, 0, 1, 1, 1, 9, 1, 7);
+    cm.stop();
+  }
+
+  private NMContext createContext(Configuration conf,
+      NMStateStoreService stateStore) {
+    NMContext context = new NMContext(new NMContainerTokenSecretManager(
+        conf), new NMTokenSecretManagerInNM(), null,
+        new ApplicationACLsManager(conf), stateStore) {
+      public int getHttpPort() {
+        return HTTP_PORT;
+      }
+    };
+    // simulate registration with RM
+    MasterKey masterKey = new MasterKeyPBImpl();
+    masterKey.setKeyId(123);
+    masterKey.setBytes(ByteBuffer.wrap(new byte[]{new Integer(123)
+        .byteValue()}));
+    context.getContainerTokenSecretManager().setMasterKey(masterKey);
+    context.getNMTokenSecretManager().setMasterKey(masterKey);
+    return context;
+  }
+
   private StartContainersResponse startContainer(Context context,
       final ContainerManagerImpl cm, ContainerId cid,
       ContainerLaunchContext clc, LogAggregationContext logAggregationContext)
@@ -375,6 +505,23 @@ public class TestContainerManagerRecovery {
       msecLeft -= msecPerSleep;
     }
     assertEquals(state, app.getApplicationState());
+  }
+
+  private ContainerManagerImpl createContainerManager(Context context,
+          DeletionService delSrvc) {
+    return new ContainerManagerImpl(context, exec, delSrvc,
+            mock(NodeStatusUpdater.class), metrics, mock
+            (ApplicationACLsManager.class), dirsHandler) {
+      @Override
+      protected void authorizeGetAndStopContainerRequest(
+              ContainerId containerId, Container container,
+              boolean stopRequest, NMTokenIdentifier identifier)
+              throws YarnException {
+        if (container == null || container.getUser().equals("Fail")) {
+          throw new YarnException("Reject this container");
+        }
+      }
+    };
   }
 
   private ContainerManagerImpl createContainerManager(Context context) {

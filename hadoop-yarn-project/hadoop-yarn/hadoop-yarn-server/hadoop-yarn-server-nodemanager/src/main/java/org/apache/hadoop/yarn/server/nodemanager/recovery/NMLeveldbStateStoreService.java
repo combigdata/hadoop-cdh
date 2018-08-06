@@ -52,10 +52,12 @@ import org.apache.hadoop.yarn.proto.YarnServerNodemanagerRecoveryProtos.Deletion
 import org.apache.hadoop.yarn.proto.YarnServerNodemanagerRecoveryProtos.LocalizedResourceProto;
 import org.apache.hadoop.yarn.proto.YarnServerNodemanagerRecoveryProtos.LogDeleterProto;
 import org.apache.hadoop.yarn.proto.YarnServiceProtos.StartContainerRequestProto;
+import org.apache.hadoop.yarn.security.ContainerTokenIdentifier;
 import org.apache.hadoop.yarn.server.api.records.MasterKey;
 import org.apache.hadoop.yarn.server.api.records.impl.pb.MasterKeyPBImpl;
 import org.apache.hadoop.yarn.server.records.Version;
 import org.apache.hadoop.yarn.server.records.impl.pb.VersionPBImpl;
+import org.apache.hadoop.yarn.server.utils.BuilderUtils;
 import org.apache.hadoop.yarn.server.utils.LeveldbIterator;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.fusesource.leveldbjni.JniDBFactory;
@@ -227,6 +229,9 @@ public class NMLeveldbStateStoreService extends NMStateStoreService {
       if (suffix.equals(CONTAINER_REQUEST_KEY_SUFFIX)) {
         rcs.startRequest = new StartContainerRequestPBImpl(
             StartContainerRequestProto.parseFrom(entry.getValue()));
+        ContainerTokenIdentifier containerTokenIdentifier = BuilderUtils
+            .newContainerTokenIdentifier(rcs.startRequest.getContainerToken());
+        rcs.capability = containerTokenIdentifier.getResource();
       } else if (suffix.equals(CONTAINER_DIAGS_KEY_SUFFIX)) {
         rcs.diagnostics = asString(entry.getValue());
       } else if (suffix.equals(CONTAINER_LAUNCHED_KEY_SUFFIX)) {
@@ -252,7 +257,8 @@ public class NMLeveldbStateStoreService extends NMStateStoreService {
         + CONTAINER_REQUEST_KEY_SUFFIX;
     try {
       db.put(bytes(key),
-        ((StartContainerRequestPBImpl) startRequest).getProto().toByteArray());
+          ((StartContainerRequestPBImpl) startRequest).getProto().toByteArray
+              ());
     } catch (DBException e) {
       throw new IOException(e);
     }

@@ -38,8 +38,10 @@ import org.apache.hadoop.yarn.proto.YarnServerNodemanagerRecoveryProtos.Containe
 import org.apache.hadoop.yarn.proto.YarnServerNodemanagerRecoveryProtos.DeletionServiceDeleteTaskProto;
 import org.apache.hadoop.yarn.proto.YarnServerNodemanagerRecoveryProtos.LocalizedResourceProto;
 import org.apache.hadoop.yarn.proto.YarnServerNodemanagerRecoveryProtos.LogDeleterProto;
+import org.apache.hadoop.yarn.security.ContainerTokenIdentifier;
 import org.apache.hadoop.yarn.server.api.records.MasterKey;
 import org.apache.hadoop.yarn.server.api.records.impl.pb.MasterKeyPBImpl;
+import org.apache.hadoop.yarn.server.utils.BuilderUtils;
 
 public class NMMemoryStateStoreService extends NMStateStoreService {
   private Map<ApplicationId, ContainerManagerApplicationProto> apps;
@@ -122,16 +124,26 @@ public class NMMemoryStateStoreService extends NMStateStoreService {
       rcsCopy.killed = rcs.killed;
       rcsCopy.diagnostics = rcs.diagnostics;
       rcsCopy.startRequest = rcs.startRequest;
+      rcsCopy.capability = rcs.capability;
       result.add(rcsCopy);
     }
-    return new ArrayList<RecoveredContainerState>();
+    return result;
   }
 
   @Override
   public synchronized void storeContainer(ContainerId containerId,
-      StartContainerRequest startRequest) throws IOException {
+      StartContainerRequest startRequest) {
     RecoveredContainerState rcs = new RecoveredContainerState();
     rcs.startRequest = startRequest;
+
+    try {
+      ContainerTokenIdentifier containerTokenIdentifier = BuilderUtils
+          .newContainerTokenIdentifier(startRequest.getContainerToken());
+      rcs.capability = containerTokenIdentifier.getResource();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
     containerStates.put(containerId, rcs);
   }
 
