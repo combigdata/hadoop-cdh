@@ -280,6 +280,7 @@ public class TestNMLeveldbStateStoreService {
     assertEquals(false, rcs.getKilled());
     assertEquals(containerReq, rcs.getStartRequest());
     assertTrue(rcs.getDiagnostics().isEmpty());
+    assertEquals(containerRsrc, rcs.getCapability());
 
     // store a new container record without StartContainerRequest
     ContainerId containerId1 = ContainerId.newInstance(appAttemptId, 6);
@@ -302,6 +303,7 @@ public class TestNMLeveldbStateStoreService {
     assertEquals(false, rcs.getKilled());
     assertEquals(containerReq, rcs.getStartRequest());
     assertEquals(diags.toString(), rcs.getDiagnostics());
+    assertEquals(containerRsrc, rcs.getCapability());
 
     // mark the container killed, add some more diags, and verify recovered
     diags.append("some more diags for container");
@@ -316,6 +318,7 @@ public class TestNMLeveldbStateStoreService {
     assertTrue(rcs.getKilled());
     assertEquals(containerReq, rcs.getStartRequest());
     assertEquals(diags.toString(), rcs.getDiagnostics());
+    assertEquals(containerRsrc, rcs.getCapability());
 
     // add yet more diags, mark container completed, and verify recovered
     diags.append("some final diags");
@@ -330,6 +333,7 @@ public class TestNMLeveldbStateStoreService {
     assertTrue(rcs.getKilled());
     assertEquals(containerReq, rcs.getStartRequest());
     assertEquals(diags.toString(), rcs.getDiagnostics());
+    assertEquals(containerRsrc, rcs.getCapability());
 
     // remove the container and verify not recovered
     stateStore.removeContainer(containerId);

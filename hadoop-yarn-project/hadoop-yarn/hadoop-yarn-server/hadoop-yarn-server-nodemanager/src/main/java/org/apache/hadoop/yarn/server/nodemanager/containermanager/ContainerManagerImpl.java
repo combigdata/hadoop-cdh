@@ -305,6 +305,12 @@ public class ContainerManagerImpl extends CompositeService implements
         + " with exit code " + rcs.getExitCode());
 
     if (context.getApplications().containsKey(appId)) {
+      if (rcs.getStatus() != RecoveredContainerStatus.COMPLETED) {
+        metrics.launchedContainer();
+        if (rcs.getCapability() != null) {
+          metrics.allocateContainer(rcs.getCapability());
+        }
+      }
       Credentials credentials = parseCredentials(launchContext);
       Container container = new ContainerImpl(getConfig(), dispatcher,
           req.getContainerLaunchContext(),

@@ -37,7 +37,6 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.UnsupportedFileSystemException;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.SecretManager.InvalidToken;
-import org.apache.hadoop.util.NodeHealthScriptRunner;
 import org.apache.hadoop.yarn.api.ContainerManagementProtocol;
 import org.apache.hadoop.yarn.api.protocolrecords.GetContainerStatusesRequest;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -253,6 +252,51 @@ public abstract class BaseContainerManagerTest {
     }
     createContainerExecutor().deleteAsUser(user,
         new Path(localDir.getAbsolutePath()), new Path[] {});
+  }
+
+  public static void waitForNMContainerState(ContainerManagerImpl
+      containerManager, ContainerId containerID,
+      org.apache.hadoop.yarn.server.nodemanager.containermanager
+          .container.ContainerState finalState)
+      throws InterruptedException {
+    waitForNMContainerState(containerManager, containerID, finalState, 20);
+  }
+
+  public static void waitForNMContainerState(ContainerManagerImpl
+      containerManager, ContainerId containerID,
+      org.apache.hadoop.yarn.server.nodemanager.containermanager
+          .container.ContainerState finalState, int timeOutMax)
+      throws InterruptedException {
+    waitForNMContainerState(containerManager, containerID,
+        Arrays.asList(finalState), timeOutMax);
+  }
+
+  public static void waitForNMContainerState(ContainerManagerImpl
+      containerManager, ContainerId containerID,
+      List<org.apache.hadoop.yarn.server.nodemanager.containermanager
+          .container.ContainerState> finalStates, int timeOutMax)
+      throws InterruptedException {
+    Container container;
+    org.apache.hadoop.yarn.server.nodemanager
+        .containermanager.container.ContainerState currentState = null;
+    int timeoutSecs = 0;
+    do {
+      Thread.sleep(1000);
+      container =
+          containerManager.getContext().getContainers().get(containerID);
+      if (container != null) {
+        currentState = container.getContainerState();
+      }
+      if (currentState != null) {
+        LOG.info("Waiting for NM container to get into one of the following " +
+            "states: " + finalStates + ". Current state is " + currentState);
+      }
+      timeoutSecs += 1;
+    } while (!finalStates.contains(currentState)
+        && timeoutSecs < timeOutMax);
+    LOG.info("Container state is " + currentState);
+    Assert.assertTrue("ContainerState is not correct (timedout)",
+        finalStates.contains(currentState));
   }
 
   public static void waitForContainerState(ContainerManagementProtocol containerManager,
