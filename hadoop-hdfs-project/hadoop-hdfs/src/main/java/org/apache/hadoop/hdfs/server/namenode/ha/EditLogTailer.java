@@ -211,7 +211,6 @@ public class EditLogTailer {
   }
   
   public void stop() throws IOException {
-    rollEditsRpcExecutor.shutdown();
     tailerThread.setShouldRun(false);
     tailerThread.interrupt();
     try {
@@ -219,6 +218,8 @@ public class EditLogTailer {
     } catch (InterruptedException e) {
       LOG.warn("Edit log tailer thread exited with an exception");
       throw new IOException(e);
+    } finally {
+      rollEditsRpcExecutor.shutdown();
     }
   }
   
