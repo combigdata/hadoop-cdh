@@ -32,6 +32,11 @@ if [[ -z $DIST_TEST_USER || -z $DIST_TEST_PASSWORD ]]; then
     source dist_test_cred.sh
 fi
 
+if [[ ! -z $DIST_TEST_MVN_SETTINGS_FILE ]]; then
+    echo "Using maven settings file from: $DIST_TEST_MVN_SETTINGS_FILE"
+    echo "maven_settings_file = $DIST_TEST_MVN_SETTINGS_FILE" >> ./env/grind.cfg
+fi
+
 # Go to project root
 cd "$DIR/.."
 
@@ -45,7 +50,6 @@ artifact_archive_globs = ["**/surefire-reports/TEST-*.xml"]
 EOF
 
 export DIST_TEST_URL_TIMEOUT=180
-export GRIND_MAVEN_FLAGS="${GRIND_MAVEN_FLAGS} -Dhttps.protocols=TLSv1.2"
 # Invoke grind to run tests
 grind -c ${DIR}/$SCRIPTS/env/grind.cfg config
 grind -c ${DIR}/$SCRIPTS/env/grind.cfg pconfig
@@ -56,7 +60,8 @@ grind -c ${DIR}/$SCRIPTS/env/grind.cfg test --artifacts -r 3 \
     -e TestContainerManagerSecurity \
     -e TestMRIntermediateDataEncryption \
     -e TestClientRMTokens \
-    -e TestAMAuthorization
+    -e TestAMAuthorization \
+    -e TestSSLHttpServer
     # TestClientRMTokens and TestAMAuthorization to be fixed in 5.8 (CDH-39590)
     # TestContinuousScheduling has been failing consistently, to be fixed in 5.8 (CDH-38830)
 
