@@ -132,7 +132,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
     <dependency-check-maven.version>1.4.3</dependency-check-maven.version>
 
     <shell-executable>bash</shell-executable>
-    <test.groups>org.apache.hadoop.classification.TestJUnitCategory$AllTests</test.groups>
+    <test.groups>!org.apache.hadoop.classification.TestJUnitCategory$NoTests</test.groups>
     <junit.version>4.11</junit.version>
   </properties>
 
@@ -709,12 +709,6 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
       <id>integrations</id>
       <properties>
         <test.groups>org.apache.hadoop.classification.TestJUnitCategory$IntegrationsTest</test.groups>
-      </properties>
-    </profile>
-    <profile>
-      <id>none</id>
-      <properties>
-        <test.groups>!org.apache.hadoop.classification.TestJUnitCategory$AllTest</test.groups>
       </properties>
     </profile>
   </profiles>

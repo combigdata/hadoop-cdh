@@ -20,14 +20,14 @@ package org.apache.hadoop.classification;
 
 public class TestJUnitCategory {
 
-  public interface AllTests {}
+  public interface NoTests {}
 
   // for tests that never failed
-  public interface StablesTest extends AllTests {}
+  public interface StablesTest extends NoTests {}
 
   // for tests that use mini cluster
-  public interface IntegrationsTest extends AllTests {}
+  public interface IntegrationsTest extends NoTests {}
 
   // for tests that failed at some time
-  public interface FlakiesTest extends AllTests {}
+  public interface FlakiesTest extends NoTests {}
 }
