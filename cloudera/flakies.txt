@@ -62,4 +62,7 @@ org/apache/hadoop/mapred/TestMRTimelineEventHandling
 org/apache/hadoop/mapreduce/v2/TestMRJobs
 org/apache/hadoop/mapreduce/v2/TestUberAM
 
+org/apache/hadoop/hdfs/qjournal/server/TestJournalNodeSync
 org/apache/hadoop/hdfs/server/blockmanagement/TestRBWBlockInvalidation
+org/apache/hadoop/hdfs/server/namenode/TestAuditLoggerWithCommands
+org/apache/hadoop/hdfs/server/namenode/ha/TestEditLogTailer
