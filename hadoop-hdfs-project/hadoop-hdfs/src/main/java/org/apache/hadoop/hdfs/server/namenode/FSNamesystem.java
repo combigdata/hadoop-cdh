@@ -578,35 +578,14 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
   private String nameNodeHostName = null;
 
   /**
-   * CLOUDERA-BUILD. CDH-64271.
-   *
-   * Provide a knob for Cloudera Manager to disable EC by default in CDH 6.0.
-   * This value is true in CDH/hadoop to make tests pass. It is set to false by
-   * default in Cloudera Manager.
+   * CLOUDERA-BUILD. CDH-64271. Provide a knob for Cloudera Manager to disable
+   * EC by default in CDH 6.0. This value is true in CDH/hadoop to make tests
+   * pass. It is set to false by default in Cloudera Manager.
    */
-  private static final String CLOUDERA_ERASURE_CODING_ENABLED_KEY =
+  public static final String CLOUDERA_ERASURE_CODING_ENABLED_KEY =
       "cloudera.erasure_coding.enabled";
-  private static final boolean CLOUDERA_ERASURE_CODING_ENABLED_DEFAULT = false;
+  public static final boolean CLOUDERA_ERASURE_CODING_ENABLED_DEFAULT = false;
   private final boolean clouderaErasureCodingEnabled;
-
-  /**
-   * CLOUDERA-BUILD. CDH-64271.
-   *
-   * @throws {@link HadoopIllegalArgumentException} if run erasure coding
-   * operation without enabling EC.
-   */
-  private void checkErasureCodingEnabled(final String operationName,
-                                         final String ecPolicyName)
-      throws HadoopIllegalArgumentException {
-    if (!clouderaErasureCodingEnabled &&
-        !org.apache.commons.lang.StringUtils.isEmpty(ecPolicyName) &&
-        !ecPolicyName.equals(
-            SystemErasureCodingPolicies.getReplicationPolicy().getName())) {
-      throw new HadoopIllegalArgumentException(String.format(
-          "%s is not allowed because %s=false", operationName,
-          CLOUDERA_ERASURE_CODING_ENABLED_KEY));
-    }
-  }
 
   /**
    * Notify that loading of this FSDirectory is complete, and
@@ -7340,7 +7319,11 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
       UnresolvedLinkException, SafeModeException, AccessControlException {
     final String operationName = "setErasureCodingPolicy";
     // CLOUDERA-BUILD. CDH-64271.
-    checkErasureCodingEnabled(operationName, ecPolicyName);
+    if (!clouderaErasureCodingEnabled) {
+      throw new HadoopIllegalArgumentException(String.format(
+          "%s is not allowed because %s=false", operationName,
+          CLOUDERA_ERASURE_CODING_ENABLED_KEY));
+    }
     checkOperation(OperationCategory.WRITE);
     FileStatus resultingStat = null;
     final FSPermissionChecker pc = getPermissionChecker();
@@ -7448,7 +7431,11 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
       final boolean logRetryCache) throws IOException {
     final String operationName = "enableErasureCodingPolicy";
     // CLOUDERA-BUILD. CDH-64271.
-    checkErasureCodingEnabled(operationName, ecPolicyName);
+    if (!clouderaErasureCodingEnabled) {
+      throw new HadoopIllegalArgumentException(String.format(
+          "%s is not allowed because %s=false", operationName,
+          CLOUDERA_ERASURE_CODING_ENABLED_KEY));
+    }
     checkOperation(OperationCategory.WRITE);
     boolean success = false;
     LOG.info("Enable the erasure coding policy " + ecPolicyName);
