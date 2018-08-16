@@ -329,6 +329,7 @@ public class DataNode extends ReconfigurableBase
   ThreadGroup threadGroup = null;
   private DNConf dnConf;
   private volatile boolean heartbeatsDisabledForTests = false;
+  private volatile boolean ibrDisabledForTests = false;
   private volatile boolean cacheReportsDisabledForTests = false;
   private DataStorage storage = null;
 
@@ -1330,6 +1331,15 @@ public class DataNode extends ReconfigurableBase
   }
 
   @VisibleForTesting
+  void setIBRDisabledForTest(boolean disabled) {
+    this.ibrDisabledForTests = disabled;
+  }
+
+  @VisibleForTesting
+  boolean areIBRDisabledForTests() {
+    return this.ibrDisabledForTests;
+  }
+
   void setCacheReportsDisabledForTest(boolean disabled) {
     this.cacheReportsDisabledForTests = disabled;
   }
