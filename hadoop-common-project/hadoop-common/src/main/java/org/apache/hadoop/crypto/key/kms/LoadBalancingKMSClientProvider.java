@@ -110,8 +110,8 @@ public class LoadBalancingKMSClientProvider extends KeyProvider implements
     return providers;
   }
 
-  private <T> T doOp(ProviderCallable<T> op, int currPos)
-      throws IOException {
+  private <T> T doOp(ProviderCallable<T> op, int currPos,
+      boolean isIdempotent) throws IOException {
     if (providers.length == 0) {
       throw new IOException("No providers configured !");
     }
@@ -134,7 +134,7 @@ public class LoadBalancingKMSClientProvider extends KeyProvider implements
 
         RetryAction action = null;
         try {
-          action = retryPolicy.shouldRetry(ioe, 0, numFailovers, false);
+          action = retryPolicy.shouldRetry(ioe, 0, numFailovers, isIdempotent);
         } catch (Exception e) {
           if (e instanceof IOException) {
             throw (IOException)e;
@@ -192,7 +192,7 @@ public class LoadBalancingKMSClientProvider extends KeyProvider implements
       public Token<?>[] call(KMSClientProvider provider) throws IOException {
         return provider.addDelegationTokens(renewer, credentials);
       }
-    }, nextIdx());
+    }, nextIdx(), false);
   }
 
   @Override
@@ -202,7 +202,7 @@ public class LoadBalancingKMSClientProvider extends KeyProvider implements
       public Long call(KMSClientProvider provider) throws IOException {
         return provider.renewDelegationToken(token);
       }
-    }, nextIdx());
+    }, nextIdx(), false);
   }
 
   @Override
@@ -213,7 +213,7 @@ public class LoadBalancingKMSClientProvider extends KeyProvider implements
         provider.cancelDelegationToken(token);
         return null;
       }
-    }, nextIdx());
+    }, nextIdx(), false);
   }
 
   // This request is sent to all providers in the load-balancing group
@@ -266,7 +266,7 @@ public class LoadBalancingKMSClientProvider extends KeyProvider implements
             throws IOException, GeneralSecurityException {
           return provider.generateEncryptedKey(encryptionKeyName);
         }
-      }, nextIdx());
+      }, nextIdx(), true);
     } catch (WrapperException we) {
       if (we.getCause() instanceof GeneralSecurityException) {
         throw (GeneralSecurityException) we.getCause();
@@ -286,7 +286,7 @@ public class LoadBalancingKMSClientProvider extends KeyProvider implements
             throws IOException, GeneralSecurityException {
           return provider.decryptEncryptedKey(encryptedKeyVersion);
         }
-      }, nextIdx());
+      }, nextIdx(), true);
     } catch (WrapperException we) {
       if (we.getCause() instanceof GeneralSecurityException) {
         throw (GeneralSecurityException) we.getCause();
@@ -306,7 +306,7 @@ public class LoadBalancingKMSClientProvider extends KeyProvider implements
             throws IOException, GeneralSecurityException {
           return provider.reencryptEncryptedKey(ekv);
         }
-      }, nextIdx());
+      }, nextIdx(), true);
     } catch (WrapperException we) {
       if (we.getCause() instanceof GeneralSecurityException) {
         throw (GeneralSecurityException) we.getCause();
@@ -326,7 +326,7 @@ public class LoadBalancingKMSClientProvider extends KeyProvider implements
           provider.reencryptEncryptedKeys(ekvs);
           return null;
         }
-      }, nextIdx());
+      }, nextIdx(), true);
     } catch (WrapperException we) {
       if (we.getCause() instanceof GeneralSecurityException) {
         throw (GeneralSecurityException) we.getCause();
@@ -342,7 +342,7 @@ public class LoadBalancingKMSClientProvider extends KeyProvider implements
       public KeyVersion call(KMSClientProvider provider) throws IOException {
         return provider.getKeyVersion(versionName);
       }
-    }, nextIdx());
+    }, nextIdx(), true);
   }
 
   @Override
@@ -352,7 +352,7 @@ public class LoadBalancingKMSClientProvider extends KeyProvider implements
       public List<String> call(KMSClientProvider provider) throws IOException {
         return provider.getKeys();
       }
-    }, nextIdx());
+    }, nextIdx(), true);
   }
 
   @Override
@@ -362,7 +362,7 @@ public class LoadBalancingKMSClientProvider extends KeyProvider implements
       public Metadata[] call(KMSClientProvider provider) throws IOException {
         return provider.getKeysMetadata(names);
       }
-    }, nextIdx());
+    }, nextIdx(), true);
   }
 
   @Override
@@ -373,7 +373,7 @@ public class LoadBalancingKMSClientProvider extends KeyProvider implements
           throws IOException {
         return provider.getKeyVersions(name);
       }
-    }, nextIdx());
+    }, nextIdx(), true);
   }
 
   @Override
@@ -383,8 +383,9 @@ public class LoadBalancingKMSClientProvider extends KeyProvider implements
       public KeyVersion call(KMSClientProvider provider) throws IOException {
         return provider.getCurrentKey(name);
       }
-    }, nextIdx());
+    }, nextIdx(), true);
   }
+
   @Override
   public Metadata getMetadata(final String name) throws IOException {
     return doOp(new ProviderCallable<Metadata>() {
@@ -392,7 +393,7 @@ public class LoadBalancingKMSClientProvider extends KeyProvider implements
       public Metadata call(KMSClientProvider provider) throws IOException {
         return provider.getMetadata(name);
       }
-    }, nextIdx());
+    }, nextIdx(), true);
   }
 
   @Override
@@ -403,7 +404,7 @@ public class LoadBalancingKMSClientProvider extends KeyProvider implements
       public KeyVersion call(KMSClientProvider provider) throws IOException {
         return provider.createKey(name, material, options);
       }
-    }, nextIdx());
+    }, nextIdx(), false);
   }
 
   @Override
@@ -416,7 +417,7 @@ public class LoadBalancingKMSClientProvider extends KeyProvider implements
             NoSuchAlgorithmException {
           return provider.createKey(name, options);
         }
-      }, nextIdx());
+      }, nextIdx(), false);
     } catch (WrapperException e) {
       if (e.getCause() instanceof GeneralSecurityException) {
         throw (NoSuchAlgorithmException) e.getCause();
@@ -433,7 +434,7 @@ public class LoadBalancingKMSClientProvider extends KeyProvider implements
         provider.deleteKey(name);
         return null;
       }
-    }, nextIdx());
+    }, nextIdx(), false);
   }
 
   @Override
@@ -444,7 +445,7 @@ public class LoadBalancingKMSClientProvider extends KeyProvider implements
       public KeyVersion call(KMSClientProvider provider) throws IOException {
         return provider.rollNewVersion(name, material);
       }
-    }, nextIdx());
+    }, nextIdx(), false);
     invalidateCache(name);
     return newVersion;
   }
@@ -459,7 +460,7 @@ public class LoadBalancingKMSClientProvider extends KeyProvider implements
             NoSuchAlgorithmException {
           return provider.rollNewVersion(name);
         }
-      }, nextIdx());
+      }, nextIdx(), false);
       invalidateCache(name);
       return newVersion;
     } catch (WrapperException e) {
