@@ -60,8 +60,7 @@ grind -c ${DIR}/$SCRIPTS/env/grind.cfg test --artifacts -r 3 \
     -e TestContainerManagerSecurity \
     -e TestMRIntermediateDataEncryption \
     -e TestClientRMTokens \
-    -e TestAMAuthorization \
-    -e TestSSLHttpServer
+    -e TestAMAuthorization
     # TestClientRMTokens and TestAMAuthorization to be fixed in 5.8 (CDH-39590)
     # TestContinuousScheduling has been failing consistently, to be fixed in 5.8 (CDH-38830)
 
