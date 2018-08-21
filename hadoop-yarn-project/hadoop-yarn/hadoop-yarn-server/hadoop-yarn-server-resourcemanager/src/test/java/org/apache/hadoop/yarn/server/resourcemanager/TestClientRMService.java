@@ -33,6 +33,7 @@ import static org.mockito.Mockito.when;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.security.AccessControlException;
 import java.security.PrivilegedExceptionAction;
@@ -49,6 +50,7 @@ import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CyclicBarrier;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -157,7 +159,9 @@ import org.apache.hadoop.yarn.server.security.ApplicationACLsManager;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
 import org.apache.hadoop.yarn.util.Clock;
 import org.apache.hadoop.yarn.util.UTCClock;
+import org.apache.hadoop.yarn.util.resource.DominantResourceCalculator;
 import org.apache.hadoop.yarn.util.resource.ResourceCalculator;
+import org.apache.hadoop.yarn.util.resource.ResourceUtils;
 import org.apache.hadoop.yarn.util.resource.Resources;
 import org.junit.Assert;
 import org.junit.Assume;
@@ -2147,45 +2151,87 @@ public class TestClientRMService {
     rmService.setDisplayPerUserApps(false);
   }
 
-  public void testGetResourceTypesInfoWhenResourceProfileDisabled()
-      throws Exception {
-    YarnConfiguration conf = new YarnConfiguration();
-    MockRM rm = new MockRM(conf) {
+  @Test
+  public void testRegisterNMWithDiffUnits() throws Exception {
+    ResourceUtils.resetResourceTypes();
+    Configuration yarnConf = new YarnConfiguration();
+    String resourceTypesFile = "resource-types-4.xml";
+    InputStream source =
+        yarnConf.getClassLoader().getResourceAsStream(resourceTypesFile);
+    File dest = new File(yarnConf.getClassLoader().
+        getResource(".").getPath(), "resource-types.xml");
+    FileUtils.copyInputStreamToFile(source, dest);
+    ResourceUtils.getResourceTypes();
+
+    yarnConf.setClass(
+        CapacitySchedulerConfiguration.RESOURCE_CALCULATOR_CLASS,
+        DominantResourceCalculator.class, ResourceCalculator.class);
+
+    MockRM rm = new MockRM(yarnConf) {
       protected ClientRMService createClientRMService() {
         return new ClientRMService(this.rmContext, scheduler,
-            this.rmAppManager, this.applicationACLsManager, this.queueACLsManager,
-            this.getRMContext().getRMDelegationTokenSecretManager());
-      }
+          this.rmAppManager, this.applicationACLsManager, this.queueACLsManager,
+          this.getRMContext().getRMDelegationTokenSecretManager());
+      };
     };
     rm.start();
 
+    Resource resource = BuilderUtils.newResource(1024, 1);
+    resource.setResourceInformation("memory-mb",
+        ResourceInformation.newInstance("memory-mb", "G", 1024));
+    resource.setResourceInformation("resource1",
+        ResourceInformation.newInstance("resource1", "T", 1));
+    resource.setResourceInformation("resource2",
+        ResourceInformation.newInstance("resource2", "M", 1));
+
+    MockNM node = rm.registerNode("host1:1234", resource);
+    node.nodeHeartbeat(true);
+
+    // Create a client.
+    Configuration conf = new Configuration();
     YarnRPC rpc = YarnRPC.create(conf);
     InetSocketAddress rmAddress = rm.getClientRMService().getBindAddress();
     LOG.info("Connecting to ResourceManager at " + rmAddress);
     ApplicationClientProtocol client =
         (ApplicationClientProtocol) rpc
-            .getProxy(ApplicationClientProtocol.class, rmAddress, conf);
+          .getProxy(ApplicationClientProtocol.class, rmAddress, conf);
 
     // Make call
-    GetAllResourceTypeInfoRequest request =
-        GetAllResourceTypeInfoRequest.newInstance();
-    GetAllResourceTypeInfoResponse response = client.getResourceTypeInfo(request);
+    GetClusterNodesRequest request =
+        GetClusterNodesRequest.newInstance(EnumSet.of(NodeState.RUNNING));
+    List<NodeReport> nodeReports =
+        client.getClusterNodes(request).getNodeReports();
+    Assert.assertEquals(1, nodeReports.size());
+    Assert.assertNotSame("Node is expected to be healthy!", NodeState.UNHEALTHY,
+        nodeReports.get(0).getNodeState());
+    Assert.assertEquals(1, nodeReports.size());
 
-    Assert.assertEquals(2, response.getResourceTypeInfo().size());
+    //Resource 'resource1' has been passed as 1T while registering NM.
+    //1T should be converted to 1000G
+    Assert.assertEquals("G", nodeReports.get(0).getCapability().
+        getResourceInformation("resource1").getUnits());
+    Assert.assertEquals(1000, nodeReports.get(0).getCapability().
+        getResourceInformation("resource1").getValue());
 
-    // Check memory
-    Assert.assertEquals(ResourceInformation.MEMORY_MB.getName(),
-        response.getResourceTypeInfo().get(0).getName());
-    Assert.assertEquals(ResourceInformation.MEMORY_MB.getUnits(),
-        response.getResourceTypeInfo().get(0).getDefaultUnit());
+    //Resource 'resource2' has been passed as 1M while registering NM
+    //1M should be converted to 1000000000M
+    Assert.assertEquals("m", nodeReports.get(0).getCapability().
+        getResourceInformation("resource2").getUnits());
+    Assert.assertEquals(1000000000, nodeReports.get(0).getCapability().
+        getResourceInformation("resource2").getValue());
 
-    // Check vcores
-    Assert.assertEquals(ResourceInformation.VCORES.getName(),
-        response.getResourceTypeInfo().get(1).getName());
-    Assert.assertEquals(ResourceInformation.VCORES.getUnits(),
-        response.getResourceTypeInfo().get(1).getDefaultUnit());
+    //Resource 'memory-mb' has been passed as 1024G while registering NM
+    //1024G should be converted to 976562Mi
+    Assert.assertEquals("Mi", nodeReports.get(0).getCapability().
+        getResourceInformation("memory-mb").getUnits());
+    Assert.assertEquals(976562, nodeReports.get(0).getCapability().
+        getResourceInformation("memory-mb").getValue());
 
-    rm.stop();
     rpc.stopProxy(client, conf);
+    rm.close();
+
+    if (dest.exists()) {
+      dest.delete();
+    }
   }
 }
