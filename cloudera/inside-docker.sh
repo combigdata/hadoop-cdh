@@ -118,6 +118,10 @@ grind -c ${DIR}/$SCRIPTS/env/grind.cfg test --java-version 8 --artifacts -r 2 \
     -e TestJobMonitorAndPrint \
     -e TestRMWebServicesReservation \
     -e TestNNHandlesBlockReportPerStorage \
+    -e TestRMWebServicesCapacitySched \
+    -e TestRMWebServicesAppsCustomResourceTypes \
+    -e TestRMWebServicesSchedulerActivities \
+    -e TestRuntimeEstimators \
     -e TestIncreaseAllocationExpirer
 
 
