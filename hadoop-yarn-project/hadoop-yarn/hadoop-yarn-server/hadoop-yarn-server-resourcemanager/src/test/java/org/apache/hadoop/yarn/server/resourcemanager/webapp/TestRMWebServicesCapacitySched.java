@@ -330,12 +330,6 @@ public class TestRMWebServicesCapacitySched extends JerseyTestBase {
     assertNotNull(health);
     assertEquals("incorrect number of elements in: " + health, 3,
         health.length());
-    JSONArray operationsInfo = health.getJSONArray("operationsInfo");
-    assertEquals("incorrect number of elements in: " + health, 4,
-        operationsInfo.length());
-    JSONArray lastRunDetails = health.getJSONArray("lastRunDetails");
-    assertEquals("incorrect number of elements in: " + health, 3,
-        lastRunDetails.length());
 
     JSONArray arr = info.getJSONObject("queues").getJSONArray("queue");
     assertEquals("incorrect number of elements in: " + arr, 2, arr.length());
@@ -362,10 +356,10 @@ public class TestRMWebServicesCapacitySched extends JerseyTestBase {
   private void verifySubQueue(JSONObject info, String q,
       float parentAbsCapacity, float parentAbsMaxCapacity)
       throws JSONException, Exception {
-    int numExpectedElements = 20;
+    int numExpectedElements = 18;
     boolean isParentQueue = true;
     if (!info.has("queues")) {
-      numExpectedElements = 35;
+      numExpectedElements = 31;
       isParentQueue = false;
     }
     assertEquals("incorrect number of elements", numExpectedElements, info.length());
