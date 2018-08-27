@@ -420,11 +420,11 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
       FSNamesystem.class.getName() + ".audit");
 
   static final int DEFAULT_MAX_CORRUPT_FILEBLOCKS_RETURNED = 100;
-  static int BLOCK_DELETION_INCREMENT = 1000;
   private final boolean isPermissionEnabled;
   private final UserGroupInformation fsOwner;
   private final String supergroup;
   private final boolean standbyShouldCheckpoint;
+  private final int blockDeletionIncrement;
 
   /** Interval between each check of lease to release. */
   private final long leaseRecheckIntervalMs;
@@ -892,6 +892,13 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
           DFSConfigKeys.DFS_NAMENODE_LIST_OPENFILES_NUM_RESPONSES +
               " must be a positive integer."
       );
+
+      this.blockDeletionIncrement = conf.getInt(
+          DFSConfigKeys.DFS_NAMENODE_BLOCK_DELETION_INCREMENT_KEY,
+          DFSConfigKeys.DFS_NAMENODE_BLOCK_DELETION_INCREMENT_DEFAULT);
+      Preconditions.checkArgument(blockDeletionIncrement > 0,
+          DFSConfigKeys.DFS_NAMENODE_BLOCK_DELETION_INCREMENT_KEY +
+              " must be a positive integer.");
     } catch(IOException e) {
       LOG.error(getClass().getSimpleName() + " initialization failed.", e);
       close();
@@ -2987,7 +2994,7 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
     while (iter.hasNext()) {
       writeLock();
       try {
-        for (int i = 0; i < BLOCK_DELETION_INCREMENT && iter.hasNext(); i++) {
+        for (int i = 0; i < blockDeletionIncrement && iter.hasNext(); i++) {
           blockManager.removeBlock(iter.next());
         }
       } finally {
