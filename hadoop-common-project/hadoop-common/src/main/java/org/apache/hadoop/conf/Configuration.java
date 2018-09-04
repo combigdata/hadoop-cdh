@@ -674,6 +674,9 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    * deprecated key, the value of the deprecated key is set as the value for
    * the provided property name.
    *
+   * Also updates properties and overlays with deprecated keys, if the new
+   * key does not already exist.
+   *
    * @param deprecations deprecation context
    * @param name the property name
    * @return the first property in the list of properties mapping
@@ -695,6 +698,11 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
       // Override return value for deprecated keys
       names = keyInfo.newKeys;
     }
+
+    // Update properties with deprecated key if already loaded and new
+    // deprecation has been added
+    updatePropertiesWIthDeprecatedKeys(deprecations, names);
+
     // If there are no overlay values we can return early
     Properties overlayProperties = getOverlay();
     if (overlayProperties.isEmpty()) {
@@ -712,6 +720,19 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
       }
     }
     return names;
+  }
+
+  private void updatePropertiesWIthDeprecatedKeys(
+      DeprecationContext deprecations, String[] newNames) {
+    for (String newName : newNames) {
+      String deprecatedKey = deprecations.getReverseDeprecatedKeyMap().get(newName);
+      if (deprecatedKey != null && !getProps().containsKey(newName)) {
+        String deprecatedValue = getProps().getProperty(deprecatedKey);
+        if (deprecatedValue != null) {
+          getProps().setProperty(newName, deprecatedValue);
+        }
+      }
+    }
   }
  
   private void handleDeprecation() {
@@ -1150,7 +1171,10 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
    * the first key which replaces the deprecated key and is not null.
    * 
    * Values are processed for <a href="#VariableExpansion">variable expansion</a> 
-   * before being returned. 
+   * before being returned.
+   *
+   * As a side effect get loads the properties from the sources if called for
+   * the first time as a lazy init.
    * 
    * @param name the property name, will be trimmed before get value.
    * @return the value of the <code>name</code> or its replacing property, 
