@@ -25,7 +25,6 @@ import static org.apache.hadoop.ipc.RpcConstants.PING_CALL_ID;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
@@ -81,8 +80,6 @@ import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableUtils;
-import org.apache.hadoop.ipc.ProtobufRpcEngine.RpcResponseWrapper;
-import org.apache.hadoop.ipc.ProtobufRpcEngine.RpcWrapper;
 import org.apache.hadoop.ipc.RPC.RpcInvoker;
 import org.apache.hadoop.ipc.RPC.VersionMismatch;
 import org.apache.hadoop.ipc.metrics.RpcDetailedMetrics;
@@ -113,7 +110,6 @@ import org.apache.hadoop.security.token.SecretManager.InvalidToken;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.util.ExitUtil;
 import org.apache.hadoop.util.ProtoUtil;
-import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.util.Time;
 import org.apache.htrace.core.SpanId;
@@ -122,7 +118,6 @@ import org.apache.htrace.core.Tracer;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.CodedOutputStream;
 import com.google.protobuf.Message;
 import com.google.protobuf.Message.Builder;
 import org.codehaus.jackson.map.ObjectMapper;
@@ -1300,6 +1295,7 @@ public abstract class Server {
    * A WrappedRpcServerException that is suppressed altogether
    * for the purposes of logging.
    */
+  @SuppressWarnings("serial")
   private static class WrappedRpcServerExceptionSuppressed
       extends WrappedRpcServerException {
     public WrappedRpcServerExceptionSuppressed(
@@ -1428,10 +1424,10 @@ public abstract class Server {
       }
     }
 
-    private void saslReadAndProcess(DataInputStream dis) throws
+    private void saslReadAndProcess(RpcWritable.Buffer buffer) throws
     WrappedRpcServerException, IOException, InterruptedException {
       final RpcSaslProto saslMessage =
-          decodeProtobufFromStream(RpcSaslProto.newBuilder(), dis);
+          getMessage(RpcSaslProto.getDefaultInstance(), buffer);
       switch (saslMessage.getState()) {
         case WRAP: {
           if (!saslContextEstablished || !useWrap) {
@@ -1626,7 +1622,7 @@ public abstract class Server {
           RpcConstants.INVALID_RETRY_COUNT, null, this);
       setupResponse(saslCall,
           RpcStatusProto.SUCCESS, null,
-          new RpcResponseWrapper(message), null, null);
+          RpcWritable.wrap(message), null, null);
       saslCall.sendResponse();
     }
 
@@ -1729,7 +1725,7 @@ public abstract class Server {
           dataLengthBuffer.clear();
           data.flip();
           boolean isHeaderRead = connectionContextRead;
-          processOneRpc(data.array());
+          processOneRpc(data);
           data = null;
           if (!isHeaderRead) {
             continue;
@@ -1846,7 +1842,7 @@ public abstract class Server {
      * @throws WrappedRpcServerException - if the header cannot be
      *         deserialized, or the user is not authorized
      */ 
-    private void processConnectionContext(DataInputStream dis)
+    private void processConnectionContext(RpcWritable.Buffer buffer)
         throws WrappedRpcServerException {
       // allow only one connection context during a session
       if (connectionContextRead) {
@@ -1854,8 +1850,7 @@ public abstract class Server {
             RpcErrorCodeProto.FATAL_INVALID_RPC_HEADER,
             "Connection context already processed");
       }
-      connectionContext = decodeProtobufFromStream(
-          IpcConnectionContextProto.newBuilder(), dis);
+      connectionContext = getMessage(IpcConnectionContextProto.getDefaultInstance(), buffer);
       protocolName = connectionContext.hasProtocol() ? connectionContext
           .getProtocol() : null;
 
@@ -1933,7 +1928,7 @@ public abstract class Server {
         if (unwrappedData.remaining() == 0) {
           unwrappedDataLengthBuffer.clear();
           unwrappedData.flip();
-          processOneRpc(unwrappedData.array());
+          processOneRpc(unwrappedData);
           unwrappedData = null;
         }
       }
@@ -1949,31 +1944,30 @@ public abstract class Server {
      *         the client that does not require verbose logging by the
      *         Listener thread
      * @throws InterruptedException
-     */    
-    private void processOneRpc(byte[] buf)
+     */
+    private void processOneRpc(ByteBuffer bb)
         throws IOException, WrappedRpcServerException, InterruptedException {
       int callId = -1;
       int retry = RpcConstants.INVALID_RETRY_COUNT;
       try {
-        final DataInputStream dis =
-            new DataInputStream(new ByteArrayInputStream(buf));
+        final RpcWritable.Buffer buffer = RpcWritable.Buffer.wrap(bb);
         final RpcRequestHeaderProto header =
-            decodeProtobufFromStream(RpcRequestHeaderProto.newBuilder(), dis);
+            getMessage(RpcRequestHeaderProto.getDefaultInstance(), buffer);
         callId = header.getCallId();
         retry = header.getRetryCount();
         if (LOG.isDebugEnabled()) {
           LOG.debug(" got #" + callId);
         }
         checkRpcHeaders(header);
-        
+
         if (callId < 0) { // callIds typically used during connection setup
-          processRpcOutOfBandRequest(header, dis);
+          processRpcOutOfBandRequest(header, buffer);
         } else if (!connectionContextRead) {
           throw new WrappedRpcServerException(
               RpcErrorCodeProto.FATAL_INVALID_RPC_HEADER,
               "Connection context not established");
         } else {
-          processRpcRequest(header, dis);
+          processRpcRequest(header, buffer);
         }
       } catch (WrappedRpcServerException wrse) { // inform client of error
         Throwable ioe = wrse.getCause();
@@ -2026,7 +2020,7 @@ public abstract class Server {
      * @throws InterruptedException
      */
     private void processRpcRequest(RpcRequestHeaderProto header,
-        DataInputStream dis) throws WrappedRpcServerException,
+        RpcWritable.Buffer buffer) throws WrappedRpcServerException,
         InterruptedException {
       Class<? extends Writable> rpcRequestClass = 
           getRpcRequestWrapper(header.getRpcKind());
@@ -2040,8 +2034,7 @@ public abstract class Server {
       }
       Writable rpcRequest;
       try { //Read the rpc request
-        rpcRequest = ReflectionUtils.newInstance(rpcRequestClass, conf);
-        rpcRequest.readFields(dis);
+        rpcRequest = buffer.newInstance(rpcRequestClass, conf);
       } catch (Throwable t) { // includes runtime exception from newInstance
         LOG.warn("Unable to read call parameters for client " +
                  getHostAddress() + "on connection protocol " +
@@ -2108,8 +2101,8 @@ public abstract class Server {
      * @throws InterruptedException
      */
     private void processRpcOutOfBandRequest(RpcRequestHeaderProto header,
-        DataInputStream dis) throws WrappedRpcServerException, IOException,
-        InterruptedException {
+        RpcWritable.Buffer buffer) throws WrappedRpcServerException,
+            IOException, InterruptedException {
       final int callId = header.getCallId();
       if (callId == CONNECTION_CONTEXT_CALL_ID) {
         // SASL must be established prior to connection context
@@ -2119,7 +2112,7 @@ public abstract class Server {
               "Connection header sent during SASL negotiation");
         }
         // read and authorize the user
-        processConnectionContext(dis);
+        processConnectionContext(buffer);
       } else if (callId == AuthProtocol.SASL.callId) {
         // if client was switched to simple, ignore first SASL message
         if (authProtocol != AuthProtocol.SASL) {
@@ -2127,7 +2120,7 @@ public abstract class Server {
               RpcErrorCodeProto.FATAL_INVALID_RPC_HEADER,
               "SASL protocol not requested by client");
         }
-        saslReadAndProcess(dis);
+        saslReadAndProcess(buffer);
       } else if (callId == PING_CALL_ID) {
         LOG.debug("Received ping message");
       } else {
@@ -2174,13 +2167,12 @@ public abstract class Server {
      * @throws WrappedRpcServerException - deserialization failed
      */
     @SuppressWarnings("unchecked")
-    private <T extends Message> T decodeProtobufFromStream(Builder builder,
-        DataInputStream dis) throws WrappedRpcServerException {
+    <T extends Message> T getMessage(Message message,
+        RpcWritable.Buffer buffer) throws WrappedRpcServerException {
       try {
-        builder.mergeDelimitedFrom(dis);
-        return (T)builder.build();
+        return (T)buffer.getValue(message);
       } catch (Exception ioe) {
-        Class<?> protoClass = builder.getDefaultInstanceForType().getClass();
+        Class<?> protoClass = message.getClass();
         throw new WrappedRpcServerException(
             RpcErrorCodeProto.FATAL_DESERIALIZING_REQUEST,
             "Error decoding " + protoClass.getSimpleName() + ": "+ ioe);
@@ -2568,25 +2560,20 @@ public abstract class Server {
   private void setupResponse(Call call,
       RpcResponseHeaderProto header, Writable rv) throws IOException {
     ResponseBuffer buf = responseBuffer.get().reset();
-    // adjust capacity on estimated length to reduce resizing copies
-    int estimatedLen = header.getSerializedSize();
-    estimatedLen += CodedOutputStream.computeRawVarint32Size(estimatedLen);
-    // if it's not a wrapped protobuf, just let it grow on its own
-    if (rv instanceof RpcWrapper) {
-      estimatedLen += ((RpcWrapper)rv).getLength();
-    }
-    buf.ensureCapacity(estimatedLen);
-    header.writeDelimitedTo(buf);
-    if (rv != null) { // null for exceptions
-      rv.write(buf);
-    }
-    call.setResponse(ByteBuffer.wrap(buf.toByteArray()));
-    // Discard a large buf and reset it back to smaller size
-    // to free up heap.
-    if (buf.capacity() > maxRespSize) {
-      LOG.warn("Large response size " + buf.size() + " for call "
-          + call.toString());
-      buf.setCapacity(INITIAL_RESP_BUF_SIZE);
+    try {
+      RpcWritable.wrap(header).writeTo(buf);
+      if (rv != null) {
+        RpcWritable.wrap(rv).writeTo(buf);
+      }
+      call.setResponse(ByteBuffer.wrap(buf.toByteArray()));
+    } finally {
+      // Discard a large buf and reset it back to smaller size
+      // to free up heap.
+      if (buf.capacity() > maxRespSize) {
+        LOG.warn("Large response size " + buf.size() + " for call "
+            + call.toString());
+        buf.setCapacity(INITIAL_RESP_BUF_SIZE);
+      }
     }
   }
 
@@ -2637,7 +2624,7 @@ public abstract class Server {
           .setState(SaslState.WRAP)
           .setToken(ByteString.copyFrom(token))
           .build();
-      setupResponse(call, saslHeader, new RpcResponseWrapper(saslMessage));
+      setupResponse(call, saslHeader, RpcWritable.wrap(saslMessage));
     }
   }
   
