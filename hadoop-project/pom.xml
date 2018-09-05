@@ -66,7 +66,7 @@
 
     <!-- jackson versions -->
     <jackson.version>${cdh.jackson.version}</jackson.version>
-    <jackson2.version>2.2.3</jackson2.version>
+    <jackson2.version>${cdh.jackson.2.2.version}</jackson2.version>
 
     <!-- ProtocolBuffer version, used to verify the protoc version and -->
     <!-- define the protobuf JAR version                               -->
@@ -779,7 +779,7 @@
       <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-databind</artifactId>
-        <version>${jackson2.version}</version>
+        <version>${cdh.jackson-databind.2.2.version}</version>
       </dependency>
       <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
