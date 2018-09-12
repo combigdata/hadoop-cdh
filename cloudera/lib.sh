@@ -554,8 +554,8 @@ function main() {
 
   # Cauldron only.
   # Point the build at the latest GBN's artifacts served by the s3 proxy.
-  wget -nc http://github.mtv.cloudera.com/raw/CDH/cdh/cdh6.0.x/gbn-m2-settings.xml
-  export CDH_GBN=$(curl 'http://builddb.infra.cloudera.com:8080/resolvealias?alias=cdh6.0.x')
+  wget -nc http://github.mtv.cloudera.com/raw/CDH/cdh/cdh6.0.1/gbn-m2-settings.xml
+  export CDH_GBN=$(curl 'http://builddb.infra.cloudera.com:8080/resolvealias?alias=cdh6.0.1')
   MAVEN_FLAGS="${MAVEN_FLAGS} -fae -s gbn-m2-settings.xml"
 
   case ${NAME} in
