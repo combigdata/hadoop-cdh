@@ -110,17 +110,17 @@ function runStableTests() {
   mvn -Pcloudera-unittest -f ${_POM} -e findbugs:findbugs checkstyle:checkstyle test ${_MAVEN_FLAGS} -Dtest.excludes.file=${_MERGED_EXCLUDES}
 }
 
-# Run all the integration tests. Takes the following arguments:
+# Run tests by their category. Takes the following arguments:
 #
 # - POM -- the POM to test
 # - MAVEN_FLAGS -- and Maven flags, properties or options to the test
-function runIntegrationTests() {
+function runTestByCategory() {
   local _POM=$1
   local _MAVEN_FLAGS=$2
 
   echo
   echo ----
-  echo Running integration tests in ${_POM} with ${_MAVEN_FLAGS}
+  echo Running tests by their category in ${_POM} with ${_MAVEN_FLAGS}
   echo ----
   echo
   mvn -Pcloudera-unittest -f ${_POM} -e findbugs:findbugs checkstyle:checkstyle test ${_MAVEN_FLAGS}
@@ -376,7 +376,7 @@ function setupMavenFlags() {
 # scripts (for example test-integration.sh). The conditional check here is to keep
 # the execution compatible as old fashion. After we finish this quarantine work, the
 # conditional check should not be needed.
-  if [[ "${SCRIPT}" = "test-integration.sh" ]]; then
+  if [[ "${SCRIPT}" != "test-stable.sh" ]]; then
     MAVEN_FLAGS="${MAVEN_FLAGS} -Pdist -Pnative -Drequire.fuse -Drequire.snappy -DjavaVersion=$JAVA_VERSION -DtargetJavaVersion=$TARGET_JAVA_VERSION -Dmaven.test.failure.ignore=true -Dtest.fork.count=${TEST_FORK_COUNT} -Dtest.fork.reuse=${TEST_REUSE_FORKS}"
   else
     MAVEN_FLAGS="-Pdist -Pnative -Drequire.fuse -Drequire.snappy -DjavaVersion=$JAVA_VERSION -DtargetJavaVersion=$TARGET_JAVA_VERSION -Dmaven.test.failure.ignore=true -Dtest.fork.count=${TEST_FORK_COUNT} -Dtest.fork.reuse=${TEST_REUSE_FORKS}"
@@ -608,9 +608,14 @@ function main() {
       runStableTests ${POM} "${MAVEN_FLAGS}" "${CLOUDERA_DIR}/excludes.txt"
       ;;
 
+    test-stable-new.sh)
+      build pom.xml "${MAVEN_FLAGS}" false ${NO_BUILD}
+      runTestByCategory ${POM} "${MAVEN_FLAGS}"
+      ;;
+
     test-integration.sh)
       build pom.xml "${MAVEN_FLAGS}" false ${NO_BUILD}
-      runIntegrationTests ${POM} "${MAVEN_FLAGS}"
+      runTestByCategory ${POM} "${MAVEN_FLAGS}"
       ;;
 
     test-set.sh)

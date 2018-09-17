@@ -2,7 +2,6 @@ org/apache/hadoop/example/ITUseMiniCluster
 org/apache/hadoop/fs/http/server/TestHttpFSServerNoACLs
 org/apache/hadoop/fs/http/server/TestHttpFSServerNoXAttrs
 org/apache/hadoop/test/TestHdfsHelper
-native/fuse-dfs/test/TestFuseDFS
 org/apache/hadoop/hdfs/nfs/nfs3/TestClientAccessPrivilege
 org/apache/hadoop/hdfs/nfs/nfs3/TestExportsTable
 org/apache/hadoop/hdfs/nfs/nfs3/TestNfs3HttpServer

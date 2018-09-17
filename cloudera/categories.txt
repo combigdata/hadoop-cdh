@@ -1,1 +1,2 @@
 integrations.txt
+stables.txt

@@ -224,7 +224,7 @@ public class QuarantineTest {
     String className = testFile.getName().substring(0,
         testFile.getName().indexOf(".java"));
     String packageLine = "(\\s)*^package(\\s)+.*";
-    String classLine = "(\\s)*public(\\s)*class(\\s)*" + className + "(\\s)+.*";
+    String classLine = "(\\s)*public(\\s)*class(\\s)*" + className + "(\\s)*.*";
 
     boolean insertImport = true;
     StringJoiner buf = new StringJoiner(LINE_SEPARATOR);
