@@ -902,6 +902,24 @@ public class BlockPlacementPolicyDefault extends BlockPlacementPolicy {
   }
 
   /**
+   * Determine if a datanode should be chosen based on current workload.
+   *
+   * @param node The target datanode
+   * @return Return true if the datanode should be excluded, otherwise false
+   */
+  boolean excludeNodeByLoad(DatanodeDescriptor node){
+    final double maxLoad = considerLoadFactor *
+        stats.getInServiceXceiverAverage();
+    final int nodeLoad = node.getXceiverCount();
+    if ((nodeLoad > maxLoad) && (maxLoad > 0)) {
+      logNodeIsNotChosen(node, NodeNotChosenReason.NODE_TOO_BUSY,
+          "(load: " + nodeLoad + " > " + maxLoad + ")");
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * Determine if a datanode is good for placing block.
    *
    * @param node The target datanode
@@ -912,7 +930,7 @@ public class BlockPlacementPolicyDefault extends BlockPlacementPolicy {
    * @param results A list containing currently chosen nodes. Used to check if
    *                too many nodes has been chosen in the target rack.
    * @param avoidStaleNodes Whether or not to avoid choosing stale nodes
-   * @return Reture true if the datanode is good candidate, otherwise false
+   * @return Return true if the datanode is good candidate, otherwise false
    */
   boolean isGoodDatanode(DatanodeDescriptor node,
                          int maxTargetPerRack, boolean considerLoad,
@@ -932,13 +950,8 @@ public class BlockPlacementPolicyDefault extends BlockPlacementPolicy {
     }
 
     // check the communication traffic of the target machine
-    if (considerLoad) {
-      final double maxLoad = considerLoadFactor *
-          stats.getInServiceXceiverAverage();
-      final int nodeLoad = node.getXceiverCount();
-      if (nodeLoad > maxLoad) {
-        logNodeIsNotChosen(node, NodeNotChosenReason.NODE_TOO_BUSY,
-            "(load: " + nodeLoad + " > " + maxLoad + ")");
+    if(considerLoad){
+      if(excludeNodeByLoad(node)){
         return false;
       }
     }
