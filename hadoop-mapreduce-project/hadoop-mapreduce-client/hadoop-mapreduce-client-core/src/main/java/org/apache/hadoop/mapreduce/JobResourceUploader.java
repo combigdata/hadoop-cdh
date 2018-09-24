@@ -300,8 +300,8 @@ class JobResourceUploader {
       throw new IllegalArgumentException(e);
     }
     Path path = new Path(pathURI);
-    FileSystem localFs = FileSystem.getLocal(conf);
     if (pathURI.getScheme() == null) {
+      FileSystem localFs = FileSystem.getLocal(conf);
       // default to the local file system
       // check if the file exists or not first
       if (!localFs.exists(path)) {
