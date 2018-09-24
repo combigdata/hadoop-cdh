@@ -82,6 +82,8 @@ public class TestMRIntermediateDataEncryption {
     FileSystem fileSystem = null;
     try {
       Configuration conf = new Configuration();
+      conf.setBoolean(MRJobConfig.MAP_SPECULATIVE, false);
+      conf.setBoolean(MRJobConfig.REDUCE_SPECULATIVE, false);
       // Start the mini-MR and mini-DFS clusters
 
       dfsCluster = new MiniDFSCluster.Builder(conf)
