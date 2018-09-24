@@ -415,7 +415,6 @@ org/apache/hadoop/hdfs/server/datanode/TestDataDirs
 org/apache/hadoop/hdfs/server/datanode/TestBlockPoolManager
 org/apache/hadoop/hdfs/server/datanode/TestNNHandlesCombinedBlockReport
 org/apache/hadoop/hdfs/server/datanode/TestDataStorage
-org/apache/hadoop/hdfs/server/datanode/TestDataNodeUUID
 org/apache/hadoop/hdfs/server/datanode/TestIncrementalBlockReports
 org/apache/hadoop/hdfs/server/datanode/TestBpServiceActorScheduler
 org/apache/hadoop/hdfs/server/datanode/TestSimulatedFSDataset
@@ -492,7 +491,6 @@ org/apache/hadoop/hdfs/nfs/nfs3/TestOpenFileCtxCache
 org/apache/hadoop/hdfs/nfs/TestUdpServer
 org/apache/hadoop/minikdc/TestMiniKdc
 org/apache/hadoop/minikdc/TestChangeOrgNameAndDomain
-org/apache/hadoop/classification/TestJUnitCategory
 org/apache/hadoop/crypto/key/kms/server/TestKeyAuthorizationKeyProvider
 org/apache/hadoop/crypto/key/kms/server/TestKMSWithZK
 org/apache/hadoop/crypto/key/kms/server/TestKMSAudit
@@ -534,7 +532,6 @@ org/apache/hadoop/oncrpc/TestFrameDecoder
 org/apache/hadoop/oncrpc/TestXDR
 org/apache/hadoop/oncrpc/TestRpcReply
 org/apache/hadoop/oncrpc/TestRpcAcceptedReply
-org/apache/hadoop/fs/shell/Test
 org/apache/hadoop/http/TestHttpServer
 org/apache/hadoop/http/TestHttpServerLogs
 org/apache/hadoop/http/TestHtmlQuoting
@@ -690,7 +687,6 @@ org/apache/hadoop/service/launcher/TestServiceLauncherCreationFailures
 org/apache/hadoop/service/launcher/TestServiceLauncherInnerMethods
 org/apache/hadoop/service/TestServiceLifecycle
 org/apache/hadoop/log/TestLogLevel
-org/apache/hadoop/log/TestLog4Json
 org/apache/hadoop/io/TestText
 org/apache/hadoop/io/TestVersionedWritable
 org/apache/hadoop/io/erasurecode/TestCoderBase
