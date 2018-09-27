@@ -38,7 +38,6 @@ import org.apache.hadoop.hdfs.AppendTestUtil;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.DFSTestUtil;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
-import org.apache.hadoop.hdfs.protocol.BlockStoragePolicy;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.hdfs.client.HdfsClientConfigKeys;
 import org.apache.hadoop.hdfs.protocol.HdfsConstants;
@@ -1043,13 +1042,9 @@ public abstract class BaseTestHttpFSWith extends HFSTestCase {
     Path path = new Path(getProxiedFSTestDir(), "policy.txt");
     FileSystem httpfs = getHttpFSFileSystem();
     // test getAllStoragePolicies
-    BlockStoragePolicy[] dfsPolicies = (BlockStoragePolicy[]) fs
-       .getAllStoragePolicies().toArray();
-    BlockStoragePolicy[] httpPolicies = (BlockStoragePolicy[]) httpfs
-        .getAllStoragePolicies().toArray();
     Assert.assertArrayEquals(
         "Policy array returned from the DFS and HttpFS should be equals",
-        dfsPolicies, httpPolicies);
+        fs.getAllStoragePolicies().toArray(), httpfs.getAllStoragePolicies().toArray());
 
     // test get/set/unset policies
     DFSTestUtil.createFile(fs, path, 0, (short) 1, 0L);
