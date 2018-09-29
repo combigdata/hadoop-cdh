@@ -338,7 +338,7 @@ public class FifoScheduler extends
     }
 
     // Sanity check
-    normalizeRequests(ask);
+    normalizeResourceRequests(ask);
 
     // Release containers
     releaseContainers(release, application);
