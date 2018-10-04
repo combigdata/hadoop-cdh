@@ -67,7 +67,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-class JsonUtilClient {
+/**
+ * Utility methods used in WebHDFS/HttpFS JSON conversion.
+ */
+public class JsonUtilClient {
   static final DatanodeInfo[] EMPTY_DATANODE_INFO_ARRAY = {};
   static final String UNSUPPPORTED_EXCEPTION_STR =
       UnsupportedOperationException.class.getName();
