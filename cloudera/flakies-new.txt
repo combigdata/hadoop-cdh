@@ -1,0 +1,2 @@
+org/apache/hadoop/hdfs/web/TestWebHdfsTimeouts
+org/apache/hadoop/hdfs/qjournal/server/TestJournalNodeSync

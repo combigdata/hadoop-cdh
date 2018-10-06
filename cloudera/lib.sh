@@ -613,6 +613,11 @@ function main() {
       runTestByCategory ${POM} "${MAVEN_FLAGS}"
       ;;
 
+    test-flaky.sh)
+      build pom.xml "${MAVEN_FLAGS}" false ${NO_BUILD}
+      runTestByCategory ${POM} "${MAVEN_FLAGS}"
+      ;;
+
     test-integration.sh)
       build pom.xml "${MAVEN_FLAGS}" false ${NO_BUILD}
       runTestByCategory ${POM} "${MAVEN_FLAGS}"

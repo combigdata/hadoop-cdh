@@ -155,6 +155,10 @@ public class QuarantineTest {
     } else {
       String categoryName = shortFileName.substring(0,
           shortFileName.lastIndexOf("."));
+      int indexFlakyNew = categoryName.lastIndexOf("-new");
+      if (indexFlakyNew > 0) {
+        categoryName = categoryName.substring(0, indexFlakyNew);
+      }
       categoryName = categoryName.substring(0, 1).toUpperCase() +
           categoryName.substring(1);
       annotations = "@Category(TestJUnitCategory."+categoryName+"Test.class)";
