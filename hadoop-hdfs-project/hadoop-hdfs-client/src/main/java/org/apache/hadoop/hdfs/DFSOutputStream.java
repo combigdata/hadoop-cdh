@@ -939,6 +939,7 @@ public class DFSOutputStream extends FSOutputSummer
     long localstart = Time.monotonicNow();
     final DfsClientConf conf = dfsClient.getConf();
     long sleeptime = conf.getBlockWriteLocateFollowingInitialDelayMs();
+    long maxSleepTime = conf.getBlockWriteLocateFollowingMaxDelayMs();
     boolean fileComplete = false;
     int retries = conf.getNumBlockWriteLocateFollowingRetry();
     while (!fileComplete) {
@@ -962,7 +963,7 @@ public class DFSOutputStream extends FSOutputSummer
           }
           retries--;
           Thread.sleep(sleeptime);
-          sleeptime *= 2;
+          sleeptime = calculateDelayForNextRetry(sleeptime, maxSleepTime);
           if (Time.monotonicNow() - localstart > 5000) {
             DFSClient.LOG.info("Could not complete " + src + " retrying...");
           }
@@ -1072,6 +1073,7 @@ public class DFSOutputStream extends FSOutputSummer
     final DfsClientConf conf = dfsClient.getConf();
     int retries = conf.getNumBlockWriteLocateFollowingRetry();
     long sleeptime = conf.getBlockWriteLocateFollowingInitialDelayMs();
+    long maxSleepTime = conf.getBlockWriteLocateFollowingMaxDelayMs();
     long localstart = Time.monotonicNow();
     while (true) {
       try {
@@ -1103,7 +1105,7 @@ public class DFSOutputStream extends FSOutputSummer
               LOG.warn("NotReplicatedYetException sleeping " + src
                   + " retries left " + retries);
               Thread.sleep(sleeptime);
-              sleeptime *= 2;
+              sleeptime = calculateDelayForNextRetry(sleeptime, maxSleepTime);
             } catch (InterruptedException ie) {
               LOG.warn("Caught exception", ie);
             }
@@ -1113,5 +1115,20 @@ public class DFSOutputStream extends FSOutputSummer
         }
       }
     }
+  }
+
+  /**
+   * Calculates the delay for the next retry.
+   *
+   * The delay is increased exponentially until the maximum delay is reached.
+   *
+   * @param previousDelay delay for the previous retry
+   * @param maxDelay maximum delay
+   * @return the minimum of the double of the previous delay
+   * and the maximum delay
+   */
+  private static long calculateDelayForNextRetry(long previousDelay,
+                                                 long maxDelay) {
+    return Math.min(previousDelay * 2, maxDelay);
   }
 }
