@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
+
+import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -475,7 +477,8 @@ public class LocalDirsHandlerService extends AbstractService {
 
   }
 
-  private void checkDirs() {
+  @VisibleForTesting
+  public void checkDirs() {
     boolean disksStatusChange = false;
     Set<String> failedLocalDirsPreCheck =
         new HashSet<String>(localDirs.getFailedDirs());
