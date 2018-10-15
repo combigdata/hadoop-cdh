@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
@@ -439,7 +440,8 @@ public class LocalDirsHandlerService extends AbstractService {
 
   }
 
-  private void checkDirs() {
+  @VisibleForTesting
+  public void checkDirs() {
     boolean disksStatusChange = false;
     Set<String> failedLocalDirsPreCheck =
         new HashSet<String>(localDirs.getFailedDirs());
