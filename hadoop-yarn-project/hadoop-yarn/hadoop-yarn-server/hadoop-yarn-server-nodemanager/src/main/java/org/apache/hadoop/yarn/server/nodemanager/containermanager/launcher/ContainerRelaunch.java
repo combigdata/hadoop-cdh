@@ -36,6 +36,7 @@ import org.apache.hadoop.yarn.server.nodemanager.containermanager.localizer.Cont
 import org.apache.hadoop.yarn.server.nodemanager.executor.ContainerStartContext;
 import org.apache.hadoop.yarn.server.nodemanager.executor.DeletionAsUserContext;
 import org.apache.hadoop.yarn.util.ConverterUtils;
+import org.apache.hadoop.yarn.server.security.AMSecretKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,6 +84,12 @@ public class ContainerRelaunch extends ContainerLaunch {
           getNmPrivateContainerScriptPath(appIdStr, containerIdStr);
       Path nmPrivateTokensPath =
           getNmPrivateTokensPath(appIdStr, containerIdStr);
+      Path nmPrivateKeystorePath = (container.getCredentials().getSecretKey(
+          AMSecretKeys.YARN_APPLICATION_AM_KEYSTORE) == null) ? null :
+          getNmPrivateKeystorePath(appIdStr, containerIdStr);
+      Path nmPrivateTruststorePath = (container.getCredentials().getSecretKey(
+          AMSecretKeys.YARN_APPLICATION_AM_TRUSTSTORE) == null) ? null :
+          getNmPrivateTruststorePath(appIdStr, containerIdStr);
       pidFilePath = getPidFilePath(appIdStr, containerIdStr);
 
       LOG.info("Relaunch container with "
@@ -109,6 +116,8 @@ public class ContainerRelaunch extends ContainerLaunch {
           .setLocalizedResources(localResources)
           .setNmPrivateContainerScriptPath(nmPrivateContainerScriptPath)
           .setNmPrivateTokensPath(nmPrivateTokensPath)
+          .setNmPrivateKeystorePath(nmPrivateKeystorePath)
+          .setNmPrivateTruststorePath(nmPrivateTruststorePath)
           .setUser(container.getUser())
           .setAppId(appIdStr)
           .setContainerWorkDir(containerWorkDir)
@@ -175,6 +184,20 @@ public class ContainerRelaunch extends ContainerLaunch {
         getContainerPrivateDir(appIdStr, containerIdStr) + Path.SEPARATOR
             + String.format(ContainerLocalizer.TOKEN_FILE_NAME_FMT,
             containerIdStr));
+  }
+
+  private Path getNmPrivateKeystorePath(String appIdStr,
+      String containerIdStr) throws IOException {
+    return dirsHandler.getLocalPathForRead(
+        getContainerPrivateDir(appIdStr, containerIdStr) + Path.SEPARATOR
+            + ContainerLaunch.KEYSTORE_FILE);
+  }
+
+  private Path getNmPrivateTruststorePath(String appIdStr,
+      String containerIdStr) throws IOException {
+    return dirsHandler.getLocalPathForRead(
+        getContainerPrivateDir(appIdStr, containerIdStr) + Path.SEPARATOR
+            + ContainerLaunch.TRUSTSTORE_FILE);
   }
 
   private Path getPidFilePath(String appIdStr,

@@ -211,6 +211,9 @@ static struct {
   char **resources_values;
   const char *app_id;
   const char *container_id;
+  int https;
+  const char *keystore_file;
+  const char *truststore_file;
   const char *cred_file;
   const char *script_file;
   const char *current_dir;
@@ -381,8 +384,8 @@ static int validate_run_as_user_commands(int argc, char **argv, int *operation) 
  case LAUNCH_DOCKER_CONTAINER:
    if(is_docker_support_enabled()) {
       //kill me now.
-      if (!(argc == 14 || argc == 15)) {
-        fprintf(ERRORFILE, "Wrong number of arguments (%d vs 14 or 15) for"
+      if (!(argc >= 15 && argc <= 18)) {
+        fprintf(ERRORFILE, "Wrong number of arguments (%d vs 15 - 18) for"
           " launch docker container\n", argc);
         fflush(ERRORFILE);
         return INVALID_ARGUMENT_NUMBER;
@@ -393,6 +396,13 @@ static int validate_run_as_user_commands(int argc, char **argv, int *operation) 
       cmd_input.current_dir = argv[optind++];
       cmd_input.script_file = argv[optind++];
       cmd_input.cred_file = argv[optind++];
+      if (strcmp("--https", argv[optind++]) == 0) {
+        cmd_input.https = 1;
+        cmd_input.keystore_file = argv[optind++];
+        cmd_input.truststore_file = argv[optind++];
+      } else {
+        cmd_input.https = 0;
+      }
       cmd_input.pid_file = argv[optind++];
       // good local dirs as a comma separated list
       cmd_input.local_dirs = argv[optind++];
@@ -413,7 +423,7 @@ static int validate_run_as_user_commands(int argc, char **argv, int *operation) 
         return INVALID_ARGUMENT_NUMBER;
       }
       //network isolation through tc
-      if (argc == 15) {
+      if ((argc == 16 && !cmd_input.https) || (argc == 18 && cmd_input.https)) {
         if(is_tc_support_enabled()) {
           cmd_input.traffic_control_command_file = argv[optind++];
         } else {
@@ -434,8 +444,8 @@ static int validate_run_as_user_commands(int argc, char **argv, int *operation) 
 
   case LAUNCH_CONTAINER:
     //kill me now.
-    if (!(argc == 13 || argc == 14)) {
-      fprintf(ERRORFILE, "Wrong number of arguments (%d vs 13 or 14)"
+    if (!(argc >= 14 && argc <= 17)) {
+      fprintf(ERRORFILE, "Wrong number of arguments (%d vs 14 - 17)"
         " for launch container\n", argc);
       fflush(ERRORFILE);
       return INVALID_ARGUMENT_NUMBER;
@@ -446,6 +456,13 @@ static int validate_run_as_user_commands(int argc, char **argv, int *operation) 
     cmd_input.current_dir = argv[optind++];
     cmd_input.script_file = argv[optind++];
     cmd_input.cred_file = argv[optind++];
+    if (strcmp("--https", argv[optind++]) == 0) {
+      cmd_input.https = 1;
+      cmd_input.keystore_file = argv[optind++];
+      cmd_input.truststore_file = argv[optind++];
+    } else {
+      cmd_input.https = 0;
+    }
     cmd_input.pid_file = argv[optind++];
     cmd_input.local_dirs = argv[optind++];// good local dirs as a comma separated list
     cmd_input.log_dirs = argv[optind++];// good log dirs as a comma separated list
@@ -464,7 +481,7 @@ static int validate_run_as_user_commands(int argc, char **argv, int *operation) 
     }
 
     //network isolation through tc
-    if (argc == 14) {
+    if ((argc == 15 && !cmd_input.https) || (argc == 17 && cmd_input.https)) {
       if(is_tc_support_enabled()) {
         cmd_input.traffic_control_command_file = argv[optind++];
       } else {
@@ -595,6 +612,9 @@ int main(int argc, char **argv) {
                       cmd_input.current_dir,
                       cmd_input.script_file,
                       cmd_input.cred_file,
+                      cmd_input.https,
+                      cmd_input.keystore_file,
+                      cmd_input.truststore_file,
                       cmd_input.pid_file,
                       split(cmd_input.local_dirs),
                       split(cmd_input.log_dirs),
@@ -623,6 +643,9 @@ int main(int argc, char **argv) {
                     cmd_input.current_dir,
                     cmd_input.script_file,
                     cmd_input.cred_file,
+                    cmd_input.https,
+                    cmd_input.keystore_file,
+                    cmd_input.truststore_file,
                     cmd_input.pid_file,
                     split(cmd_input.local_dirs),
                     split(cmd_input.log_dirs),

@@ -83,6 +83,7 @@ import org.apache.hadoop.yarn.server.nodemanager.executor.ContainerPrepareContex
 import org.apache.hadoop.yarn.server.nodemanager.executor.ContainerSignalContext;
 import org.apache.hadoop.yarn.server.nodemanager.executor.ContainerStartContext;
 import org.apache.hadoop.yarn.server.nodemanager.util.ProcessIdFileReader;
+import org.apache.hadoop.yarn.server.security.AMSecretKeys;
 import org.apache.hadoop.yarn.util.Apps;
 import org.apache.hadoop.yarn.util.AuxiliaryServiceHelper;
 
@@ -103,6 +104,9 @@ public class ContainerLaunch implements Callable<Integer> {
     Shell.appendScriptExtension("launch_container");
 
   public static final String FINAL_CONTAINER_TOKENS_FILE = "container_tokens";
+
+  public static final String KEYSTORE_FILE = "yarn_provided.keystore";
+  public static final String TRUSTSTORE_FILE = "yarn_provided.truststore";
 
   private static final String PID_FILE_NAME_FMT = "%s.pid";
   private static final String EXIT_CODE_FILE_SUFFIX = ".exitcode";
@@ -218,6 +222,12 @@ public class ContainerLaunch implements Callable<Integer> {
           getContainerPrivateDir(appIdStr, containerIdStr) + Path.SEPARATOR
               + String.format(ContainerLocalizer.TOKEN_FILE_NAME_FMT,
               containerIdStr));
+      Path nmPrivateKeystorePath = dirsHandler.getLocalPathForWrite(
+          getContainerPrivateDir(appIdStr, containerIdStr) + Path.SEPARATOR
+              + KEYSTORE_FILE);
+      Path nmPrivateTruststorePath = dirsHandler.getLocalPathForWrite(
+          getContainerPrivateDir(appIdStr, containerIdStr) + Path.SEPARATOR
+              + TRUSTSTORE_FILE);
       Path nmPrivateClasspathJarDir = dirsHandler.getLocalPathForWrite(
           getContainerPrivateDir(appIdStr, containerIdStr));
 
@@ -247,6 +257,44 @@ public class ContainerLaunch implements Callable<Integer> {
         Path userdir = new Path(usersdir, user);
         Path appsdir = new Path(userdir, ContainerLocalizer.APPCACHE);
         appDirs.add(new Path(appsdir, appIdStr));
+      }
+
+      byte[] keystore = container.getCredentials().getSecretKey(
+          AMSecretKeys.YARN_APPLICATION_AM_KEYSTORE);
+      if (keystore != null) {
+        try (DataOutputStream keystoreOutStream =
+                 lfs.create(nmPrivateKeystorePath,
+                     EnumSet.of(CREATE, OVERWRITE))) {
+          keystoreOutStream.write(keystore);
+          environment.put(ApplicationConstants.KEYSTORE_FILE_LOCATION_ENV_NAME,
+              new Path(containerWorkDir,
+                  ContainerLaunch.KEYSTORE_FILE).toUri().getPath());
+          environment.put(ApplicationConstants.KEYSTORE_PASSWORD_ENV_NAME,
+              new String(container.getCredentials().getSecretKey(
+                  AMSecretKeys.YARN_APPLICATION_AM_KEYSTORE_PASSWORD),
+                  StandardCharsets.UTF_8));
+        }
+      } else {
+        nmPrivateKeystorePath = null;
+      }
+      byte[] truststore = container.getCredentials().getSecretKey(
+          AMSecretKeys.YARN_APPLICATION_AM_TRUSTSTORE);
+      if (truststore != null) {
+        try (DataOutputStream truststoreOutStream =
+                 lfs.create(nmPrivateTruststorePath,
+                     EnumSet.of(CREATE, OVERWRITE))) {
+          truststoreOutStream.write(truststore);
+          environment.put(
+              ApplicationConstants.TRUSTSTORE_FILE_LOCATION_ENV_NAME,
+              new Path(containerWorkDir,
+                  ContainerLaunch.TRUSTSTORE_FILE).toUri().getPath());
+          environment.put(ApplicationConstants.TRUSTSTORE_PASSWORD_ENV_NAME,
+              new String(container.getCredentials().getSecretKey(
+                  AMSecretKeys.YARN_APPLICATION_AM_TRUSTSTORE_PASSWORD),
+                  StandardCharsets.UTF_8));
+        }
+      } else {
+        nmPrivateTruststorePath = null;
       }
 
       // Set the token location too.
@@ -284,6 +332,8 @@ public class ContainerLaunch implements Callable<Integer> {
           .setLocalizedResources(localResources)
           .setNmPrivateContainerScriptPath(nmPrivateContainerScriptPath)
           .setNmPrivateTokensPath(nmPrivateTokensPath)
+          .setNmPrivateKeystorePath(nmPrivateKeystorePath)
+          .setNmPrivateTruststorePath(nmPrivateTruststorePath)
           .setUser(user)
           .setAppId(appIdStr)
           .setContainerWorkDir(containerWorkDir)
