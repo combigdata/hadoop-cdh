@@ -41,8 +41,10 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.metrics2.lib.DefaultMetricsSystem;
+import org.apache.hadoop.metrics2.util.MBeans;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.SecurityUtil;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.service.CompositeService;
 import org.apache.hadoop.util.ExitUtil;
 import org.apache.hadoop.util.GenericOptionsParser;
@@ -87,8 +89,8 @@ import org.apache.hadoop.yarn.server.security.ApplicationACLsManager;
 
 import com.google.common.annotations.VisibleForTesting;
 
-public class NodeManager extends CompositeService 
-    implements EventHandler<NodeManagerEvent> {
+public class NodeManager extends CompositeService
+    implements EventHandler<NodeManagerEvent>, NodeManagerMXBean {
 
   /**
    * Node manager return status codes.
@@ -437,6 +439,8 @@ public class NodeManager extends CompositeService
     addService(nodeStatusUpdater);
     ((NMContext) context).setNodeStatusUpdater(nodeStatusUpdater);
     nmStore.setNodeStatusUpdater(nodeStatusUpdater);
+
+    registerMXBean();
 
     super.serviceInit(conf);
     // TODO add local dirs to del
@@ -852,7 +856,19 @@ public class NodeManager extends CompositeService
       LOG.warn("Invalid shutdown event " + event.getType() + ". Ignoring.");
     }
   }
-  
+
+  /**
+   * Register NodeManagerMXBean.
+   */
+  private void registerMXBean() {
+    MBeans.register("NodeManager", "NodeManager", this);
+  }
+
+  @Override
+  public boolean isSecurityEnabled() {
+    return UserGroupInformation.isSecurityEnabled();
+  }
+
   // For testing
   NodeManager createNewNodeManager() {
     return new NodeManager();
@@ -862,7 +878,7 @@ public class NodeManager extends CompositeService
   ContainerManagerImpl getContainerManager() {
     return containerManager;
   }
-  
+
   //For testing
   Dispatcher getNMDispatcher(){
     return dispatcher;

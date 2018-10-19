@@ -3160,6 +3160,11 @@ public class DataNode extends ReconfigurableBase
     }
   }
 
+  @Override
+  public boolean isSecurityEnabled() {
+    return UserGroupInformation.isSecurityEnabled();
+  }
+
   public void refreshNamenodes(Configuration conf) throws IOException {
     blockPoolManager.refreshNamenodes(conf);
   }

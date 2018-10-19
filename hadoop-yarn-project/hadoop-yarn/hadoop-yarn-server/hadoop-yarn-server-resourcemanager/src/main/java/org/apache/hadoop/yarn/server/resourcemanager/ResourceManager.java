@@ -30,6 +30,7 @@ import org.apache.hadoop.http.HttpServer2;
 import org.apache.hadoop.metrics2.MetricsSystem;
 import org.apache.hadoop.metrics2.lib.DefaultMetricsSystem;
 import org.apache.hadoop.metrics2.source.JvmMetrics;
+import org.apache.hadoop.metrics2.util.MBeans;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.security.Groups;
 import org.apache.hadoop.security.SecurityUtil;
@@ -133,7 +134,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  */
 @SuppressWarnings("unchecked")
-public class ResourceManager extends CompositeService implements Recoverable {
+public class ResourceManager extends CompositeService
+        implements Recoverable, ResourceManagerMXBean {
 
   /**
    * Priority of the ResourceManager shutdown hook.
@@ -322,6 +324,8 @@ public class ResourceManager extends CompositeService implements Recoverable {
         createSystemMetricsPublisher();
     addIfService(systemMetricsPublisher);
     rmContext.setSystemMetricsPublisher(systemMetricsPublisher);
+
+    registerMXBean();
 
     super.serviceInit(this.conf);
   }
@@ -1523,5 +1527,17 @@ public class ResourceManager extends CompositeService implements Recoverable {
 
   protected RMAppLifetimeMonitor createRMAppLifetimeMonitor() {
     return new RMAppLifetimeMonitor(this.rmContext);
+  }
+
+  /**
+   * Register ResourceManagerMXBean.
+   */
+  private void registerMXBean() {
+    MBeans.register("ResourceManager", "ResourceManager", this);
+  }
+
+  @Override
+  public boolean isSecurityEnabled() {
+    return UserGroupInformation.isSecurityEnabled();
   }
 }

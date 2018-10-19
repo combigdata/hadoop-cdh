@@ -15,51 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.hadoop.hdfs.server.namenode;
+
+package org.apache.hadoop.yarn.server.resourcemanager;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 
 /**
- * JMX information of the secondary NameNode
+ * This is the JMX management interface for ResourceManager.
+ * End users shouldn't be implementing these interfaces, and instead
+ * access this information through the JMX APIs.
  */
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
-public interface SecondaryNameNodeInfoMXBean extends VersionInfoMXBean {
-  /**
-   * Gets the host and port colon separated.
-   */
-  public String getHostAndPort();
-
+public interface ResourceManagerMXBean {
   /**
    * Gets if security is enabled.
    *
    * @return true, if security is enabled.
-   */
+   * */
   boolean isSecurityEnabled();
-
-  /**
-   * @return the timestamp of when the SNN starts
-   */
-  public long getStartTime();
-
-  /**
-   * @return the timestamp of the last checkpoint
-   */
-  public long getLastCheckpointTime();
-
-  /**
-   * @return the number of msec since the last checkpoint, or -1 if no
-   * checkpoint has been done yet.
-   */
-  public long getLastCheckpointDeltaMs();
-
-  /**
-   * @return the directories that store the checkpoint images
-   */
-  public String[] getCheckpointDirectories();
-  /**
-   * @return the directories that store the edit logs
-   */
-  public String[] getCheckpointEditlogDirectories();
 }
