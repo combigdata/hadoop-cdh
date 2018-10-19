@@ -3485,7 +3485,8 @@
   <property>
     <description>
       Enable additional discovery/isolation of resources on the NodeManager,
-      split by comma. By default, this is empty. Acceptable values: { "yarn-io/gpu" }.
+      split by comma. By default, this is empty.
+      Acceptable values: { "yarn.io/gpu", "yarn.io/fpga"}.
     </description>
     <name>yarn.nodemanager.resource-plugins</name>
     <value></value>
@@ -3531,5 +3532,4 @@
     <name>yarn.nodemanager.resource-plugins.gpu.docker-plugin.nvidia-docker-v1.endpoint</name>
     <value>http://localhost:3476/v1.0/docker/cli</value>
   </property>
-
 </configuration>
