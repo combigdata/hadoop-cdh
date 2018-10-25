@@ -52,6 +52,7 @@ import org.apache.hadoop.test.MultithreadedTestUtil.TestContext;
 import org.apache.hadoop.test.MultithreadedTestUtil.TestingThread;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.common.base.Supplier;
@@ -122,7 +123,8 @@ public class TestMRZKFailoverController extends ClientBaseWithFixes {
       ctx.stop();
     }
   }
-  
+
+  @Ignore
   @Test(timeout=60000)
   public void testFailoverWhileRunningJob() throws Exception {
     LOG.info("Running job failover test");
@@ -161,7 +163,8 @@ public class TestMRZKFailoverController extends ClientBaseWithFixes {
     }
     assertTrue("Job should be successful", rJob1.isSuccessful());
   }
-  
+
+  @Ignore
   @Test(timeout=60000)
   public void testManualFailover() throws Exception {
     LOG.info("Running manual failover test");
@@ -173,7 +176,8 @@ public class TestMRZKFailoverController extends ClientBaseWithFixes {
     waitForHAState(0, HAServiceState.ACTIVE);
     waitForHAState(1, HAServiceState.STANDBY);
   }
-  
+
+  @Ignore
   @Test(timeout=60000)
   public void testManualFailoverWithMRHAAdmin() throws Exception {
     LOG.info("Running manual failover test with MRHAAdmin");

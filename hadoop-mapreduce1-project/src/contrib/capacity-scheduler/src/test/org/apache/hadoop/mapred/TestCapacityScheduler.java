@@ -3229,7 +3229,7 @@ public class TestCapacityScheduler extends TestCase {
    * 
    * @throws IOException
    */
-  public void testQueueOrdering()
+  public void ignore_testQueueOrdering()
       throws IOException {
     taskTrackerManager = new FakeTaskTrackerManager(2, 6, 6);
     scheduler.setTaskTrackerManager(taskTrackerManager);
