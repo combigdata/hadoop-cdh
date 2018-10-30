@@ -19,7 +19,7 @@ function cleanup_setup_file {
 }
 trap cleanup_setup_file EXIT
 
-curl http://github.mtv.cloudera.com/raw/cdh/cdh/cdh6.x/tools/gerrit-unittest-setup.sh -o "$SETUP_FILE"
+curl http://github.mtv.cloudera.com/raw/cdh/cdh/cdh6.1.0/tools/gerrit-unittest-setup.sh -o "$SETUP_FILE"
 source "$SETUP_FILE"
 
 # Build the project
