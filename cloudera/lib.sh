@@ -55,7 +55,7 @@ function runAllTests() {
   echo Running all tests in ${_POM} with ${_MAVEN_FLAGS}
   echo ----
   echo
-  mvn -Pcloudera-unittest -f ${_POM} -e findbugs:findbugs checkstyle:checkstyle test ${_MAVEN_FLAGS} -Dtest.excludes.file=
+  mvn -Pcloudera-unittest -e findbugs:findbugs checkstyle:checkstyle test ${_MAVEN_FLAGS} -Dtest.excludes.file=
 }
 
 # Run all the tests with code coverage. Will also upload the results to http://sonar.jenkins.cloudera.com:9000.
