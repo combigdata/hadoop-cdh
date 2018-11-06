@@ -82,8 +82,9 @@ import com.google.common.collect.Maps;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.UnhandledException;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.hdfs.tools.DFSck;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.crypto.key.KeyProvider;
 import org.apache.hadoop.fs.BlockLocation;
@@ -192,7 +193,7 @@ import com.google.common.annotations.VisibleForTesting;
 /** Utilities for HDFS tests */
 public class DFSTestUtil {
 
-  private static final Log LOG = LogFactory.getLog(DFSTestUtil.class);
+  private static final Logger LOG = LoggerFactory.getLogger(DFSTestUtil.class);
   
   private static final Random gen = new Random();
   private static final String[] dirNames = {
@@ -2381,5 +2382,26 @@ public class DFSTestUtil {
       }
     }
     return closedFiles;
+  }
+
+  /**
+   * Run the fsck command using the specified params.
+   *
+   * @param conf HDFS configuration to use
+   * @param expectedErrCode The error code expected to be returned by
+   *                         the fsck command
+   * @param checkErrorCode Should the error code be checked
+   * @param path actual arguments to the fsck command
+   **/
+  public static String runFsck(Configuration conf, int expectedErrCode,
+                        boolean checkErrorCode, String... path)
+          throws Exception {
+    ByteArrayOutputStream bStream = new ByteArrayOutputStream();
+    PrintStream out = new PrintStream(bStream, true);
+    int errCode = ToolRunner.run(new DFSck(conf, out), path);
+    if (checkErrorCode) {
+      assertEquals(expectedErrCode, errCode);
+    }
+    return bStream.toString();
   }
 }
