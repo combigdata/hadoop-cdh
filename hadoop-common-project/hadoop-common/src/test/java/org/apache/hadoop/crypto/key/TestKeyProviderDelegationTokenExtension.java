@@ -51,27 +51,23 @@ public class TestKeyProviderDelegationTokenExtension {
         KeyProviderDelegationTokenExtension
         .createKeyProviderDelegationTokenExtension(kp);
     Assert.assertNotNull(kpDTE1);
-    Token<?>[] tokens = kpDTE1.addDelegationTokens("user", credentials);
-    // Default implementation should return no tokens.
-    Assert.assertNotNull(tokens);
-    Assert.assertEquals(0, tokens.length);
+    // Default implementation should be a no-op and return null
+    Assert.assertNull(kpDTE1.addDelegationTokens("user", credentials));
     
     MockKeyProvider mock = mock(MockKeyProvider.class);
     Mockito.when(mock.getConf()).thenReturn(new Configuration());
-    when(mock.getCanonicalServiceName()).thenReturn("cservice");
-    when(mock.getDelegationToken("renewer")).thenReturn(
-        new Token(null, null, new Text("kind"), new Text(
-            "tservice"))
+    when(mock.addDelegationTokens("renewer", credentials)).thenReturn(
+        new Token<?>[]{new Token(null, null, new Text("kind"), new Text(
+            "service"))}
     );
     KeyProviderDelegationTokenExtension kpDTE2 =
         KeyProviderDelegationTokenExtension
         .createKeyProviderDelegationTokenExtension(mock);
-    tokens = kpDTE2.addDelegationTokens("renewer", credentials);
+    Token<?>[] tokens = 
+        kpDTE2.addDelegationTokens("renewer", credentials);
     Assert.assertNotNull(tokens);
-    Assert.assertEquals(1, tokens.length);
     Assert.assertEquals("kind", tokens[0].getKind().toString());
-    Assert.assertEquals("tservice", tokens[0].getService().toString());
-    Assert.assertNotNull(credentials.getToken(new Text("cservice")));
+    
   }
 
 }
