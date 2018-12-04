@@ -918,6 +918,20 @@ public class ClientRMService extends AbstractService implements
           callerUGI.getUserName(), allowAccess));
     }
 
+    if (reports.isEmpty()) {
+      // Debug messages for OPSAPS-45850
+      LOG.info("Found no applications for query: " +
+          "users:" + users == null ? "" : String.join(",", users) +
+          "; queues: " + queues == null ? "" : String.join(",", queues) +
+          "; tags:" + tags == null ? "" : String.join(",", tags) +
+          "; types: " + applicationTypes == null ? "" : String.join(",", applicationTypes) +
+          "; states: " + applicationStates +
+          "; start after: " + start +
+          "; finish before: " + finish +
+          "; scope: " + scope + "" +
+          "; limit: " + limit);
+    }
+
     RMAuditLogger.logSuccess(callerUGI.getUserName(),
         AuditConstants.GET_APPLICATIONS_REQUEST, "ClientRMService");
     GetApplicationsResponse response =
