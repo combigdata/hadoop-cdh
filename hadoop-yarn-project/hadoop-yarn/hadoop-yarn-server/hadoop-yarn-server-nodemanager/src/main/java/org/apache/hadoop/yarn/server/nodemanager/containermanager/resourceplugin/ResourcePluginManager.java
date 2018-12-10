@@ -28,6 +28,8 @@ import org.apache.hadoop.yarn.server.nodemanager.containermanager.resourceplugin
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -50,6 +52,11 @@ public class ResourcePluginManager {
       throws YarnException {
     Configuration conf = context.getConf();
     String[] plugins = conf.getStrings(YarnConfiguration.NM_RESOURCE_PLUGINS);
+    if (plugins == null || plugins.length == 0) {
+      LOG.info("No Resource plugins found from configuration!");
+    }
+    LOG.info("Found Resource plugins from configuration: "
+        + Arrays.toString(plugins));
 
     if (plugins != null) {
       Map<String, ResourcePlugin> pluginMap = new HashMap<>();
@@ -61,14 +68,14 @@ public class ResourcePluginManager {
           String msg =
               "Trying to initialize resource plugin with name=" + resourceName
                   + ", it is not supported, list of supported plugins:"
-                  + StringUtils.join(",",
-                  SUPPORTED_RESOURCE_PLUGINS);
+                  + StringUtils.join(",", SUPPORTED_RESOURCE_PLUGINS);
           LOG.error(msg);
           throw new YarnException(msg);
         }
 
         if (pluginMap.containsKey(resourceName)) {
-          // Duplicated items, ignore ...
+          LOG.warn("Ignoring duplicate Resource plugin definition: " +
+              resourceName);
           continue;
         }
 
@@ -83,6 +90,7 @@ public class ResourcePluginManager {
                   + " should be loaded and initialized");
         }
         plugin.initialize(context);
+        LOG.info("Initialized plugin {}", plugin);
         pluginMap.put(resourceName, plugin);
       }
 
