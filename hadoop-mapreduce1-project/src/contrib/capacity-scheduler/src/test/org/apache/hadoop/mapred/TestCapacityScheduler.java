@@ -1123,50 +1123,6 @@ public class TestCapacityScheduler extends TestCase {
       assertEquals(tasks.size(), 1);
   }
 
-  public void testMultiTaskAssignmentInMultipleQueues() throws Exception {
-      setUp(1, 4, 2);
-      // set up some queues
-      String[] qs = {"q1","q2"};
-      taskTrackerManager.addQueues(qs);
-      ArrayList<FakeQueueInfo> queues = new ArrayList<FakeQueueInfo>();
-      queues.add(new FakeQueueInfo("q1", 50.0f, true, 25));
-      queues.add(new FakeQueueInfo("q2", 50.0f, true, 25));
-      resConf.setFakeQueues(queues);
-      resConf.setUserLimitFactor("q1", 4);
-      resConf.setUserLimitFactor("q2", 4);
-      scheduler.setResourceManagerConf(resConf);
-      scheduler.start();
-
-      System.err.println("testMultiTaskAssignmentInMultipleQueues");
-      //Submit the job with 6 maps and 2 reduces
-      FakeJobInProgress j1 = 
-        submitJobAndInit(JobStatus.PREP, 6, 1, "q1", "u1");
-      FakeJobInProgress j2 = 
-        submitJobAndInit(JobStatus.PREP,2,1,"q2","u2");
-
-      List<Task> tasks = checkAssignments("tt1", 
-          new String[] {"attempt_test_0002_m_000001_0 on tt1",
-                        "attempt_test_0001_m_000001_0 on tt1",
-                        "attempt_test_0001_m_000002_0 on tt1",
-                        "attempt_test_0002_m_000002_0 on tt1",
-                        "attempt_test_0002_r_000001_0 on tt1",
-                        });
-      //Now finish the tasks
-      for (Task task : tasks) {
-        FakeJobInProgress j = 
-          (task.getTaskID().getJobID().getId() == 1) ? j1 : j2;
-        taskTrackerManager.finishTask("tt1", task.getTaskID().toString(), j);
-      }
-
-      checkAssignments("tt1", 
-          new String[] {"attempt_test_0001_m_000003_0 on tt1",
-                        "attempt_test_0001_m_000004_0 on tt1",
-                        "attempt_test_0001_m_000005_0 on tt1",
-                        "attempt_test_0001_m_000006_0 on tt1",
-                        "attempt_test_0001_r_000001_0 on tt1",
-                        });
-  }
-
   // basic tests, should be able to submit to queues
   public void testSubmitToQueues() throws Exception {
     // set up some queues
