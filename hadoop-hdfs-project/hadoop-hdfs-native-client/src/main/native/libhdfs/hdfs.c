@@ -25,7 +25,6 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
-#include <time.h>
 
 /* Some frequently used Java paths */
 #define HADOOP_CONF     "org/apache/hadoop/conf/Configuration"
@@ -1183,9 +1182,6 @@ static hdfsFile hdfsOpenFileImpl(hdfsFS fs, const char *path, int flags,
                   "hdfsOpenFile(%s): WARN: Unexpected error %d when testing "
                   "for direct read compatibility\n", path, errno);
         }
-        if (errno != 0) {
-          file->flags &= ~HDFS_FILE_SUPPORTS_DIRECT_READ;
-        }
     }
     ret = 0;
 
@@ -1466,10 +1462,6 @@ tSize hdfsRead(hdfsFS fs, hdfsFile f, void* buffer, tSize length)
     return jVal.i;
 }
 
-#define MAX_ERR_CNT  5
-#define MAX_DIFF_TIME_PRNTERR 300
-static time_t last_reported_err_time = 0;
-static long last_reported_err_cnt = 0;
 // Reads using the read(ByteBuffer) API, which does fewer copies
 tSize readDirect(hdfsFS fs, hdfsFile f, void* buffer, tSize length)
 {
@@ -1505,27 +1497,21 @@ tSize readDirect(hdfsFS fs, hdfsFile f, void* buffer, tSize length)
         HADOOP_ISTRM, "read", "(Ljava/nio/ByteBuffer;)I", bb);
     destroyLocalReference(env, bb);
     if (jthr) {
-       if (f->flags & HDFS_FILE_SUPPORTS_DIRECT_READ) {
-          time_t seconds_now;
-          time(&seconds_now);
-          long diff_time = seconds_now - last_reported_err_time;
-
-          // Reset the error count once we reach the max time window.
-          if (diff_time  > MAX_DIFF_TIME_PRNTERR) {
-            last_reported_err_cnt = 0;
-          }
-
-          // Print the error if the number of error messages are less than
-          // the error count or we have exceeded the time window since
-          // the last error message was printed.
-          if (last_reported_err_cnt < MAX_ERR_CNT) {
-            errno = printExceptionAndFree(env, jthr, PRINT_EXC_ALL,
-                "readDirect: FSDataInputStream#read");
-            time(&last_reported_err_time);
-            last_reported_err_cnt++;
-          }
-       }
-       return -1;
+      if (f->flags & HDFS_FILE_SUPPORTS_DIRECT_READ) {
+        errno = printExceptionAndFree(env, jthr, PRINT_EXC_ALL,
+            "readDirect: FSDataInputStream#read");
+      } else {
+        // If the HDFS_FILE_SUPPORTS_DIRECT_READ is not set in the
+        // hdfs file handle, it means that this is a test to see if
+        // direct read can be done, called from hdfsOpenFIleImpl().
+        // In the cloud environment where byte buffered read is not
+        // supported the error log is filled with Exception of type
+        // UnspportedOperation. The change below prevents the excessive
+        // printing of the error message in cloud environment.
+        errno = printExceptionAndFree(env, jthr, NOPRINT_EXC_OPERATION_NOTSUPPORTED,
+              "readDirect: FSDataInputStream#read");
+      }
+      return -1;
     }
     return (jVal.i < 0) ? 0 : jVal.i;
 }
