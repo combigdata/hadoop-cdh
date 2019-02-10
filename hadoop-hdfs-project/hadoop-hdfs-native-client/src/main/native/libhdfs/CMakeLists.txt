@@ -56,7 +56,6 @@ set_target_properties(hdfs PROPERTIES
 
 build_libhdfs_test(test_libhdfs_ops hdfs_static test_libhdfs_ops.c)
 link_libhdfs_test(test_libhdfs_ops hdfs_static ${JAVA_JVM_LIBRARY})
-add_libhdfs_test(test_libhdfs_ops hdfs_static)
 build_libhdfs_test(test_libhdfs_reads hdfs_static test_libhdfs_read.c)
 link_libhdfs_test(test_libhdfs_reads hdfs_static ${JAVA_JVM_LIBRARY})
 build_libhdfs_test(test_libhdfs_write hdfs_static test_libhdfs_write.c)
