@@ -1497,21 +1497,9 @@ tSize readDirect(hdfsFS fs, hdfsFile f, void* buffer, tSize length)
         HADOOP_ISTRM, "read", "(Ljava/nio/ByteBuffer;)I", bb);
     destroyLocalReference(env, bb);
     if (jthr) {
-      if (f->flags & HDFS_FILE_SUPPORTS_DIRECT_READ) {
         errno = printExceptionAndFree(env, jthr, PRINT_EXC_ALL,
             "readDirect: FSDataInputStream#read");
-      } else {
-        // If the HDFS_FILE_SUPPORTS_DIRECT_READ is not set in the
-        // hdfs file handle, it means that this is a test to see if
-        // direct read can be done, called from hdfsOpenFIleImpl().
-        // In the cloud environment where byte buffered read is not
-        // supported the error log is filled with Exception of type
-        // UnspportedOperation. The change below prevents the excessive
-        // printing of the error message in cloud environment.
-        errno = printExceptionAndFree(env, jthr, NOPRINT_EXC_OPERATION_NOTSUPPORTED,
-              "readDirect: FSDataInputStream#read");
-      }
-      return -1;
+        return -1;
     }
     return (jVal.i < 0) ? 0 : jVal.i;
 }
