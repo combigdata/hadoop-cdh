@@ -113,7 +113,9 @@ fi
 ## need to DL, etc
 ##
 
-BASEURL="https://archive.apache.org/dist/yetus/${HADOOP_YETUS_VERSION}/"
+YETUS_MIRROR=${YETUS_MIRROR:-"https://archive.apache.org/dist/yetus"}
+YETUS_KEYS_MIRROR=${YETUS_KEYS_MIRROR:-"https://dist.apache.org/repos/dist/release/yetus"}
+BASEURL="${YETUS_MIRROR}/${HADOOP_YETUS_VERSION}/"
 TARBALL="yetus-${HADOOP_YETUS_VERSION}-bin.tar"
 
 GPGBIN=$(command -v gpg)
@@ -143,8 +145,8 @@ if [[ -n "${GPGBIN}" ]]; then
     yetus_error "ERROR: yetus-dl: Unable to chmod ${HADOOP_PATCHPROCESS}/.gpg"
     exit 1
   fi
-  if ! "${CURLBIN}" -s -L -o KEYS_YETUS https://dist.apache.org/repos/dist/release/yetus/KEYS; then
-    yetus_error "ERROR: yetus-dl: unable to fetch https://dist.apache.org/repos/dist/release/yetus/KEYS"
+  if ! "${CURLBIN}" -s -L -o KEYS_YETUS "${YETUS_KEYS_MIRROR}/KEYS"; then
+    yetus_error "ERROR: yetus-dl: unable to fetch ${YETUS_KEYS_MIRROR}/KEYS"
     exit 1
   fi
   if ! "${CURLBIN}" -s -L -O "${BASEURL}/${TARBALL}.gz.asc"; then
