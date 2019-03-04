@@ -2515,7 +2515,7 @@ int hadoopRzOptionsSetByteBufferPool(
         // Delete any previous ByteBufferPool we had.
         (*env)->DeleteGlobalRef(env, opts->byteBufferPool);
     }
-    opts->byteBufferPool = byteBufferPool;
+    opts->byteBufferPool = (*env)->NewGlobalRef(env, byteBufferPool);
     return 0;
 }
 
