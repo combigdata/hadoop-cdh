@@ -535,6 +535,7 @@ public class TestContainerManagerRecovery extends BaseContainerManagerTest {
     cm.stop();
     context = createContext(conf, stateStore);
     cm = createContainerManager(context);
+    ((NMContext) context).setContainerManager(cm);
     cm.init(conf);
     cm.start();
     assertEquals(1, context.getApplications().size());
