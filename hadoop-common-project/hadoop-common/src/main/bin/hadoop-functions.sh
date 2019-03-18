@@ -2328,6 +2328,10 @@ function hadoop_verify_user_perm
   declare command=$2
   declare uvar
 
+  if [[ ${command} =~ \. ]]; then
+    return 1
+  fi
+
   uvar=$(hadoop_build_custom_subcmd_var "${program}" "${command}" USER)
 
   if [[ -n ${!uvar} ]]; then
@@ -2356,6 +2360,10 @@ function hadoop_need_reexec
   # we've already been re-execed, bail
 
   if [[ "${HADOOP_REEXECED_CMD}" = true ]]; then
+    return 1
+  fi
+
+  if [[ ${command} =~ \. ]]; then
     return 1
   fi
 
@@ -2392,6 +2400,10 @@ function hadoop_subcommand_opts
   declare ucommand
 
   if [[ -z "${program}" || -z "${command}" ]]; then
+    return 1
+  fi
+
+  if [[ ${command} =~ \. ]]; then
     return 1
   fi
 
