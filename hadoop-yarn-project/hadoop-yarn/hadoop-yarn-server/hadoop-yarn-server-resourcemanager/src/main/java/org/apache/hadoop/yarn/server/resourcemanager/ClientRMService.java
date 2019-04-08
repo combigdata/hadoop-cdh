@@ -921,10 +921,10 @@ public class ClientRMService extends AbstractService implements
     if (reports.isEmpty()) {
       // Debug messages for OPSAPS-45850
       LOG.info("Found no applications for query: " +
-          "users:" + users == null ? "" : String.join(",", users) +
-          "; queues: " + queues == null ? "" : String.join(",", queues) +
-          "; tags:" + tags == null ? "" : String.join(",", tags) +
-          "; types: " + applicationTypes == null ? "" : String.join(",", applicationTypes) +
+          "users:" + (users == null ? "" : String.join(",", users)) +
+          "; queues: " + (queues == null ? "" : String.join(",", queues)) +
+          "; tags:" + (tags == null ? "" : String.join(",", tags)) +
+          "; types: " + (applicationTypes == null ? "" : String.join(",", applicationTypes)) +
           "; states: " + applicationStates +
           "; start after: " + start +
           "; finish before: " + finish +
