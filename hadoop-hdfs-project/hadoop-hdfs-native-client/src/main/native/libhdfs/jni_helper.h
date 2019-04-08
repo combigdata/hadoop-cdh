@@ -30,6 +30,30 @@
 
 #define PATH_SEPARATOR ':'
 
+/*
+ * Support export of DLL symbols during libhdfs build, and import of DLL symbols
+ * during client application build.  A client application may optionally define
+ * symbol LIBHDFS_DLL_IMPORT in its build.  This is not strictly required, but
+ * the compiler can produce more efficient code with it.
+ */
+#ifdef WIN32
+    #ifdef LIBHDFS_DLL_EXPORT
+        #define LIBHDFS_EXTERNAL __declspec(dllexport)
+    #elif LIBHDFS_DLL_IMPORT
+        #define LIBHDFS_EXTERNAL __declspec(dllimport)
+    #else
+        #define LIBHDFS_EXTERNAL
+    #endif
+#else
+    #ifdef LIBHDFS_DLL_EXPORT
+        #define LIBHDFS_EXTERNAL __attribute__((visibility("default")))
+    #elif LIBHDFS_DLL_IMPORT
+        #define LIBHDFS_EXTERNAL __attribute__((visibility("default")))
+    #else
+        #define LIBHDFS_EXTERNAL
+    #endif
+#endif
+
 /** Denote the method we want to invoke as STATIC or INSTANCE */
 typedef enum {
     STATIC,
@@ -129,6 +153,7 @@ jthrowable classNameOfObject(jobject jobj, JNIEnv *env, char **name);
  * @param: None.
  * @return The JNIEnv* corresponding to the thread.
  * */
+LIBHDFS_EXTERNAL
 JNIEnv* getJNIEnv(void);
 
 /**
