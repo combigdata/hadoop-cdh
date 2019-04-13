@@ -192,6 +192,11 @@ public interface ContractOptions {
   String SUPPORTS_POSITIONED_READABLE = "supports-positioned-readable";
 
   /**
+   * Indicates that FS supports unbuffer.
+   */
+  String SUPPORTS_UNBUFFER = "supports-unbuffer";
+
+  /**
    * Maximum path length
    * {@value}
    */
