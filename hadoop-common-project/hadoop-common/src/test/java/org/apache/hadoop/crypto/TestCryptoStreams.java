@@ -26,6 +26,7 @@ import java.nio.ByteBuffer;
 import java.util.EnumSet;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.ByteBufferPositionedReadable;
 import org.apache.hadoop.fs.ByteBufferReadable;
 import org.apache.hadoop.fs.CanSetDropBehind;
 import org.apache.hadoop.fs.CanSetReadahead;
@@ -181,7 +182,7 @@ public class TestCryptoStreams extends CryptoStreamsTestBase {
       implements Seekable, PositionedReadable, ByteBufferReadable,
                  HasFileDescriptor, CanSetDropBehind, CanSetReadahead,
                  HasEnhancedByteBufferAccess, CanUnbuffer,
-                 StreamCapabilities {
+                 StreamCapabilities, ByteBufferPositionedReadable {
     private final byte[] oneByteBuf = new byte[1];
     private int pos = 0;
     private final byte[] data;
@@ -305,6 +306,32 @@ public class TestCryptoStreams extends CryptoStreamsTestBase {
     }
 
     @Override
+    public int read(long position, ByteBuffer buf) throws IOException {
+      if (buf == null) {
+        throw new NullPointerException();
+      } else if (!buf.hasRemaining()) {
+        return 0;
+      }
+
+      if (position > length) {
+        throw new IOException("Cannot read after EOF.");
+      }
+      if (position < 0) {
+        throw new IOException("Cannot read to negative offset.");
+      }
+
+      checkStream();
+
+      if (position < length) {
+        int n = (int) Math.min(buf.remaining(), length - position);
+        buf.put(data, (int) position, n);
+        return n;
+      }
+
+      return -1;
+    }
+
+    @Override
     public void readFully(long position, byte[] b, int off, int len)
         throws IOException {
       if (b == null) {
@@ -379,6 +406,8 @@ public class TestCryptoStreams extends CryptoStreamsTestBase {
       case StreamCapabilities.READAHEAD:
       case StreamCapabilities.DROPBEHIND:
       case StreamCapabilities.UNBUFFER:
+      case StreamCapabilities.READBYTEBUFFER:
+      case StreamCapabilities.PREADBYTEBUFFER:
         return true;
       default:
         return false;
@@ -433,6 +462,8 @@ public class TestCryptoStreams extends CryptoStreamsTestBase {
     assertTrue(cis.hasCapability(StreamCapabilities.DROPBEHIND));
     assertTrue(cis.hasCapability(StreamCapabilities.READAHEAD));
     assertTrue(cis.hasCapability(StreamCapabilities.UNBUFFER));
+    assertTrue(cis.hasCapability(StreamCapabilities.READBYTEBUFFER));
+    assertTrue(cis.hasCapability(StreamCapabilities.PREADBYTEBUFFER));
     assertFalse(cis.hasCapability(StreamCapabilities.HFLUSH));
     assertFalse(cis.hasCapability(StreamCapabilities.HSYNC));
   }
