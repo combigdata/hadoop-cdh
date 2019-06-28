@@ -19,9 +19,7 @@ function cleanup_setup_file {
 }
 trap cleanup_setup_file EXIT
 
-BRANCH="${PRODUCT_BRANCH:-cdh6.x}"
-CDH_VERSION="${BRANCH%%_*}"
-curl https://github.infra.cloudera.com/raw/cdh/cdh/"$CDH_VERSION"/tools/gerrit-unittest-setup.sh -o "$SETUP_FILE"
+curl https://github.infra.cloudera.com/raw/cdh/cdh/cdh6.2.x/tools/gerrit-unittest-setup.sh -o "$SETUP_FILE"
 source "$SETUP_FILE"
 
 # Build the project
