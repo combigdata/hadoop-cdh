@@ -576,7 +576,7 @@ public class SimulatedFSDataset implements FsDatasetSpi<FsVolumeSpi> {
 
     @Override
     public StorageType getStorageType() {
-      return null;
+      return StorageType.DISK;
     }
 
     @Override
@@ -1160,7 +1160,7 @@ public class SimulatedFSDataset implements FsDatasetSpi<FsVolumeSpi> {
     return new ReplicaHandler(binfo, null);
   }
 
-  protected synchronized InputStream getBlockInputStream(ExtendedBlock b)
+  public synchronized InputStream getBlockInputStream(ExtendedBlock b)
       throws IOException {
     BInfo binfo = getBlockMap(b).get(b.getLocalBlock());
     if (binfo == null) {
