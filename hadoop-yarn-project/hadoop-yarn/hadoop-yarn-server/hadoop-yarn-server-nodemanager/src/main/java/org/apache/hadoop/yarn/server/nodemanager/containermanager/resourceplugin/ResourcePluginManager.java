@@ -58,7 +58,7 @@ public class ResourcePluginManager {
 
     Map<String, ResourcePlugin> pluginMap = Maps.newHashMap();
     if (plugins != null) {
-      pluginMap = initializePlugins(context, plugins);
+      pluginMap = initializePlugins(conf, context, plugins);
     }
 
     configuredPlugins = Collections.unmodifiableMap(pluginMap);
@@ -75,8 +75,7 @@ public class ResourcePluginManager {
     return plugins;
   }
 
-
-  private Map<String, ResourcePlugin> initializePlugins(
+  private Map<String, ResourcePlugin> initializePlugins(Configuration conf,
       Context context, String[] plugins) throws YarnException {
     Map<String, ResourcePlugin> pluginMap = Maps.newHashMap();
 
@@ -89,7 +88,7 @@ public class ResourcePluginManager {
         if (resourceName.equals(GPU_URI)) {
           final GpuDiscoverer gpuDiscoverer = new GpuDiscoverer();
           final GpuNodeResourceUpdateHandler updateHandler =
-              new GpuNodeResourceUpdateHandler(gpuDiscoverer);
+              new GpuNodeResourceUpdateHandler(gpuDiscoverer, conf);
           plugin = new GpuResourcePlugin(updateHandler, gpuDiscoverer);
         }
 
