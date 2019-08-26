@@ -576,7 +576,7 @@
       <dependency>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-compress</artifactId>
-        <version>1.4.1</version>
+        <version>${cdh.commons-compress.version}</version>
       </dependency>
       <!-- Commons Compress 1.4.1 depends on XZ Utils 1.0; forcing to 1.6 to
            harmonize with the version used by Apache Avro in CDH -->
