@@ -225,9 +225,4 @@ public class FileWithSnapshotFeature implements INode.Feature {
       file.collectBlocksBeyondSnapshot(snapshotBlocks,
                                        reclaimContext.collectedBlocks());
   }
-
-  @Override
-  public String toString() {
-    return "" + diffs;
-  }
 }
