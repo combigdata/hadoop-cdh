@@ -803,6 +803,7 @@ public class ClientRMService extends AbstractService implements
     LongRange start = request.getStartRange();
     LongRange finish = request.getFinishRange();
     ApplicationsRequestScope scope = request.getScope();
+    String name = request.getName();
 
     final Map<ApplicationId, RMApp> apps = rmContext.getRMApps();
     Iterator<RMApp> appsIter;
@@ -911,6 +912,10 @@ public class ClientRMService extends AbstractService implements
       // Given RM is configured to display apps per user, skip apps to which
       // this caller doesn't have access to view.
       if (displayPerUserApps && !allowAccess) {
+        continue;
+      }
+
+      if (name != null && !name.equals(application.getName())) {
         continue;
       }
 

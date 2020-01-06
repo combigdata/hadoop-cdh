@@ -449,6 +449,7 @@ public class RMWebServices extends WebServices implements RMWebServiceProtocol {
       @QueryParam(RMWSConsts.FINISHED_TIME_END) String finishEnd,
       @QueryParam(RMWSConsts.APPLICATION_TYPES) Set<String> applicationTypes,
       @QueryParam(RMWSConsts.APPLICATION_TAGS) Set<String> applicationTags,
+      @QueryParam(RMWSConsts.NAME) String name,
       @QueryParam(RMWSConsts.DESELECTS) Set<String> unselectedFields) {
     boolean checkCount = false;
     boolean checkStart = false;
@@ -577,6 +578,10 @@ public class RMWebServices extends WebServices implements RMWebServiceProtocol {
       Set<String> users = new HashSet<String>(1);
       users.add(userQuery);
       request.setUsers(users);
+    }
+
+    if (name != null) {
+      request.setName(name);
     }
 
     List<ApplicationReport> appReports = null;
